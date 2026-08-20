@@ -12,6 +12,9 @@ class Evolution2048Page extends StatefulWidget {
 
 class _Evolution2048PageState extends State<Evolution2048Page> {
   final _engine = GameEngine();
+  bool _shown2048Milestone = false;
+  bool _shown4096Milestone = false;
+  bool _is4096Challenge = false;
 
   void _move(String direction) {
     var changed = false;
@@ -28,38 +31,67 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     if (changed) setState(() {});
 
-    if (_engine.hasReached4096) {
+    if (_engine.hasReached4096 && !_shown4096Milestone) {
+      _shown4096Milestone = true;
       _showMilestone('4096', '海底人類');
-    } else if (_engine.hasReached2048) {
-      _showMilestone('2048', '藍鯨');
+    } else if (_engine.hasReached2048 && !_shown2048Milestone) {
+      _shown2048Milestone = true;
+      _show2048Unlock();
     } else if (_engine.gameOver) {
       _showGameOver();
     }
   }
 
   void _handleSwipe(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    if (details.primaryVelocity == null) return;
-
-    final direction = velocity.abs() < 50
-        ? null
-        : velocity < 0
-            ? 'up'
-            : 'down';
-
-    if (direction != null) {
-      _move(direction);
-    }
+    final velocity = details.primaryVelocity;
+    if (velocity == null || velocity.abs() < 50) return;
+    _move(velocity < 0 ? 'up' : 'down');
   }
 
   void _handleHorizontalSwipe(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() < 50) return;
+    final velocity = details.primaryVelocity;
+    if (velocity == null || velocity.abs() < 50) return;
     _move(velocity < 0 ? 'left' : 'right');
   }
 
   void _reset() {
-    setState(_engine.reset);
+    setState(() {
+      _engine.reset();
+      _shown2048Milestone = false;
+      _shown4096Milestone = false;
+      _is4096Challenge = false;
+    });
+  }
+
+  void _show2048Unlock() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('2048 · 藍鯨'),
+          content: const Text(
+            'Chapter 1 普通階段完成。\n\n'
+            '下一章已解鎖。\n'
+            'Chapter 1 的 4096 終極挑戰也已解鎖。',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() => _is4096Challenge = true);
+              },
+              child: const Text('進入 4096 挑戰'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('稍後'),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   void _showMilestone(String value, String name) {
@@ -70,11 +102,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         barrierDismissible: false,
         builder: (context) => AlertDialog(
           title: Text(value),
-          content: Text('$name 已誕生'),
+          content: Text('$name 已誕生。\n\nChapter 1 完整通關。'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('繼續'),
+              child: const Text('完成'),
             ),
           ],
         ),
@@ -109,7 +141,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rebirth 2048'),
+        title: Text(
+          _is4096Challenge
+              ? 'Chapter 1 · 4096 終極挑戰'
+              : 'Chapter 1 · Ocean',
+        ),
         actions: [
           IconButton(
             onPressed: _reset,
@@ -125,9 +161,12 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  'Chapter 1 · Ocean',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                Text(
+                  _is4096Challenge ? '4096 終極挑戰 · 禁止工具' : 'Chapter 1 · Ocean',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -150,8 +189,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                       ),
                       itemCount: 16,
                       itemBuilder: (context, index) {
-                        final tile = _engine.board.tiles[index];
-                        return _TileView(tile: tile);
+                        return _TileView(tile: _engine.board.tiles[index]);
                       },
                     ),
                   ),
