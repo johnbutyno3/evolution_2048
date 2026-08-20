@@ -15,8 +15,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   bool _shown2048Milestone = false;
   bool _shown4096Milestone = false;
   bool _is4096Challenge = false;
+  bool _isDialogOpen = false;
 
   void _move(String direction) {
+    if (_isDialogOpen) return;
+
     var changed = false;
     switch (direction) {
       case 'up':
@@ -42,16 +45,15 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
   }
 
-  void _handleSwipe(DragEndDetails details) {
-    final velocity = details.primaryVelocity;
-    if (velocity == null || velocity.abs() < 50) return;
-    _move(velocity < 0 ? 'up' : 'down');
-  }
+  void _handlePanEnd(DragEndDetails details) {
+    final velocity = details.velocity.pixelsPerSecond;
+    if (velocity.distance < 150) return;
 
-  void _handleHorizontalSwipe(DragEndDetails details) {
-    final velocity = details.primaryVelocity;
-    if (velocity == null || velocity.abs() < 50) return;
-    _move(velocity < 0 ? 'left' : 'right');
+    if (velocity.dx.abs() > velocity.dy.abs()) {
+      _move(velocity.dx < 0 ? 'left' : 'right');
+    } else {
+      _move(velocity.dy < 0 ? 'up' : 'down');
+    }
   }
 
   void _reset() {
@@ -60,13 +62,15 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _shown2048Milestone = false;
       _shown4096Milestone = false;
       _is4096Challenge = false;
+      _isDialogOpen = false;
     });
   }
 
-  void _show2048Unlock() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  Future<void> _show2048Unlock() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      showDialog<void>(
+      _isDialogOpen = true;
+      final enterChallenge = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
@@ -78,26 +82,29 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() => _is4096Challenge = true);
-              },
+              onPressed: () => Navigator.of(context).pop(true),
               child: const Text('進入 4096 挑戰'),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('稍後'),
             ),
           ],
         ),
       );
+      if (!mounted) return;
+      _isDialogOpen = false;
+      if (enterChallenge == true) {
+        setState(() => _is4096Challenge = true);
+      }
     });
   }
 
-  void _showMilestone(String value, String name) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  Future<void> _showMilestone(String value, String name) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      showDialog<void>(
+      _isDialogOpen = true;
+      await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
@@ -111,13 +118,15 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           ],
         ),
       );
+      if (mounted) _isDialogOpen = false;
     });
   }
 
-  void _showGameOver() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  Future<void> _showGameOver() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      showDialog<void>(
+      _isDialogOpen = true;
+      await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
@@ -134,6 +143,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           ],
         ),
       );
+      if (mounted) _isDialogOpen = false;
     });
   }
 
@@ -175,8 +185,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                 ),
                 const SizedBox(height: 20),
                 GestureDetector(
-                  onVerticalDragEnd: _handleSwipe,
-                  onHorizontalDragEnd: _handleHorizontalSwipe,
+                  behavior: HitTestBehavior.opaque,
+                  onPanEnd: _handlePanEnd,
                   child: AspectRatio(
                     aspectRatio: 1,
                     child: GridView.builder(
