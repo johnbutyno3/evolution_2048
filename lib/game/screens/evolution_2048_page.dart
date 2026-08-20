@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/game_tile.dart';
 import '../services/game_engine.dart';
@@ -12,6 +13,7 @@ class Evolution2048Page extends StatefulWidget {
 
 class _Evolution2048PageState extends State<Evolution2048Page> {
   final _engine = GameEngine();
+  final FocusNode _focusNode = FocusNode();
   Offset? _dragStart;
   bool _swipeHandled = false;
   bool _shown2048Milestone = false;
@@ -20,6 +22,38 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   bool _isDialogOpen = false;
 
   static const double _swipeThreshold = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    if (_isDialogOpen || event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final direction = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowUp => 'up',
+      LogicalKeyboardKey.arrowDown => 'down',
+      LogicalKeyboardKey.arrowLeft => 'left',
+      LogicalKeyboardKey.arrowRight => 'right',
+      _ => null,
+    };
+
+    if (direction == null) return KeyEventResult.ignored;
+    _move(direction);
+    return KeyEventResult.handled;
+  }
 
   void _handleDragStart(DragStartDetails details) {
     if (_isDialogOpen) return;
@@ -80,6 +114,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _dragStart = null;
       _swipeHandled = false;
     });
+    _focusNode.requestFocus();
   }
 
   Future<void> _show2048Unlock() async {
@@ -113,6 +148,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       if (enterChallenge == true) {
         setState(() => _is4096Challenge = true);
       }
+      _focusNode.requestFocus();
     });
   }
 
@@ -134,7 +170,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           ],
         ),
       );
-      if (mounted) _isDialogOpen = false;
+      if (mounted) {
+        _isDialogOpen = false;
+        _focusNode.requestFocus();
+      }
     });
   }
 
@@ -160,6 +199,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         ),
       );
       if (mounted) _isDialogOpen = false;
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
@@ -186,56 +226,61 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         ],
       ),
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _is4096Challenge
-                      ? '4096 終極挑戰 · 禁止工具'
-                      : 'Chapter 1 · Ocean',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '最高分：$highestValue',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onPanStart: _handleDragStart,
-                  onPanUpdate: _handleDragUpdate,
-                  onPanEnd: _handleDragEnd,
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      primary: false,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 6,
-                        mainAxisSpacing: 6,
-                      ),
-                      itemCount: 16,
-                      itemBuilder: (context, index) {
-                        return _TileView(tile: _engine.board.tiles[index]);
-                      },
+        child: Focus(
+          autofocus: true,
+          focusNode: _focusNode,
+          onKeyEvent: _handleKey,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _is4096Challenge
+                        ? '4096 終極挑戰 · 禁止工具'
+                        : 'Chapter 1 · Ocean',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                const Text('手指滑動棋盤進行生命合成'),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    '最高分：$highestValue',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanStart: _handleDragStart,
+                    onPanUpdate: _handleDragUpdate,
+                    onPanEnd: _handleDragEnd,
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: GridView.builder(
+                        physics: const NeverScrollableScrollPhysics(),
+                        primary: false,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 6,
+                        ),
+                        itemCount: 16,
+                        itemBuilder: (context, index) {
+                          return _TileView(tile: _engine.board.tiles[index]);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text('手機：手指滑動｜電腦測試：方向鍵 ↑ ↓ ← →'),
+                ],
+              ),
             ),
           ),
         ),
