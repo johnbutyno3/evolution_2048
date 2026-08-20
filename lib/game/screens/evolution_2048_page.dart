@@ -12,6 +12,7 @@ class Evolution2048Page extends StatefulWidget {
 
 class _Evolution2048PageState extends State<Evolution2048Page> {
   final _engine = GameEngine();
+  Offset? _pointerStart;
   bool _shown2048Milestone = false;
   bool _shown4096Milestone = false;
   bool _is4096Challenge = false;
@@ -20,17 +21,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   void _move(String direction) {
     if (_isDialogOpen) return;
 
-    var changed = false;
-    switch (direction) {
-      case 'up':
-        changed = _engine.moveUp();
-      case 'down':
-        changed = _engine.moveDown();
-      case 'left':
-        changed = _engine.moveLeft();
-      case 'right':
-        changed = _engine.moveRight();
-    }
+    final changed = switch (direction) {
+      'up' => _engine.moveUp(),
+      'down' => _engine.moveDown(),
+      'left' => _engine.moveLeft(),
+      'right' => _engine.moveRight(),
+      _ => false,
+    };
 
     if (changed) setState(() {});
 
@@ -45,14 +42,23 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
   }
 
-  void _handlePanEnd(DragEndDetails details) {
-    final velocity = details.velocity.pixelsPerSecond;
-    if (velocity.distance < 150) return;
+  void _pointerDown(PointerDownEvent event) {
+    if (_isDialogOpen) return;
+    _pointerStart = event.position;
+  }
 
-    if (velocity.dx.abs() > velocity.dy.abs()) {
-      _move(velocity.dx < 0 ? 'left' : 'right');
+  void _pointerUp(PointerUpEvent event) {
+    final start = _pointerStart;
+    _pointerStart = null;
+    if (start == null || _isDialogOpen) return;
+
+    final delta = event.position - start;
+    if (delta.distance < 35) return;
+
+    if (delta.dx.abs() > delta.dy.abs()) {
+      _move(delta.dx < 0 ? 'left' : 'right');
     } else {
-      _move(velocity.dy < 0 ? 'up' : 'down');
+      _move(delta.dy < 0 ? 'up' : 'down');
     }
   }
 
@@ -63,6 +69,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _shown4096Milestone = false;
       _is4096Challenge = false;
       _isDialogOpen = false;
+      _pointerStart = null;
     });
   }
 
@@ -184,9 +191,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                   '4096：${_engine.hasReached4096 ? '✓' : '未達成'}',
                 ),
                 const SizedBox(height: 20),
-                GestureDetector(
+                Listener(
                   behavior: HitTestBehavior.opaque,
-                  onPanEnd: _handlePanEnd,
+                  onPointerDown: _pointerDown,
+                  onPointerUp: _pointerUp,
                   child: AspectRatio(
                     aspectRatio: 1,
                     child: GridView.builder(
@@ -205,7 +213,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text('滑動棋盤進行生命合成'),
+                const Text('手指滑動棋盤進行生命合成'),
               ],
             ),
           ),
