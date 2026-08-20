@@ -12,11 +12,39 @@ class Evolution2048Page extends StatefulWidget {
 
 class _Evolution2048PageState extends State<Evolution2048Page> {
   final _engine = GameEngine();
-  Offset? _pointerStart;
+  Offset? _dragStart;
+  bool _swipeHandled = false;
   bool _shown2048Milestone = false;
   bool _shown4096Milestone = false;
   bool _is4096Challenge = false;
   bool _isDialogOpen = false;
+
+  static const double _swipeThreshold = 30;
+
+  void _handleDragStart(DragStartDetails details) {
+    if (_isDialogOpen) return;
+    _dragStart = details.localPosition;
+    _swipeHandled = false;
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    if (_isDialogOpen || _swipeHandled || _dragStart == null) return;
+
+    final delta = details.localPosition - _dragStart!;
+    if (delta.distance < _swipeThreshold) return;
+
+    final direction = delta.dx.abs() > delta.dy.abs()
+        ? (delta.dx < 0 ? 'left' : 'right')
+        : (delta.dy < 0 ? 'up' : 'down');
+
+    _swipeHandled = true;
+    _move(direction);
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    _dragStart = null;
+    _swipeHandled = false;
+  }
 
   void _move(String direction) {
     if (_isDialogOpen) return;
@@ -29,7 +57,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _ => false,
     };
 
-    if (changed) setState(() {});
+    if (changed && mounted) setState(() {});
 
     if (_engine.hasReached4096 && !_shown4096Milestone) {
       _shown4096Milestone = true;
@@ -42,26 +70,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
   }
 
-  void _pointerDown(PointerDownEvent event) {
-    if (_isDialogOpen) return;
-    _pointerStart = event.position;
-  }
-
-  void _pointerUp(PointerUpEvent event) {
-    final start = _pointerStart;
-    _pointerStart = null;
-    if (start == null || _isDialogOpen) return;
-
-    final delta = event.position - start;
-    if (delta.distance < 35) return;
-
-    if (delta.dx.abs() > delta.dy.abs()) {
-      _move(delta.dx < 0 ? 'left' : 'right');
-    } else {
-      _move(delta.dy < 0 ? 'up' : 'down');
-    }
-  }
-
   void _reset() {
     setState(() {
       _engine.reset();
@@ -69,7 +77,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _shown4096Milestone = false;
       _is4096Challenge = false;
       _isDialogOpen = false;
-      _pointerStart = null;
+      _dragStart = null;
+      _swipeHandled = false;
     });
   }
 
@@ -156,9 +165,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   @override
   Widget build(BuildContext context) {
-    final highestValue = _engine.board.tiles
-        .whereType<GameTile>()
-        .fold<int>(0, (highest, tile) => tile.value > highest ? tile.value : highest);
+    final highestValue = _engine.board.tiles.whereType<GameTile>().fold<int>(
+          0,
+          (highest, tile) => tile.value > highest ? tile.value : highest,
+        );
 
     return Scaffold(
       appBar: AppBar(
@@ -183,7 +193,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  _is4096Challenge ? '4096 終極挑戰 · 禁止工具' : 'Chapter 1 · Ocean',
+                  _is4096Challenge
+                      ? '4096 終極挑戰 · 禁止工具'
+                      : 'Chapter 1 · Ocean',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -198,14 +210,16 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                Listener(
+                GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onPointerDown: _pointerDown,
-                  onPointerUp: _pointerUp,
+                  onPanStart: _handleDragStart,
+                  onPanUpdate: _handleDragUpdate,
+                  onPanEnd: _handleDragEnd,
                   child: AspectRatio(
                     aspectRatio: 1,
                     child: GridView.builder(
                       physics: const NeverScrollableScrollPhysics(),
+                      primary: false,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 4,
