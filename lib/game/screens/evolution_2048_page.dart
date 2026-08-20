@@ -156,6 +156,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   @override
   Widget build(BuildContext context) {
+    final highestValue = _engine.board.tiles
+        .whereType<GameTile>()
+        .fold<int>(0, (highest, tile) => tile.value > highest ? tile.value : highest);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -187,8 +191,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '2048：${_engine.hasReached2048 ? '✓' : '未達成'}   '
-                  '4096：${_engine.hasReached4096 ? '✓' : '未達成'}',
+                  '最高分：$highestValue',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Listener(
