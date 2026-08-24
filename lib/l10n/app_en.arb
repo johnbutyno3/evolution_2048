@@ -1,0 +1,37 @@
+{
+  "@@locale": "en",
+
+  "gameTitle": "Rebirth 2048",
+
+  "chapterOcean": "Ocean",
+  "chapterLand": "Land",
+  "chapterSky": "Sky",
+  "chapterHistory": "History",
+  "chapterTechnology": "Technology",
+  "chapterSpace": "Space",
+
+  "creature01": "Diatom",
+  "creature02": "Flagellate",
+  "creature03": "Krill",
+  "creature04": "Clownfish",
+  "creature05": "Jellyfish",
+  "creature06": "Squid",
+  "creature07": "Ancient Deep-Sea Fish",
+  "creature08": "Deep-Sea Predator",
+  "creature09": "Large Marine Animal",
+  "creature10": "Ocean Apex Predator",
+  "creature11": "Yellowfin Tuna",
+  "creature12": "Seabed Human",
+
+  "chapterComplete": "Chapter Complete",
+  "nextChapterUnlocked": "Next Chapter Unlocked",
+  "finalChallenge": "Ultimate Challenge",
+
+  "tools": "Tools",
+  "toolsLocked": "Tools Locked",
+  "toolsDisabled": "Tools Disabled",
+
+  "continueGame": "Continue",
+  "score": "Score",
+  "best": "Best"
+}

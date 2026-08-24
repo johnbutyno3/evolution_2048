@@ -1,22 +1,36 @@
 name: rebirth_2048
-description: "Rebirth 2048 - Biological Evolution Game"
+description: A biological evolution and ecological revival game.
 publish_to: 'none'
+
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.12.2
+  sdk: '>=3.12.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+
   cupertino_icons: ^1.0.8
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^6.0.0
 
 flutter:
+  generate: true
   uses-material-design: true
+
   assets:
     - assets/creatures/chapter_01_ocean/
+    - assets/creatures/chapter_02_land/
+    - assets/creatures/chapter_03_sky/
+    - assets/backgrounds/chapter_01_ocean/
+    - assets/backgrounds/chapter_02_land/
+    - assets/backgrounds/chapter_03_sky/

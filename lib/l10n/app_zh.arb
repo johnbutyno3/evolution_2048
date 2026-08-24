@@ -1,0 +1,37 @@
+{
+  "@@locale": "zh",
+
+  "gameTitle": "重生2048",
+
+  "chapterOcean": "海洋篇",
+  "chapterLand": "陸地篇",
+  "chapterSky": "天空篇",
+  "chapterHistory": "歷史篇",
+  "chapterTechnology": "科技篇",
+  "chapterSpace": "宇宙篇",
+
+  "creature01": "矽藻",
+  "creature02": "鞭毛蟲",
+  "creature03": "磷蝦",
+  "creature04": "小丑魚",
+  "creature05": "水母",
+  "creature06": "魷魚",
+  "creature07": "深海古魚",
+  "creature08": "深海掠食者",
+  "creature09": "大型海洋生物",
+  "creature10": "海洋頂級掠食者",
+  "creature11": "黃鰭鮪魚",
+  "creature12": "海底人類",
+
+  "chapterComplete": "章節完成",
+  "nextChapterUnlocked": "下一章已解鎖",
+  "finalChallenge": "終極挑戰",
+
+  "tools": "道具",
+  "toolsLocked": "道具鎖定",
+  "toolsDisabled": "道具禁用",
+
+  "continueGame": "繼續",
+  "score": "分數",
+  "best": "最高分"
+}
