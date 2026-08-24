@@ -25,6 +25,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   // Revive tool
   bool _reviveSelecting = false;
+
   static const double _swipeThreshold = 30;
 
   // ============================================================
@@ -210,7 +211,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   // ============================================================
 
   void _startRevive() {
-    if (_engine.chapter != GameChapter.land) {
+    if (_engine.chapter != GameChapter.land &&
+        _engine.chapter != GameChapter.sky) {
       return;
     }
 
@@ -226,6 +228,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     setState(() {
       _reviveSelecting = true;
     });
+
+    _focusNode.requestFocus();
   }
 
   void _cancelRevive() {
@@ -240,31 +244,31 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     _focusNode.requestFocus();
   }
 
-void _useTimeRewind() {
-  if (_engine.chapter != GameChapter.sky) {
-    return;
+  void _useTimeRewind() {
+    if (_engine.chapter != GameChapter.sky) {
+      return;
+    }
+
+    if (!_engine.canUseTimeRewind) {
+      return;
+    }
+
+    if (_gameOverDialogShowing ||
+        _chapterCompleteShowing ||
+        _reviveSelecting) {
+      return;
+    }
+
+    final changed = _engine.useTimeRewind();
+
+    if (!changed) {
+      return;
+    }
+
+    setState(() {});
+
+    _focusNode.requestFocus();
   }
-
-  if (!_engine.canUseTimeRewind) {
-    return;
-  }
-
-  if (_gameOverDialogShowing ||
-      _chapterCompleteShowing ||
-      _reviveSelecting) {
-    return;
-  }
-
-  final changed = _engine.useTimeRewind();
-
-  if (!changed) {
-    return;
-  }
-
-  setState(() {});
-
-  _focusNode.requestFocus();
-}
 
   void _selectReviveTile(
     int index,
@@ -587,7 +591,6 @@ void _useTimeRewind() {
       GameChapter.sky => 'Sky Chapter',
     };
   }
-
   // ============================================================
   // Main UI
   // ============================================================
@@ -656,26 +659,35 @@ void _useTimeRewind() {
 
                     const SizedBox(height: 10),
 
-                   if (_engine.chapter == GameChapter.land ||
-    _engine.chapter == GameChapter.sky)
-  _ToolPanel(
-    chapter: _engine.chapter,
-    reviveEnabled: _engine.canUseRevive,
-    reviveSelecting: _reviveSelecting,
-    onRevivePressed: _startRevive,
-    onReviveCancel: _cancelRevive,
-    rewindEnabled: _engine.canUseTimeRewind,
-    onRewindPressed: _useTimeRewind,
-  ),
+                    if (_engine.chapter == GameChapter.land ||
+                        _engine.chapter == GameChapter.sky)
+                      _ToolPanel(
+                        chapter: _engine.chapter,
+                        reviveEnabled:
+                            _engine.canUseRevive,
+                        reviveSelecting:
+                            _reviveSelecting,
+                        onRevivePressed:
+                            _startRevive,
+                        onReviveCancel:
+                            _cancelRevive,
+                        rewindEnabled:
+                            _engine.canUseTimeRewind,
+                        onRewindPressed:
+                            _useTimeRewind,
+                      ),
 
                     const SizedBox(height: 16),
 
                     GestureDetector(
                       behavior:
                           HitTestBehavior.opaque,
-                      onPanStart: _handleDragStart,
-                      onPanUpdate: _handleDragUpdate,
-                      onPanEnd: _handleDragEnd,
+                      onPanStart:
+                          _handleDragStart,
+                      onPanUpdate:
+                          _handleDragUpdate,
+                      onPanEnd:
+                          _handleDragEnd,
                       child: AspectRatio(
                         aspectRatio: 1,
                         child: ClipRRect(
@@ -699,9 +711,13 @@ void _useTimeRewind() {
                                 },
                               ),
 
+                              // Keep all chapters visually
+                              // consistent with Chapter 1.
                               Container(
                                 color: Colors.black
-                                    .withValues(alpha: 0.08),
+                                    .withValues(
+                                  alpha: 0.08,
+                                ),
                               ),
 
                               GridView.builder(
@@ -721,18 +737,19 @@ void _useTimeRewind() {
                                   context,
                                   index,
                                 ) {
-                                  final tile = _engine
-                                      .board
-                                      .tiles[index];
+                                  final tile =
+                                      _engine.board
+                                          .tiles[index];
 
                                   return GestureDetector(
-                                    onTap: _reviveSelecting
-                                        ? () {
-                                            _selectReviveTile(
-                                              index,
-                                            );
-                                          }
-                                        : null,
+                                    onTap:
+                                        _reviveSelecting
+                                            ? () {
+                                                _selectReviveTile(
+                                                  index,
+                                                );
+                                              }
+                                            : null,
                                     child: _TileView(
                                       tile: tile,
                                       highlighted:
@@ -745,7 +762,8 @@ void _useTimeRewind() {
 
                               if (_reviveSelecting)
                                 Positioned.fill(
-                                  child: IgnorePointer(
+                                  child:
+                                      IgnorePointer(
                                     child: Container(
                                       color: Colors.black
                                           .withValues(
@@ -757,14 +775,18 @@ void _useTimeRewind() {
                                           const EdgeInsets.only(
                                         top: 12,
                                       ),
-                                      child: const Text(
+                                      child:
+                                          const Text(
                                         'SELECT A CREATURE TO REVIVE',
-                                        style: TextStyle(
-                                          color: Colors.white,
+                                        style:
+                                            TextStyle(
+                                          color:
+                                              Colors.white,
                                           fontSize: 14,
                                           fontWeight:
                                               FontWeight.bold,
-                                          letterSpacing: 1,
+                                          letterSpacing:
+                                              1,
                                         ),
                                       ),
                                     ),
@@ -783,7 +805,9 @@ void _useTimeRewind() {
                           ? 'Tap one creature to remove it.'
                           : 'Use arrow keys or swipe to move.',
                       style:
-                          const TextStyle(fontSize: 14),
+                          const TextStyle(
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -837,8 +861,12 @@ class _ReviveToolButton extends StatelessWidget {
       width: double.infinity,
       height: 48,
       child: FilledButton.icon(
-        onPressed: enabled ? onPressed : null,
-        icon: const Icon(Icons.auto_fix_high),
+        onPressed: enabled
+            ? onPressed
+            : null,
+        icon: const Icon(
+          Icons.auto_fix_high,
+        ),
         label: Text(
           enabled
               ? 'REVIVE  1 USE'
@@ -854,6 +882,10 @@ class _ReviveToolButton extends StatelessWidget {
     );
   }
 }
+
+// ============================================================================
+// Tool Panel
+// ============================================================================
 
 class _ToolPanel extends StatelessWidget {
   const _ToolPanel({
@@ -878,7 +910,8 @@ class _ToolPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSky = chapter == GameChapter.sky;
+    final isSky =
+        chapter == GameChapter.sky;
 
     return Row(
       children: [
@@ -910,7 +943,8 @@ class _ToolPanel extends StatelessWidget {
                       ? 'TIME REWIND  1 USE'
                       : 'TIME REWIND  USED',
                 ),
-                style: FilledButton.styleFrom(
+                style:
+                    FilledButton.styleFrom(
                   shape:
                       RoundedRectangleBorder(
                     borderRadius:
@@ -926,12 +960,12 @@ class _ToolPanel extends StatelessWidget {
   }
 }
 
-
 // ============================================================================
 // Chapter Complete Page
 // ============================================================================
 
-class _ChapterCompletePage extends StatelessWidget {
+class _ChapterCompletePage
+    extends StatelessWidget {
   const _ChapterCompletePage({
     required this.chapter,
     required this.score,
@@ -1000,7 +1034,9 @@ class _ChapterCompletePage extends StatelessWidget {
           ),
 
           Container(
-            color: Colors.black.withValues(alpha: 0.38),
+            color: Colors.black.withValues(
+              alpha: 0.38,
+            ),
           ),
 
           SafeArea(
@@ -1013,7 +1049,9 @@ class _ChapterCompletePage extends StatelessWidget {
                 ),
                 child: ConstrainedBox(
                   constraints:
-                      const BoxConstraints(maxWidth: 440),
+                      const BoxConstraints(
+                    maxWidth: 440,
+                  ),
                   child: Column(
                     mainAxisAlignment:
                         MainAxisAlignment.center,
@@ -1023,7 +1061,8 @@ class _ChapterCompletePage extends StatelessWidget {
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontWeight:
+                              FontWeight.w600,
                           letterSpacing: 4,
                         ),
                       ),
@@ -1032,11 +1071,13 @@ class _ChapterCompletePage extends StatelessWidget {
 
                       Text(
                         title,
-                        textAlign: TextAlign.center,
+                        textAlign:
+                            TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,
-                          fontWeight: FontWeight.w900,
+                          fontWeight:
+                              FontWeight.w900,
                           letterSpacing: 1,
                         ),
                       ),
@@ -1045,7 +1086,8 @@ class _ChapterCompletePage extends StatelessWidget {
 
                       Text(
                         subtitle,
-                        textAlign: TextAlign.center,
+                        textAlign:
+                            TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -1056,14 +1098,19 @@ class _ChapterCompletePage extends StatelessWidget {
 
                       Container(
                         padding:
-                            const EdgeInsets.all(20),
+                            const EdgeInsets.all(
+                          20,
+                        ),
                         decoration:
                             BoxDecoration(
-                          color: Colors.black.withValues(
+                          color: Colors.black
+                              .withValues(
                             alpha: 0.48,
                           ),
                           borderRadius:
-                              BorderRadius.circular(20),
+                              BorderRadius.circular(
+                            20,
+                          ),
                           border: Border.all(
                             color: Colors.white24,
                           ),
@@ -1074,12 +1121,16 @@ class _ChapterCompletePage extends StatelessWidget {
                               label: 'SCORE',
                               value: '$score',
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(
+                              height: 14,
+                            ),
                             _ResultRow(
                               label: 'BEST',
                               value: '$bestScore',
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(
+                              height: 14,
+                            ),
                             _ResultRow(
                               label: 'HIGHEST',
                               value: '$highestValue',
@@ -1097,22 +1148,28 @@ class _ChapterCompletePage extends StatelessWidget {
                           onPressed: onContinue,
                           style:
                               FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
+                            backgroundColor:
+                                Colors.white,
                             foregroundColor:
                                 Colors.black87,
                             shape:
                                 RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius.circular(16),
+                                  BorderRadius.circular(
+                                16,
+                              ),
                             ),
                           ),
                           child: Text(
-                            chapter == GameChapter.sky
+                            chapter ==
+                                    GameChapter.sky
                                 ? 'PLAY AGAIN'
                                 : 'CONTINUE',
-                            style: const TextStyle(
+                            style:
+                                const TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight:
+                                  FontWeight.bold,
                               letterSpacing: 1,
                             ),
                           ),
@@ -1129,7 +1186,6 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
-
 // ============================================================================
 // Result row
 // ============================================================================
@@ -1304,6 +1360,8 @@ class _TileView extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius:
               BorderRadius.circular(10),
+
+          // Same transparency for all chapters.
           color: Colors.white.withValues(
             alpha: 0.34,
           ),
@@ -1317,12 +1375,21 @@ class _TileView extends StatelessWidget {
     return AnimatedContainer(
       duration:
           const Duration(milliseconds: 150),
+
       decoration: BoxDecoration(
         borderRadius:
             BorderRadius.circular(10),
+
+        // Same tile transparency for
+        // Chapter 1, Chapter 2 and Chapter 3.
         color: highlighted
-            ? Colors.amber.withValues(alpha: 0.45)
-            : Colors.white.withValues(alpha: 0.55),
+            ? Colors.amber.withValues(
+                alpha: 0.45,
+              )
+            : Colors.white.withValues(
+                alpha: 0.55,
+              ),
+
         border: highlighted
             ? Border.all(
                 color: Colors.amber,
@@ -1330,7 +1397,9 @@ class _TileView extends StatelessWidget {
               )
             : null,
       ),
+
       clipBehavior: Clip.antiAlias,
+
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tileSize =
@@ -1340,8 +1409,10 @@ class _TileView extends StatelessWidget {
             children: [
               Center(
                 child: SizedBox(
-                  width: tileSize * scale,
-                  height: tileSize * scale,
+                  width:
+                      tileSize * scale,
+                  height:
+                      tileSize * scale,
                   child: Image.asset(
                     creature.imagePath,
                     fit: BoxFit.contain,
@@ -1376,7 +1447,8 @@ class _TileView extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 9,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
                 ),
