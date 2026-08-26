@@ -1,26 +1,20 @@
 import 'creature.dart';
 
-enum GameChapter {
-  ocean,
-  land,
-  sky,
-}
+enum GameChapter { ocean, land, sky, history }
 
 class GameTile {
-  GameTile({
-    required this.value,
-    this.chapter = GameChapter.ocean,
-  });
+  GameTile({required this.value, this.chapter = GameChapter.ocean});
 
   int value;
   final GameChapter chapter;
 
   Creature get creature {
-   final creature = switch (chapter) {
-  GameChapter.ocean => Creature.fromValue(value),
-  GameChapter.land => Creature.fromChapter2Value(value),
-  GameChapter.sky => Creature.fromChapter3Value(value),
-};
+    final creature = switch (chapter) {
+      GameChapter.ocean => Creature.fromValue(value),
+      GameChapter.land => Creature.fromChapter2Value(value),
+      GameChapter.sky => Creature.fromChapter3Value(value),
+      GameChapter.history => Creature.fromChapter4Value(value),
+    };
 
     if (creature == null) {
       throw StateError(
@@ -32,13 +26,14 @@ class GameTile {
     return creature;
   }
 
- bool get isFinal {
-  return switch (chapter) {
-    GameChapter.ocean => value == 4096,
-    GameChapter.land => value == 8192,
-    GameChapter.sky => value == 16384,
-  };
-}
+  bool get isFinal {
+    return switch (chapter) {
+      GameChapter.ocean => value == 4096,
+      GameChapter.land => value == 8192,
+      GameChapter.sky => value == 16384,
+      GameChapter.history => value == 32768,
+    };
+  }
 
   bool get is2048 => value == 2048;
 

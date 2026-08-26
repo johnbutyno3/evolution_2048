@@ -2,9 +2,7 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 
 class ToolManager {
-  ToolManager({
-    required this.chapter,
-  }) {
+  ToolManager({required this.chapter}) {
     _initialize();
   }
 
@@ -12,13 +10,11 @@ class ToolManager {
 
   final List<ToolState> _tools = [];
 
-  List<ToolState> get tools =>
-      List.unmodifiable(_tools);
+  List<ToolState> get tools => List.unmodifiable(_tools);
 
   bool get hasTools => _tools.isNotEmpty;
 
-  int get availableToolCount =>
-      _tools.where((tool) => tool.canUse).length;
+  int get availableToolCount => _tools.where((tool) => tool.canUse).length;
 
   void _initialize() {
     _tools.clear();
@@ -30,25 +26,17 @@ class ToolManager {
 
       case GameChapter.land:
         // Chapter 2 has exactly one tool.
-        _tools.add(
-          ToolState(
-            tool: GameTool.revive,
-          ),
-        );
+        _tools.add(ToolState(tool: GameTool.revive));
         break;
 
       case GameChapter.sky:
         // Chapter 3 has exactly two tools.
-        _tools.add(
-          ToolState(
-            tool: GameTool.revive,
-          ),
-        );
-        _tools.add(
-          ToolState(
-            tool: GameTool.timeRewind,
-          ),
-        );
+        _tools.add(ToolState(tool: GameTool.revive));
+        _tools.add(ToolState(tool: GameTool.timeRewind));
+        break;
+
+      case GameChapter.history:
+        // Chapter 4 has no tools.
         break;
     }
   }
