@@ -353,6 +353,26 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   }
 
   // ============================================================
+  // Debug - Chapter 3
+  // ============================================================
+
+  void _debugCompleteChapter3() {
+    if (_gameOverDialogShowing || _chapterCompleteShowing) {
+      return;
+    }
+
+    if (_engine.chapter != GameChapter.sky) {
+      return;
+    }
+
+    setState(() {
+      _engine.debugCompleteChapter3();
+    });
+
+    _showChapterComplete();
+  }
+
+  // ============================================================
   // Chapter complete transition
   // ============================================================
 
@@ -400,6 +420,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       await _startChapter2();
     } else if (completedChapter == GameChapter.land) {
       await _startChapter3();
+    } else if (completedChapter == GameChapter.sky) {
+      await _startChapter4();
     } else {
       _focusNode.requestFocus();
     }
@@ -436,6 +458,26 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     setState(() {
       _engine = GameEngine(chapter: GameChapter.sky);
+
+      _dragStart = null;
+      _swipeHandled = false;
+      _reviveSelecting = false;
+    });
+
+    _focusNode.requestFocus();
+  }
+
+  // ============================================================
+  // Start Chapter 4
+  // ============================================================
+
+  Future<void> _startChapter4() async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _engine = GameEngine(chapter: GameChapter.history);
 
       _dragStart = null;
       _swipeHandled = false;
@@ -578,6 +620,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
             IconButton(
               onPressed: _debugCompleteChapter2,
               tooltip: 'Test Chapter 2 Complete',
+              icon: const Icon(Icons.bug_report),
+            ),
+
+          if (_engine.chapter == GameChapter.sky)
+            IconButton(
+              onPressed: _debugCompleteChapter3,
+              tooltip: 'Test Chapter 3 Complete',
               icon: const Icon(Icons.bug_report),
             ),
         ],
