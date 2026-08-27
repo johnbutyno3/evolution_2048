@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'game/screens/evolution_2048_page.dart';
+import 'game/screens/evolution_2048_chapters_page.dart';
 
 void main() {
   runApp(const Rebirth2048App());
@@ -18,7 +18,7 @@ class Rebirth2048App extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: const Evolution2048Page(),
+      home: const Evolution2048ChaptersPage(),
     );
   }
 }
