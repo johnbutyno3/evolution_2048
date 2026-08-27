@@ -1,4 +1,4 @@
-import 'models/game_tile.dart';
+import 'game_tile.dart';
 
 /// Chapter 5: Technology Era configuration.
 class Chapter5TechConfig {
