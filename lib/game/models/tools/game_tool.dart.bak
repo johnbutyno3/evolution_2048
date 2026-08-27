@@ -1,7 +1,6 @@
 enum GameToolType {
   revive,
   timeRewind,
-  historyRestore,
 }
 
 class GameTool {
@@ -19,29 +18,22 @@ class GameTool {
 
   bool get isRevive => type == GameToolType.revive;
 
-  bool get isTimeRewind => type == GameToolType.timeRewind;
-
-  bool get isHistoryRestore =>
-      type == GameToolType.historyRestore;
+  bool get isTimeRewind =>
+      type == GameToolType.timeRewind;
 
   static const GameTool revive = GameTool(
     type: GameToolType.revive,
     name: 'Revive',
-    description: 'Remove one historical object from the board.',
+    description:
+        'Remove one creature from the board.',
     maxUses: 1,
   );
 
   static const GameTool timeRewind = GameTool(
     type: GameToolType.timeRewind,
     name: 'Time Rewind',
-    description: 'Undo the most recent valid move.',
-    maxUses: 1,
-  );
-
-  static const GameTool historyRestore = GameTool(
-    type: GameToolType.historyRestore,
-    name: 'History Restore',
-    description: 'Restore one historical object to its previous stage.',
+    description:
+        'Undo the most recent valid move.',
     maxUses: 1,
   );
 }
@@ -63,7 +55,6 @@ class ToolState {
     }
 
     usesRemaining--;
-
     return true;
   }
 

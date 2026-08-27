@@ -54,9 +54,6 @@ class GameEngine {
   bool get canUseTimeRewind =>
       _toolManager.canUse(GameToolType.timeRewind) && _hasPreviousState;
 
-  bool get canUseHistoryRestore =>
-      _toolManager.canUse(GameToolType.historyRestore);
-
   bool get hasPreviousState => _hasPreviousState;
 
   bool hasReached2048 = false;
@@ -185,60 +182,7 @@ class GameEngine {
 
     return true;
   }
-  // ============================================================
-  // History Restore
-  // ============================================================
 
-  /// Restores one historical object to its previous stage.
-  ///
-  /// Chapter 4 only.
-  ///
-  /// Example:
-  /// - 32768 -> 16384
-  /// - 16384 -> 8192
-  /// - 8192  -> 4096
-  ///
-  /// The tool can only be used once per chapter.
-  bool useHistoryRestore(int row, int column) {
-    if (_chapter != GameChapter.history) {
-      return false;
-    }
-
-    if (gameOver || chapterComplete) {
-      return false;
-    }
-
-    if (!_toolManager.canUse(GameToolType.historyRestore)) {
-      return false;
-    }
-
-    if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
-      return false;
-    }
-
-    final tile = _board.tileAt(row, column);
-
-    if (tile == null) {
-      return false;
-    }
-
-    // The first stage cannot be restored any further.
-    if (tile.value <= 2) {
-      return false;
-    }
-
-    final used = _toolManager.use(GameToolType.historyRestore);
-
-    if (!used) {
-      return false;
-    }
-
-    tile.value ~/= 2;
-
-    gameOver = false;
-
-    return true;
-  }
   // ============================================================
   // Save previous state
   // ============================================================
@@ -419,35 +363,6 @@ class GameEngine {
     gameOver = true;
 
     score = 30000;
-
-    _hasPreviousState = false;
-    _previousBoard = null;
-
-    _updateBestScore();
-  }
-
-  // ============================================================
-  // Debug - Chapter 4
-  // ============================================================
-
-  void debugCompleteChapter4() {
-    if (_chapter != GameChapter.history) {
-      return;
-    }
-
-    _board = GameBoard(size: boardSize);
-
-    _board.setTile(0, 0, GameTile(value: 32768, chapter: GameChapter.history));
-
-    hasReached2048 = true;
-    hasReached4096 = true;
-    hasReached8192 = true;
-    hasReached16384 = true;
-
-    chapterComplete = true;
-    gameOver = true;
-
-    score = 40000;
 
     _hasPreviousState = false;
     _previousBoard = null;
