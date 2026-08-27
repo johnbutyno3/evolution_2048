@@ -23,33 +23,10 @@ class GameTool {
   bool get isHistoryRestore => type == GameToolType.historyRestore;
   bool get isDuplicate => type == GameToolType.duplicate;
 
-  static const GameTool revive = GameTool(
-    type: GameToolType.revive,
-    name: 'Revive',
-    description: 'Remove one tile from the board.',
-    maxUses: 1,
-  );
-
-  static const GameTool timeRewind = GameTool(
-    type: GameToolType.timeRewind,
-    name: 'Time Rewind',
-    description: 'Undo the most recent valid move.',
-    maxUses: 1,
-  );
-
-  static const GameTool historyRestore = GameTool(
-    type: GameToolType.historyRestore,
-    name: 'History Restore',
-    description: 'Restore one historical tile to its previous stage.',
-    maxUses: 1,
-  );
-
-  static const GameTool duplicate = GameTool(
-    type: GameToolType.duplicate,
-    name: 'Duplicate',
-    description: 'Create a second tile with the same value.',
-    maxUses: 1,
-  );
+  static const GameTool revive = GameTool(type: GameToolType.revive, name: 'Revive', description: 'Remove one tile from the board.', maxUses: 1);
+  static const GameTool timeRewind = GameTool(type: GameToolType.timeRewind, name: 'Time Rewind', description: 'Undo the most recent valid move.', maxUses: 1);
+  static const GameTool historyRestore = GameTool(type: GameToolType.historyRestore, name: 'History Restore', description: 'Restore one tile to its previous stage.', maxUses: 1);
+  static const GameTool duplicate = GameTool(type: GameToolType.duplicate, name: 'Duplicate', description: 'Create a second tile with the same value.', maxUses: 1);
 }
 
 class ToolState {
