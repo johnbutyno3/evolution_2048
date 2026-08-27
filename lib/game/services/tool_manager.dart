@@ -7,81 +7,49 @@ class ToolManager {
   }
 
   final GameChapter chapter;
-
   final List<ToolState> _tools = [];
 
   List<ToolState> get tools => List.unmodifiable(_tools);
-
   bool get hasTools => _tools.isNotEmpty;
-
-  int get availableToolCount =>
-      _tools.where((tool) => tool.canUse).length;
+  int get availableToolCount => _tools.where((tool) => tool.canUse).length;
 
   void _initialize() {
     _tools.clear();
 
     switch (chapter) {
       case GameChapter.ocean:
-        // Chapter 1: no tools.
         break;
-
       case GameChapter.land:
-        // Chapter 2: one tool.
-        _tools.add(
-          ToolState(tool: GameTool.revive),
-        );
+        _tools.add(ToolState(tool: GameTool.revive));
         break;
-
       case GameChapter.sky:
-        // Chapter 3: two tools.
-        _tools.add(
-          ToolState(tool: GameTool.revive),
-        );
-        _tools.add(
-          ToolState(tool: GameTool.timeRewind),
-        );
+        _tools.add(ToolState(tool: GameTool.revive));
+        _tools.add(ToolState(tool: GameTool.timeRewind));
         break;
-
       case GameChapter.history:
-        // Chapter 4: three tools.
-        _tools.add(
-          ToolState(tool: GameTool.revive),
-        );
-        _tools.add(
-          ToolState(tool: GameTool.timeRewind),
-        );
-        _tools.add(
-          ToolState(tool: GameTool.historyRestore),
-        );
+        _tools.add(ToolState(tool: GameTool.revive));
+        _tools.add(ToolState(tool: GameTool.timeRewind));
+        _tools.add(ToolState(tool: GameTool.historyRestore));
+        break;
+      case GameChapter.tech:
+        _tools.add(ToolState(tool: GameTool.revive));
+        _tools.add(ToolState(tool: GameTool.timeRewind));
+        _tools.add(ToolState(tool: GameTool.historyRestore));
+        _tools.add(ToolState(tool: GameTool.duplicate));
         break;
     }
   }
 
   ToolState? getTool(GameToolType type) {
     for (final tool in _tools) {
-      if (tool.tool.type == type) {
-        return tool;
-      }
+      if (tool.tool.type == type) return tool;
     }
-
     return null;
   }
 
-  bool canUse(GameToolType type) {
-    final tool = getTool(type);
+  bool canUse(GameToolType type) => getTool(type)?.canUse ?? false;
 
-    return tool?.canUse ?? false;
-  }
-
-  bool use(GameToolType type) {
-    final tool = getTool(type);
-
-    if (tool == null) {
-      return false;
-    }
-
-    return tool.use();
-  }
+  bool use(GameToolType type) => getTool(type)?.use() ?? false;
 
   void reset() {
     for (final tool in _tools) {
