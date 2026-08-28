@@ -15,7 +15,7 @@ class ToolManager {
 
   List<ToolState> get tools => List.unmodifiable(_tools);
   bool get hasTools => _tools.isNotEmpty;
-  bool get availableToolCount => _tools.where((tool) => tool.canUse).isNotEmpty;
+  int get availableToolCount => _tools.where((tool) => tool.canUse).length;
 
   void _initialize() {
     _tools.clear();
