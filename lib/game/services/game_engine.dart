@@ -1,4 +1,4 @@
-﻿import 'dart:math';
+import 'dart:math';
 
 import '../models/game_board.dart';
 import '../models/game_tile.dart';
@@ -104,7 +104,9 @@ class GameEngine {
     if (firstRow < 0 || firstRow >= boardSize ||
         firstColumn < 0 || firstColumn >= boardSize ||
         secondRow < 0 || secondRow >= boardSize ||
-        secondColumn < 0 || secondColumn >= boardSize) return false;
+        secondColumn < 0 || secondColumn >= boardSize) {
+      return false;
+    }
     if (firstRow == secondRow && firstColumn == secondColumn) return false;
     final first = _board.tileAt(firstRow, firstColumn);
     final second = _board.tileAt(secondRow, secondColumn);
@@ -306,10 +308,14 @@ class GameEngine {
         if (current == null) return false;
         if (column + 1 < boardSize &&
             current.value == _board.tileAt(row, column + 1)?.value &&
-            !current.isFinal) return false;
+            !current.isFinal) {
+          return false;
+        }
         if (row + 1 < boardSize &&
             current.value == _board.tileAt(row + 1, column)?.value &&
-            !current.isFinal) return false;
+            !current.isFinal) {
+          return false;
+        }
       }
     }
     return true;
