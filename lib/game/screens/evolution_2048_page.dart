@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/game_tile.dart';
+import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
 
 class Evolution2048Page extends StatefulWidget {
@@ -13,7 +14,6 @@ class Evolution2048Page extends StatefulWidget {
 
 class _Evolution2048PageState extends State<Evolution2048Page> {
   GameEngine _engine = GameEngine(chapter: GameChapter.ocean);
-
   final FocusNode _focusNode = FocusNode();
 
   Offset? _dragStart;
@@ -21,22 +21,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   bool _gameOverDialogShowing = false;
   bool _chapterCompleteShowing = false;
 
-  // ============================================================
-  // Tool selection states
-  // ============================================================
-
-  bool _reviveSelecting = false;
-  bool _historyRestoreSelecting = false;
+  String? _toolMode;
+  int? _firstSwapIndex;
 
   static const double _swipeThreshold = 30;
 
-  // ============================================================
-  // Chapter 1 - Ocean assets
-  // ============================================================
-
   static const String _oceanChapterCompleteBackground =
       'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg';
-
   static const List<String> _oceanBackgrounds = [
     'assets/backgrounds/chapter_01_ocean/ocean_background_01_primordial.jpg',
     'assets/backgrounds/chapter_01_ocean/ocean_background_02_shallow_sea.jpg',
@@ -44,13 +35,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_01_ocean/ocean_background_04_deep_ocean.jpg',
   ];
 
-  // ============================================================
-  // Chapter 2 - Land assets
-  // ============================================================
-
   static const String _landChapterCompleteBackground =
       'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg';
-
   static const List<String> _landBackgrounds = [
     'assets/backgrounds/chapter_02_land/land_background_01_primordial.jpg',
     'assets/backgrounds/chapter_02_land/land_background_02_forest.jpg',
@@ -58,13 +44,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_02_land/land_background_04_ancient_land.jpg',
   ];
 
-  // ============================================================
-  // Chapter 3 - Sky assets
-  // ============================================================
-
   static const String _skyChapterCompleteBackground =
       'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg';
-
   static const List<String> _skyBackgrounds = [
     'assets/backgrounds/chapter_03_sky/sky_background_01_low_altitude.jpg',
     'assets/backgrounds/chapter_03_sky/sky_background_02_mid_altitude.jpg',
@@ -72,13 +53,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_03_sky/sky_background_04_space.jpg',
   ];
 
-  // ============================================================
-  // Chapter 4 - History assets
-  // ============================================================
-
   static const String _historyChapterCompleteBackground =
       'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png';
-
   static const List<String> _historyBackgrounds = [
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_01.png',
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_02.png',
@@ -86,14 +62,29 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_04.png',
   ];
 
+  static const String _techChapterCompleteBackground =
+      'assets/backgrounds/chapter_05_tech/tech_complete.png';
+  static const List<String> _techBackgrounds = [
+    'assets/backgrounds/chapter_05_tech/tech_01_electronic_age.png',
+    'assets/backgrounds/chapter_05_tech/tech_02_ai_robot.png',
+    'assets/backgrounds/chapter_05_tech/tech_03_future_city.png',
+    'assets/backgrounds/chapter_05_tech/tech_04_space_civilization.png',
+  ];
+
+  static const String _universeChapterCompleteBackground =
+      'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg';
+  static const List<String> _universeBackgrounds = [
+    'assets/backgrounds/chapter_06_universe/universe_bg_01_origin.jpg',
+    'assets/backgrounds/chapter_06_universe/universe_bg_02_earth.jpg',
+    'assets/backgrounds/chapter_06_universe/universe_bg_03_expansion.jpg',
+    'assets/backgrounds/chapter_06_universe/universe_bg_04_civilization.jpg',
+  ];
+
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _focusNode.requestFocus();
-      }
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
@@ -103,19 +94,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     super.dispose();
   }
 
-  // ============================================================
-  // Keyboard
-  // ============================================================
-
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) {
-      return KeyEventResult.ignored;
-    }
-
-    if (_gameOverDialogShowing ||
-        _chapterCompleteShowing ||
-        _reviveSelecting ||
-        _historyRestoreSelecting) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null) {
       return KeyEventResult.handled;
     }
 
@@ -126,28 +107,15 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       LogicalKeyboardKey.arrowRight => 'right',
       _ => null,
     };
-
-    if (direction == null) {
-      return KeyEventResult.ignored;
-    }
-
+    if (direction == null) return KeyEventResult.ignored;
     _move(direction);
-
     return KeyEventResult.handled;
   }
 
-  // ============================================================
-  // Swipe
-  // ============================================================
-
   void _handleDragStart(DragStartDetails details) {
-    if (_gameOverDialogShowing ||
-        _chapterCompleteShowing ||
-        _reviveSelecting ||
-        _historyRestoreSelecting) {
+    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null) {
       return;
     }
-
     _dragStart = details.localPosition;
     _swipeHandled = false;
   }
@@ -155,25 +123,17 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   void _handleDragUpdate(DragUpdateDetails details) {
     if (_gameOverDialogShowing ||
         _chapterCompleteShowing ||
-        _reviveSelecting ||
-        _historyRestoreSelecting ||
+        _toolMode != null ||
         _swipeHandled ||
         _dragStart == null) {
       return;
     }
-
     final delta = details.localPosition - _dragStart!;
-
-    if (delta.distance < _swipeThreshold) {
-      return;
-    }
-
+    if (delta.distance < _swipeThreshold) return;
     final direction = delta.dx.abs() > delta.dy.abs()
         ? (delta.dx < 0 ? 'left' : 'right')
         : (delta.dy < 0 ? 'up' : 'down');
-
     _swipeHandled = true;
-
     _move(direction);
   }
 
@@ -182,18 +142,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     _swipeHandled = false;
   }
 
-  // ============================================================
-  // Game movement
-  // ============================================================
-
   void _move(String direction) {
-    if (_gameOverDialogShowing ||
-        _chapterCompleteShowing ||
-        _reviveSelecting ||
-        _historyRestoreSelecting) {
+    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null) {
       return;
     }
-
     switch (direction) {
       case 'up':
         _engine.moveUp();
@@ -208,504 +160,134 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         _engine.moveRight();
         break;
     }
-
-    // Always rebuild after a move attempt.
-    // This is important because a failed move can still
-    // change the engine state to Game Over.
-    if (mounted) {
-      setState(() {});
-    }
-
-    // Chapter completion takes priority over Game Over.
+    if (mounted) setState(() {});
     if (_engine.chapterComplete) {
       _showChapterComplete();
-      return;
-    }
-
-    // A full board with no legal moves reaches Game Over
-    // even when the attempted move itself returned false.
-    if (_engine.gameOver) {
+    } else if (_engine.gameOver) {
       _showGameOver();
     }
   }
-
-  // ============================================================
-  // Revive
-  // ============================================================
-
-  void _startRevive() {
-    if (_engine.chapter == GameChapter.ocean) {
-      return;
-    }
-
-    if (!_engine.canUseRevive) {
-      return;
-    }
-
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
-      return;
-    }
-
-    setState(() {
-      _reviveSelecting = true;
-      _historyRestoreSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-  }
-
-  void _cancelRevive() {
-    if (!_reviveSelecting) {
-      return;
-    }
-
-    setState(() {
-      _reviveSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-  }
-
-  void _selectReviveTile(int index) {
-    if (!_reviveSelecting) {
-      return;
-    }
-
-    final tile = _engine.board.tiles[index];
-
-    if (tile == null) {
-      return;
-    }
-
-    final row = index ~/ 4;
-    final column = index % 4;
-
-    final changed = _engine.useRevive(row, column);
-
-    if (!changed) {
-      return;
-    }
-
-    setState(() {
-      _reviveSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-
-    if (_engine.gameOver) {
-      _showGameOver();
-    }
-  }
-
-  // ============================================================
-  // Time Rewind
-  // ============================================================
-
-  void _useTimeRewind() {
-    if (_engine.chapter == GameChapter.ocean ||
-        _engine.chapter == GameChapter.land) {
-      return;
-    }
-
-    if (!_engine.canUseTimeRewind) {
-      return;
-    }
-
-    if (_gameOverDialogShowing ||
-        _chapterCompleteShowing ||
-        _reviveSelecting ||
-        _historyRestoreSelecting) {
-      return;
-    }
-
-    final changed = _engine.useTimeRewind();
-
-    if (!changed) {
-      return;
-    }
-
-    setState(() {});
-
-    _focusNode.requestFocus();
-  }
-
-  // ============================================================
-  // History Restore
-  // ============================================================
-
-  void _startHistoryRestore() {
-    if (_engine.chapter != GameChapter.history) {
-      return;
-    }
-
-    if (!_engine.canUseHistoryRestore) {
-      return;
-    }
-
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
-      return;
-    }
-
-    setState(() {
-      _historyRestoreSelecting = true;
-      _reviveSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-  }
-
-  void _cancelHistoryRestore() {
-    if (!_historyRestoreSelecting) {
-      return;
-    }
-
-    setState(() {
-      _historyRestoreSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-  }
-
-  void _selectHistoryRestoreTile(int index) {
-    if (!_historyRestoreSelecting) {
-      return;
-    }
-
-    final tile = _engine.board.tiles[index];
-
-    if (tile == null) {
-      return;
-    }
-
-    final row = index ~/ 4;
-    final column = index % 4;
-
-    final changed = _engine.useHistoryRestore(row, column);
-
-    if (!changed) {
-      return;
-    }
-
-    setState(() {
-      _historyRestoreSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-
-    if (_engine.gameOver) {
-      _showGameOver();
-    }
-  }
-
-  // ============================================================
-  // Reset
-  // ============================================================
 
   void _reset() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
-      return;
-    }
-
+    if (_gameOverDialogShowing || _chapterCompleteShowing) return;
     setState(() {
       _engine = GameEngine(chapter: _engine.chapter);
-
+      _toolMode = null;
+      _firstSwapIndex = null;
       _dragStart = null;
       _swipeHandled = false;
-      _reviveSelecting = false;
-      _historyRestoreSelecting = false;
     });
-
     _focusNode.requestFocus();
   }
 
-  // ============================================================
-  // Debug - Chapter 1
-  // ============================================================
-
-  void _debugCompleteChapter1() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
+  void _startTool(String mode) {
+    if (!_engine.hasTools || _gameOverDialogShowing || _chapterCompleteShowing) {
       return;
     }
+    final canUse = switch (mode) {
+      'revive' => _engine.canUseRevive,
+      'rewind' => _engine.canUseTimeRewind,
+      'swap' => _engine.canUsePositionSwap,
+      'duplicate' => _engine.canUseDuplicate,
+      _ => false,
+    };
+    if (!canUse) return;
 
-    if (_engine.chapter != GameChapter.ocean) {
-      return;
-    }
-
-    setState(() {
-      _engine.debugCompleteChapter1();
-    });
-
-    _showChapterComplete();
-  }
-
-  // ============================================================
-  // Debug - Chapter 2
-  // ============================================================
-
-  void _debugCompleteChapter2() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
-      return;
-    }
-
-    if (_engine.chapter != GameChapter.land) {
-      return;
-    }
-
-    setState(() {
-      _engine.debugCompleteChapter2();
-    });
-
-    _showChapterComplete();
-  }
-
-  // ============================================================
-  // Debug - Chapter 3
-  // ============================================================
-
-  void _debugCompleteChapter3() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
-      return;
-    }
-
-    if (_engine.chapter != GameChapter.sky) {
-      return;
-    }
-
-    setState(() {
-      _engine.debugCompleteChapter3();
-    });
-
-    _showChapterComplete();
-  }
-
-  // ============================================================
-  // Debug - Chapter 4
-  // ============================================================
-
-  void _debugCompleteChapter4() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
-      return;
-    }
-
-    if (_engine.chapter != GameChapter.history) {
-      return;
-    }
-
-    setState(() {
-      _engine.debugCompleteChapter4();
-    });
-
-    _showChapterComplete();
-  }
-
-  // ============================================================
-  // Chapter complete transition
-  // ============================================================
-
-  Future<void> _showChapterComplete() async {
-    if (_chapterCompleteShowing || !mounted) {
-      return;
-    }
-
-    _chapterCompleteShowing = true;
-
-    final completedChapter = _engine.chapter;
-
-    await Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        opaque: true,
-        transitionDuration: const Duration(milliseconds: 700),
-        reverseTransitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return _ChapterCompletePage(
-            chapter: completedChapter,
-            score: _engine.score,
-            bestScore: _engine.bestScore,
-            highestValue: _engine.highestValue,
-            onContinue: () {
-              Navigator.of(context).pop();
-            },
-          );
-        },
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-            child: child,
-          );
-        },
-      ),
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    _chapterCompleteShowing = false;
-
-    if (completedChapter == GameChapter.ocean) {
-      await _startChapter2();
-    } else if (completedChapter == GameChapter.land) {
-      await _startChapter3();
-    } else if (completedChapter == GameChapter.sky) {
-      await _startChapter4();
-    } else if (completedChapter == GameChapter.history) {
-      await _startChapter5();
-    } else {
+    if (mode == 'rewind') {
+      if (_engine.useTimeRewind()) setState(() {});
       _focusNode.requestFocus();
-    }
-  }
-
-  // ============================================================
-  // Start Chapter 2
-  // ============================================================
-
-  Future<void> _startChapter2() async {
-    if (!mounted) {
       return;
     }
 
     setState(() {
-      _engine = GameEngine(chapter: GameChapter.land);
-
-      _dragStart = null;
-      _swipeHandled = false;
-      _reviveSelecting = false;
-      _historyRestoreSelecting = false;
+      _toolMode = mode;
+      _firstSwapIndex = null;
     });
+  }
 
+  void _cancelTool() {
+    if (_toolMode == null) return;
+    setState(() {
+      _toolMode = null;
+      _firstSwapIndex = null;
+    });
     _focusNode.requestFocus();
   }
 
-  // ============================================================
-  // Start Chapter 3
-  // ============================================================
+  void _selectToolTile(int index) {
+    final mode = _toolMode;
+    if (mode == null) return;
+    final tile = _engine.board.tiles[index];
+    if (tile == null) return;
 
-  Future<void> _startChapter3() async {
-    if (!mounted) {
+    final row = index ~/ 4;
+    final column = index % 4;
+
+    if (mode == 'revive') {
+      if (_engine.useRevive(row, column)) {
+        setState(() {
+          _toolMode = null;
+          _firstSwapIndex = null;
+        });
+        _focusNode.requestFocus();
+      }
       return;
     }
 
-    setState(() {
-      _engine = GameEngine(chapter: GameChapter.sky);
-
-      _dragStart = null;
-      _swipeHandled = false;
-      _reviveSelecting = false;
-      _historyRestoreSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-  }
-
-  // ============================================================
-  // Start Chapter 4
-  // ============================================================
-
-  Future<void> _startChapter4() async {
-    if (!mounted) {
+    if (mode == 'duplicate') {
+      if (_engine.useDuplicate(row, column)) {
+        setState(() {
+          _toolMode = null;
+          _firstSwapIndex = null;
+        });
+        _focusNode.requestFocus();
+      }
       return;
     }
 
-    setState(() {
-      _engine = GameEngine(chapter: GameChapter.history);
-
-      _dragStart = null;
-      _swipeHandled = false;
-      _reviveSelecting = false;
-      _historyRestoreSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-  }
-
-  // ============================================================
-  // Start Chapter 5
-  // ============================================================
-
-  Future<void> _startChapter5() async {
-    if (!mounted) {
-      return;
+    if (mode == 'swap') {
+      if (_firstSwapIndex == null) {
+        setState(() => _firstSwapIndex = index);
+        return;
+      }
+      final first = _firstSwapIndex!;
+      final changed = _engine.usePositionSwap(
+        first ~/ 4,
+        first % 4,
+        row,
+        column,
+      );
+      if (changed) {
+        setState(() {
+          _toolMode = null;
+          _firstSwapIndex = null;
+        });
+        _focusNode.requestFocus();
+      }
     }
-
-    setState(() {
-      _engine = GameEngine(chapter: GameChapter.tech);
-
-      _dragStart = null;
-      _swipeHandled = false;
-      _reviveSelecting = false;
-      _historyRestoreSelecting = false;
-    });
-
-    _focusNode.requestFocus();
   }
-
-  // ============================================================
-  // Game over
-  // ============================================================
 
   Future<void> _showGameOver() async {
-    if (_gameOverDialogShowing || !mounted) {
-      return;
-    }
-
+    if (_gameOverDialogShowing || !mounted) return;
     _gameOverDialogShowing = true;
-
     final shouldRestart = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Game Over'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Score: ${_engine.score}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Best: ${_engine.bestScore}',
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Highest: ${_engine.highestValue}',
-                style: const TextStyle(fontSize: 16),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Game Over'),
+        content: Text('Score: ${_engine.score}\nHighest: ${_engine.highestValue}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Restart'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(true);
-              },
-              child: const Text('Restart'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
-
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     _gameOverDialogShowing = false;
-
-    if (shouldRestart == true) {
-      _reset();
-    } else {
-      _focusNode.requestFocus();
-    }
+    if (shouldRestart == true) _reset();
   }
-
-  // ============================================================
-  // Background selection
-  // ============================================================
 
   String _backgroundForHighest(int highestValue) {
     final backgrounds = switch (_engine.chapter) {
@@ -713,48 +295,108 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       GameChapter.land => _landBackgrounds,
       GameChapter.sky => _skyBackgrounds,
       GameChapter.history => _historyBackgrounds,
-      GameChapter.tech => _historyBackgrounds,
+      GameChapter.tech => _techBackgrounds,
+      GameChapter.universe => _universeBackgrounds,
     };
-
-    if (highestValue >= 1024) {
-      return backgrounds[3];
-    }
-
-    if (highestValue >= 128) {
-      return backgrounds[2];
-    }
-
-    if (highestValue >= 16) {
-      return backgrounds[1];
-    }
-
+    if (highestValue >= 1024) return backgrounds[3];
+    if (highestValue >= 128) return backgrounds[2];
+    if (highestValue >= 16) return backgrounds[1];
     return backgrounds[0];
   }
 
-  // ============================================================
-  // Chapter title
-  // ============================================================
+  String get _chapterTitle => switch (_engine.chapter) {
+        GameChapter.ocean => 'Ocean Chapter',
+        GameChapter.land => 'Land Chapter',
+        GameChapter.sky => 'Sky Chapter',
+        GameChapter.history => 'History Chapter',
+        GameChapter.tech => 'Technology Chapter',
+        GameChapter.universe => 'Universe Chapter',
+      };
 
-  String get _chapterTitle {
-    return switch (_engine.chapter) {
-      GameChapter.ocean => 'Ocean Chapter',
-      GameChapter.land => 'Land Chapter',
-      GameChapter.sky => 'Sky Chapter',
-      GameChapter.history => 'History Chapter',
-      GameChapter.tech => 'Technology Chapter',
-    };
+  void _debugCompleteChapter() {
+    if (_gameOverDialogShowing || _chapterCompleteShowing) return;
+    setState(() => _engine.debugCompleteChapter(_chapterNumber));
+    _showChapterComplete();
   }
 
-  // ============================================================
-  // Main UI
-  // ============================================================
+  int get _chapterNumber => switch (_engine.chapter) {
+        GameChapter.ocean => 1,
+        GameChapter.land => 2,
+        GameChapter.sky => 3,
+        GameChapter.history => 4,
+        GameChapter.tech => 5,
+        GameChapter.universe => 6,
+      };
+
+  Future<void> _showChapterComplete() async {
+    if (_chapterCompleteShowing || !mounted) return;
+    _chapterCompleteShowing = true;
+    final completedChapter = _engine.chapter;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => _ChapterCompletePage(
+          chapter: completedChapter,
+          score: _engine.score,
+          highestValue: _engine.highestValue,
+          onContinue: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    _chapterCompleteShowing = false;
+
+    switch (completedChapter) {
+      case GameChapter.ocean:
+        _startChapter(GameChapter.land);
+        break;
+      case GameChapter.land:
+        _startChapter(GameChapter.sky);
+        break;
+      case GameChapter.sky:
+        _startChapter(GameChapter.history);
+        break;
+      case GameChapter.history:
+        _startChapter(GameChapter.tech);
+        break;
+      case GameChapter.tech:
+        _startChapter(GameChapter.universe);
+        break;
+      case GameChapter.universe:
+        _focusNode.requestFocus();
+        break;
+    }
+  }
+
+  void _startChapter(GameChapter chapter) {
+    if (!mounted) return;
+    setState(() {
+      _engine = GameEngine(chapter: chapter);
+      _toolMode = null;
+      _firstSwapIndex = null;
+      _dragStart = null;
+      _swipeHandled = false;
+    });
+    _focusNode.requestFocus();
+  }
+
+  String _toolLabel(GameToolType type) {
+    switch (type) {
+      case GameToolType.revive:
+        return 'Revive';
+      case GameToolType.timeRewind:
+        return 'Rewind';
+      case GameToolType.positionSwap:
+        return 'Swap';
+      case GameToolType.duplicate:
+        return 'Duplicate';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final highestValue = _engine.highestValue;
-    final background = _backgroundForHighest(highestValue);
-
-    final hasTools = _engine.chapter != GameChapter.ocean;
+    final background = _backgroundForHighest(_engine.highestValue);
 
     return Scaffold(
       appBar: AppBar(
@@ -765,34 +407,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
             tooltip: 'Restart',
             icon: const Icon(Icons.refresh),
           ),
-
-          if (_engine.chapter == GameChapter.ocean)
-            IconButton(
-              onPressed: _debugCompleteChapter1,
-              tooltip: 'Test Chapter 1 Complete',
-              icon: const Icon(Icons.bug_report),
-            ),
-
-          if (_engine.chapter == GameChapter.land)
-            IconButton(
-              onPressed: _debugCompleteChapter2,
-              tooltip: 'Test Chapter 2 Complete',
-              icon: const Icon(Icons.bug_report),
-            ),
-
-          if (_engine.chapter == GameChapter.sky)
-            IconButton(
-              onPressed: _debugCompleteChapter3,
-              tooltip: 'Test Chapter 3 Complete',
-              icon: const Icon(Icons.bug_report),
-            ),
-
-          if (_engine.chapter == GameChapter.history)
-            IconButton(
-              onPressed: _debugCompleteChapter4,
-              tooltip: 'Test Chapter 4 Complete',
-              icon: const Icon(Icons.bug_report),
-            ),
+          IconButton(
+            onPressed: _debugCompleteChapter,
+            tooltip: 'Test Chapter Complete',
+            icon: const Icon(Icons.bug_report),
+          ),
         ],
       ),
       body: SafeArea(
@@ -800,792 +419,202 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           autofocus: true,
           focusNode: _focusNode,
           onKeyEvent: _handleKey,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          child: GestureDetector(
+            onPanStart: _handleDragStart,
+            onPanUpdate: _handleDragUpdate,
+            onPanEnd: _handleDragEnd,
+            child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _chapterTitle,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Score ${_engine.score}', style: Theme.of(context).textTheme.titleMedium),
+                          Text('Best ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium),
+                        ],
                       ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    _ScorePanel(
-                      score: _engine.score,
-                      best: _engine.bestScore,
-                      highest: highestValue,
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    if (hasTools)
-                      _ToolPanel(
-                        chapter: _engine.chapter,
-                        reviveEnabled: _engine.canUseRevive,
-                        reviveSelecting: _reviveSelecting,
-                        onRevivePressed: _startRevive,
-                        onReviveCancel: _cancelRevive,
-                        rewindEnabled: _engine.canUseTimeRewind,
-                        onRewindPressed: _useTimeRewind,
-                        historyRestoreEnabled: _engine.canUseHistoryRestore,
-                        historyRestoreSelecting: _historyRestoreSelecting,
-                        onHistoryRestorePressed: _startHistoryRestore,
-                        onHistoryRestoreCancel: _cancelHistoryRestore,
+                      const SizedBox(height: 12),
+                      Text(
+                        _toolMode == null
+                            ? 'Highest: ${_engine.highestValue} / ${_engine.targetValue}'
+                            : 'Select a tile for ${_toolMode == 'swap' ? 'Swap' : _toolMode == 'duplicate' ? 'Duplicate' : 'Revive'}',
+                        style: Theme.of(context).textTheme.bodyLarge,
                       ),
-
-                    const SizedBox(height: 16),
-
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onPanStart: _handleDragStart,
-                      onPanUpdate: _handleDragUpdate,
-                      onPanEnd: _handleDragEnd,
-                      child: AspectRatio(
+                      const SizedBox(height: 12),
+                      AspectRatio(
                         aspectRatio: 1,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(16),
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              Image.asset(
-                                background,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.blueGrey.shade100,
-                                  );
-                                },
-                              ),
-
-                              Container(
-                                color: Colors.black.withValues(alpha: 0.08),
-                              ),
-
+                              Image.asset(background, fit: BoxFit.cover),
+                              Container(color: Colors.black.withValues(alpha: 0.18)),
                               GridView.builder(
-                                padding: const EdgeInsets.all(8),
                                 physics: const NeverScrollableScrollPhysics(),
-                                primary: false,
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 4,
-                                      crossAxisSpacing: 6,
-                                      mainAxisSpacing: 6,
-                                    ),
+                                padding: const EdgeInsets.all(8),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 4,
+                                  crossAxisSpacing: 6,
+                                  mainAxisSpacing: 6,
+                                ),
                                 itemCount: 16,
                                 itemBuilder: (context, index) {
                                   final tile = _engine.board.tiles[index];
-
-                                  final selecting =
-                                      _reviveSelecting ||
-                                      _historyRestoreSelecting;
-
+                                  final selected = _firstSwapIndex == index;
                                   return GestureDetector(
-                                    onTap: selecting && tile != null
-                                        ? () {
-                                            if (_reviveSelecting) {
-                                              _selectReviveTile(index);
-                                            } else if (_historyRestoreSelecting) {
-                                              _selectHistoryRestoreTile(index);
-                                            }
-                                          }
-                                        : null,
-                                    child: _TileView(
-                                      tile: tile,
-                                      highlighted: selecting && tile != null,
+                                    onTap: () => _selectToolTile(index),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: selected
+                                            ? Border.all(width: 3, color: Colors.yellow)
+                                            : null,
+                                        color: tile == null
+                                            ? Colors.white.withValues(alpha: 0.08)
+                                            : Colors.white.withValues(alpha: 0.82),
+                                      ),
+                                      padding: const EdgeInsets.all(6),
+                                      child: tile == null
+                                          ? const SizedBox.shrink()
+                                          : Image.asset(tile.creature.imagePath, fit: BoxFit.contain),
                                     ),
                                   );
                                 },
                               ),
-
-                              if (_reviveSelecting)
-                                Positioned.fill(
-                                  child: IgnorePointer(
-                                    child: Container(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.18,
-                                      ),
-                                      alignment: Alignment.topCenter,
-                                      padding: const EdgeInsets.only(top: 12),
-                                      child: const Text(
-                                        'SELECT A CREATURE TO REVIVE',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                              if (_historyRestoreSelecting)
-                                Positioned.fill(
-                                  child: IgnorePointer(
-                                    child: Container(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.18,
-                                      ),
-                                      alignment: Alignment.topCenter,
-                                      padding: const EdgeInsets.only(top: 12),
-                                      child: const Text(
-                                        'SELECT AN OBJECT TO RESTORE',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
                             ],
                           ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    Text(
-                      _reviveSelecting
-                          ? 'Tap one object to remove it.'
-                          : _historyRestoreSelecting
-                          ? 'Tap one historical object to restore it.'
-                          : 'Use arrow keys or swipe to move.',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// Revive Tool Button
-// ============================================================================
-
-class _ReviveToolButton extends StatelessWidget {
-  const _ReviveToolButton({
-    required this.enabled,
-    required this.selecting,
-    required this.onPressed,
-    required this.onCancel,
-  });
-
-  final bool enabled;
-  final bool selecting;
-  final VoidCallback onPressed;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    if (selecting) {
-      return SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: OutlinedButton.icon(
-          onPressed: onCancel,
-          icon: const Icon(Icons.close),
-          label: const Text('CANCEL REVIVE'),
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: FilledButton.icon(
-        onPressed: enabled ? onPressed : null,
-        icon: const Icon(Icons.auto_fix_high),
-        label: Text(enabled ? 'REVIVE  1 USE' : 'REVIVE  USED'),
-        style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// Time Rewind Button
-// ============================================================================
-
-class _TimeRewindToolButton extends StatelessWidget {
-  const _TimeRewindToolButton({required this.enabled, required this.onPressed});
-
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: FilledButton.icon(
-        onPressed: enabled ? onPressed : null,
-        icon: const Icon(Icons.history),
-        label: Text(enabled ? 'TIME REWIND  1 USE' : 'TIME REWIND  USED'),
-        style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// History Restore Button
-// ============================================================================
-
-class _HistoryRestoreToolButton extends StatelessWidget {
-  const _HistoryRestoreToolButton({
-    required this.enabled,
-    required this.selecting,
-    required this.onPressed,
-    required this.onCancel,
-  });
-
-  final bool enabled;
-  final bool selecting;
-  final VoidCallback onPressed;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    if (selecting) {
-      return SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: OutlinedButton.icon(
-          onPressed: onCancel,
-          icon: const Icon(Icons.close),
-          label: const Text('CANCEL RESTORE'),
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: FilledButton.icon(
-        onPressed: enabled ? onPressed : null,
-        icon: const Icon(Icons.restore),
-        label: Text(
-          enabled ? 'HISTORY RESTORE  1 USE' : 'HISTORY RESTORE  USED',
-        ),
-        style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// Tool Panel
-// ============================================================================
-
-class _ToolPanel extends StatelessWidget {
-  const _ToolPanel({
-    required this.chapter,
-    required this.reviveEnabled,
-    required this.reviveSelecting,
-    required this.onRevivePressed,
-    required this.onReviveCancel,
-    required this.rewindEnabled,
-    required this.onRewindPressed,
-    required this.historyRestoreEnabled,
-    required this.historyRestoreSelecting,
-    required this.onHistoryRestorePressed,
-    required this.onHistoryRestoreCancel,
-  });
-
-  final GameChapter chapter;
-
-  final bool reviveEnabled;
-  final bool reviveSelecting;
-  final VoidCallback onRevivePressed;
-  final VoidCallback onReviveCancel;
-
-  final bool rewindEnabled;
-  final VoidCallback onRewindPressed;
-
-  final bool historyRestoreEnabled;
-  final bool historyRestoreSelecting;
-  final VoidCallback onHistoryRestorePressed;
-  final VoidCallback onHistoryRestoreCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    final isHistory = chapter == GameChapter.history;
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _ReviveToolButton(
-                enabled: reviveEnabled,
-                selecting: reviveSelecting,
-                onPressed: onRevivePressed,
-                onCancel: onReviveCancel,
-              ),
-            ),
-
-            const SizedBox(width: 8),
-
-            Expanded(
-              child: _TimeRewindToolButton(
-                enabled: rewindEnabled,
-                onPressed: onRewindPressed,
-              ),
-            ),
-          ],
-        ),
-
-        if (isHistory) ...[
-          const SizedBox(height: 8),
-
-          _HistoryRestoreToolButton(
-            enabled: historyRestoreEnabled,
-            selecting: historyRestoreSelecting,
-            onPressed: onHistoryRestorePressed,
-            onCancel: onHistoryRestoreCancel,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-// ============================================================================
-// Chapter Complete Page
-// ============================================================================
-
-class _ChapterCompletePage extends StatelessWidget {
-  const _ChapterCompletePage({
-    required this.chapter,
-    required this.score,
-    required this.bestScore,
-    required this.highestValue,
-    required this.onContinue,
-  });
-
-  final GameChapter chapter;
-  final int score;
-  final int bestScore;
-  final int highestValue;
-  final VoidCallback onContinue;
-
-  @override
-  Widget build(BuildContext context) {
-    final background = switch (chapter) {
-      GameChapter.ocean =>
-        _Evolution2048PageState._oceanChapterCompleteBackground,
-      GameChapter.land =>
-        _Evolution2048PageState._landChapterCompleteBackground,
-      GameChapter.sky => _Evolution2048PageState._skyChapterCompleteBackground,
-      GameChapter.history =>
-        _Evolution2048PageState._historyChapterCompleteBackground,
-      GameChapter.tech =>
-        _Evolution2048PageState._historyChapterCompleteBackground,
-    };
-
-    final chapterNumber = switch (chapter) {
-      GameChapter.ocean => 'CHAPTER 1',
-      GameChapter.land => 'CHAPTER 2',
-      GameChapter.sky => 'CHAPTER 3',
-      GameChapter.history => 'CHAPTER 4',
-      GameChapter.tech => 'CHAPTER 5',
-    };
-
-    final title = switch (chapter) {
-      GameChapter.ocean => 'OCEAN RESTORED',
-      GameChapter.land => 'LAND RESTORED',
-      GameChapter.sky => 'SKY RESTORED',
-      GameChapter.history => 'HISTORY RESTORED',
-      GameChapter.tech => 'TECHNOLOGY RESTORED',
-    };
-
-    final subtitle = switch (chapter) {
-      GameChapter.ocean => 'The ocean has come back to life.',
-      GameChapter.land => 'Life has returned to the land.',
-      GameChapter.sky => 'The sky has come back to life.',
-      GameChapter.history => 'Human history has been restored.',
-      GameChapter.tech => 'Human technology has been restored.',
-    };
-
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            background,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(color: Colors.black87);
-            },
-          ),
-
-          Container(color: Colors.black.withValues(alpha: 0.38)),
-
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 32,
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        chapterNumber,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 4,
+                      const SizedBox(height: 12),
+                      if (_toolMode != null)
+                        TextButton(onPressed: _cancelTool, child: const Text('Cancel'))
+                      else if (_engine.hasTools)
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _engine.toolManager.tools.map((state) {
+                            final type = state.tool.type;
+                            final enabled = state.canUse && switch (type) {
+                              GameToolType.revive => true,
+                              GameToolType.timeRewind => _engine.canUseTimeRewind,
+                              GameToolType.positionSwap => _engine.canUsePositionSwap,
+                              GameToolType.duplicate => _engine.canUseDuplicate,
+                            };
+                            final mode = switch (type) {
+                              GameToolType.revive => 'revive',
+                              GameToolType.timeRewind => 'rewind',
+                              GameToolType.positionSwap => 'swap',
+                              GameToolType.duplicate => 'duplicate',
+                            };
+                            return OutlinedButton.icon(
+                              onPressed: enabled ? () => _startTool(mode) : null,
+                              icon: const Icon(Icons.build),
+                              label: Text('${_toolLabel(type)} (${state.usesRemaining})'),
+                            );
+                          }).toList(),
                         ),
-                      ),
-
-                      const SizedBox(height: 10),
-
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      Text(
-                        subtitle,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.48),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: Column(
-                          children: [
-                            _ResultRow(label: 'SCORE', value: '$score'),
-                            const SizedBox(height: 14),
-                            _ResultRow(label: 'BEST', value: '$bestScore'),
-                            const SizedBox(height: 14),
-                            _ResultRow(
-                              label: 'HIGHEST',
-                              value: '$highestValue',
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: FilledButton(
-                          onPressed: onContinue,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: Text(
-                            chapter == GameChapter.sky
-                                ? 'PLAY AGAIN'
-                                : 'CONTINUE',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ============================================================================
-// Result row
-// ============================================================================
-
-class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-          ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================================
-// Score panel
-// ============================================================================
-
-class _ScorePanel extends StatelessWidget {
-  const _ScorePanel({
+class _ChapterCompletePage extends StatelessWidget {
+  const _ChapterCompletePage({
+    required this.chapter,
     required this.score,
-    required this.best,
-    required this.highest,
+    required this.highestValue,
+    required this.onContinue,
   });
 
+  final GameChapter chapter;
   final int score;
-  final int best;
-  final int highest;
+  final int highestValue;
+  final VoidCallback onContinue;
+
+  String get _background => switch (chapter) {
+        GameChapter.ocean =>
+          'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
+        GameChapter.land =>
+          'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
+        GameChapter.sky =>
+          'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg',
+        GameChapter.history =>
+          'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
+        GameChapter.tech =>
+          'assets/backgrounds/chapter_05_tech/tech_complete.png',
+        GameChapter.universe =>
+          'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg',
+      };
+
+  String get _title => switch (chapter) {
+        GameChapter.ocean => 'Ocean Restored',
+        GameChapter.land => 'Land Restored',
+        GameChapter.sky => 'Sky Restored',
+        GameChapter.history => 'History Restored',
+        GameChapter.tech => 'Technology Restored',
+        GameChapter.universe => 'Universe Restored',
+      };
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _ScoreItem(label: 'SCORE', value: score),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _ScoreItem(label: 'BEST', value: best),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _ScoreItem(label: 'HIGHEST', value: highest),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================================
-// Score item
-// ============================================================================
-
-class _ScoreItem extends StatelessWidget {
-  const _ScoreItem({required this.label, required this.value});
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: Colors.black12,
-      ),
-      child: Column(
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$value',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// Creature tile
-// ============================================================================
-
-class _TileView extends StatelessWidget {
-  const _TileView({required this.tile, this.highlighted = false});
-
-  final GameTile? tile;
-  final bool highlighted;
-
-  double _creatureScale(GameTile tile) {
-    return switch (tile.value) {
-      2 => 1.10,
-      4 => 1.12,
-      8 => 1.14,
-      16 => 1.16,
-      32 => 1.18,
-      64 => 1.20,
-      128 => 1.22,
-      256 => 1.24,
-      512 => 1.26,
-      1024 => 1.28,
-      2048 => 1.30,
-      4096 => 1.32,
-      8192 => 1.32,
-      16384 => 1.32,
-      32768 => 1.32,
-      _ => 1.20,
-    };
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (tile == null) {
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.white.withValues(alpha: 0.34),
-        ),
-      );
-    }
-
-    final creature = tile!.creature;
-    final scale = _creatureScale(tile!);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: highlighted
-            ? Colors.amber.withValues(alpha: 0.45)
-            : Colors.white.withValues(alpha: 0.55),
-        border: highlighted ? Border.all(color: Colors.amber, width: 3) : null,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final tileSize = constraints.maxWidth;
-
-          return Stack(
-            children: [
-              Center(
-                child: SizedBox(
-                  width: tileSize * scale,
-                  height: tileSize * scale,
-                  child: Image.asset(
-                    creature.imagePath,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint('========================================');
-                      debugPrint('CREATURE IMAGE LOAD ERROR');
-                      debugPrint('PATH: ${creature.imagePath}');
-                      debugPrint('ERROR: $error');
-                      debugPrint('========================================');
-
-                      return Center(
-                        child: Icon(
-                          Icons.broken_image,
-                          color: Colors.red,
-                          size: tileSize * 0.35,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              Positioned(
-                top: 4,
-                left: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black45,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Text(
-                    '${tile!.value}',
+          Image.asset(_background, fit: BoxFit.cover),
+          Container(color: Colors.black.withValues(alpha: 0.18)),
+          SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Spacer(),
+                  Text(
+                    _title,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
+                      fontSize: 30,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [Shadow(blurRadius: 8, color: Colors.black)],
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Score $score  •  Highest $highestValue',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: onContinue,
+                        child: Text(
+                          chapter == GameChapter.universe ? 'Continue' : 'Continue',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
