@@ -18,7 +18,7 @@ class ToolManager {
 
     switch (chapter) {
       case GameChapter.ocean:
-        _tools.add(ToolState(tool: GameTool.revive));
+        // Chapter 1 has no tools.
         break;
       case GameChapter.land:
         _tools.add(ToolState(tool: GameTool.revive));
@@ -37,6 +37,9 @@ class ToolManager {
         _tools.add(ToolState(tool: GameTool.timeRewind));
         _tools.add(ToolState(tool: GameTool.positionSwap));
         _tools.add(ToolState(tool: GameTool.duplicate));
+        break;
+      case GameChapter.universe:
+        // Chapter 6 is the ultimate challenge: tools are disabled.
         break;
     }
   }
