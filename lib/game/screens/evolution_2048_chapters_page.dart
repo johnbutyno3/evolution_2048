@@ -233,8 +233,9 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     if (_used.contains(tool) ||
         !_tools.contains(tool) ||
         _gameOver ||
-        _complete)
+        _complete) {
       return;
+    }
     if (tool == _Tool.rewind) {
       if (_previous == null) return;
       _tiles = List<int?>.from(_previous!);
@@ -274,13 +275,13 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           PageRouteBuilder<void>(
             opaque: true,
             transitionDuration: const Duration(milliseconds: 600),
-            pageBuilder: (_, animation, __) => _CompletePage(
+            pageBuilder: (_, animation, _) => _CompletePage(
               chapter: chapter,
               background: _completeBackgrounds[chapter]!,
               score: _score,
               onContinue: () => Navigator.of(context).pop(),
             ),
-            transitionsBuilder: (_, animation, __, child) =>
+            transitionsBuilder: (_, animation, _, child) =>
                 FadeTransition(opacity: animation, child: child),
           ),
         )
@@ -395,7 +396,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                               Image.asset(
                                 bg,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
+                                errorBuilder: (_, _, _) =>
                                     Container(color: Colors.blueGrey),
                               ),
                               Container(
@@ -608,7 +609,7 @@ class _Tile extends StatelessWidget {
                     child: Image.asset(
                       image!,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
                     ),
                   ),
                 ),
@@ -706,7 +707,7 @@ class _CompletePage extends StatelessWidget {
         Image.asset(
           background,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(color: Colors.black),
+          errorBuilder: (_, _, _) => Container(color: Colors.black),
         ),
         Container(color: Colors.black.withValues(alpha: .32)),
         Center(
