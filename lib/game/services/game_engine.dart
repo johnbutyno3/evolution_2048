@@ -8,6 +8,8 @@ import 'tool_manager.dart';
 class GameEngine {
   GameEngine({Random? random, GameChapter chapter = GameChapter.ocean})
     : _random = random ?? Random(),
+      // Keep the public `chapter` parameter name for all existing callers.
+      // ignore: prefer_initializing_formals
       _chapter = chapter {
     _initializeTools();
     reset();
@@ -41,7 +43,6 @@ class GameEngine {
       _toolManager.canUse(GameToolType.timeRewind) && _hasPreviousState;
   bool get canUsePositionSwap => _toolManager.canUse(GameToolType.positionSwap);
   bool get canUseDuplicate => _toolManager.canUse(GameToolType.duplicate);
-
   bool get canUseHistoryRestore => false;
   bool get hasPreviousState => _hasPreviousState;
 
