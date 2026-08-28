@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import '../models/game_board.dart';
 import '../models/game_tile.dart';
@@ -279,6 +279,10 @@ class GameEngine {
         case GameChapter.history:
           break;
         case GameChapter.tech:
+          break;
+
+        case GameChapter.tech:
+          hasReached16384 = true;
           break;
       }
     }

@@ -21,10 +21,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   bool _gameOverDialogShowing = false;
   bool _chapterCompleteShowing = false;
 
-  // Revive tool
+  // ============================================================
+  // Tool selection states
+  // ============================================================
+
   bool _reviveSelecting = false;
-  // History Restore tool
   bool _historyRestoreSelecting = false;
+
   static const double _swipeThreshold = 30;
 
   // ============================================================
@@ -68,6 +71,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_03_sky/sky_background_03_high_altitude.jpg',
     'assets/backgrounds/chapter_03_sky/sky_background_04_space.jpg',
   ];
+
   // ============================================================
   // Chapter 4 - History assets
   // ============================================================
@@ -81,6 +85,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_03.png',
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_04.png',
   ];
+
   @override
   void initState() {
     super.initState();
@@ -216,8 +221,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   // ============================================================
 
   void _startRevive() {
-    if (_engine.chapter != GameChapter.land &&
-        _engine.chapter != GameChapter.sky) {
+    if (_engine.chapter == GameChapter.ocean) {
       return;
     }
 
@@ -231,6 +235,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     setState(() {
       _reviveSelecting = true;
+      _historyRestoreSelecting = false;
     });
 
     _focusNode.requestFocus();
@@ -248,8 +253,44 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     _focusNode.requestFocus();
   }
 
+  void _selectReviveTile(int index) {
+    if (!_reviveSelecting) {
+      return;
+    }
+
+    final tile = _engine.board.tiles[index];
+
+    if (tile == null) {
+      return;
+    }
+
+    final row = index ~/ 4;
+    final column = index % 4;
+
+    final changed = _engine.useRevive(row, column);
+
+    if (!changed) {
+      return;
+    }
+
+    setState(() {
+      _reviveSelecting = false;
+    });
+
+    _focusNode.requestFocus();
+
+    if (_engine.gameOver) {
+      _showGameOver();
+    }
+  }
+
+  // ============================================================
+  // Time Rewind
+  // ============================================================
+
   void _useTimeRewind() {
-    if (_engine.chapter != GameChapter.sky) {
+    if (_engine.chapter == GameChapter.ocean ||
+        _engine.chapter == GameChapter.land) {
       return;
     }
 
@@ -257,7 +298,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return;
     }
 
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _reviveSelecting) {
+    if (_gameOverDialogShowing ||
+        _chapterCompleteShowing ||
+        _reviveSelecting ||
+        _historyRestoreSelecting) {
       return;
     }
 
@@ -271,6 +315,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     _focusNode.requestFocus();
   }
+
   // ============================================================
   // History Restore
   // ============================================================
@@ -290,6 +335,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     setState(() {
       _historyRestoreSelecting = true;
+      _reviveSelecting = false;
     });
 
     _focusNode.requestFocus();
@@ -338,37 +384,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
   }
 
-  void _selectReviveTile(int index) {
-    if (!_reviveSelecting) {
-      return;
-    }
-
-    final tile = _engine.board.tiles[index];
-
-    if (tile == null) {
-      return;
-    }
-
-    final row = index ~/ 4;
-    final column = index % 4;
-
-    final changed = _engine.useRevive(row, column);
-
-    if (!changed) {
-      return;
-    }
-
-    setState(() {
-      _reviveSelecting = false;
-    });
-
-    _focusNode.requestFocus();
-
-    if (_engine.gameOver) {
-      _showGameOver();
-    }
-  }
-
   // ============================================================
   // Reset
   // ============================================================
@@ -384,6 +399,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _dragStart = null;
       _swipeHandled = false;
       _reviveSelecting = false;
+      _historyRestoreSelecting = false;
     });
 
     _focusNode.requestFocus();
@@ -444,6 +460,26 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     setState(() {
       _engine.debugCompleteChapter3();
+    });
+
+    _showChapterComplete();
+  }
+
+  // ============================================================
+  // Debug - Chapter 4
+  // ============================================================
+
+  void _debugCompleteChapter4() {
+    if (_gameOverDialogShowing || _chapterCompleteShowing) {
+      return;
+    }
+
+    if (_engine.chapter != GameChapter.history) {
+      return;
+    }
+
+    setState(() {
+      _engine.debugCompleteChapter4();
     });
 
     _showChapterComplete();
@@ -519,6 +555,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _dragStart = null;
       _swipeHandled = false;
       _reviveSelecting = false;
+      _historyRestoreSelecting = false;
     });
 
     _focusNode.requestFocus();
@@ -539,6 +576,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _dragStart = null;
       _swipeHandled = false;
       _reviveSelecting = false;
+      _historyRestoreSelecting = false;
     });
 
     _focusNode.requestFocus();
@@ -559,6 +597,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       _dragStart = null;
       _swipeHandled = false;
       _reviveSelecting = false;
+      _historyRestoreSelecting = false;
     });
 
     _focusNode.requestFocus();
@@ -667,6 +706,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       GameChapter.history => 'History Chapter',
     };
   }
+
   // ============================================================
   // Main UI
   // ============================================================
@@ -675,6 +715,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   Widget build(BuildContext context) {
     final highestValue = _engine.highestValue;
     final background = _backgroundForHighest(highestValue);
+
+    final hasTools = _engine.chapter != GameChapter.ocean;
 
     return Scaffold(
       appBar: AppBar(
@@ -704,6 +746,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
             IconButton(
               onPressed: _debugCompleteChapter3,
               tooltip: 'Test Chapter 3 Complete',
+              icon: const Icon(Icons.bug_report),
+            ),
+
+          if (_engine.chapter == GameChapter.history)
+            IconButton(
+              onPressed: _debugCompleteChapter4,
+              tooltip: 'Test Chapter 4 Complete',
               icon: const Icon(Icons.bug_report),
             ),
         ],
@@ -739,8 +788,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
                     const SizedBox(height: 10),
 
-                    if (_engine.chapter == GameChapter.land ||
-                        _engine.chapter == GameChapter.sky)
+                    if (hasTools)
                       _ToolPanel(
                         chapter: _engine.chapter,
                         reviveEnabled: _engine.canUseRevive,
@@ -749,6 +797,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                         onReviveCancel: _cancelRevive,
                         rewindEnabled: _engine.canUseTimeRewind,
                         onRewindPressed: _useTimeRewind,
+                        historyRestoreEnabled: _engine.canUseHistoryRestore,
+                        historyRestoreSelecting: _historyRestoreSelecting,
+                        onHistoryRestorePressed: _startHistoryRestore,
+                        onHistoryRestoreCancel: _cancelHistoryRestore,
                       ),
 
                     const SizedBox(height: 16),
@@ -775,8 +827,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                 },
                               ),
 
-                              // Keep all chapters visually
-                              // consistent with Chapter 1.
                               Container(
                                 color: Colors.black.withValues(alpha: 0.08),
                               ),
@@ -795,16 +845,23 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                 itemBuilder: (context, index) {
                                   final tile = _engine.board.tiles[index];
 
+                                  final selecting =
+                                      _reviveSelecting ||
+                                      _historyRestoreSelecting;
+
                                   return GestureDetector(
-                                    onTap: _reviveSelecting
+                                    onTap: selecting && tile != null
                                         ? () {
-                                            _selectReviveTile(index);
+                                            if (_reviveSelecting) {
+                                              _selectReviveTile(index);
+                                            } else if (_historyRestoreSelecting) {
+                                              _selectHistoryRestoreTile(index);
+                                            }
                                           }
                                         : null,
                                     child: _TileView(
                                       tile: tile,
-                                      highlighted:
-                                          _reviveSelecting && tile != null,
+                                      highlighted: selecting && tile != null,
                                     ),
                                   );
                                 },
@@ -831,6 +888,28 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                     ),
                                   ),
                                 ),
+
+                              if (_historyRestoreSelecting)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: Container(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.18,
+                                      ),
+                                      alignment: Alignment.topCenter,
+                                      padding: const EdgeInsets.only(top: 12),
+                                      child: const Text(
+                                        'SELECT AN OBJECT TO RESTORE',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -841,7 +920,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
                     Text(
                       _reviveSelecting
-                          ? 'Tap one creature to remove it.'
+                          ? 'Tap one object to remove it.'
+                          : _historyRestoreSelecting
+                          ? 'Tap one historical object to restore it.'
                           : 'Use arrow keys or swipe to move.',
                       style: const TextStyle(fontSize: 14),
                     ),
@@ -857,7 +938,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 }
 
 // ============================================================================
-// Revive Tool
+// Revive Tool Button
 // ============================================================================
 
 class _ReviveToolButton extends StatelessWidget {
@@ -910,6 +991,90 @@ class _ReviveToolButton extends StatelessWidget {
 }
 
 // ============================================================================
+// Time Rewind Button
+// ============================================================================
+
+class _TimeRewindToolButton extends StatelessWidget {
+  const _TimeRewindToolButton({required this.enabled, required this.onPressed});
+
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: FilledButton.icon(
+        onPressed: enabled ? onPressed : null,
+        icon: const Icon(Icons.history),
+        label: Text(enabled ? 'TIME REWIND  1 USE' : 'TIME REWIND  USED'),
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// History Restore Button
+// ============================================================================
+
+class _HistoryRestoreToolButton extends StatelessWidget {
+  const _HistoryRestoreToolButton({
+    required this.enabled,
+    required this.selecting,
+    required this.onPressed,
+    required this.onCancel,
+  });
+
+  final bool enabled;
+  final bool selecting;
+  final VoidCallback onPressed;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (selecting) {
+      return SizedBox(
+        width: double.infinity,
+        height: 48,
+        child: OutlinedButton.icon(
+          onPressed: onCancel,
+          icon: const Icon(Icons.close),
+          label: const Text('CANCEL RESTORE'),
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: FilledButton.icon(
+        onPressed: enabled ? onPressed : null,
+        icon: const Icon(Icons.restore),
+        label: Text(
+          enabled ? 'HISTORY RESTORE  1 USE' : 'HISTORY RESTORE  USED',
+        ),
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
 // Tool Panel
 // ============================================================================
 
@@ -922,6 +1087,10 @@ class _ToolPanel extends StatelessWidget {
     required this.onReviveCancel,
     required this.rewindEnabled,
     required this.onRewindPressed,
+    required this.historyRestoreEnabled,
+    required this.historyRestoreSelecting,
+    required this.onHistoryRestorePressed,
+    required this.onHistoryRestoreCancel,
   });
 
   final GameChapter chapter;
@@ -934,40 +1103,47 @@ class _ToolPanel extends StatelessWidget {
   final bool rewindEnabled;
   final VoidCallback onRewindPressed;
 
+  final bool historyRestoreEnabled;
+  final bool historyRestoreSelecting;
+  final VoidCallback onHistoryRestorePressed;
+  final VoidCallback onHistoryRestoreCancel;
+
   @override
   Widget build(BuildContext context) {
-    final isSky = chapter == GameChapter.sky;
+    final isHistory = chapter == GameChapter.history;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _ReviveToolButton(
-            enabled: reviveEnabled,
-            selecting: reviveSelecting,
-            onPressed: onRevivePressed,
-            onCancel: onReviveCancel,
-          ),
-        ),
-
-        if (isSky) ...[
-          const SizedBox(width: 8),
-
-          Expanded(
-            child: SizedBox(
-              height: 48,
-              child: FilledButton.icon(
-                onPressed: rewindEnabled ? onRewindPressed : null,
-                icon: const Icon(Icons.history),
-                label: Text(
-                  rewindEnabled ? 'TIME REWIND  1 USE' : 'TIME REWIND  USED',
-                ),
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+        Row(
+          children: [
+            Expanded(
+              child: _ReviveToolButton(
+                enabled: reviveEnabled,
+                selecting: reviveSelecting,
+                onPressed: onRevivePressed,
+                onCancel: onReviveCancel,
               ),
             ),
+
+            const SizedBox(width: 8),
+
+            Expanded(
+              child: _TimeRewindToolButton(
+                enabled: rewindEnabled,
+                onPressed: onRewindPressed,
+              ),
+            ),
+          ],
+        ),
+
+        if (isHistory) ...[
+          const SizedBox(height: 8),
+
+          _HistoryRestoreToolButton(
+            enabled: historyRestoreEnabled,
+            selecting: historyRestoreSelecting,
+            onPressed: onHistoryRestorePressed,
+            onCancel: onHistoryRestoreCancel,
           ),
         ],
       ],
@@ -1147,6 +1323,7 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
 // ============================================================================
 // Result row
 // ============================================================================
@@ -1279,6 +1456,8 @@ class _TileView extends StatelessWidget {
       2048 => 1.30,
       4096 => 1.32,
       8192 => 1.32,
+      16384 => 1.32,
+      32768 => 1.32,
       _ => 1.20,
     };
   }
@@ -1289,8 +1468,6 @@ class _TileView extends StatelessWidget {
       return Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-
-          // Same transparency for all chapters.
           color: Colors.white.withValues(alpha: 0.34),
         ),
       );
@@ -1301,21 +1478,14 @@ class _TileView extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
-
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-
-        // Same tile transparency for
-        // Chapter 1, Chapter 2 and Chapter 3.
         color: highlighted
             ? Colors.amber.withValues(alpha: 0.45)
             : Colors.white.withValues(alpha: 0.55),
-
         border: highlighted ? Border.all(color: Colors.amber, width: 3) : null,
       ),
-
       clipBehavior: Clip.antiAlias,
-
       child: LayoutBuilder(
         builder: (context, constraints) {
           final tileSize = constraints.maxWidth;

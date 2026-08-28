@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/game_tile.dart';
@@ -194,23 +194,36 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return;
     }
 
-    final changed = switch (direction) {
-      'up' => _engine.moveUp(),
-      'down' => _engine.moveDown(),
-      'left' => _engine.moveLeft(),
-      'right' => _engine.moveRight(),
-      _ => false,
-    };
+    switch (direction) {
+      case 'up':
+        _engine.moveUp();
+        break;
+      case 'down':
+        _engine.moveDown();
+        break;
+      case 'left':
+        _engine.moveLeft();
+        break;
+      case 'right':
+        _engine.moveRight();
+        break;
+    }
 
-    if (changed && mounted) {
+    // Always rebuild after a move attempt.
+    // This is important because a failed move can still
+    // change the engine state to Game Over.
+    if (mounted) {
       setState(() {});
     }
 
+    // Chapter completion takes priority over Game Over.
     if (_engine.chapterComplete) {
       _showChapterComplete();
       return;
     }
 
+    // A full board with no legal moves reaches Game Over
+    // even when the attempted move itself returned false.
     if (_engine.gameOver) {
       _showGameOver();
     }
@@ -535,6 +548,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       await _startChapter3();
     } else if (completedChapter == GameChapter.sky) {
       await _startChapter4();
+    } else if (completedChapter == GameChapter.history) {
+      await _startChapter5();
     } else {
       _focusNode.requestFocus();
     }
@@ -593,6 +608,27 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     setState(() {
       _engine = GameEngine(chapter: GameChapter.history);
+
+      _dragStart = null;
+      _swipeHandled = false;
+      _reviveSelecting = false;
+      _historyRestoreSelecting = false;
+    });
+
+    _focusNode.requestFocus();
+  }
+
+  // ============================================================
+  // Start Chapter 5
+  // ============================================================
+
+  Future<void> _startChapter5() async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _engine = GameEngine(chapter: GameChapter.tech);
 
       _dragStart = null;
       _swipeHandled = false;
@@ -677,6 +713,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       GameChapter.land => _landBackgrounds,
       GameChapter.sky => _skyBackgrounds,
       GameChapter.history => _historyBackgrounds,
+      GameChapter.tech => _historyBackgrounds,
     };
 
     if (highestValue >= 1024) {
@@ -704,6 +741,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       GameChapter.land => 'Land Chapter',
       GameChapter.sky => 'Sky Chapter',
       GameChapter.history => 'History Chapter',
+      GameChapter.tech => 'Technology Chapter',
     };
   }
 
@@ -1180,6 +1218,8 @@ class _ChapterCompletePage extends StatelessWidget {
       GameChapter.sky => _Evolution2048PageState._skyChapterCompleteBackground,
       GameChapter.history =>
         _Evolution2048PageState._historyChapterCompleteBackground,
+      GameChapter.tech =>
+        _Evolution2048PageState._historyChapterCompleteBackground,
     };
 
     final chapterNumber = switch (chapter) {
@@ -1187,6 +1227,7 @@ class _ChapterCompletePage extends StatelessWidget {
       GameChapter.land => 'CHAPTER 2',
       GameChapter.sky => 'CHAPTER 3',
       GameChapter.history => 'CHAPTER 4',
+      GameChapter.tech => 'CHAPTER 5',
     };
 
     final title = switch (chapter) {
@@ -1194,6 +1235,7 @@ class _ChapterCompletePage extends StatelessWidget {
       GameChapter.land => 'LAND RESTORED',
       GameChapter.sky => 'SKY RESTORED',
       GameChapter.history => 'HISTORY RESTORED',
+      GameChapter.tech => 'TECHNOLOGY RESTORED',
     };
 
     final subtitle = switch (chapter) {
@@ -1201,6 +1243,7 @@ class _ChapterCompletePage extends StatelessWidget {
       GameChapter.land => 'Life has returned to the land.',
       GameChapter.sky => 'The sky has come back to life.',
       GameChapter.history => 'Human history has been restored.',
+      GameChapter.tech => 'Human technology has been restored.',
     };
 
     return Scaffold(
@@ -1500,7 +1543,19 @@ class _TileView extends StatelessWidget {
                     creature.imagePath,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
-                      return const SizedBox.shrink();
+                      debugPrint('========================================');
+                      debugPrint('CREATURE IMAGE LOAD ERROR');
+                      debugPrint('PATH: ${creature.imagePath}');
+                      debugPrint('ERROR: $error');
+                      debugPrint('========================================');
+
+                      return Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          color: Colors.red,
+                          size: tileSize * 0.35,
+                        ),
+                      );
                     },
                   ),
                 ),

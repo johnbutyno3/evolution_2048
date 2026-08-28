@@ -10,7 +10,8 @@ class Evolution2048ChaptersPage extends StatefulWidget {
   const Evolution2048ChaptersPage({super.key});
 
   @override
-  State<Evolution2048ChaptersPage> createState() => _Evolution2048ChaptersPageState();
+  State<Evolution2048ChaptersPage> createState() =>
+      _Evolution2048ChaptersPageState();
 }
 
 class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
@@ -37,7 +38,8 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     32: 'assets/creatures/chapter_05_modern_world/modern_32_washing_machine.png',
     64: 'assets/creatures/chapter_05_modern_world/modern_64_refrigerator.png',
     128: 'assets/creatures/chapter_05_modern_world/modern_128_microwave.png',
-    256: 'assets/creatures/chapter_05_modern_world/modern_256_game_controller.png',
+    256:
+        'assets/creatures/chapter_05_modern_world/modern_256_game_controller.png',
     512: 'assets/creatures/chapter_05_modern_world/modern_512_laptop.png',
     1024: 'assets/creatures/chapter_05_modern_world/modern_1024_smartphone.png',
     2048: 'assets/creatures/chapter_05_modern_world/modern_2048_tablet.png',
@@ -45,7 +47,8 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     8192: 'assets/creatures/chapter_05_modern_world/modern_8192_vr_headset.png',
     16384: 'assets/creatures/chapter_05_modern_world/modern_16384_robot.png',
     32768: 'assets/creatures/chapter_05_modern_world/modern_32768_ai_core.png',
-    65536: 'assets/creatures/chapter_05_modern_world/modern_65536_future_device.png',
+    65536:
+        'assets/creatures/chapter_05_modern_world/modern_65536_future_device.png',
   };
 
   static const _backgrounds = <_Chapter, List<String>>{
@@ -82,10 +85,13 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   };
 
   static const _completeBackgrounds = <_Chapter, String>{
-    _Chapter.ocean: 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
-    _Chapter.land: 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
+    _Chapter.ocean:
+        'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
+    _Chapter.land:
+        'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
     _Chapter.sky: 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg',
-    _Chapter.history: 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
+    _Chapter.history:
+        'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
     _Chapter.tech: 'assets/backgrounds/chapter_05_tech/tech_complete.png',
   };
 
@@ -103,28 +109,33 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   }
 
   int get _target => const {
-        _Chapter.ocean: 4096,
-        _Chapter.land: 8192,
-        _Chapter.sky: 16384,
-        _Chapter.history: 32768,
-        _Chapter.tech: 65536,
-      }[_chapter]!;
+    _Chapter.ocean: 4096,
+    _Chapter.land: 8192,
+    _Chapter.sky: 16384,
+    _Chapter.history: 32768,
+    _Chapter.tech: 65536,
+  }[_chapter]!;
 
   String get _title => const {
-        _Chapter.ocean: 'Ocean Chapter',
-        _Chapter.land: 'Land Chapter',
-        _Chapter.sky: 'Sky Chapter',
-        _Chapter.history: 'History Chapter',
-        _Chapter.tech: 'Tech Chapter',
-      }[_chapter]!;
+    _Chapter.ocean: 'Ocean Chapter',
+    _Chapter.land: 'Land Chapter',
+    _Chapter.sky: 'Sky Chapter',
+    _Chapter.history: 'History Chapter',
+    _Chapter.tech: 'Tech Chapter',
+  }[_chapter]!;
 
   List<_Tool> get _tools => switch (_chapter) {
-        _Chapter.ocean => const [],
-        _Chapter.land => const [_Tool.revive],
-        _Chapter.sky => const [_Tool.revive, _Tool.rewind],
-        _Chapter.history => const [_Tool.revive, _Tool.rewind, _Tool.restore],
-        _Chapter.tech => const [_Tool.revive, _Tool.rewind, _Tool.restore, _Tool.duplicate],
-      };
+    _Chapter.ocean => const [],
+    _Chapter.land => const [_Tool.revive],
+    _Chapter.sky => const [_Tool.revive, _Tool.rewind],
+    _Chapter.history => const [_Tool.revive, _Tool.rewind, _Tool.restore],
+    _Chapter.tech => const [
+      _Tool.revive,
+      _Tool.rewind,
+      _Tool.restore,
+      _Tool.duplicate,
+    ],
+  };
 
   void _resetBoard() {
     _tiles = List<int?>.filled(16, null);
@@ -219,7 +230,11 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   }
 
   void _useTool(_Tool tool) {
-    if (_used.contains(tool) || !_tools.contains(tool) || _gameOver || _complete) return;
+    if (_used.contains(tool) ||
+        !_tools.contains(tool) ||
+        _gameOver ||
+        _complete)
+      return;
     if (tool == _Tool.rewind) {
       if (_previous == null) return;
       _tiles = List<int?>.from(_previous!);
@@ -254,28 +269,33 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   void _showComplete() {
     if (!mounted) return;
     final chapter = _chapter;
-    Navigator.of(context).push(PageRouteBuilder<void>(
-      opaque: true,
-      transitionDuration: const Duration(milliseconds: 600),
-      pageBuilder: (_, animation, __) => _CompletePage(
-        chapter: chapter,
-        background: _completeBackgrounds[chapter]!,
-        score: _score,
-        onContinue: () => Navigator.of(context).pop(),
-      ),
-      transitionsBuilder: (_, animation, __, child) => FadeTransition(opacity: animation, child: child),
-    )).then((_) {
-      if (!mounted) return;
-      if (chapter == _Chapter.tech) {
-        _focus.requestFocus();
-        return;
-      }
-      setState(() {
-        _chapter = _Chapter.values[chapter.index + 1];
-        _resetBoard();
-      });
-      _focus.requestFocus();
-    });
+    Navigator.of(context)
+        .push(
+          PageRouteBuilder<void>(
+            opaque: true,
+            transitionDuration: const Duration(milliseconds: 600),
+            pageBuilder: (_, animation, __) => _CompletePage(
+              chapter: chapter,
+              background: _completeBackgrounds[chapter]!,
+              score: _score,
+              onContinue: () => Navigator.of(context).pop(),
+            ),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+          ),
+        )
+        .then((_) {
+          if (!mounted) return;
+          if (chapter == _Chapter.tech) {
+            _focus.requestFocus();
+            return;
+          }
+          setState(() {
+            _chapter = _Chapter.values[chapter.index + 1];
+            _resetBoard();
+          });
+          _focus.requestFocus();
+        });
   }
 
   void _debugComplete() {
@@ -307,14 +327,20 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
         title: Text(_title),
         actions: [
           IconButton(onPressed: _resetBoard, icon: const Icon(Icons.refresh)),
-          IconButton(onPressed: _debugComplete, icon: const Icon(Icons.bug_report)),
+          IconButton(
+            onPressed: _debugComplete,
+            icon: const Icon(Icons.bug_report),
+          ),
         ],
       ),
       body: SafeArea(
         child: Focus(
           autofocus: true,
           focusNode: _focus,
-          onKeyEvent: (_, event) { _handleKey(event); return KeyEventResult.handled; },
+          onKeyEvent: (_, event) {
+            _handleKey(event);
+            return KeyEventResult.handled;
+          },
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
@@ -323,21 +349,24 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(children: [
-                      Expanded(child: _Stat('SCORE', _score)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _Stat('BEST', _best)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _Stat('HIGHEST', highest)),
-                    ]),
-                    const SizedBox(height: 10),
-                    if (_tools.isNotEmpty) _Tools(
-                      tools: _tools,
-                      used: _used,
-                      selecting: _selecting,
-                      onTool: _useTool,
-                      onCancel: () => setState(() => _selecting = null),
+                    Row(
+                      children: [
+                        Expanded(child: _Stat('SCORE', _score)),
+                        const SizedBox(width: 8),
+                        Expanded(child: _Stat('BEST', _best)),
+                        const SizedBox(width: 8),
+                        Expanded(child: _Stat('HIGHEST', highest)),
+                      ],
                     ),
+                    const SizedBox(height: 10),
+                    if (_tools.isNotEmpty)
+                      _Tools(
+                        tools: _tools,
+                        used: _used,
+                        selecting: _selecting,
+                        onTool: _useTool,
+                        onCancel: () => setState(() => _selecting = null),
+                      ),
                     const SizedBox(height: 12),
                     GestureDetector(
                       onPanStart: (d) => _dragStart = d.localPosition,
@@ -346,32 +375,66 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                         final delta = d.localPosition - _dragStart!;
                         if (delta.distance < 30) return;
                         _handledSwipe = true;
-                        _move(delta.dx.abs() > delta.dy.abs() ? (delta.dx < 0 ? 'left' : 'right') : (delta.dy < 0 ? 'up' : 'down'));
+                        _move(
+                          delta.dx.abs() > delta.dy.abs()
+                              ? (delta.dx < 0 ? 'left' : 'right')
+                              : (delta.dy < 0 ? 'up' : 'down'),
+                        );
                       },
-                      onPanEnd: (_) { _dragStart = null; _handledSwipe = false; },
+                      onPanEnd: (_) {
+                        _dragStart = null;
+                        _handledSwipe = false;
+                      },
                       child: AspectRatio(
                         aspectRatio: 1,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(14),
-                          child: Stack(fit: StackFit.expand, children: [
-                            Image.asset(bg, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.blueGrey)),
-                            Container(color: Colors.black.withValues(alpha: .08)),
-                            GridView.builder(
-                              padding: const EdgeInsets.all(8),
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 6, mainAxisSpacing: 6),
-                              itemCount: 16,
-                              itemBuilder: (_, index) => GestureDetector(
-                                onTap: _selecting == null ? null : () => _selectTile(index),
-                                child: _Tile(value: _tiles[index], image: _imageFor(_tiles[index]), highlighted: _selecting != null && _tiles[index] != null),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.asset(
+                                bg,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    Container(color: Colors.blueGrey),
                               ),
-                            ),
-                          ]),
+                              Container(
+                                color: Colors.black.withValues(alpha: .08),
+                              ),
+                              GridView.builder(
+                                padding: const EdgeInsets.all(8),
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 4,
+                                      crossAxisSpacing: 6,
+                                      mainAxisSpacing: 6,
+                                    ),
+                                itemCount: 16,
+                                itemBuilder: (_, index) => GestureDetector(
+                                  onTap: _selecting == null
+                                      ? null
+                                      : () => _selectTile(index),
+                                  child: _Tile(
+                                    value: _tiles[index],
+                                    image: _imageFor(_tiles[index]),
+                                    highlighted:
+                                        _selecting != null &&
+                                        _tiles[index] != null,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text(_selecting == null ? 'Use arrow keys or swipe to move.' : 'Tap a tile for the selected tool.'),
+                    Text(
+                      _selecting == null
+                          ? 'Use arrow keys or swipe to move.'
+                          : 'Tap a tile for the selected tool.',
+                    ),
                   ],
                 ),
               ),
@@ -382,26 +445,111 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     );
   }
 
-  int _backgroundIndex(int value) => value >= 1024 ? 3 : value >= 128 ? 2 : value >= 16 ? 1 : 0;
+  int _backgroundIndex(int value) => value >= 1024
+      ? 3
+      : value >= 128
+      ? 2
+      : value >= 16
+      ? 1
+      : 0;
 
   String? _imageFor(int? value) {
-    if (value == null) return null;
-    if (_chapter == _Chapter.tech) return _techCreatures[value];
-    final folder = switch (_chapter) {
-      _Chapter.ocean => 'chapter_01_ocean',
-      _Chapter.land => 'chapter_02_land',
-      _Chapter.sky => 'chapter_03_sky',
-      _Chapter.history => 'chapter_04_history',
-      _Chapter.tech => 'chapter_05_modern_world',
-    };
-    final prefix = switch (_chapter) {
-      _Chapter.ocean => 'creature_',
-      _Chapter.land => 'creature_',
-      _Chapter.sky => 'creature_',
-      _Chapter.history => 'history_',
-      _Chapter.tech => 'modern_',
-    };
-    return 'assets/creatures/$folder/${prefix}${value}.png';
+    if (value == null) {
+      return null;
+    }
+
+    if (_chapter == _Chapter.tech) {
+      return _techCreatures[value];
+    }
+
+    switch (_chapter) {
+      case _Chapter.ocean:
+        const images = {
+          2: 'assets/creatures/chapter_01_ocean/creature_02.png',
+          4: 'assets/creatures/chapter_01_ocean/creature_04.png',
+          8: 'assets/creatures/chapter_01_ocean/creature_08.png',
+          16: 'assets/creatures/chapter_01_ocean/creature_16.png',
+          32: 'assets/creatures/chapter_01_ocean/creature_32.png',
+          64: 'assets/creatures/chapter_01_ocean/creature_64.png',
+          128: 'assets/creatures/chapter_01_ocean/creature_128.png',
+          256: 'assets/creatures/chapter_01_ocean/creature_256.png',
+          512: 'assets/creatures/chapter_01_ocean/creature_512.png',
+          1024: 'assets/creatures/chapter_01_ocean/creature_1024.png',
+          2048: 'assets/creatures/chapter_01_ocean/creature_2048.png',
+          4096: 'assets/creatures/chapter_01_ocean/future_seabed_human.png',
+        };
+
+        return images[value];
+
+      case _Chapter.land:
+        const images = {
+          2: 'assets/creatures/chapter_02_land/creature_02.png',
+          4: 'assets/creatures/chapter_02_land/creature_04.png',
+          8: 'assets/creatures/chapter_02_land/creature_08.png',
+          16: 'assets/creatures/chapter_02_land/creature_16.png',
+          32: 'assets/creatures/chapter_02_land/creature_32.png',
+          64: 'assets/creatures/chapter_02_land/creature_64.png',
+          128: 'assets/creatures/chapter_02_land/creature_128.png',
+          256: 'assets/creatures/chapter_02_land/creature_256.png',
+          512: 'assets/creatures/chapter_02_land/creature_512.png',
+          1024: 'assets/creatures/chapter_02_land/creature_1024.png',
+          2048: 'assets/creatures/chapter_02_land/creature_2048.png',
+          4096: 'assets/creatures/chapter_02_land/creature_4096.png',
+          8192: 'assets/creatures/chapter_02_land/creature_8192.png',
+        };
+
+        return images[value];
+
+      case _Chapter.sky:
+        const images = {
+          2: 'assets/creatures/chapter_03_sky/creature_02.png',
+          4: 'assets/creatures/chapter_03_sky/creature_04.png',
+          8: 'assets/creatures/chapter_03_sky/creature_08.png',
+          16: 'assets/creatures/chapter_03_sky/creature_16.png',
+          32: 'assets/creatures/chapter_03_sky/creature_32.png',
+          64: 'assets/creatures/chapter_03_sky/creature_64.png',
+          128: 'assets/creatures/chapter_03_sky/creature_128.png',
+          256: 'assets/creatures/chapter_03_sky/creature_256.png',
+          512: 'assets/creatures/chapter_03_sky/creature_512.png',
+          1024: 'assets/creatures/chapter_03_sky/creature_1024.png',
+          2048: 'assets/creatures/chapter_03_sky/creature_2048.png',
+          4096: 'assets/creatures/chapter_03_sky/creature_4096.png',
+          8192: 'assets/creatures/chapter_03_sky/creature_8192.png',
+          16384: 'assets/creatures/chapter_03_sky/creature_16384.png',
+        };
+
+        return images[value];
+
+      case _Chapter.history:
+        const images = {
+          2: 'assets/creatures/chapter_04_history/history_02_fire.png',
+          4: 'assets/creatures/chapter_04_history/history_04_civilization.png',
+          8: 'assets/creatures/chapter_04_history/history_08_egypt.png',
+          16: 'assets/creatures/chapter_04_history/history_16_rome.png',
+          32: 'assets/creatures/chapter_04_history/history_32_tang.png',
+          64: 'assets/creatures/chapter_04_history/history_64_mongol.png',
+          128:
+              'assets/creatures/chapter_04_history/history_128_exploration.png',
+          256:
+              'assets/creatures/chapter_04_history/history_256_independence.png',
+          512: 'assets/creatures/chapter_04_history/history_512_industrial.png',
+          1024:
+              'assets/creatures/chapter_04_history/history_1024_communication.png',
+          2048:
+              'assets/creatures/chapter_04_history/history_2048_automobile.png',
+          4096: 'assets/creatures/chapter_04_history/history_4096_flight.png',
+          8192:
+              'assets/creatures/chapter_04_history/history_8192_world_war.png',
+          16384: 'assets/creatures/chapter_04_history/history_16384_moon.png',
+          32768:
+              'assets/creatures/chapter_04_history/history_32768_internet.png',
+        };
+
+        return images[value];
+
+      case _Chapter.tech:
+        return _techCreatures[value];
+    }
   }
 }
 
@@ -409,36 +557,184 @@ class _Stat extends StatelessWidget {
   const _Stat(this.label, this.value);
   final String label;
   final int value;
-  @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(10)), child: Column(children: [Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)), Text('$value', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))]));
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: Colors.black12,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          '$value',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.value, required this.image, required this.highlighted});
+  const _Tile({
+    required this.value,
+    required this.image,
+    required this.highlighted,
+  });
   final int? value;
   final String? image;
   final bool highlighted;
-  @override Widget build(BuildContext context) {
-    return Container(decoration: BoxDecoration(color: highlighted ? Colors.amber.withValues(alpha: .5) : Colors.white.withValues(alpha: .5), borderRadius: BorderRadius.circular(10), border: highlighted ? Border.all(color: Colors.amber, width: 3) : null), child: value == null || image == null ? null : Stack(children: [Center(child: Padding(padding: const EdgeInsets.all(2), child: Image.asset(image!, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox.shrink()))), Positioned(top: 3, left: 3, child: Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1), color: Colors.black45, child: Text('$value', style: const TextStyle(color: Colors.white, fontSize: 9))))]));
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: highlighted
+            ? Colors.amber.withValues(alpha: .5)
+            : Colors.white.withValues(alpha: .5),
+        borderRadius: BorderRadius.circular(10),
+        border: highlighted ? Border.all(color: Colors.amber, width: 3) : null,
+      ),
+      child: value == null || image == null
+          ? null
+          : Stack(
+              children: [
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Image.asset(
+                      image!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 3,
+                  left: 3,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    color: Colors.black45,
+                    child: Text(
+                      '$value',
+                      style: const TextStyle(color: Colors.white, fontSize: 9),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
   }
 }
 
 class _Tools extends StatelessWidget {
-  const _Tools({required this.tools, required this.used, required this.selecting, required this.onTool, required this.onCancel});
+  const _Tools({
+    required this.tools,
+    required this.used,
+    required this.selecting,
+    required this.onTool,
+    required this.onCancel,
+  });
   final List<_Tool> tools;
   final Set<_Tool> used;
   final _Tool? selecting;
   final ValueChanged<_Tool> onTool;
   final VoidCallback onCancel;
-  String _name(_Tool t) => switch (t) { _Tool.revive => 'REVIVE', _Tool.rewind => 'REWIND', _Tool.restore => 'RESTORE', _Tool.duplicate => 'DUPLICATE' };
-  IconData _icon(_Tool t) => switch (t) { _Tool.revive => Icons.auto_fix_high, _Tool.rewind => Icons.history, _Tool.restore => Icons.restore, _Tool.duplicate => Icons.copy };
-  @override Widget build(BuildContext context) => GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 3.6, children: [for (final tool in tools) FilledButton.icon(onPressed: used.contains(tool) ? null : selecting == tool ? onCancel : () => onTool(tool), icon: Icon(_icon(tool)), label: Text(used.contains(tool) ? '${_name(tool)} USED' : selecting == tool ? 'CANCEL' : '${_name(tool)} 1 USE'))]);
+  String _name(_Tool t) => switch (t) {
+    _Tool.revive => 'REVIVE',
+    _Tool.rewind => 'REWIND',
+    _Tool.restore => 'RESTORE',
+    _Tool.duplicate => 'DUPLICATE',
+  };
+  IconData _icon(_Tool t) => switch (t) {
+    _Tool.revive => Icons.auto_fix_high,
+    _Tool.rewind => Icons.history,
+    _Tool.restore => Icons.restore,
+    _Tool.duplicate => Icons.copy,
+  };
+  @override
+  Widget build(BuildContext context) => GridView.count(
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    crossAxisCount: 2,
+    mainAxisSpacing: 8,
+    crossAxisSpacing: 8,
+    childAspectRatio: 3.6,
+    children: [
+      for (final tool in tools)
+        FilledButton.icon(
+          onPressed: used.contains(tool)
+              ? null
+              : selecting == tool
+              ? onCancel
+              : () => onTool(tool),
+          icon: Icon(_icon(tool)),
+          label: Text(
+            used.contains(tool)
+                ? '${_name(tool)} USED'
+                : selecting == tool
+                ? 'CANCEL'
+                : '${_name(tool)} 1 USE',
+          ),
+        ),
+    ],
+  );
 }
 
 class _CompletePage extends StatelessWidget {
-  const _CompletePage({required this.chapter, required this.background, required this.score, required this.onContinue});
+  const _CompletePage({
+    required this.chapter,
+    required this.background,
+    required this.score,
+    required this.onContinue,
+  });
   final _Chapter chapter;
   final String background;
   final int score;
   final VoidCallback onContinue;
-  @override Widget build(BuildContext context) => Scaffold(body: Stack(fit: StackFit.expand, children: [Image.asset(background, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.black)), Container(color: Colors.black.withValues(alpha: .32)), Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Text('CHAPTER ${chapter.index + 1} COMPLETE', style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)), const SizedBox(height: 12), Text('SCORE  $score', style: const TextStyle(color: Colors.white, fontSize: 18)), const SizedBox(height: 28), FilledButton(onPressed: onContinue, child: Text(chapter == _Chapter.tech ? 'FINISH' : 'CONTINUE'))]))]));
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          background,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(color: Colors.black),
+        ),
+        Container(color: Colors.black.withValues(alpha: .32)),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'CHAPTER ${chapter.index + 1} COMPLETE',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'SCORE  $score',
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 28),
+              FilledButton(
+                onPressed: onContinue,
+                child: Text(chapter == _Chapter.tech ? 'FINISH' : 'CONTINUE'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
