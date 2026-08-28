@@ -299,13 +299,13 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           PageRouteBuilder<void>(
             opaque: true,
             transitionDuration: const Duration(milliseconds: 600),
-            pageBuilder: (_, animation, __) => _CompletePage(
+            pageBuilder: (_, animation, _) => _CompletePage(
               chapter: chapter,
               background: _completeBackgrounds[chapter]!,
               score: _score,
               onContinue: () => Navigator.of(context).pop(),
             ),
-            transitionsBuilder: (_, animation, __, child) =>
+            transitionsBuilder: (_, animation, _, child) =>
                 FadeTransition(opacity: animation, child: child),
           ),
         )
@@ -417,7 +417,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                               Image.asset(
                                 bg,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(color: Colors.blueGrey),
+                                errorBuilder: (_, _, _) => Container(color: Colors.blueGrey),
                               ),
                               Container(color: Colors.black.withValues(alpha: .08)),
                               GridView.builder(
