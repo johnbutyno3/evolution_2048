@@ -18,6 +18,7 @@ class ToolManager {
 
     switch (chapter) {
       case GameChapter.ocean:
+        _tools.add(ToolState(tool: GameTool.revive));
         break;
       case GameChapter.land:
         _tools.add(ToolState(tool: GameTool.revive));
@@ -29,12 +30,12 @@ class ToolManager {
       case GameChapter.history:
         _tools.add(ToolState(tool: GameTool.revive));
         _tools.add(ToolState(tool: GameTool.timeRewind));
-        _tools.add(ToolState(tool: GameTool.historyRestore));
+        _tools.add(ToolState(tool: GameTool.positionSwap));
         break;
       case GameChapter.tech:
         _tools.add(ToolState(tool: GameTool.revive));
         _tools.add(ToolState(tool: GameTool.timeRewind));
-        _tools.add(ToolState(tool: GameTool.historyRestore));
+        _tools.add(ToolState(tool: GameTool.positionSwap));
         _tools.add(ToolState(tool: GameTool.duplicate));
         break;
     }
