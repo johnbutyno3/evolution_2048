@@ -1,0 +1,49 @@
+name: Fix game over UI
+
+on:
+  push:
+    branches:
+      - feature/chapter1-spec-implementation
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: "!contains(github.event.head_commit.message, 'game over fix')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch game over handling
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('lib/game/screens/evolution_2048_chapters_page.dart')
+          text = path.read_text(encoding='utf-8')
+
+          old = """    if (!changed) {\n      _previous = null;\n      _gameOver = _isGameOver();\n      return false;\n    }"""
+          new = """    if (!changed) {\n      _previous = null;\n      _gameOver = _isGameOver();\n      if (_gameOver) {\n        setState(() {});\n        _showGameOver();\n      }\n      return false;\n    }"""
+          if old not in text:
+              raise SystemExit('changed=false block not found')
+          text = text.replace(old, new, 1)
+
+          old = """    setState(() {});\n    if (_complete) _showComplete();\n    return true;"""
+          new = """    setState(() {});\n    if (_complete) {\n      _showComplete();\n    } else if (_gameOver) {\n      _showGameOver();\n    }\n    return true;"""
+          if old not in text:
+              raise SystemExit('post-move block not found')
+          text = text.replace(old, new, 1)
+
+          marker = """  void _useTool(_Tool tool) {"""
+          method = """  void _showGameOver() {\n    if (!mounted || !_gameOver || _complete) return;\n\n    showDialog<void>(\n      context: context,\n      barrierDismissible: false,\n      builder: (dialogContext) => AlertDialog(\n        title: const Text('GAME OVER'),\n        content: Text('No more moves.\\n\\nSCORE  $_score'),\n        actions: [\n          FilledButton(\n            onPressed: () {\n              Navigator.of(dialogContext).pop();\n              setState(_resetBoard);\n              _focus.requestFocus();\n            },\n            child: const Text('RESTART'),\n          ),\n        ],\n      ),\n    );\n  }\n\n"""
+          if marker not in text:
+              raise SystemExit('insertion marker not found')
+          text = text.replace(marker, method + marker, 1)
+
+          path.write_text(text, encoding='utf-8')
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/game/screens/evolution_2048_chapters_page.dart
+          git commit -m "fix: show game over dialog" || exit 0
+          git push
