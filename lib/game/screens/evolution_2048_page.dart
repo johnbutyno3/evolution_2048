@@ -26,8 +26,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   static const double _swipeThreshold = 30;
 
-  static const String _oceanChapterCompleteBackground =
-      'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg';
   static const List<String> _oceanBackgrounds = [
     'assets/backgrounds/chapter_01_ocean/ocean_background_01_primordial.jpg',
     'assets/backgrounds/chapter_01_ocean/ocean_background_02_shallow_sea.jpg',
@@ -35,8 +33,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_01_ocean/ocean_background_04_deep_ocean.jpg',
   ];
 
-  static const String _landChapterCompleteBackground =
-      'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg';
   static const List<String> _landBackgrounds = [
     'assets/backgrounds/chapter_02_land/land_background_01_primordial.jpg',
     'assets/backgrounds/chapter_02_land/land_background_02_forest.jpg',
@@ -44,8 +40,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_02_land/land_background_04_ancient_land.jpg',
   ];
 
-  static const String _skyChapterCompleteBackground =
-      'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg';
   static const List<String> _skyBackgrounds = [
     'assets/backgrounds/chapter_03_sky/sky_background_01_low_altitude.jpg',
     'assets/backgrounds/chapter_03_sky/sky_background_02_mid_altitude.jpg',
@@ -53,8 +47,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_03_sky/sky_background_04_space.jpg',
   ];
 
-  static const String _historyChapterCompleteBackground =
-      'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png';
   static const List<String> _historyBackgrounds = [
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_01.png',
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_02.png',
@@ -62,8 +54,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_04.png',
   ];
 
-  static const String _techChapterCompleteBackground =
-      'assets/backgrounds/chapter_05_tech/tech_complete.png';
   static const List<String> _techBackgrounds = [
     'assets/backgrounds/chapter_05_tech/tech_01_electronic_age.png',
     'assets/backgrounds/chapter_05_tech/tech_02_ai_robot.png',
@@ -71,8 +61,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_05_tech/tech_04_space_civilization.png',
   ];
 
-  static const String _universeChapterCompleteBackground =
-      'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg';
   static const List<String> _universeBackgrounds = [
     'assets/backgrounds/chapter_06_universe/universe_bg_01_origin.jpg',
     'assets/backgrounds/chapter_06_universe/universe_bg_02_earth.jpg',
@@ -604,9 +592,7 @@ class _ChapterCompletePage extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: onContinue,
-                        child: Text(
-                          chapter == GameChapter.universe ? 'Continue' : 'Continue',
-                        ),
+                        child: const Text('Continue'),
                       ),
                     ),
                   ),
