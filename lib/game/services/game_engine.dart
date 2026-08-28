@@ -43,8 +43,8 @@ class GameEngine {
   bool get canUseTimeRewind =>
       _toolManager.canUse(GameToolType.timeRewind) && _hasPreviousState;
 
-  bool get canUseHistoryRestore =>
-      _toolManager.canUse(GameToolType.historyRestore);
+  bool get canUsePositionSwap =>
+      _toolManager.canUse(GameToolType.positionSwap);
 
   bool get canUseDuplicate => _toolManager.canUse(GameToolType.duplicate);
 
@@ -95,7 +95,7 @@ class GameEngine {
   }
 
   bool useRevive(int row, int column) {
-    if (gameOver || chapterComplete || !canUseRevive) {
+    if (chapterComplete || !canUseRevive) {
       return false;
     }
 
@@ -118,7 +118,7 @@ class GameEngine {
   }
 
   bool useTimeRewind() {
-    if (gameOver || chapterComplete || !canUseTimeRewind) {
+    if (chapterComplete || !canUseTimeRewind) {
       return false;
     }
 
@@ -138,37 +138,55 @@ class GameEngine {
     return true;
   }
 
-  bool useHistoryRestore(int row, int column) {
-    if (_chapter != GameChapter.history || gameOver || chapterComplete) {
+  bool usePositionSwap(
+    int firstRow,
+    int firstColumn,
+    int secondRow,
+    int secondColumn,
+  ) {
+    if (_chapter != GameChapter.history && _chapter != GameChapter.tech) {
       return false;
     }
 
-    if (!_toolManager.canUse(GameToolType.historyRestore)) {
+    if (chapterComplete || !canUsePositionSwap) {
       return false;
     }
 
-    if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
+    if (firstRow < 0 ||
+        firstRow >= boardSize ||
+        firstColumn < 0 ||
+        firstColumn >= boardSize ||
+        secondRow < 0 ||
+        secondRow >= boardSize ||
+        secondColumn < 0 ||
+        secondColumn >= boardSize) {
       return false;
     }
 
-    final tile = _board.tileAt(row, column);
-
-    if (tile == null || tile.value <= 2) {
+    if (firstRow == secondRow && firstColumn == secondColumn) {
       return false;
     }
 
-    if (!_toolManager.use(GameToolType.historyRestore)) {
+    final first = _board.tileAt(firstRow, firstColumn);
+    final second = _board.tileAt(secondRow, secondColumn);
+
+    if (first == null || second == null) {
       return false;
     }
 
-    tile.value ~/= 2;
+    if (!_toolManager.use(GameToolType.positionSwap)) {
+      return false;
+    }
+
+    _board.setTile(firstRow, firstColumn, second);
+    _board.setTile(secondRow, secondColumn, first);
     gameOver = false;
 
     return true;
   }
 
   bool useDuplicate(int row, int column) {
-    if (_chapter != GameChapter.tech || gameOver || chapterComplete) {
+    if (_chapter != GameChapter.tech || chapterComplete) {
       return false;
     }
 
@@ -182,7 +200,7 @@ class GameEngine {
 
     final source = _board.tileAt(row, column);
 
-    if (source == null) {
+    if (source == null || source.value >= 512) {
       return false;
     }
 
