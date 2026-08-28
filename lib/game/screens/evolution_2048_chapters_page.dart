@@ -1,9 +1,10 @@
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 enum _Chapter { ocean, land, sky, history, tech }
-enum _Tool { revive, rewind, restore, duplicate }
+enum _Tool { revive, rewind, swap, duplicate }
 
 class Evolution2048ChaptersPage extends StatefulWidget {
   const Evolution2048ChaptersPage({super.key});
@@ -16,9 +17,11 @@ class Evolution2048ChaptersPage extends StatefulWidget {
 class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   final FocusNode _focus = FocusNode();
   final Random _random = Random();
+
   _Chapter _chapter = _Chapter.ocean;
   List<int?> _tiles = List<int?>.filled(16, null);
   List<int?>? _previous;
+  int? _swapFirst;
   int _score = 0;
   int _best = 0;
   bool _gameOver = false;
@@ -81,10 +84,14 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   };
 
   static const _completeBackgrounds = <_Chapter, String>{
-    _Chapter.ocean: 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
-    _Chapter.land: 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
-    _Chapter.sky: 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg',
-    _Chapter.history: 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
+    _Chapter.ocean:
+        'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
+    _Chapter.land:
+        'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
+    _Chapter.sky:
+        'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg',
+    _Chapter.history:
+        'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
     _Chapter.tech: 'assets/backgrounds/chapter_05_tech/tech_complete.png',
   };
 
@@ -102,32 +109,34 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   }
 
   int get _target => const {
-    _Chapter.ocean: 4096,
-    _Chapter.land: 8192,
-    _Chapter.sky: 16384,
-    _Chapter.history: 32768,
-    _Chapter.tech: 65536,
-  }[_chapter]!;
+        _Chapter.ocean: 4096,
+        _Chapter.land: 8192,
+        _Chapter.sky: 16384,
+        _Chapter.history: 32768,
+        _Chapter.tech: 65536,
+      }[_chapter]!;
 
   String get _title => const {
-    _Chapter.ocean: 'Ocean Chapter',
-    _Chapter.land: 'Land Chapter',
-    _Chapter.sky: 'Sky Chapter',
-    _Chapter.history: 'History Chapter',
-    _Chapter.tech: 'Tech Chapter',
-  }[_chapter]!;
+        _Chapter.ocean: 'Ocean Chapter',
+        _Chapter.land: 'Land Chapter',
+        _Chapter.sky: 'Sky Chapter',
+        _Chapter.history: 'History Chapter',
+        _Chapter.tech: 'Tech Chapter',
+      }[_chapter]!;
 
   List<_Tool> get _tools => switch (_chapter) {
-    _Chapter.ocean => const [],
-    _Chapter.land => const [_Tool.revive],
-    _Chapter.sky => const [_Tool.revive, _Tool.rewind],
-    _Chapter.history => const [_Tool.revive, _Tool.rewind, _Tool.restore],
-    _Chapter.tech => const [_Tool.revive, _Tool.rewind, _Tool.restore, _Tool.duplicate],
-  };
+        _Chapter.ocean => const [_Tool.revive],
+        _Chapter.land => const [_Tool.revive],
+        _Chapter.sky => const [_Tool.revive, _Tool.rewind],
+        _Chapter.history => const [_Tool.revive, _Tool.rewind, _Tool.swap],
+        _Chapter.tech =>
+          const [_Tool.revive, _Tool.rewind, _Tool.swap, _Tool.duplicate],
+      };
 
   void _resetBoard() {
     _tiles = List<int?>.filled(16, null);
     _previous = null;
+    _swapFirst = null;
     _score = 0;
     _gameOver = false;
     _complete = false;
@@ -140,15 +149,22 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   void _spawn() {
     final empty = <int>[];
     for (var i = 0; i < 16; i++) {
-      if (_tiles[i] == null) empty.add(i);
+      if (_tiles[i] == null) {
+        empty.add(i);
+      }
     }
-    if (empty.isEmpty) return;
+    if (empty.isEmpty) {
+      return;
+    }
     final index = empty[_random.nextInt(empty.length)];
     _tiles[index] = _random.nextDouble() < .9 ? 2 : 4;
   }
 
   bool _move(String direction) {
-    if (_gameOver || _complete || _selecting != null) return false;
+    if (_gameOver || _complete || _selecting != null) {
+      return false;
+    }
+
     _previous = List<int?>.from(_tiles);
     final next = List<int?>.filled(16, null);
     var changed = false;
@@ -162,8 +178,11 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
         final rr = direction == 'down' ? 3 - r : r;
         final cc = direction == 'right' ? 3 - c : c;
         final value = _tiles[rr * 4 + cc];
-        if (value != null) values.add(value);
+        if (value != null) {
+          values.add(value);
+        }
       }
+
       final merged = <int>[];
       for (var i = 0; i < values.length; i++) {
         if (i + 1 < values.length && values[i] == values[i + 1]) {
@@ -175,6 +194,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           merged.add(values[i]);
         }
       }
+
       for (var p = 0; p < 4; p++) {
         final value = p < merged.length ? merged[p] : null;
         final r = direction == 'left' || direction == 'right' ? line : p;
@@ -204,7 +224,10 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
 
     _tiles = next;
     _score += gained;
-    if (_score > _best) _best = _score;
+    if (_score > _best) {
+      _best = _score;
+    }
+
     _complete = _tiles.whereType<int>().any((v) => v >= _target);
 
     if (!_complete) {
@@ -219,30 +242,46 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     } else if (_gameOver) {
       _showGameOver();
     }
+
     return true;
   }
 
   bool _isGameOver() {
-    if (_tiles.any((v) => v == null)) return false;
+    if (_tiles.any((v) => v == null)) {
+      return false;
+    }
+
     for (var r = 0; r < 4; r++) {
       for (var c = 0; c < 4; c++) {
         final v = _tiles[r * 4 + c]!;
-        if (c < 3 && _tiles[r * 4 + c + 1] == v) return false;
-        if (r < 3 && _tiles[(r + 1) * 4 + c] == v) return false;
+        if (c < 3 && _tiles[r * 4 + c + 1] == v) {
+          return false;
+        }
+        if (r < 3 && _tiles[(r + 1) * 4 + c] == v) {
+          return false;
+        }
       }
     }
+
     return true;
   }
 
   void _showGameOver() {
-    if (!mounted || !_gameOver || _complete) return;
+    if (!mounted || !_gameOver || _complete) {
+      return;
+    }
+
     showDialog<void>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
         title: const Text('GAME OVER'),
         content: Text('No more moves.\n\nSCORE  $_score'),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('USE TOOL'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
@@ -257,60 +296,114 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   }
 
   void _useTool(_Tool tool) {
-    if (_used.contains(tool) || !_tools.contains(tool) || _gameOver || _complete) {
+    if (_used.contains(tool) || !_tools.contains(tool) || _complete) {
       return;
     }
+
     if (tool == _Tool.rewind) {
-      if (_previous == null) return;
+      if (_previous == null) {
+        return;
+      }
       _tiles = List<int?>.from(_previous!);
       _previous = null;
+      _swapFirst = null;
       _used.add(tool);
+      _selecting = null;
       _gameOver = false;
       setState(() {});
       return;
     }
+
+    _swapFirst = null;
     setState(() => _selecting = tool);
   }
 
   void _selectTile(int index) {
     final tool = _selecting;
-    if (tool == null || _tiles[index] == null) return;
+    if (tool == null || _tiles[index] == null) {
+      return;
+    }
+
     if (tool == _Tool.revive) {
       _tiles[index] = null;
-    } else if (tool == _Tool.restore) {
-      if (_tiles[index]! <= 2) return;
-      _tiles[index] = _tiles[index]! ~/ 2;
-    } else if (tool == _Tool.duplicate) {
-      final empty = _tiles.indexWhere((v) => v == null);
-      if (empty < 0) return;
-      _tiles[empty] = _tiles[index];
+      _finishToolUse(tool);
+      return;
     }
+
+    if (tool == _Tool.duplicate) {
+      final value = _tiles[index]!;
+      if (value >= 512) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Duplicate is limited to tiles up to 256.')),
+        );
+        return;
+      }
+      final empty = _tiles.indexWhere((v) => v == null);
+      if (empty < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No empty position available.')),
+        );
+        return;
+      }
+      _tiles[empty] = value;
+      _finishToolUse(tool);
+      return;
+    }
+
+    if (tool == _Tool.swap) {
+      if (_swapFirst == null) {
+        _swapFirst = index;
+        setState(() {});
+        return;
+      }
+
+      if (_swapFirst == index) {
+        _swapFirst = null;
+        setState(() {});
+        return;
+      }
+
+      final first = _swapFirst!;
+      final temp = _tiles[first];
+      _tiles[first] = _tiles[index];
+      _tiles[index] = temp;
+      _finishToolUse(tool);
+    }
+  }
+
+  void _finishToolUse(_Tool tool) {
     _used.add(tool);
     _selecting = null;
+    _swapFirst = null;
     _gameOver = false;
     setState(() {});
   }
 
   void _showComplete() {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     final chapter = _chapter;
     Navigator.of(context)
         .push(
           PageRouteBuilder<void>(
             opaque: true,
             transitionDuration: const Duration(milliseconds: 600),
-            pageBuilder: (_, animation, _) => _CompletePage(
+            pageBuilder: (_, animation, __) => _CompletePage(
               chapter: chapter,
               background: _completeBackgrounds[chapter]!,
               score: _score,
               onContinue: () => Navigator.of(context).pop(),
             ),
-            transitionsBuilder: (_, animation, _, child) =>
+            transitionsBuilder: (_, animation, __, child) =>
                 FadeTransition(opacity: animation, child: child),
           ),
         )
         .then((_) {
-          if (!mounted) return;
+          if (!mounted) {
+            return;
+          }
           if (chapter == _Chapter.tech) {
             _focus.requestFocus();
             return;
@@ -332,7 +425,10 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   }
 
   void _handleKey(KeyEvent event) {
-    if (event is! KeyDownEvent) return;
+    if (event is! KeyDownEvent) {
+      return;
+    }
+
     final d = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowUp => 'up',
       LogicalKeyboardKey.arrowDown => 'down',
@@ -340,19 +436,29 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       LogicalKeyboardKey.arrowRight => 'right',
       _ => null,
     };
-    if (d != null) _move(d);
+
+    if (d != null) {
+      _move(d);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final highest = _tiles.whereType<int>().fold<int>(0, max);
     final bg = _backgrounds[_chapter]![_backgroundIndex(highest)];
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_title),
         actions: [
-          IconButton(onPressed: _resetBoard, icon: const Icon(Icons.refresh)),
-          IconButton(onPressed: _debugComplete, icon: const Icon(Icons.bug_report)),
+          IconButton(
+            onPressed: _resetBoard,
+            icon: const Icon(Icons.refresh),
+          ),
+          IconButton(
+            onPressed: _debugComplete,
+            icon: const Icon(Icons.bug_report),
+          ),
         ],
       ),
       body: SafeArea(
@@ -387,15 +493,22 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                         used: _used,
                         selecting: _selecting,
                         onTool: _useTool,
-                        onCancel: () => setState(() => _selecting = null),
+                        onCancel: () => setState(() {
+                          _selecting = null;
+                          _swapFirst = null;
+                        }),
                       ),
                     const SizedBox(height: 12),
                     GestureDetector(
                       onPanStart: (d) => _dragStart = d.localPosition,
                       onPanUpdate: (d) {
-                        if (_dragStart == null || _handledSwipe) return;
+                        if (_dragStart == null || _handledSwipe) {
+                          return;
+                        }
                         final delta = d.localPosition - _dragStart!;
-                        if (delta.distance < 30) return;
+                        if (delta.distance < 30) {
+                          return;
+                        }
                         _handledSwipe = true;
                         _move(
                           delta.dx.abs() > delta.dy.abs()
@@ -417,24 +530,32 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                               Image.asset(
                                 bg,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => Container(color: Colors.blueGrey),
+                                errorBuilder: (_, __, ___) =>
+                                    Container(color: Colors.blueGrey),
                               ),
-                              Container(color: Colors.black.withValues(alpha: .08)),
+                              Container(
+                                color: Colors.black.withValues(alpha: .08),
+                              ),
                               GridView.builder(
                                 padding: const EdgeInsets.all(8),
                                 physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 4,
                                   crossAxisSpacing: 6,
                                   mainAxisSpacing: 6,
                                 ),
                                 itemCount: 16,
                                 itemBuilder: (_, index) => GestureDetector(
-                                  onTap: _selecting == null ? null : () => _selectTile(index),
+                                  onTap: _selecting == null
+                                      ? null
+                                      : () => _selectTile(index),
                                   child: _Tile(
                                     value: _tiles[index],
                                     image: _imageFor(_tiles[index]),
-                                    highlighted: _selecting != null && _tiles[index] != null,
+                                    highlighted: _selecting != null &&
+                                        _tiles[index] != null,
+                                    selected: _swapFirst == index,
                                   ),
                                 ),
                               ),
@@ -447,7 +568,11 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                     Text(
                       _selecting == null
                           ? 'Use arrow keys or swipe to move.'
-                          : 'Tap a tile for the selected tool.',
+                          : _selecting == _Tool.swap
+                              ? (_swapFirst == null
+                                  ? 'Tap the first tile to swap.'
+                                  : 'Tap the second tile to swap.')
+                              : 'Tap a tile for the selected tool.',
                     ),
                   ],
                 ),
@@ -468,8 +593,12 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
               : 0;
 
   String? _imageFor(int? value) {
-    if (value == null) return null;
-    if (_chapter == _Chapter.tech) return _techCreatures[value];
+    if (value == null) {
+      return null;
+    }
+    if (_chapter == _Chapter.tech) {
+      return _techCreatures[value];
+    }
 
     switch (_chapter) {
       case _Chapter.ocean:
@@ -550,60 +679,97 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
 
 class _Stat extends StatelessWidget {
   const _Stat(this.label, this.value);
+
   final String label;
   final int value;
+
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(8),
-    decoration: BoxDecoration(
-      color: Colors.black12,
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Column(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-        Text('$value', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      ],
-    ),
-  );
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black12,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '$value',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.value, required this.image, required this.highlighted});
+  const _Tile({
+    required this.value,
+    required this.image,
+    required this.highlighted,
+    required this.selected,
+  });
+
   final int? value;
   final String? image;
   final bool highlighted;
+  final bool selected;
+
   @override
   Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: highlighted
-          ? Colors.amber.withValues(alpha: .5)
-          : Colors.white.withValues(alpha: .5),
-      borderRadius: BorderRadius.circular(10),
-      border: highlighted ? Border.all(color: Colors.amber, width: 3) : null,
-    ),
-    child: value == null || image == null
-        ? null
-        : Stack(
-            children: [
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Image.asset(image!, fit: BoxFit.contain),
-                ),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.orange.withValues(alpha: .65)
+              : highlighted
+                  ? Colors.amber.withValues(alpha: .5)
+                  : Colors.white.withValues(alpha: .5),
+          borderRadius: BorderRadius.circular(10),
+          border: selected
+              ? Border.all(color: Colors.deepOrange, width: 4)
+              : highlighted
+                  ? Border.all(color: Colors.amber, width: 3)
+                  : null,
+        ),
+        child: value == null || image == null
+            ? null
+            : Stack(
+                children: [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Image.asset(image!, fit: BoxFit.contain),
+                    ),
+                  ),
+                  Positioned(
+                    top: 3,
+                    left: 3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      color: Colors.black45,
+                      child: Text(
+                        '$value',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Positioned(
-                top: 3,
-                left: 3,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  color: Colors.black45,
-                  child: Text('$value', style: const TextStyle(color: Colors.white, fontSize: 9)),
-                ),
-              ),
-            ],
-          ),
-  );
+      );
 }
 
 class _Tools extends StatelessWidget {
@@ -614,53 +780,54 @@ class _Tools extends StatelessWidget {
     required this.onTool,
     required this.onCancel,
   });
+
   final List<_Tool> tools;
   final Set<_Tool> used;
   final _Tool? selecting;
   final ValueChanged<_Tool> onTool;
   final VoidCallback onCancel;
 
-  String _name(_Tool t) => switch (t) {
-    _Tool.revive => 'REVIVE',
-    _Tool.rewind => 'REWIND',
-    _Tool.restore => 'RESTORE',
-    _Tool.duplicate => 'DUPLICATE',
-  };
+  String _name(_Tool tool) => switch (tool) {
+        _Tool.revive => 'REVIVE',
+        _Tool.rewind => 'REWIND',
+        _Tool.swap => 'POSITION SWAP',
+        _Tool.duplicate => 'DUPLICATE',
+      };
 
-  IconData _icon(_Tool t) => switch (t) {
-    _Tool.revive => Icons.auto_fix_high,
-    _Tool.rewind => Icons.history,
-    _Tool.restore => Icons.restore,
-    _Tool.duplicate => Icons.copy,
-  };
+  IconData _icon(_Tool tool) => switch (tool) {
+        _Tool.revive => Icons.auto_fix_high,
+        _Tool.rewind => Icons.history,
+        _Tool.swap => Icons.swap_horiz,
+        _Tool.duplicate => Icons.copy,
+      };
 
   @override
   Widget build(BuildContext context) => GridView.count(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
-    crossAxisCount: 2,
-    mainAxisSpacing: 8,
-    crossAxisSpacing: 8,
-    childAspectRatio: 3.6,
-    children: [
-      for (final tool in tools)
-        FilledButton.icon(
-          onPressed: used.contains(tool)
-              ? null
-              : selecting == tool
-                  ? onCancel
-                  : () => onTool(tool),
-          icon: Icon(_icon(tool)),
-          label: Text(
-            used.contains(tool)
-                ? '${_name(tool)} USED'
-                : selecting == tool
-                    ? 'CANCEL'
-                    : '${_name(tool)} 1 USE',
-          ),
-        ),
-    ],
-  );
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 3.6,
+        children: [
+          for (final tool in tools)
+            FilledButton.icon(
+              onPressed: used.contains(tool)
+                  ? null
+                  : selecting == tool
+                      ? onCancel
+                      : () => onTool(tool),
+              icon: Icon(_icon(tool)),
+              label: Text(
+                used.contains(tool)
+                    ? '${_name(tool)} USED'
+                    : selecting == tool
+                        ? 'CANCEL'
+                        : '${_name(tool)} 1 USE',
+              ),
+            ),
+        ],
+      );
 }
 
 class _CompletePage extends StatelessWidget {
@@ -670,6 +837,7 @@ class _CompletePage extends StatelessWidget {
     required this.score,
     required this.onContinue,
   });
+
   final _Chapter chapter;
   final String background;
   final int score;
@@ -677,30 +845,42 @@ class _CompletePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(background, fit: BoxFit.cover),
-        Container(color: Colors.black.withValues(alpha: .32)),
-        Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'CHAPTER ${chapter.index + 1} COMPLETE',
-                style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(background, fit: BoxFit.cover),
+            Container(color: Colors.black.withValues(alpha: .32)),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'CHAPTER ${chapter.index + 1} COMPLETE',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'SCORE  $score',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  FilledButton(
+                    onPressed: onContinue,
+                    child: Text(
+                      chapter == _Chapter.tech ? 'FINISH' : 'CONTINUE',
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text('SCORE  $score', style: const TextStyle(color: Colors.white, fontSize: 18)),
-              const SizedBox(height: 28),
-              FilledButton(
-                onPressed: onContinue,
-                child: Text(chapter == _Chapter.tech ? 'FINISH' : 'CONTINUE'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
