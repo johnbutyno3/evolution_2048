@@ -38,8 +38,7 @@ class GameEngine {
   bool get canUseRevive => _toolManager.canUse(GameToolType.revive);
   bool get canUseTimeRewind =>
       _toolManager.canUse(GameToolType.timeRewind) && _hasPreviousState;
-  bool get canUsePositionSwap =>
-      _toolManager.canUse(GameToolType.positionSwap);
+  bool get canUsePositionSwap => _toolManager.canUse(GameToolType.positionSwap);
   bool get canUseDuplicate => _toolManager.canUse(GameToolType.duplicate);
 
   // Kept as a compatibility shim for the older screen code.
@@ -68,9 +67,9 @@ class GameEngine {
   }
 
   int get highestValue => _board.tiles.whereType<GameTile>().fold<int>(
-        0,
-        (highest, tile) => tile.value > highest ? tile.value : highest,
-      );
+    0,
+    (highest, tile) => tile.value > highest ? tile.value : highest,
+  );
 
   void _initializeTools() {
     _toolManager = ToolManager(chapter: _chapter);
@@ -98,13 +97,24 @@ class GameEngine {
     return true;
   }
 
-  bool usePositionSwap(int firstRow, int firstColumn, int secondRow, int secondColumn) {
-    if (_chapter != GameChapter.history && _chapter != GameChapter.tech) return false;
+  bool usePositionSwap(
+    int firstRow,
+    int firstColumn,
+    int secondRow,
+    int secondColumn,
+  ) {
+    if (_chapter != GameChapter.history && _chapter != GameChapter.tech) {
+      return false;
+    }
     if (chapterComplete || !canUsePositionSwap) return false;
-    if (firstRow < 0 || firstRow >= boardSize ||
-        firstColumn < 0 || firstColumn >= boardSize ||
-        secondRow < 0 || secondRow >= boardSize ||
-        secondColumn < 0 || secondColumn >= boardSize) {
+    if (firstRow < 0 ||
+        firstRow >= boardSize ||
+        firstColumn < 0 ||
+        firstColumn >= boardSize ||
+        secondRow < 0 ||
+        secondRow >= boardSize ||
+        secondColumn < 0 ||
+        secondColumn >= boardSize) {
       return false;
     }
     if (firstRow == secondRow && firstColumn == secondColumn) return false;
@@ -121,7 +131,9 @@ class GameEngine {
   bool useDuplicate(int row, int column) {
     if (_chapter != GameChapter.tech || chapterComplete) return false;
     if (!canUseDuplicate) return false;
-    if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) return false;
+    if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
+      return false;
+    }
     final source = _board.tileAt(row, column);
     if (source == null || source.value >= 512) return false;
     final empty = <int>[];
@@ -131,8 +143,11 @@ class GameEngine {
     if (empty.isEmpty) return false;
     if (!_toolManager.use(GameToolType.duplicate)) return false;
     final index = empty[_random.nextInt(empty.length)];
-    _board.setTile(index ~/ boardSize, index % boardSize,
-        GameTile(value: source.value, chapter: _chapter));
+    _board.setTile(
+      index ~/ boardSize,
+      index % boardSize,
+      GameTile(value: source.value, chapter: _chapter),
+    );
     gameOver = false;
     return true;
   }
@@ -159,8 +174,11 @@ class GameEngine {
     for (var index = 0; index < snapshot.length; index++) {
       final value = snapshot[index];
       if (value == null) continue;
-      _board.setTile(index ~/ boardSize, index % boardSize,
-          GameTile(value: value, chapter: _chapter));
+      _board.setTile(
+        index ~/ boardSize,
+        index % boardSize,
+        GameTile(value: value, chapter: _chapter),
+      );
     }
     score = _previousScore;
     hasReached2048 = _previousHasReached2048;
@@ -296,8 +314,11 @@ class GameEngine {
     if (empty.isEmpty) return;
     final index = empty[_random.nextInt(empty.length)];
     final value = _random.nextDouble() < 0.9 ? 2 : 4;
-    _board.setTile(index ~/ boardSize, index % boardSize,
-        GameTile(value: value, chapter: _chapter));
+    _board.setTile(
+      index ~/ boardSize,
+      index % boardSize,
+      GameTile(value: value, chapter: _chapter),
+    );
   }
 
   bool _isGameOver() {
