@@ -6,8 +6,9 @@ import '../models/tools/game_tool.dart';
 import 'tool_manager.dart';
 
 class GameEngine {
-  GameEngine({Random? random, this._chapter = GameChapter.ocean})
-    : _random = random ?? Random() {
+  GameEngine({Random? random, GameChapter chapter = GameChapter.ocean})
+    : _random = random ?? Random(),
+      _chapter = chapter {
     _initializeTools();
     reset();
   }
@@ -41,10 +42,7 @@ class GameEngine {
   bool get canUsePositionSwap => _toolManager.canUse(GameToolType.positionSwap);
   bool get canUseDuplicate => _toolManager.canUse(GameToolType.duplicate);
 
-  // Kept as a compatibility shim for the older screen code.
-  // History Restore was replaced by Position Swap and is intentionally disabled.
   bool get canUseHistoryRestore => false;
-
   bool get hasPreviousState => _hasPreviousState;
 
   bool hasReached2048 = false;
@@ -63,6 +61,7 @@ class GameEngine {
       GameChapter.sky => 16384,
       GameChapter.history => 32768,
       GameChapter.tech => 65536,
+      GameChapter.universe => 131072,
     };
   }
 
@@ -152,7 +151,6 @@ class GameEngine {
     return true;
   }
 
-  // Compatibility shim only. Do not implement degradation here.
   bool useHistoryRestore(int row, int column) => false;
 
   void _savePreviousState() {
@@ -219,6 +217,7 @@ class GameEngine {
       3 => GameChapter.sky,
       4 => GameChapter.history,
       5 => GameChapter.tech,
+      6 => GameChapter.universe,
       _ => null,
     };
     if (expected == null || expected != _chapter) return;
@@ -242,6 +241,7 @@ class GameEngine {
   void debugCompleteChapter3() => debugCompleteChapter(3);
   void debugCompleteChapter4() => debugCompleteChapter(4);
   void debugCompleteChapter5() => debugCompleteChapter(5);
+  void debugCompleteChapter6() => debugCompleteChapter(6);
 
   bool moveUp() => _move(_board.moveUp);
   bool moveDown() => _move(_board.moveDown);
@@ -301,6 +301,7 @@ class GameEngine {
           break;
         case GameChapter.history:
         case GameChapter.tech:
+        case GameChapter.universe:
           break;
       }
     }
