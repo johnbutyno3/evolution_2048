@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 enum _Chapter { ocean, land, sky, history, tech }
-
 enum _Tool { revive, rewind, restore, duplicate }
 
 class Evolution2048ChaptersPage extends StatefulWidget {
@@ -26,7 +25,6 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   bool _complete = false;
   _Tool? _selecting;
   final Set<_Tool> _used = <_Tool>{};
-
   Offset? _dragStart;
   bool _handledSwipe = false;
 
@@ -38,8 +36,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     32: 'assets/creatures/chapter_05_modern_world/modern_32_washing_machine.png',
     64: 'assets/creatures/chapter_05_modern_world/modern_64_refrigerator.png',
     128: 'assets/creatures/chapter_05_modern_world/modern_128_microwave.png',
-    256:
-        'assets/creatures/chapter_05_modern_world/modern_256_game_controller.png',
+    256: 'assets/creatures/chapter_05_modern_world/modern_256_game_controller.png',
     512: 'assets/creatures/chapter_05_modern_world/modern_512_laptop.png',
     1024: 'assets/creatures/chapter_05_modern_world/modern_1024_smartphone.png',
     2048: 'assets/creatures/chapter_05_modern_world/modern_2048_tablet.png',
@@ -47,8 +44,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     8192: 'assets/creatures/chapter_05_modern_world/modern_8192_vr_headset.png',
     16384: 'assets/creatures/chapter_05_modern_world/modern_16384_robot.png',
     32768: 'assets/creatures/chapter_05_modern_world/modern_32768_ai_core.png',
-    65536:
-        'assets/creatures/chapter_05_modern_world/modern_65536_future_device.png',
+    65536: 'assets/creatures/chapter_05_modern_world/modern_65536_future_device.png',
   };
 
   static const _backgrounds = <_Chapter, List<String>>{
@@ -85,13 +81,10 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   };
 
   static const _completeBackgrounds = <_Chapter, String>{
-    _Chapter.ocean:
-        'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
-    _Chapter.land:
-        'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
+    _Chapter.ocean: 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
+    _Chapter.land: 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
     _Chapter.sky: 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg',
-    _Chapter.history:
-        'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
+    _Chapter.history: 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
     _Chapter.tech: 'assets/backgrounds/chapter_05_tech/tech_complete.png',
   };
 
@@ -129,12 +122,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     _Chapter.land => const [_Tool.revive],
     _Chapter.sky => const [_Tool.revive, _Tool.rewind],
     _Chapter.history => const [_Tool.revive, _Tool.rewind, _Tool.restore],
-    _Chapter.tech => const [
-      _Tool.revive,
-      _Tool.rewind,
-      _Tool.restore,
-      _Tool.duplicate,
-    ],
+    _Chapter.tech => const [_Tool.revive, _Tool.rewind, _Tool.restore, _Tool.duplicate],
   };
 
   void _resetBoard() {
@@ -196,24 +184,41 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
         next[rr * 4 + cc] = value;
       }
     }
+
     for (var i = 0; i < 16; i++) {
-      if (next[i] != _tiles[i]) changed = true;
+      if (next[i] != _tiles[i]) {
+        changed = true;
+        break;
+      }
     }
+
     if (!changed) {
       _previous = null;
       _gameOver = _isGameOver();
+      if (_gameOver) {
+        setState(() {});
+        _showGameOver();
+      }
       return false;
     }
+
     _tiles = next;
     _score += gained;
     if (_score > _best) _best = _score;
-    if (_tiles.whereType<int>().any((v) => v >= _target)) _complete = true;
+    _complete = _tiles.whereType<int>().any((v) => v >= _target);
+
     if (!_complete) {
       _spawn();
       _gameOver = _isGameOver();
     }
+
     setState(() {});
-    if (_complete) _showComplete();
+
+    if (_complete) {
+      _showComplete();
+    } else if (_gameOver) {
+      _showGameOver();
+    }
     return true;
   }
 
@@ -229,11 +234,30 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     return true;
   }
 
+  void _showGameOver() {
+    if (!mounted || !_gameOver || _complete) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('GAME OVER'),
+        content: Text('No more moves.\n\nSCORE  $_score'),
+        actions: [
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              setState(_resetBoard);
+              _focus.requestFocus();
+            },
+            child: const Text('RESTART'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _useTool(_Tool tool) {
-    if (_used.contains(tool) ||
-        !_tools.contains(tool) ||
-        _gameOver ||
-        _complete) {
+    if (_used.contains(tool) || !_tools.contains(tool) || _gameOver || _complete) {
       return;
     }
     if (tool == _Tool.rewind) {
@@ -275,13 +299,13 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           PageRouteBuilder<void>(
             opaque: true,
             transitionDuration: const Duration(milliseconds: 600),
-            pageBuilder: (_, animation, _) => _CompletePage(
+            pageBuilder: (_, animation, __) => _CompletePage(
               chapter: chapter,
               background: _completeBackgrounds[chapter]!,
               score: _score,
               onContinue: () => Navigator.of(context).pop(),
             ),
-            transitionsBuilder: (_, animation, _, child) =>
+            transitionsBuilder: (_, animation, __, child) =>
                 FadeTransition(opacity: animation, child: child),
           ),
         )
@@ -328,10 +352,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
         title: Text(_title),
         actions: [
           IconButton(onPressed: _resetBoard, icon: const Icon(Icons.refresh)),
-          IconButton(
-            onPressed: _debugComplete,
-            icon: const Icon(Icons.bug_report),
-          ),
+          IconButton(onPressed: _debugComplete, icon: const Icon(Icons.bug_report)),
         ],
       ),
       body: SafeArea(
@@ -396,32 +417,24 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
                               Image.asset(
                                 bg,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) =>
-                                    Container(color: Colors.blueGrey),
+                                errorBuilder: (_, __, ___) => Container(color: Colors.blueGrey),
                               ),
-                              Container(
-                                color: Colors.black.withValues(alpha: .08),
-                              ),
+                              Container(color: Colors.black.withValues(alpha: .08)),
                               GridView.builder(
                                 padding: const EdgeInsets.all(8),
                                 physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 4,
-                                      crossAxisSpacing: 6,
-                                      mainAxisSpacing: 6,
-                                    ),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 4,
+                                  crossAxisSpacing: 6,
+                                  mainAxisSpacing: 6,
+                                ),
                                 itemCount: 16,
                                 itemBuilder: (_, index) => GestureDetector(
-                                  onTap: _selecting == null
-                                      ? null
-                                      : () => _selectTile(index),
+                                  onTap: _selecting == null ? null : () => _selectTile(index),
                                   child: _Tile(
                                     value: _tiles[index],
                                     image: _imageFor(_tiles[index]),
-                                    highlighted:
-                                        _selecting != null &&
-                                        _tiles[index] != null,
+                                    highlighted: _selecting != null && _tiles[index] != null,
                                   ),
                                 ),
                               ),
@@ -449,19 +462,14 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
   int _backgroundIndex(int value) => value >= 1024
       ? 3
       : value >= 128
-      ? 2
-      : value >= 16
-      ? 1
-      : 0;
+          ? 2
+          : value >= 16
+              ? 1
+              : 0;
 
   String? _imageFor(int? value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (_chapter == _Chapter.tech) {
-      return _techCreatures[value];
-    }
+    if (value == null) return null;
+    if (_chapter == _Chapter.tech) return _techCreatures[value];
 
     switch (_chapter) {
       case _Chapter.ocean:
@@ -479,9 +487,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           2048: 'assets/creatures/chapter_01_ocean/creature_2048.png',
           4096: 'assets/creatures/chapter_01_ocean/future_seabed_human.png',
         };
-
         return images[value];
-
       case _Chapter.land:
         const images = {
           2: 'assets/creatures/chapter_02_land/creature_02.png',
@@ -498,9 +504,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           4096: 'assets/creatures/chapter_02_land/creature_4096.png',
           8192: 'assets/creatures/chapter_02_land/creature_8192.png',
         };
-
         return images[value];
-
       case _Chapter.sky:
         const images = {
           2: 'assets/creatures/chapter_03_sky/creature_02.png',
@@ -518,9 +522,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           8192: 'assets/creatures/chapter_03_sky/creature_8192.png',
           16384: 'assets/creatures/chapter_03_sky/creature_16384.png',
         };
-
         return images[value];
-
       case _Chapter.history:
         const images = {
           2: 'assets/creatures/chapter_04_history/history_02_fire.png',
@@ -529,25 +531,17 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           16: 'assets/creatures/chapter_04_history/history_16_rome.png',
           32: 'assets/creatures/chapter_04_history/history_32_tang.png',
           64: 'assets/creatures/chapter_04_history/history_64_mongol.png',
-          128:
-              'assets/creatures/chapter_04_history/history_128_exploration.png',
-          256:
-              'assets/creatures/chapter_04_history/history_256_independence.png',
+          128: 'assets/creatures/chapter_04_history/history_128_exploration.png',
+          256: 'assets/creatures/chapter_04_history/history_256_independence.png',
           512: 'assets/creatures/chapter_04_history/history_512_industrial.png',
-          1024:
-              'assets/creatures/chapter_04_history/history_1024_communication.png',
-          2048:
-              'assets/creatures/chapter_04_history/history_2048_automobile.png',
+          1024: 'assets/creatures/chapter_04_history/history_1024_communication.png',
+          2048: 'assets/creatures/chapter_04_history/history_2048_automobile.png',
           4096: 'assets/creatures/chapter_04_history/history_4096_flight.png',
-          8192:
-              'assets/creatures/chapter_04_history/history_8192_world_war.png',
+          8192: 'assets/creatures/chapter_04_history/history_8192_world_war.png',
           16384: 'assets/creatures/chapter_04_history/history_16384_moon.png',
-          32768:
-              'assets/creatures/chapter_04_history/history_32768_internet.png',
+          32768: 'assets/creatures/chapter_04_history/history_32768_internet.png',
         };
-
         return images[value];
-
       case _Chapter.tech:
         return _techCreatures[value];
     }
@@ -567,71 +561,49 @@ class _Stat extends StatelessWidget {
     ),
     child: Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          '$value',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+        Text('$value', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       ],
     ),
   );
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({
-    required this.value,
-    required this.image,
-    required this.highlighted,
-  });
+  const _Tile({required this.value, required this.image, required this.highlighted});
   final int? value;
   final String? image;
   final bool highlighted;
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: highlighted
-            ? Colors.amber.withValues(alpha: .5)
-            : Colors.white.withValues(alpha: .5),
-        borderRadius: BorderRadius.circular(10),
-        border: highlighted ? Border.all(color: Colors.amber, width: 3) : null,
-      ),
-      child: value == null || image == null
-          ? null
-          : Stack(
-              children: [
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: Image.asset(
-                      image!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                    ),
-                  ),
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: highlighted
+          ? Colors.amber.withValues(alpha: .5)
+          : Colors.white.withValues(alpha: .5),
+      borderRadius: BorderRadius.circular(10),
+      border: highlighted ? Border.all(color: Colors.amber, width: 3) : null,
+    ),
+    child: value == null || image == null
+        ? null
+        : Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Image.asset(image!, fit: BoxFit.contain),
                 ),
-                Positioned(
-                  top: 3,
-                  left: 3,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 1,
-                    ),
-                    color: Colors.black45,
-                    child: Text(
-                      '$value',
-                      style: const TextStyle(color: Colors.white, fontSize: 9),
-                    ),
-                  ),
+              ),
+              Positioned(
+                top: 3,
+                left: 3,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  color: Colors.black45,
+                  child: Text('$value', style: const TextStyle(color: Colors.white, fontSize: 9)),
                 ),
-              ],
-            ),
-    );
-  }
+              ),
+            ],
+          ),
+  );
 }
 
 class _Tools extends StatelessWidget {
@@ -647,18 +619,21 @@ class _Tools extends StatelessWidget {
   final _Tool? selecting;
   final ValueChanged<_Tool> onTool;
   final VoidCallback onCancel;
+
   String _name(_Tool t) => switch (t) {
     _Tool.revive => 'REVIVE',
     _Tool.rewind => 'REWIND',
     _Tool.restore => 'RESTORE',
     _Tool.duplicate => 'DUPLICATE',
   };
+
   IconData _icon(_Tool t) => switch (t) {
     _Tool.revive => Icons.auto_fix_high,
     _Tool.rewind => Icons.history,
     _Tool.restore => Icons.restore,
     _Tool.duplicate => Icons.copy,
   };
+
   @override
   Widget build(BuildContext context) => GridView.count(
     shrinkWrap: true,
@@ -673,15 +648,15 @@ class _Tools extends StatelessWidget {
           onPressed: used.contains(tool)
               ? null
               : selecting == tool
-              ? onCancel
-              : () => onTool(tool),
+                  ? onCancel
+                  : () => onTool(tool),
           icon: Icon(_icon(tool)),
           label: Text(
             used.contains(tool)
                 ? '${_name(tool)} USED'
                 : selecting == tool
-                ? 'CANCEL'
-                : '${_name(tool)} 1 USE',
+                    ? 'CANCEL'
+                    : '${_name(tool)} 1 USE',
           ),
         ),
     ],
@@ -699,16 +674,13 @@ class _CompletePage extends StatelessWidget {
   final String background;
   final int score;
   final VoidCallback onContinue;
+
   @override
   Widget build(BuildContext context) => Scaffold(
     body: Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(
-          background,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => Container(color: Colors.black),
-        ),
+        Image.asset(background, fit: BoxFit.cover),
         Container(color: Colors.black.withValues(alpha: .32)),
         Center(
           child: Column(
@@ -716,17 +688,10 @@ class _CompletePage extends StatelessWidget {
             children: [
               Text(
                 'CHAPTER ${chapter.index + 1} COMPLETE',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 12),
-              Text(
-                'SCORE  $score',
-                style: const TextStyle(color: Colors.white, fontSize: 18),
-              ),
+              Text('SCORE  $score', style: const TextStyle(color: Colors.white, fontSize: 18)),
               const SizedBox(height: 28),
               FilledButton(
                 onPressed: onContinue,
