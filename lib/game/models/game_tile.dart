@@ -1,12 +1,9 @@
 ﻿import 'creature.dart';
 
-enum GameChapter { ocean, land, sky, history, tech }
+enum GameChapter { ocean, land, sky, history, tech, universe }
 
 class GameTile {
-  GameTile({
-    required this.value,
-    this.chapter = GameChapter.ocean,
-  });
+  GameTile({required this.value, this.chapter = GameChapter.ocean});
 
   int value;
   final GameChapter chapter;
@@ -18,6 +15,7 @@ class GameTile {
       GameChapter.sky => Creature.fromChapter3Value(value),
       GameChapter.history => Creature.fromChapter4Value(value),
       GameChapter.tech => Creature.fromChapter5Value(value),
+      GameChapter.universe => Creature.fromChapter6Value(value),
     };
 
     if (creature == null) {
@@ -36,6 +34,7 @@ class GameTile {
       GameChapter.sky => value == 16384,
       GameChapter.history => value == 32768,
       GameChapter.tech => value == 65536,
+      GameChapter.universe => value == 131072,
     };
   }
 

@@ -15,6 +15,7 @@
   stage14,
   stage15,
   stage16,
+  stage17,
 }
 
 class Creature {
@@ -399,8 +400,7 @@ class Creature {
       value: 2,
       stage: CreatureStage.stage01,
       name: 'Watch',
-      imagePath:
-          'assets/creatures/chapter_05_modern_world/modern_02_watch.png',
+      imagePath: 'assets/creatures/chapter_05_modern_world/modern_02_watch.png',
     ),
     Creature(
       value: 4,
@@ -413,8 +413,7 @@ class Creature {
       value: 8,
       stage: CreatureStage.stage03,
       name: 'Radio',
-      imagePath:
-          'assets/creatures/chapter_05_modern_world/modern_08_radio.png',
+      imagePath: 'assets/creatures/chapter_05_modern_world/modern_08_radio.png',
     ),
     Creature(
       value: 16,
@@ -509,17 +508,132 @@ class Creature {
     ),
   ];
 
-
   // ============================================================
-  // Chapter 5 - Technology
+  // Chapter 6 - Universe
   // ============================================================
 
+  static const List<Creature> chapter6Universe = [
+    Creature(
+      value: 2,
+      stage: CreatureStage.stage01,
+      name: 'Atom',
+      imagePath: 'assets/creatures/chapter_06_universe/universe_2_atom.png',
+    ),
+    Creature(
+      value: 4,
+      stage: CreatureStage.stage02,
+      name: 'Star',
+      imagePath: 'assets/creatures/chapter_06_universe/universe_4_star.png',
+    ),
+    Creature(
+      value: 8,
+      stage: CreatureStage.stage03,
+      name: 'Planet',
+      imagePath: 'assets/creatures/chapter_06_universe/universe_8_planet.png',
+    ),
+    Creature(
+      value: 16,
+      stage: CreatureStage.stage04,
+      name: 'Earth',
+      imagePath: 'assets/creatures/chapter_06_universe/universe_16_earth.png',
+    ),
+    Creature(
+      value: 32,
+      stage: CreatureStage.stage05,
+      name: 'Moon',
+      imagePath: 'assets/creatures/chapter_06_universe/universe_32_moon.png',
+    ),
+    Creature(
+      value: 64,
+      stage: CreatureStage.stage06,
+      name: 'Space Probe',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_64_space_probe.png',
+    ),
+    Creature(
+      value: 128,
+      stage: CreatureStage.stage07,
+      name: 'Space Colony',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_128_space_colony.png',
+    ),
+    Creature(
+      value: 256,
+      stage: CreatureStage.stage08,
+      name: 'Asteroid Mining',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_256_asteroid_mining.png',
+    ),
+    Creature(
+      value: 512,
+      stage: CreatureStage.stage09,
+      name: 'Solar Expansion',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_512_solar_expansion.png',
+    ),
+    Creature(
+      value: 1024,
+      stage: CreatureStage.stage10,
+      name: 'Alien Life',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_1024_alien_life.png',
+    ),
+    Creature(
+      value: 2048,
+      stage: CreatureStage.stage11,
+      name: 'Alien Intelligence',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_2048_alien_intelligence.png',
+    ),
+    Creature(
+      value: 4096,
+      stage: CreatureStage.stage12,
+      name: 'First Contact',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_4096_first_contact.png',
+    ),
+    Creature(
+      value: 8192,
+      stage: CreatureStage.stage13,
+      name: 'Interstellar Travel',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_8192_interstellar_travel.png',
+    ),
+    Creature(
+      value: 16384,
+      stage: CreatureStage.stage14,
+      name: 'Galaxy Exploration',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_16384_galaxy_exploration.png',
+    ),
+    Creature(
+      value: 32768,
+      stage: CreatureStage.stage15,
+      name: 'Cosmic Civilization',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_32768_cosmic_civilization.png',
+    ),
+    Creature(
+      value: 65536,
+      stage: CreatureStage.stage16,
+      name: 'Earth Development',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_65536_earth_development.png',
+    ),
+    Creature(
+      value: 131072,
+      stage: CreatureStage.stage17,
+      name: 'God Perspective',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_131072_god_perspective.png',
+    ),
+  ];
 
   // ============================================================
   // Global
   // ============================================================
 
-  static const int maxValue = 65536;
+  static const int maxValue = 131072;
 
   static Creature? fromValue(int value) {
     for (final creature in chapter1Ocean) {
@@ -570,6 +684,17 @@ class Creature {
 
     return null;
   }
+
+  static Creature? fromChapter6Value(int value) {
+    for (final creature in chapter6Universe) {
+      if (creature.value == value) {
+        return creature;
+      }
+    }
+
+    return null;
+  }
+
   bool get isFinal => value == maxValue;
 
   bool get is2048 => value == 2048;
@@ -578,6 +703,3 @@ class Creature {
 
   bool get is8192 => value == 8192;
 }
-
-
-
