@@ -53,16 +53,20 @@ class GameTool {
 }
 
 class ToolState {
-  ToolState({required this.tool}) : usesRemaining = tool.maxUses;
+  ToolState({required this.tool, this.unlimited = false})
+      : usesRemaining = tool.maxUses;
 
   final GameTool tool;
+  final bool unlimited;
   int usesRemaining;
 
-  bool get canUse => usesRemaining > 0;
+  bool get canUse => unlimited || usesRemaining > 0;
+
+  String get usesLabel => unlimited ? '∞' : '$usesRemaining';
 
   bool use() {
     if (!canUse) return false;
-    usesRemaining--;
+    if (!unlimited) usesRemaining--;
     return true;
   }
 
