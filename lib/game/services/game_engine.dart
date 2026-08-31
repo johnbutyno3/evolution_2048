@@ -103,7 +103,10 @@ class GameEngine {
     int secondRow,
     int secondColumn,
   ) {
-    if (_chapter != GameChapter.history && _chapter != GameChapter.tech) {
+    if (_chapter != GameChapter.land &&
+        _chapter != GameChapter.sky &&
+        _chapter != GameChapter.history &&
+        _chapter != GameChapter.tech) {
       return false;
     }
     if (chapterComplete || !canUsePositionSwap) return false;
@@ -129,7 +132,10 @@ class GameEngine {
   }
 
   bool useDuplicate(int row, int column) {
-    if (_chapter != GameChapter.tech || chapterComplete) return false;
+    if ((_chapter != GameChapter.history && _chapter != GameChapter.tech) ||
+        chapterComplete) {
+      return false;
+    }
     if (!canUseDuplicate) return false;
     if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
       return false;
