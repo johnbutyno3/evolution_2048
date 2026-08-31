@@ -131,29 +131,48 @@ class GameEngine {
     return true;
   }
 
-  bool useDuplicate(int row, int column) {
+  bool useDuplicate(
+    int sourceRow,
+    int sourceColumn,
+    int targetRow,
+    int targetColumn,
+  ) {
     if ((_chapter != GameChapter.history && _chapter != GameChapter.tech) ||
         chapterComplete) {
       return false;
     }
+
     if (!canUseDuplicate) return false;
-    if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
+
+    if (sourceRow < 0 ||
+        sourceRow >= boardSize ||
+        sourceColumn < 0 ||
+        sourceColumn >= boardSize ||
+        targetRow < 0 ||
+        targetRow >= boardSize ||
+        targetColumn < 0 ||
+        targetColumn >= boardSize) {
       return false;
     }
-    final source = _board.tileAt(row, column);
-    if (source == null || source.value >= 512) return false;
-    final empty = <int>[];
-    for (var i = 0; i < boardSize * boardSize; i++) {
-      if (_board.tiles[i] == null) empty.add(i);
+
+    if (sourceRow == targetRow && sourceColumn == targetColumn) {
+      return false;
     }
-    if (empty.isEmpty) return false;
+
+    final source = _board.tileAt(sourceRow, sourceColumn);
+    final target = _board.tileAt(targetRow, targetColumn);
+
+    if (source == null || source.value >= 512) return false;
+    if (target != null) return false;
+
     if (!_toolManager.use(GameToolType.duplicate)) return false;
-    final index = empty[_random.nextInt(empty.length)];
+
     _board.setTile(
-      index ~/ boardSize,
-      index % boardSize,
+      targetRow,
+      targetColumn,
       GameTile(value: source.value, chapter: _chapter),
     );
+
     gameOver = false;
     return true;
   }

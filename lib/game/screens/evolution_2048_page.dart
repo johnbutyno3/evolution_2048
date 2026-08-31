@@ -14,18 +14,34 @@ class Evolution2048Page extends StatefulWidget {
 
 class _Evolution2048PageState extends State<Evolution2048Page> {
   GameEngine _engine = GameEngine(chapter: GameChapter.ocean);
+
   final FocusNode _focusNode = FocusNode();
 
   Offset? _dragStart;
   bool _swipeHandled = false;
+
   bool _gameOverDialogShowing = false;
   bool _chapterCompleteShowing = false;
 
   String? _toolMode;
   int? _firstSwapIndex;
-  int? _lastEvolutionValue;
+
+  // ------------------------------------------------------------
+  // 升階提示
+  //
+  // 只在「實際發生新的合成」時顯示。
+  // 不根據目前最高階顯示。
+  // 不使用 Dialog。
+  // ------------------------------------------------------------
+
+  int? _evolutionValue;
+  String? _evolutionCreatureName;
 
   static const double _swipeThreshold = 30;
+
+  // ------------------------------------------------------------
+  // Chapter 1 Ocean
+  // ------------------------------------------------------------
 
   static const List<String> _oceanBackgrounds = [
     'assets/backgrounds/chapter_01_ocean/ocean_background_01_primordial.jpg',
@@ -34,12 +50,20 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_01_ocean/ocean_background_04_deep_ocean.jpg',
   ];
 
+  // ------------------------------------------------------------
+  // Chapter 2 Land
+  // ------------------------------------------------------------
+
   static const List<String> _landBackgrounds = [
     'assets/backgrounds/chapter_02_land/land_background_01_primordial.jpg',
     'assets/backgrounds/chapter_02_land/land_background_02_forest.jpg',
     'assets/backgrounds/chapter_02_land/land_background_03_jungle.jpg',
     'assets/backgrounds/chapter_02_land/land_background_04_ancient_land.jpg',
   ];
+
+  // ------------------------------------------------------------
+  // Chapter 3 Sky
+  // ------------------------------------------------------------
 
   static const List<String> _skyBackgrounds = [
     'assets/backgrounds/chapter_03_sky/sky_background_01_low_altitude.jpg',
@@ -48,6 +72,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_03_sky/sky_background_04_space.jpg',
   ];
 
+  // ------------------------------------------------------------
+  // Chapter 4 History
+  // ------------------------------------------------------------
+
   static const List<String> _historyBackgrounds = [
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_01.png',
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_02.png',
@@ -55,12 +83,20 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     'assets/backgrounds/chapter_04_history/chapter_04_history_bg_04.png',
   ];
 
+  // ------------------------------------------------------------
+  // Chapter 5 Technology
+  // ------------------------------------------------------------
+
   static const List<String> _techBackgrounds = [
     'assets/backgrounds/chapter_05_tech/tech_01_electronic_age.png',
     'assets/backgrounds/chapter_05_tech/tech_02_ai_robot.png',
     'assets/backgrounds/chapter_05_tech/tech_03_future_city.png',
     'assets/backgrounds/chapter_05_tech/tech_04_space_civilization.png',
   ];
+
+  // ------------------------------------------------------------
+  // Chapter 6 Universe
+  // ------------------------------------------------------------
 
   static const List<String> _universeBackgrounds = [
     'assets/backgrounds/chapter_06_universe/universe_bg_01_origin.jpg',
@@ -72,8 +108,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
+      if (mounted) {
+        _focusNode.requestFocus();
+      }
     });
   }
 
@@ -83,8 +122,15 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     super.dispose();
   }
 
+  // ============================================================
+  // Keyboard
+  // ============================================================
+
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+
     if (_gameOverDialogShowing ||
         _chapterCompleteShowing ||
         _toolMode != null) {
@@ -98,10 +144,19 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       LogicalKeyboardKey.arrowRight => 'right',
       _ => null,
     };
-    if (direction == null) return KeyEventResult.ignored;
+
+    if (direction == null) {
+      return KeyEventResult.ignored;
+    }
+
     _move(direction);
+
     return KeyEventResult.handled;
   }
+
+  // ============================================================
+  // Swipe
+  // ============================================================
 
   void _handleDragStart(DragStartDetails details) {
     if (_gameOverDialogShowing ||
@@ -109,6 +164,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         _toolMode != null) {
       return;
     }
+
     _dragStart = details.localPosition;
     _swipeHandled = false;
   }
@@ -121,12 +177,19 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         _dragStart == null) {
       return;
     }
+
     final delta = details.localPosition - _dragStart!;
-    if (delta.distance < _swipeThreshold) return;
+
+    if (delta.distance < _swipeThreshold) {
+      return;
+    }
+
     final direction = delta.dx.abs() > delta.dy.abs()
         ? (delta.dx < 0 ? 'left' : 'right')
         : (delta.dy < 0 ? 'up' : 'down');
+
     _swipeHandled = true;
+
     _move(direction);
   }
 
@@ -135,6 +198,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     _swipeHandled = false;
   }
 
+  // ============================================================
+  // Move
+  // ============================================================
+
   void _move(String direction) {
     if (_gameOverDialogShowing ||
         _chapterCompleteShowing ||
@@ -142,7 +209,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return;
     }
 
-    var changed = false;
+    bool changed;
 
     switch (direction) {
       case 'up':
@@ -157,21 +224,39 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       case 'right':
         changed = _engine.moveRight();
         break;
+      default:
+        changed = false;
     }
 
     if (!changed) {
       return;
     }
 
+    final mergedValue = _engine.board.lastMergedValue;
+
     if (mounted) {
       setState(() {});
     }
 
-    // Evolution feedback.
-    if (_engine.board.lastMergeScore > 0) {
+    // ----------------------------------------------------------
+    // 只有真正合成時才顯示升階提示。
+    //
+    // 不看 highestValue。
+    // 不使用 Dialog。
+    // 不會每次移動都跳。
+    // ----------------------------------------------------------
+
+    if (mergedValue != null && mergedValue >= 4) {
+      _showEvolutionNotice(mergedValue);
+
+      // Flutter HapticFeedback。
+      // AndroidManifest 已經加入 VIBRATE 權限。
       HapticFeedback.mediumImpact();
-      _showEvolutionNotice();
     }
+
+    // ----------------------------------------------------------
+    // Chapter Complete 優先於 Game Over
+    // ----------------------------------------------------------
 
     if (_engine.chapterComplete) {
       _showChapterComplete();
@@ -180,67 +265,104 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
   }
 
-  Future<void> _showEvolutionNotice() async {
-    if (!mounted || _gameOverDialogShowing || _chapterCompleteShowing) {
+  // ============================================================
+  // Evolution Notice
+  // ============================================================
+
+  void _showEvolutionNotice(int value) {
+    if (!mounted) {
       return;
     }
 
-    final value = _lastEvolutionValue ?? _engine.highestValue;
+    // 如果上一個提示還在，直接更新成最新升階。
+    setState(() {
+      _evolutionValue = value;
+      _evolutionCreatureName = _creatureNameForValue(value);
+    });
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        final tile = _engine.board.tiles
-            .whereType<GameTile>()
-            .where((tile) => tile.value == value)
-            .firstOrNull;
+    Future.delayed(const Duration(milliseconds: 1400), () {
+      if (!mounted) {
+        return;
+      }
 
-        return AlertDialog(
-          title: const Text('Evolution'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (tile != null)
-                SizedBox(
-                  width: 110,
-                  height: 110,
-                  child: Image.asset(
-                    tile.creature.imagePath,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              const SizedBox(height: 12),
-              Text(
-                'A new life stage has evolved!',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text('Evolution value: $value', textAlign: TextAlign.center),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+      // 只有目前仍然是同一個提示才清除。
+      if (_evolutionValue == value) {
+        setState(() {
+          _evolutionValue = null;
+          _evolutionCreatureName = null;
+        });
+      }
+    });
   }
 
+  // ============================================================
+  // Creature name
+  //
+  // 這裡只負責顯示，不影響 GameEngine。
+  // ============================================================
+
+  String _creatureNameForValue(int value) {
+    switch (_engine.chapter) {
+      case GameChapter.ocean:
+        return switch (value) {
+          4 => '鞭毛蟲',
+          8 => '磷蝦',
+          16 => '小丑魚',
+          32 => '水母',
+          64 => '魷魚',
+          128 => '海龜',
+          256 => '黃鰭鮪魚',
+          512 => '鯊魚',
+          1024 => '虎鯨',
+          2048 => '藍鯨',
+          4096 => '海底人類',
+          _ => 'Evolution',
+        };
+
+      case GameChapter.land:
+        return 'New Evolution';
+
+      case GameChapter.sky:
+        return 'New Evolution';
+
+      case GameChapter.history:
+        return 'New Evolution';
+
+      case GameChapter.tech:
+        return 'New Evolution';
+
+      case GameChapter.universe:
+        return 'New Evolution';
+    }
+  }
+
+  // ============================================================
+  // Restart
+  // ============================================================
+
   void _reset() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) return;
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
-      _engine = GameEngine(chapter: _engine.chapter);
-      _toolMode = null;
+      _engine.reset();
+
+      _evolutionValue = null;
+      _evolutionCreatureName = null;
+
       _firstSwapIndex = null;
       _dragStart = null;
       _swipeHandled = false;
+      _toolMode = null;
     });
+
     _focusNode.requestFocus();
   }
+
+  // ============================================================
+  // Tools
+  // ============================================================
 
   void _startTool(String mode) {
     if (!_engine.hasTools ||
@@ -248,6 +370,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         _chapterCompleteShowing) {
       return;
     }
+
     final canUse = switch (mode) {
       'revive' => _engine.canUseRevive,
       'rewind' => _engine.canUseTimeRewind,
@@ -255,10 +378,16 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       'duplicate' => _engine.canUseDuplicate,
       _ => false,
     };
-    if (!canUse) return;
+
+    if (!canUse) {
+      return;
+    }
 
     if (mode == 'rewind') {
-      if (_engine.useTimeRewind()) setState(() {});
+      if (_engine.useTimeRewind()) {
+        setState(() {});
+      }
+
       _focusNode.requestFocus();
       return;
     }
@@ -270,22 +399,37 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   }
 
   void _cancelTool() {
-    if (_toolMode == null) return;
+    if (_toolMode == null) {
+      return;
+    }
+
     setState(() {
       _toolMode = null;
       _firstSwapIndex = null;
     });
+
     _focusNode.requestFocus();
   }
 
   void _selectToolTile(int index) {
     final mode = _toolMode;
-    if (mode == null) return;
+
+    if (mode == null) {
+      return;
+    }
+
     final tile = _engine.board.tiles[index];
-    if (tile == null) return;
+
+    if (tile == null) {
+      return;
+    }
 
     final row = index ~/ 4;
     final column = index % 4;
+
+    // ----------------------------------------------------------
+    // Revive
+    // ----------------------------------------------------------
 
     if (mode == 'revive') {
       if (_engine.useRevive(row, column)) {
@@ -293,14 +437,23 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           _toolMode = null;
           _firstSwapIndex = null;
         });
+
         _focusNode.requestFocus();
       }
+
       return;
     }
 
+    // ----------------------------------------------------------
+    // Duplicate
+    // ----------------------------------------------------------
+
     if (mode == 'duplicate') {
       if (_firstSwapIndex == null) {
-        setState(() => _firstSwapIndex = index);
+        setState(() {
+          _firstSwapIndex = index;
+        });
+
         return;
       }
 
@@ -317,55 +470,97 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           _toolMode = null;
           _firstSwapIndex = null;
         });
+
         _focusNode.requestFocus();
       }
+
       return;
     }
+
+    // ----------------------------------------------------------
+    // Position Swap
+    // ----------------------------------------------------------
+
     if (mode == 'swap') {
       if (_firstSwapIndex == null) {
-        setState(() => _firstSwapIndex = index);
+        setState(() {
+          _firstSwapIndex = index;
+        });
+
         return;
       }
+
       final first = _firstSwapIndex!;
+
+      if (first == index) {
+        return;
+      }
+
       final changed = _engine.usePositionSwap(
         first ~/ 4,
         first % 4,
         row,
         column,
       );
+
       if (changed) {
         setState(() {
           _toolMode = null;
           _firstSwapIndex = null;
         });
+
         _focusNode.requestFocus();
       }
     }
   }
 
+  // ============================================================
+  // Game Over
+  // ============================================================
+
   Future<void> _showGameOver() async {
-    if (_gameOverDialogShowing || !mounted) return;
+    if (_gameOverDialogShowing || !mounted) {
+      return;
+    }
+
     _gameOverDialogShowing = true;
+
     final shouldRestart = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Game Over'),
-        content: Text(
-          'Score: ${_engine.score}\nHighest: ${_engine.highestValue}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Restart'),
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Game Over'),
+          content: Text(
+            'Score: ${_engine.score}\n'
+            'Highest: ${_engine.highestValue}',
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Restart'),
+            ),
+          ],
+        );
+      },
     );
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
+
     _gameOverDialogShowing = false;
-    if (shouldRestart == true) _reset();
+
+    if (shouldRestart == true) {
+      _reset();
+    }
   }
+
+  // ============================================================
+  // Background
+  // ============================================================
 
   String _backgroundForHighest(int highestValue) {
     final backgrounds = switch (_engine.chapter) {
@@ -376,11 +571,25 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       GameChapter.tech => _techBackgrounds,
       GameChapter.universe => _universeBackgrounds,
     };
-    if (highestValue >= 1024) return backgrounds[3];
-    if (highestValue >= 128) return backgrounds[2];
-    if (highestValue >= 16) return backgrounds[1];
+
+    if (highestValue >= 1024) {
+      return backgrounds[3];
+    }
+
+    if (highestValue >= 128) {
+      return backgrounds[2];
+    }
+
+    if (highestValue >= 16) {
+      return backgrounds[1];
+    }
+
     return backgrounds[0];
   }
+
+  // ============================================================
+  // Chapter title
+  // ============================================================
 
   String get _chapterTitle => switch (_engine.chapter) {
     GameChapter.ocean => 'Ocean Chapter',
@@ -391,9 +600,19 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     GameChapter.universe => 'Universe Chapter',
   };
 
+  // ============================================================
+  // Debug complete
+  // ============================================================
+
   void _debugCompleteChapter() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) return;
-    setState(() => _engine.debugCompleteChapter(_chapterNumber));
+    if (_gameOverDialogShowing || _chapterCompleteShowing) {
+      return;
+    }
+
+    setState(() {
+      _engine.debugCompleteChapter(_chapterNumber);
+    });
+
     _showChapterComplete();
   }
 
@@ -406,71 +625,174 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     GameChapter.universe => 6,
   };
 
+  // ============================================================
+  // Chapter Complete
+  // ============================================================
+
   Future<void> _showChapterComplete() async {
-    if (_chapterCompleteShowing || !mounted) return;
+    if (_chapterCompleteShowing || !mounted) {
+      return;
+    }
+
     _chapterCompleteShowing = true;
+
     final completedChapter = _engine.chapter;
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => _ChapterCompletePage(
-          chapter: completedChapter,
-          score: _engine.score,
-          highestValue: _engine.highestValue,
-          onContinue: () => Navigator.of(context).pop(),
-        ),
+        builder: (context) {
+          return _ChapterCompletePage(
+            chapter: completedChapter,
+            score: _engine.score,
+            highestValue: _engine.highestValue,
+            onContinue: () {
+              Navigator.of(context).pop();
+            },
+          );
+        },
       ),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     _chapterCompleteShowing = false;
 
     switch (completedChapter) {
       case GameChapter.ocean:
         _startChapter(GameChapter.land);
         break;
+
       case GameChapter.land:
         _startChapter(GameChapter.sky);
         break;
+
       case GameChapter.sky:
         _startChapter(GameChapter.history);
         break;
+
       case GameChapter.history:
         _startChapter(GameChapter.tech);
         break;
+
       case GameChapter.tech:
         _startChapter(GameChapter.universe);
         break;
+
       case GameChapter.universe:
         _focusNode.requestFocus();
         break;
     }
   }
 
+  // ============================================================
+  // Start Chapter
+  // ============================================================
+
   void _startChapter(GameChapter chapter) {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _engine = GameEngine(chapter: chapter);
+
       _toolMode = null;
       _firstSwapIndex = null;
+
       _dragStart = null;
       _swipeHandled = false;
+
+      _evolutionValue = null;
+      _evolutionCreatureName = null;
     });
+
     _focusNode.requestFocus();
   }
+
+  // ============================================================
+  // Tool label
+  // ============================================================
 
   String _toolLabel(GameToolType type) {
     switch (type) {
       case GameToolType.revive:
         return 'Revive';
+
       case GameToolType.timeRewind:
         return 'Rewind';
+
       case GameToolType.positionSwap:
         return 'Swap';
+
       case GameToolType.duplicate:
         return 'Duplicate';
     }
   }
+
+  // ============================================================
+  // Evolution notice widget
+  // ============================================================
+
+  Widget _buildEvolutionNotice() {
+    if (_evolutionValue == null) {
+      return const SizedBox.shrink();
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: Container(
+        key: ValueKey<int>(_evolutionValue!),
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.black.withValues(alpha: 0.68),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '🧬  EVOLUTION',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              _evolutionCreatureName ?? 'Evolution',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Stage ${_evolutionValue!}',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.82),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // Main UI
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -509,6 +831,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // ------------------------------------------------
+                      // Score
+                      // ------------------------------------------------
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -522,18 +847,39 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                           ),
                         ],
                       ),
+
                       const SizedBox(height: 12),
+
+                      // ------------------------------------------------
+                      // Highest
+                      // ------------------------------------------------
                       Text(
                         _toolMode == null
                             ? 'Highest: ${_engine.highestValue} / ${_engine.targetValue}'
-                            : 'Select a tile for ${_toolMode == 'swap'
-                                  ? 'Swap'
-                                  : _toolMode == 'duplicate'
-                                  ? 'Duplicate'
-                                  : 'Revive'}',
+                            : 'Select a tile for '
+                                  '${_toolMode == 'swap'
+                                      ? 'Swap'
+                                      : _toolMode == 'duplicate'
+                                      ? 'Duplicate'
+                                      : 'Revive'}',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
-                      const SizedBox(height: 12),
+
+                      const SizedBox(height: 10),
+
+                      // ------------------------------------------------
+                      // 升階提示
+                      //
+                      // 注意：這個位置就是棋盤「上面」。
+                      // 不在棋盤 Stack 裡。
+                      // 不會遮住棋盤。
+                      // 不需要按掉。
+                      // ------------------------------------------------
+                      _buildEvolutionNotice(),
+
+                      // ------------------------------------------------
+                      // Board
+                      // ------------------------------------------------
                       AspectRatio(
                         aspectRatio: 1,
                         child: ClipRRect(
@@ -542,9 +888,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                             fit: StackFit.expand,
                             children: [
                               Image.asset(background, fit: BoxFit.cover),
+
                               Container(
                                 color: Colors.black.withValues(alpha: 0.18),
                               ),
+
                               GridView.builder(
                                 physics: const NeverScrollableScrollPhysics(),
                                 padding: const EdgeInsets.all(8),
@@ -557,7 +905,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                 itemCount: 16,
                                 itemBuilder: (context, index) {
                                   final tile = _engine.board.tiles[index];
+
                                   final selected = _firstSwapIndex == index;
+
                                   return GestureDetector(
                                     onTap: () => _selectToolTile(index),
                                     child: Container(
@@ -596,7 +946,12 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 12),
+
+                      // ------------------------------------------------
+                      // Tools
+                      // ------------------------------------------------
                       if (_toolMode != null)
                         TextButton(
                           onPressed: _cancelTool,
@@ -609,6 +964,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                           runSpacing: 8,
                           children: _engine.toolManager.tools.map((state) {
                             final type = state.tool.type;
+
                             final enabled =
                                 state.canUse &&
                                 switch (type) {
@@ -620,12 +976,14 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                   GameToolType.duplicate =>
                                     _engine.canUseDuplicate,
                                 };
+
                             final mode = switch (type) {
                               GameToolType.revive => 'revive',
                               GameToolType.timeRewind => 'rewind',
                               GameToolType.positionSwap => 'swap',
                               GameToolType.duplicate => 'duplicate',
                             };
+
                             return OutlinedButton.icon(
                               onPressed: enabled
                                   ? () => _startTool(mode)
@@ -646,7 +1004,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                 fit: BoxFit.contain,
                               ),
                               label: Text(
-                                '${_toolLabel(type)} (${state.usesRemaining})',
+                                '${_toolLabel(type)} '
+                                '(${state.usesRemaining})',
                               ),
                             );
                           }).toList(),
@@ -662,6 +1021,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     );
   }
 }
+
+// ==================================================================
+// Chapter Complete Page
+// ==================================================================
 
 class _ChapterCompletePage extends StatelessWidget {
   const _ChapterCompletePage({
@@ -706,13 +1069,16 @@ class _ChapterCompletePage extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           Image.asset(_background, fit: BoxFit.cover),
+
           Container(color: Colors.black.withValues(alpha: 0.18)),
+
           SafeArea(
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   const Spacer(),
+
                   Text(
                     _title,
                     style: const TextStyle(
@@ -722,12 +1088,16 @@ class _ChapterCompletePage extends StatelessWidget {
                       shadows: [Shadow(blurRadius: 8, color: Colors.black)],
                     ),
                   ),
+
                   const SizedBox(height: 10),
+
                   Text(
-                    'Score $score  ?? Highest $highestValue',
+                    'Score $score  •  Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
+
                   const Spacer(),
+
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: SizedBox(
