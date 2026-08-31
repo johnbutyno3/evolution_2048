@@ -9,7 +9,6 @@ class ToolManager {
   final GameChapter chapter;
 
   /// Debug/testing cheat: when enabled, tools do not consume their uses.
-  /// Chapter 6 intentionally still has no tools.
   final bool unlimitedTools;
   final List<ToolState> _tools = [];
 
@@ -22,28 +21,31 @@ class ToolManager {
 
     switch (chapter) {
       case GameChapter.ocean:
-        // Chapter 1 has no tools.
+        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
         break;
       case GameChapter.land:
-        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
+        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
+        _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
         break;
       case GameChapter.sky:
-        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
         _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
+        _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
+        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
         break;
       case GameChapter.history:
-        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
         _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
         _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
+        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
+        _tools.add(ToolState(tool: GameTool.duplicate, unlimited: unlimitedTools));
         break;
       case GameChapter.tech:
-        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
         _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
         _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
+        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
         _tools.add(ToolState(tool: GameTool.duplicate, unlimited: unlimitedTools));
         break;
       case GameChapter.universe:
-        // Chapter 6 is the ultimate challenge: tools are disabled.
+        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
         break;
     }
   }
