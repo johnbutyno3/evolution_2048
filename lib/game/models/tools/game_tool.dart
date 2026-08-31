@@ -25,28 +25,28 @@ class GameTool {
 
   static const GameTool revive = GameTool(
     type: GameToolType.revive,
-    name: 'Revive',
+    name: 'REMOVE',
     description: 'Remove one tile from the board.',
     maxUses: 1,
   );
 
   static const GameTool timeRewind = GameTool(
     type: GameToolType.timeRewind,
-    name: 'Time Rewind',
+    name: 'UNDO',
     description: 'Undo the most recent valid move.',
     maxUses: 1,
   );
 
   static const GameTool positionSwap = GameTool(
     type: GameToolType.positionSwap,
-    name: 'Position Swap',
+    name: 'SWAP',
     description: 'Swap the positions of two tiles.',
     maxUses: 1,
   );
 
   static const GameTool duplicate = GameTool(
     type: GameToolType.duplicate,
-    name: 'Duplicate',
+    name: 'DUPLICATE',
     description: 'Copy a tile up to value 256 to an empty position.',
     maxUses: 1,
   );
