@@ -561,7 +561,21 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                               onPressed: enabled
                                   ? () => _startTool(mode)
                                   : null,
-                              icon: const Icon(Icons.build),
+                              icon: Image.asset(
+                                switch (type) {
+                                  GameToolType.revive =>
+                                    'assets/tools/tool_revive.png',
+                                  GameToolType.timeRewind =>
+                                    'assets/tools/tool_rewind.png',
+                                  GameToolType.positionSwap =>
+                                    'assets/tools/tool_swap.png',
+                                  GameToolType.duplicate =>
+                                    'assets/tools/tool_duplicate.png',
+                                },
+                                width: 28,
+                                height: 28,
+                                fit: BoxFit.contain,
+                              ),
                               label: Text(
                                 '${_toolLabel(type)} (${state.usesRemaining})',
                               ),

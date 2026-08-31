@@ -1,4 +1,4 @@
-name: rebirth_2048
+﻿name: rebirth_2048
 description: A biological evolution and ecological revival game.
 publish_to: 'none'
 
@@ -40,3 +40,4 @@ flutter:
     - assets/backgrounds/chapter_05_tech/
     - assets/creatures/chapter_06_universe/
     - assets/backgrounds/chapter_06_universe/
+
