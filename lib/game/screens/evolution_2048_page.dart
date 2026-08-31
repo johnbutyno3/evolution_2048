@@ -84,7 +84,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null) {
+    if (_gameOverDialogShowing ||
+        _chapterCompleteShowing ||
+        _toolMode != null) {
       return KeyEventResult.handled;
     }
 
@@ -101,7 +103,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   }
 
   void _handleDragStart(DragStartDetails details) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null) {
+    if (_gameOverDialogShowing ||
+        _chapterCompleteShowing ||
+        _toolMode != null) {
       return;
     }
     _dragStart = details.localPosition;
@@ -131,24 +135,37 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   }
 
   void _move(String direction) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null) {
+    if (_gameOverDialogShowing ||
+        _chapterCompleteShowing ||
+        _toolMode != null) {
       return;
     }
+
+    var changed = false;
+
     switch (direction) {
       case 'up':
-        _engine.moveUp();
+        changed = _engine.moveUp();
         break;
       case 'down':
-        _engine.moveDown();
+        changed = _engine.moveDown();
         break;
       case 'left':
-        _engine.moveLeft();
+        changed = _engine.moveLeft();
         break;
       case 'right':
-        _engine.moveRight();
+        changed = _engine.moveRight();
         break;
     }
-    if (mounted) setState(() {});
+
+    if (!changed) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+
     if (_engine.chapterComplete) {
       _showChapterComplete();
     } else if (_engine.gameOver) {
@@ -169,7 +186,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   }
 
   void _startTool(String mode) {
-    if (!_engine.hasTools || _gameOverDialogShowing || _chapterCompleteShowing) {
+    if (!_engine.hasTools ||
+        _gameOverDialogShowing ||
+        _chapterCompleteShowing) {
       return;
     }
     final canUse = switch (mode) {
@@ -263,7 +282,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Game Over'),
-        content: Text('Score: ${_engine.score}\nHighest: ${_engine.highestValue}'),
+        content: Text(
+          'Score: ${_engine.score}\nHighest: ${_engine.highestValue}',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -293,13 +314,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   }
 
   String get _chapterTitle => switch (_engine.chapter) {
-        GameChapter.ocean => 'Ocean Chapter',
-        GameChapter.land => 'Land Chapter',
-        GameChapter.sky => 'Sky Chapter',
-        GameChapter.history => 'History Chapter',
-        GameChapter.tech => 'Technology Chapter',
-        GameChapter.universe => 'Universe Chapter',
-      };
+    GameChapter.ocean => 'Ocean Chapter',
+    GameChapter.land => 'Land Chapter',
+    GameChapter.sky => 'Sky Chapter',
+    GameChapter.history => 'History Chapter',
+    GameChapter.tech => 'Technology Chapter',
+    GameChapter.universe => 'Universe Chapter',
+  };
 
   void _debugCompleteChapter() {
     if (_gameOverDialogShowing || _chapterCompleteShowing) return;
@@ -308,13 +329,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   }
 
   int get _chapterNumber => switch (_engine.chapter) {
-        GameChapter.ocean => 1,
-        GameChapter.land => 2,
-        GameChapter.sky => 3,
-        GameChapter.history => 4,
-        GameChapter.tech => 5,
-        GameChapter.universe => 6,
-      };
+    GameChapter.ocean => 1,
+    GameChapter.land => 2,
+    GameChapter.sky => 3,
+    GameChapter.history => 4,
+    GameChapter.tech => 5,
+    GameChapter.universe => 6,
+  };
 
   Future<void> _showChapterComplete() async {
     if (_chapterCompleteShowing || !mounted) return;
@@ -422,15 +443,25 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Score ${_engine.score}', style: Theme.of(context).textTheme.titleMedium),
-                          Text('Best ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium),
+                          Text(
+                            'Score ${_engine.score}',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          Text(
+                            'Best ${_engine.bestScore}',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
                         _toolMode == null
                             ? 'Highest: ${_engine.highestValue} / ${_engine.targetValue}'
-                            : 'Select a tile for ${_toolMode == 'swap' ? 'Swap' : _toolMode == 'duplicate' ? 'Duplicate' : 'Revive'}',
+                            : 'Select a tile for ${_toolMode == 'swap'
+                                  ? 'Swap'
+                                  : _toolMode == 'duplicate'
+                                  ? 'Duplicate'
+                                  : 'Revive'}',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 12),
@@ -442,15 +473,18 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                             fit: StackFit.expand,
                             children: [
                               Image.asset(background, fit: BoxFit.cover),
-                              Container(color: Colors.black.withValues(alpha: 0.18)),
+                              Container(
+                                color: Colors.black.withValues(alpha: 0.18),
+                              ),
                               GridView.builder(
                                 physics: const NeverScrollableScrollPhysics(),
                                 padding: const EdgeInsets.all(8),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  crossAxisSpacing: 6,
-                                  mainAxisSpacing: 6,
-                                ),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 4,
+                                      crossAxisSpacing: 6,
+                                      mainAxisSpacing: 6,
+                                    ),
                                 itemCount: 16,
                                 itemBuilder: (context, index) {
                                   final tile = _engine.board.tiles[index];
@@ -461,16 +495,30 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(10),
                                         border: selected
-                                            ? Border.all(width: 3, color: Colors.yellow)
+                                            ? Border.all(
+                                                width: 3,
+                                                color: Colors.yellow,
+                                              )
                                             : null,
                                         color: tile == null
-                                            ? Colors.white.withValues(alpha: 0.08)
-                                            : Colors.white.withValues(alpha: 0.82),
+                                            ? Colors.white.withValues(
+                                                alpha: 0.08,
+                                              )
+                                            : Colors.white.withValues(
+                                                alpha: 0.82,
+                                              ),
                                       ),
-                                      padding: const EdgeInsets.all(6),
+                                      padding: EdgeInsets.all(
+                                        _engine.chapter == GameChapter.universe
+                                            ? 2
+                                            : 6,
+                                      ),
                                       child: tile == null
                                           ? const SizedBox.shrink()
-                                          : Image.asset(tile.creature.imagePath, fit: BoxFit.contain),
+                                          : Image.asset(
+                                              tile.creature.imagePath,
+                                              fit: BoxFit.contain,
+                                            ),
                                     ),
                                   );
                                 },
@@ -481,7 +529,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                       ),
                       const SizedBox(height: 12),
                       if (_toolMode != null)
-                        TextButton(onPressed: _cancelTool, child: const Text('Cancel'))
+                        TextButton(
+                          onPressed: _cancelTool,
+                          child: const Text('Cancel'),
+                        )
                       else if (_engine.hasTools)
                         Wrap(
                           alignment: WrapAlignment.center,
@@ -489,12 +540,17 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                           runSpacing: 8,
                           children: _engine.toolManager.tools.map((state) {
                             final type = state.tool.type;
-                            final enabled = state.canUse && switch (type) {
-                              GameToolType.revive => true,
-                              GameToolType.timeRewind => _engine.canUseTimeRewind,
-                              GameToolType.positionSwap => _engine.canUsePositionSwap,
-                              GameToolType.duplicate => _engine.canUseDuplicate,
-                            };
+                            final enabled =
+                                state.canUse &&
+                                switch (type) {
+                                  GameToolType.revive => true,
+                                  GameToolType.timeRewind =>
+                                    _engine.canUseTimeRewind,
+                                  GameToolType.positionSwap =>
+                                    _engine.canUsePositionSwap,
+                                  GameToolType.duplicate =>
+                                    _engine.canUseDuplicate,
+                                };
                             final mode = switch (type) {
                               GameToolType.revive => 'revive',
                               GameToolType.timeRewind => 'rewind',
@@ -502,9 +558,13 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                               GameToolType.duplicate => 'duplicate',
                             };
                             return OutlinedButton.icon(
-                              onPressed: enabled ? () => _startTool(mode) : null,
+                              onPressed: enabled
+                                  ? () => _startTool(mode)
+                                  : null,
                               icon: const Icon(Icons.build),
-                              label: Text('${_toolLabel(type)} (${state.usesRemaining})'),
+                              label: Text(
+                                '${_toolLabel(type)} (${state.usesRemaining})',
+                              ),
                             );
                           }).toList(),
                         ),
@@ -534,28 +594,27 @@ class _ChapterCompletePage extends StatelessWidget {
   final VoidCallback onContinue;
 
   String get _background => switch (chapter) {
-        GameChapter.ocean =>
-          'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
-        GameChapter.land =>
-          'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
-        GameChapter.sky =>
-          'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg',
-        GameChapter.history =>
-          'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
-        GameChapter.tech =>
-          'assets/backgrounds/chapter_05_tech/tech_complete.png',
-        GameChapter.universe =>
-          'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg',
-      };
+    GameChapter.ocean =>
+      'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg',
+    GameChapter.land =>
+      'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg',
+    GameChapter.sky =>
+      'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg',
+    GameChapter.history =>
+      'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
+    GameChapter.tech => 'assets/backgrounds/chapter_05_tech/tech_complete.png',
+    GameChapter.universe =>
+      'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg',
+  };
 
   String get _title => switch (chapter) {
-        GameChapter.ocean => 'Ocean Restored',
-        GameChapter.land => 'Land Restored',
-        GameChapter.sky => 'Sky Restored',
-        GameChapter.history => 'History Restored',
-        GameChapter.tech => 'Technology Restored',
-        GameChapter.universe => 'Universe Restored',
-      };
+    GameChapter.ocean => 'Ocean Restored',
+    GameChapter.land => 'Land Restored',
+    GameChapter.sky => 'Sky Restored',
+    GameChapter.history => 'History Restored',
+    GameChapter.tech => 'Technology Restored',
+    GameChapter.universe => 'Universe Restored',
+  };
 
   @override
   Widget build(BuildContext context) {
