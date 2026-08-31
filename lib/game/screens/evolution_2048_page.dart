@@ -27,11 +27,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   int? _firstSwapIndex;
 
   // ------------------------------------------------------------
-  // 升階提示
+  // ???內
   //
-  // 只在「實際發生新的合成」時顯示。
-  // 不根據目前最高階顯示。
-  // 不使用 Dialog。
+  // ?芸?祕??????憿舐內??
+  // 銝???擃?憿舐內??
+  // 銝蝙??Dialog??
   // ------------------------------------------------------------
 
   int? _evolutionValue;
@@ -239,23 +239,23 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
 
     // ----------------------------------------------------------
-    // 只有真正合成時才顯示升階提示。
+    // ?芣??迤????憿舐內???內??
     //
-    // 不看 highestValue。
-    // 不使用 Dialog。
-    // 不會每次移動都跳。
+    // 銝? highestValue??
+    // 銝蝙??Dialog??
+    // 銝?瘥活蝘餃??質歲??
     // ----------------------------------------------------------
 
     if (mergedValue != null && mergedValue >= 4) {
       _showEvolutionNotice(mergedValue);
 
-      // Flutter HapticFeedback。
-      // AndroidManifest 已經加入 VIBRATE 權限。
+      // Flutter HapticFeedback??
+      // AndroidManifest 撌脩?? VIBRATE 甈???
       HapticFeedback.mediumImpact();
     }
 
     // ----------------------------------------------------------
-    // Chapter Complete 優先於 Game Over
+    // Chapter Complete ?芸???Game Over
     // ----------------------------------------------------------
 
     if (_engine.chapterComplete) {
@@ -274,7 +274,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return;
     }
 
-    // 如果上一個提示還在，直接更新成最新升階。
+    // 憒?銝???蝷粹??剁??湔?湔???啣???
     setState(() {
       _evolutionValue = value;
       _evolutionCreatureName = _creatureNameForValue(value);
@@ -285,7 +285,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
         return;
       }
 
-      // 只有目前仍然是同一個提示才清除。
+      // ?芣??桀?隞?臬?銝??蝷箸?皜??
       if (_evolutionValue == value) {
         setState(() {
           _evolutionValue = null;
@@ -298,7 +298,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   // ============================================================
   // Creature name
   //
-  // 這裡只負責顯示，不影響 GameEngine。
+  // ?ㄐ?芾?鞎祇＊蝷綽?銝蔣??GameEngine??
   // ============================================================
 
   String _creatureNameForValue(int value) {
@@ -306,16 +306,16 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       case GameChapter.ocean:
         return switch (value) {
           4 => '鞭毛蟲',
-          8 => '磷蝦',
+          8 => '蝤瑁',
           16 => '小丑魚',
-          32 => '水母',
-          64 => '魷魚',
-          128 => '海龜',
-          256 => '黃鰭鮪魚',
-          512 => '鯊魚',
-          1024 => '虎鯨',
-          2048 => '藍鯨',
-          4096 => '海底人類',
+          32 => '瘞湔?',
+          64 => '擳琿?',
+          128 => '瘚琿?',
+          256 => '暺鬼擙芷?',
+          512 => '攳?',
+          1024 => '?祠',
+          2048 => '?祠',
+          4096 => '瘚瑕?鈭粹?',
           _ => 'Evolution',
         };
 
@@ -756,7 +756,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              '🧬  EVOLUTION',
+              '?妞  EVOLUTION',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
@@ -868,13 +868,36 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                       const SizedBox(height: 10),
 
                       // ------------------------------------------------
-                      // 升階提示
+                      // ???內
                       //
-                      // 注意：這個位置就是棋盤「上面」。
-                      // 不在棋盤 Stack 裡。
-                      // 不會遮住棋盤。
-                      // 不需要按掉。
-                      // ------------------------------------------------
+                      // 瘜冽?嚗?蝵桀停?舀??扎??Ｕ?
+                      // 銝璉 Stack 鋆～?
+                      // 銝??桐?璉??
+                      // 銝?閬???
+ 
+Container(
+  width: double.infinity,
+  margin: const EdgeInsets.only(bottom: 10),
+  padding: const EdgeInsets.symmetric(
+    horizontal: 14,
+    vertical: 9,
+  ),
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(12),
+    color: Colors.black.withValues(alpha: 0.55),
+  ),
+  child: const Text(
+    '升階方式：2 個相同生物合成 → 下一階生物',
+                          textAlign: TextAlign.center,
+    style: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: Colors.white,
+    ),
+  ),
+),
+
+                     // ------------------------------------------------
                       _buildEvolutionNotice(),
 
                       // ------------------------------------------------
@@ -1092,7 +1115,7 @@ class _ChapterCompletePage extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   Text(
-                    'Score $score  •  Highest $highestValue',
+                    'Score $score  ?? Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
 
