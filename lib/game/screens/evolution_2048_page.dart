@@ -23,6 +23,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   String? _toolMode;
   int? _firstSwapIndex;
+  int? _lastEvolutionValue;
 
   static const double _swipeThreshold = 30;
 
@@ -166,11 +167,67 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       setState(() {});
     }
 
+    // Evolution feedback.
+    if (_engine.board.lastMergeScore > 0) {
+      HapticFeedback.mediumImpact();
+      _showEvolutionNotice();
+    }
+
     if (_engine.chapterComplete) {
       _showChapterComplete();
     } else if (_engine.gameOver) {
       _showGameOver();
     }
+  }
+
+  Future<void> _showEvolutionNotice() async {
+    if (!mounted || _gameOverDialogShowing || _chapterCompleteShowing) {
+      return;
+    }
+
+    final value = _lastEvolutionValue ?? _engine.highestValue;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final tile = _engine.board.tiles
+            .whereType<GameTile>()
+            .where((tile) => tile.value == value)
+            .firstOrNull;
+
+        return AlertDialog(
+          title: const Text('Evolution'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (tile != null)
+                SizedBox(
+                  width: 110,
+                  height: 110,
+                  child: Image.asset(
+                    tile.creature.imagePath,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Text(
+                'A new life stage has evolved!',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text('Evolution value: $value', textAlign: TextAlign.center),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _reset() {
@@ -242,7 +299,20 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
 
     if (mode == 'duplicate') {
-      if (_engine.useDuplicate(row, column)) {
+      if (_firstSwapIndex == null) {
+        setState(() => _firstSwapIndex = index);
+        return;
+      }
+
+      final first = _firstSwapIndex!;
+
+      if (first == index) {
+        return;
+      }
+
+      final changed = _engine.useDuplicate(first ~/ 4, first % 4, row, column);
+
+      if (changed) {
         setState(() {
           _toolMode = null;
           _firstSwapIndex = null;
@@ -251,7 +321,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       }
       return;
     }
-
     if (mode == 'swap') {
       if (_firstSwapIndex == null) {
         setState(() => _firstSwapIndex = index);
@@ -655,7 +724,7 @@ class _ChapterCompletePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Score $score  •  Highest $highestValue',
+                    'Score $score  ?? Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                   const Spacer(),
