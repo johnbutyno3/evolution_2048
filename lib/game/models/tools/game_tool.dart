@@ -1,9 +1,4 @@
-enum GameToolType {
-  revive,
-  timeRewind,
-  positionSwap,
-  duplicate,
-}
+enum GameToolType { revive, timeRewind, positionSwap, duplicate }
 
 class GameTool {
   const GameTool({
@@ -19,8 +14,11 @@ class GameTool {
   final int maxUses;
 
   bool get isRevive => type == GameToolType.revive;
+
   bool get isTimeRewind => type == GameToolType.timeRewind;
+
   bool get isPositionSwap => type == GameToolType.positionSwap;
+
   bool get isDuplicate => type == GameToolType.duplicate;
 
   static const GameTool revive = GameTool(
@@ -54,19 +52,31 @@ class GameTool {
 
 class ToolState {
   ToolState({required this.tool, this.unlimited = false})
-      : usesRemaining = tool.maxUses;
+    : usesRemaining = tool.maxUses;
 
   final GameTool tool;
+
   final bool unlimited;
+
   int usesRemaining;
 
-  bool get canUse => unlimited || usesRemaining > 0;
+  bool get canUse {
+    return unlimited || usesRemaining > 0;
+  }
 
-  String get usesLabel => unlimited ? '∞' : '$usesRemaining';
+  String get usesLabel {
+    return unlimited ? '∞' : '$usesRemaining';
+  }
 
   bool use() {
-    if (!canUse) return false;
-    if (!unlimited) usesRemaining--;
+    if (!canUse) {
+      return false;
+    }
+
+    if (!unlimited) {
+      usesRemaining--;
+    }
+
     return true;
   }
 

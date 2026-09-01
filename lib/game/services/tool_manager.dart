@@ -10,10 +10,13 @@ class ToolManager {
 
   /// Debug/testing cheat: when enabled, tools do not consume their uses.
   final bool unlimitedTools;
+
   final List<ToolState> _tools = [];
 
   List<ToolState> get tools => List.unmodifiable(_tools);
+
   bool get hasTools => _tools.isNotEmpty;
+
   int get availableToolCount => _tools.where((tool) => tool.canUse).length;
 
   void _initialize() {
@@ -21,45 +24,60 @@ class ToolManager {
 
     switch (chapter) {
       case GameChapter.ocean:
-        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
+        _add(GameTool.timeRewind);
         break;
+
       case GameChapter.land:
-        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
+        _add(GameTool.timeRewind);
+        _add(GameTool.positionSwap);
         break;
+
       case GameChapter.sky:
-        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
+        _add(GameTool.timeRewind);
+        _add(GameTool.positionSwap);
+        _add(GameTool.revive);
         break;
+
       case GameChapter.history:
-        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.duplicate, unlimited: unlimitedTools));
+        _add(GameTool.timeRewind);
+        _add(GameTool.positionSwap);
+        _add(GameTool.revive);
+        _add(GameTool.duplicate);
         break;
+
       case GameChapter.tech:
-        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.positionSwap, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.revive, unlimited: unlimitedTools));
-        _tools.add(ToolState(tool: GameTool.duplicate, unlimited: unlimitedTools));
+        _add(GameTool.timeRewind);
+        _add(GameTool.positionSwap);
+        _add(GameTool.revive);
+        _add(GameTool.duplicate);
         break;
+
       case GameChapter.universe:
-        _tools.add(ToolState(tool: GameTool.timeRewind, unlimited: unlimitedTools));
+        // Chapter 6: all tools are disabled.
         break;
     }
+  }
+
+  void _add(GameTool tool) {
+    _tools.add(ToolState(tool: tool, unlimited: unlimitedTools));
   }
 
   ToolState? getTool(GameToolType type) {
     for (final tool in _tools) {
-      if (tool.tool.type == type) return tool;
+      if (tool.tool.type == type) {
+        return tool;
+      }
     }
     return null;
   }
 
-  bool canUse(GameToolType type) => getTool(type)?.canUse ?? false;
+  bool canUse(GameToolType type) {
+    return getTool(type)?.canUse ?? false;
+  }
 
-  bool use(GameToolType type) => getTool(type)?.use() ?? false;
+  bool use(GameToolType type) {
+    return getTool(type)?.use() ?? false;
+  }
 
   void reset() {
     for (final tool in _tools) {
