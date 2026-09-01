@@ -36,6 +36,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   int? _evolutionValue;
   String? _evolutionCreatureName;
+  final Set<int> _shownEvolutionValues = <int>{};
 
   static const double _swipeThreshold = 30;
 
@@ -239,8 +240,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
     }
 
     if (mergedValue != null &&
-        mergedValue == _engine.highestValue &&
-        mergedValue >= 4) {
+        mergedValue >= 4 &&
+        _shownEvolutionValues.add(mergedValue)) {
       _showEvolutionNotice(mergedValue);
       HapticFeedback.mediumImpact();
     }
@@ -265,24 +266,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return;
     }
 
-    // 憒?銝???蝷粹??剁??湔?湔???啣???
     setState(() {
       _evolutionValue = value;
       _evolutionCreatureName = _creatureNameForValue(value);
-    });
-
-    Future.delayed(const Duration(milliseconds: 1400), () {
-      if (!mounted) {
-        return;
-      }
-
-      // ?芣??桀?隞?臬?銝??蝷箸?皜??
-      if (_evolutionValue == value) {
-        setState(() {
-          _evolutionValue = null;
-          _evolutionCreatureName = null;
-        });
-      }
     });
   }
 
@@ -341,6 +327,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
       _evolutionValue = null;
       _evolutionCreatureName = null;
+      _shownEvolutionValues.clear();
 
       _firstSwapIndex = null;
       _dragStart = null;
@@ -697,6 +684,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
       _evolutionValue = null;
       _evolutionCreatureName = null;
+      _shownEvolutionValues.clear();
     });
 
     _focusNode.requestFocus();
@@ -731,51 +719,24 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return const SizedBox.shrink();
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
-      child: Container(
-        key: ValueKey<int>(_evolutionValue!),
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.black.withValues(alpha: 0.68),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.black.withValues(alpha: 0.68),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.45),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              '?妞  EVOLUTION',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              _evolutionCreatureName ?? 'Evolution',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Stage ${_evolutionValue!}',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withValues(alpha: 0.82),
-              ),
-            ),
-          ],
+      ),
+      child: Text(
+        _evolutionCreatureName ?? '',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 21,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
       ),
     );
