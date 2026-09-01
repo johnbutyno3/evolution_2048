@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/creature.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
@@ -279,38 +280,22 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   // ============================================================
 
   String _creatureNameForValue(int value) {
-    switch (_engine.chapter) {
-      case GameChapter.ocean:
-        return switch (value) {
-          4 => '鞭毛蟲',
-          8 => '磷蝦',
-          16 => '小丑魚',
-          32 => '水母',
-          64 => '魷魚',
-          128 => '海龜',
-          256 => '黃鰭鮪魚',
-          512 => '鯊魚',
-          1024 => '虎鯨',
-          2048 => '藍鯨',
-          4096 => '海底人類',
-          _ => '進化',
-        };
+    final creatures = switch (_engine.chapter) {
+      GameChapter.ocean => Creature.chapter1Ocean,
+      GameChapter.land => Creature.chapter2Land,
+      GameChapter.sky => Creature.chapter3Sky,
+      GameChapter.history => Creature.chapter4History,
+      GameChapter.tech => Creature.chapter5Tech,
+      GameChapter.universe => const <Creature>[],
+    };
 
-      case GameChapter.land:
-        return '新的進化';
-
-      case GameChapter.sky:
-        return '新的進化';
-
-      case GameChapter.history:
-        return '新的進化';
-
-      case GameChapter.tech:
-        return '新的進化';
-
-      case GameChapter.universe:
-        return '新的進化';
+    for (final creature in creatures) {
+      if (creature.value == value) {
+        return creature.name;
+      }
     }
+
+    return '';
   }
 
   // ============================================================
