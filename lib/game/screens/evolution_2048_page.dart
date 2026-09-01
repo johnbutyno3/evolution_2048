@@ -238,19 +238,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       setState(() {});
     }
 
-    // ----------------------------------------------------------
-    // ?芣??迤????憿舐內???內??
-    //
-    // 銝? highestValue??
-    // 銝蝙??Dialog??
-    // 銝?瘥活蝘餃??質歲??
-    // ----------------------------------------------------------
-
-    if (mergedValue != null && mergedValue >= 4) {
+    if (mergedValue != null &&
+        mergedValue == _engine.highestValue &&
+        mergedValue >= 4) {
       _showEvolutionNotice(mergedValue);
-
-      // Flutter HapticFeedback??
-      // AndroidManifest 撌脩?? VIBRATE 甈???
       HapticFeedback.mediumImpact();
     }
 
@@ -306,33 +297,33 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       case GameChapter.ocean:
         return switch (value) {
           4 => '鞭毛蟲',
-          8 => '蝤瑁',
+          8 => '磷蝦',
           16 => '小丑魚',
-          32 => '瘞湔?',
-          64 => '擳琿?',
-          128 => '瘚琿?',
-          256 => '暺鬼擙芷?',
-          512 => '攳?',
-          1024 => '?祠',
-          2048 => '?祠',
-          4096 => '瘚瑕?鈭粹?',
-          _ => 'Evolution',
+          32 => '水母',
+          64 => '魷魚',
+          128 => '海龜',
+          256 => '黃鰭鮪魚',
+          512 => '鯊魚',
+          1024 => '虎鯨',
+          2048 => '藍鯨',
+          4096 => '海底人類',
+          _ => '進化',
         };
 
       case GameChapter.land:
-        return 'New Evolution';
+        return '新的進化';
 
       case GameChapter.sky:
-        return 'New Evolution';
+        return '新的進化';
 
       case GameChapter.history:
-        return 'New Evolution';
+        return '新的進化';
 
       case GameChapter.tech:
-        return 'New Evolution';
+        return '新的進化';
 
       case GameChapter.universe:
-        return 'New Evolution';
+        return '新的進化';
     }
   }
 
