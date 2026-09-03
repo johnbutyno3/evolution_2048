@@ -8,6 +8,7 @@ import 'save_manager.dart';
 import 'tool_manager.dart';
 
 class GameEngine {
+  // ignore: prefer_initializing_formals
   GameEngine({Random? random, GameChapter chapter = GameChapter.ocean})
     : _random = random ?? Random(),
       _chapter = chapter {
