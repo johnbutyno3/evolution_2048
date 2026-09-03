@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'game/screens/evolution_2048_page.dart';
+import 'game/services/save_manager.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SaveManager.initialize();
   runApp(const Rebirth2048App());
 }
 
