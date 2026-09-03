@@ -812,30 +812,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                       // 銝??桐?璉??
                       // 銝?閬???
  
-Container(
-  width: double.infinity,
-  margin: const EdgeInsets.only(bottom: 10),
-  padding: const EdgeInsets.symmetric(
-    horizontal: 14,
-    vertical: 9,
-  ),
-  decoration: BoxDecoration(
-    borderRadius: BorderRadius.circular(12),
-    color: Colors.black.withValues(alpha: 0.55),
-  ),
-  child: const Text(
-    '升階方式：2 個相同生物合成 → 下一階生物',
-                          textAlign: TextAlign.center,
-    style: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      color: Colors.white,
-    ),
-  ),
-),
-
-                     // ------------------------------------------------
-                      _buildEvolutionNotice(),
+_buildEvolutionNotice(),
 
                       // ------------------------------------------------
                       // Board
