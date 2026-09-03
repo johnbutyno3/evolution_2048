@@ -105,26 +105,18 @@ class GameEngine {
   bool _shouldRestoreSavedChapter(Map<String, dynamic> data) {
     final savedChapter = data['chapter'];
     if (savedChapter is! String) return false;
-
-    // The app entry point creates the Ocean engine. It may need to resume
-    // any chapter. Explicitly starting a later chapter only restores a save
-    // belonging to that same chapter.
     return _chapter == GameChapter.ocean || savedChapter == _chapter.name;
   }
 
   bool restoreFromSaveData(Map<String, dynamic> data) {
     final savedChapter = data['chapter'];
-    if (savedChapter is! String) {
-      return false;
-    }
+    if (savedChapter is! String) return false;
 
     final restoredChapter = GameChapter.values.cast<GameChapter?>().firstWhere(
       (value) => value?.name == savedChapter,
       orElse: () => null,
     );
-    if (restoredChapter == null) {
-      return false;
-    }
+    if (restoredChapter == null) return false;
 
     final rawTiles = data['tiles'];
     if (rawTiles is! List || rawTiles.length != boardSize * boardSize) {
@@ -137,9 +129,7 @@ class GameEngine {
         values.add(null);
         continue;
       }
-      if (raw is! num || raw.toInt() < 2) {
-        return false;
-      }
+      if (raw is! num || raw.toInt() < 2) return false;
       values.add(raw.toInt());
     }
 
@@ -180,9 +170,7 @@ class GameEngine {
   }
 
   int _readInt(dynamic value) {
-    if (value is num) {
-      return value.toInt();
-    }
+    if (value is num) return value.toInt();
     return 0;
   }
 
@@ -259,9 +247,7 @@ class GameEngine {
         chapterComplete) {
       return false;
     }
-
     if (!canUseDuplicate) return false;
-
     if (sourceRow < 0 ||
         sourceRow >= boardSize ||
         sourceColumn < 0 ||
@@ -272,25 +258,17 @@ class GameEngine {
         targetColumn >= boardSize) {
       return false;
     }
-
-    if (sourceRow == targetRow && sourceColumn == targetColumn) {
-      return false;
-    }
-
+    if (sourceRow == targetRow && sourceColumn == targetColumn) return false;
     final source = _board.tileAt(sourceRow, sourceColumn);
     final target = _board.tileAt(targetRow, targetColumn);
-
     if (source == null || source.value >= 512) return false;
     if (target != null) return false;
-
     if (!_toolManager.use(GameToolType.duplicate)) return false;
-
     _board.setTile(
       targetRow,
       targetColumn,
       GameTile(value: source.value, chapter: _chapter),
     );
-
     gameOver = false;
     _saveLocal();
     return true;
