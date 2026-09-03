@@ -1,0 +1,83 @@
+name: Apply evolution stage display fix
+
+on:
+  push:
+    branches:
+      - feature/chapter1-spec-implementation
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch evolution stage UI
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('lib/game/screens/evolution_2048_page.dart')
+          s = p.read_text(encoding='utf-8')
+
+          s = s.replace(
+              "import 'package:flutter/material.dart';\nimport 'package:flutter/services.dart';",
+              "import 'dart:async';\n\nimport 'package:flutter/material.dart';\nimport 'package:flutter/services.dart';",
+          )
+
+          s = s.replace(
+              "  final Set<int> _shownEvolutionValues = <int>{};\n",
+              "  final Set<int> _shownEvolutionValues = <int>{};\n  final List<int> _pendingEvolutionValues = <int>[];\n  Timer? _evolutionNoticeTimer;\n",
+          )
+
+          s = s.replace(
+              "  void dispose() {\n    _focusNode.dispose();",
+              "  void dispose() {\n    _evolutionNoticeTimer?.cancel();\n    _focusNode.dispose();",
+          )
+
+          old_move = '''    final mergedValue = _engine.board.lastMergedValue;\n\n    if (mounted) {\n      setState(() {});\n    }\n\n    if (mergedValue != null &&\n        mergedValue >= 4 &&\n        _shownEvolutionValues.add(mergedValue)) {\n      _showEvolutionNotice(mergedValue);\n      HapticFeedback.mediumImpact();\n    }'''
+          new_move = '''    final newEvolutionValues = _engine.newEvolutionValuesThisMove;\n\n    if (mounted) {\n      setState(() {});\n    }\n\n    _queueEvolutionNotices(newEvolutionValues);'''
+          if old_move not in s:
+              raise SystemExit('move block not found')
+          s = s.replace(old_move, new_move)
+
+          old_notice = '''  void _showEvolutionNotice(int value) {\n    if (!mounted) {\n      return;\n    }\n\n    setState(() {\n      _evolutionValue = value;\n      _evolutionCreatureName = _creatureNameForValue(value);\n    });\n  }'''
+          new_notice = '''  void _queueEvolutionNotices(List<int> values) {\n    if (values.isEmpty || !mounted) {\n      return;\n    }\n\n    _pendingEvolutionValues.addAll(values);\n    _showNextEvolutionNotice();\n  }\n\n  void _showNextEvolutionNotice() {\n    if (!mounted || _pendingEvolutionValues.isEmpty) {\n      return;\n    }\n\n    _evolutionNoticeTimer?.cancel();\n\n    final value = _pendingEvolutionValues.removeAt(0);\n\n    setState(() {\n      _evolutionValue = value;\n      _evolutionCreatureName = _creatureNameForValue(value);\n    });\n\n    HapticFeedback.mediumImpact();\n\n    _evolutionNoticeTimer = Timer(const Duration(milliseconds: 700), () {\n      _evolutionNoticeTimer = null;\n      _showNextEvolutionNotice();\n    });\n  }'''
+          if old_notice not in s:
+              raise SystemExit('notice block not found')
+          s = s.replace(old_notice, new_notice)
+
+          old_widget = '''  Widget _buildEvolutionNotice() {\n    if (_evolutionValue == null) {\n      return const SizedBox.shrink();\n    }\n\n    return Container('''
+          new_widget = '''  Widget _buildEvolutionNotice() {\n    final value = _evolutionValue ?? _engine.highestEvolutionValue;\n    final name = _evolutionValue == null\n        ? _creatureNameForValue(value)\n        : (_evolutionCreatureName ?? '');\n\n    return Container('''
+          if old_widget not in s:
+              raise SystemExit('notice widget block not found')
+          s = s.replace(old_widget, new_widget)
+          s = s.replace("        _evolutionCreatureName ?? '',", "        name,")
+
+          old_duplicate = '''      if (changed) {\n        setState(() {\n          _toolMode = null;\n          _firstSwapIndex = null;\n        });\n\n        _focusNode.requestFocus();\n      }'''
+          new_duplicate = '''      if (changed) {\n        final newEvolutionValues = _engine.newEvolutionValuesThisMove;\n\n        setState(() {\n          _toolMode = null;\n          _firstSwapIndex = null;\n        });\n\n        _queueEvolutionNotices(newEvolutionValues);\n        _focusNode.requestFocus();\n      }'''
+          if s.count(old_duplicate) < 1:
+              raise SystemExit('duplicate block not found')
+          s = s.replace(old_duplicate, new_duplicate, 1)
+
+          s = s.replace(
+              "      _evolutionValue = null;\n      _evolutionCreatureName = null;\n      _shownEvolutionValues.clear();",
+              "      _evolutionValue = null;\n      _evolutionCreatureName = null;\n      _shownEvolutionValues.clear();\n      _pendingEvolutionValues.clear();\n      _evolutionNoticeTimer?.cancel();\n      _evolutionNoticeTimer = null;",
+          )
+
+          p.write_text(s, encoding='utf-8')
+
+      - name: Commit patch and remove workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm .github/workflows/fix-evolution-stage.yml
+          git add lib/game/screens/evolution_2048_page.dart .github/workflows/fix-evolution-stage.yml
+          git commit -m "fix: persist and sequence highest evolution display"
+          git push
