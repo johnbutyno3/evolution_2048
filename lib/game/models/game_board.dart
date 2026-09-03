@@ -10,6 +10,7 @@ class GameBoard {
 
   int _lastMergeScore = 0;
   int? _lastMergedValue;
+  final List<int> _lastMergedValues = <int>[];
 
   int get size => _size;
 
@@ -21,11 +22,17 @@ class GameBoard {
 
   int? get lastMergedValue => _lastMergedValue;
 
+  /// All merge results produced by the most recent move, in board order.
+  /// This preserves intermediate evolution stages when one move creates
+  /// multiple different higher values.
+  List<int> get lastMergedValues => List.unmodifiable(_lastMergedValues);
+
   void reset() {
     _tiles = List<GameTile?>.filled(_size * _size, null);
 
     _lastMergeScore = 0;
     _lastMergedValue = null;
+    _lastMergedValues.clear();
   }
 
   void setTile(int row, int column, GameTile? tile) {
@@ -72,6 +79,8 @@ class GameBoard {
     var changed = false;
 
     _lastMergeScore = 0;
+    _lastMergedValue = null;
+    _lastMergedValues.clear();
 
     for (var line = 0; line < _size; line++) {
       final values = <GameTile>[];
@@ -100,6 +109,7 @@ class GameBoard {
 
           _lastMergeScore += current.value;
           _lastMergedValue = current.value;
+          _lastMergedValues.add(current.value);
 
           position += 2;
         } else {
