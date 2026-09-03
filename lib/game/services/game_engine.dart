@@ -8,8 +8,6 @@ import 'tool_manager.dart';
 class GameEngine {
   GameEngine({Random? random, GameChapter chapter = GameChapter.ocean})
     : _random = random ?? Random(),
-      // Keep the public `chapter` parameter name for all existing callers.
-      // ignore: prefer_initializing_formals
       _chapter = chapter {
     _initializeTools();
     reset();
@@ -70,6 +68,85 @@ class GameEngine {
     0,
     (highest, tile) => tile.value > highest ? tile.value : highest,
   );
+
+  Map<String, dynamic> createSaveData() {
+    return <String, dynamic>{
+      'chapter': _chapter.name,
+      'tiles': _board.tiles.map((tile) => tile?.value).toList(),
+      'score': score,
+      'bestScore': bestScore,
+      'hasReached2048': hasReached2048,
+      'hasReached4096': hasReached4096,
+      'hasReached8192': hasReached8192,
+      'hasReached16384': hasReached16384,
+      'gameOver': gameOver,
+      'chapterComplete': chapterComplete,
+    };
+  }
+
+  bool restoreFromSaveData(Map<String, dynamic> data) {
+    final savedChapter = data['chapter'];
+    if (savedChapter != _chapter.name) {
+      return false;
+    }
+
+    final rawTiles = data['tiles'];
+    if (rawTiles is! List || rawTiles.length != boardSize * boardSize) {
+      return false;
+    }
+
+    final values = <int?>[];
+    for (final raw in rawTiles) {
+      if (raw == null) {
+        values.add(null);
+        continue;
+      }
+      if (raw is! num || raw.toInt() < 2) {
+        return false;
+      }
+      values.add(raw.toInt());
+    }
+
+    _board = GameBoard(size: boardSize);
+    for (var index = 0; index < values.length; index++) {
+      final value = values[index];
+      if (value == null) continue;
+      _board.setTile(
+        index ~/ boardSize,
+        index % boardSize,
+        GameTile(value: value, chapter: _chapter),
+      );
+    }
+
+    score = _readInt(data['score']);
+    bestScore = _readInt(data['bestScore']);
+    hasReached2048 = data['hasReached2048'] == true;
+    hasReached4096 = data['hasReached4096'] == true;
+    hasReached8192 = data['hasReached8192'] == true;
+    hasReached16384 = data['hasReached16384'] == true;
+    gameOver = data['gameOver'] == true;
+    chapterComplete = data['chapterComplete'] == true;
+
+    _previousBoard = null;
+    _hasPreviousState = false;
+    _previousScore = 0;
+    _previousHasReached2048 = false;
+    _previousHasReached4096 = false;
+    _previousHasReached8192 = false;
+    _previousHasReached16384 = false;
+    _previousGameOver = false;
+    _previousChapterComplete = false;
+
+    _updateBestScore();
+    return true;
+  }
+
+  int _readInt(dynamic value) {
+    if (value is num) {
+      return value.toInt();
+    }
+    return 0;
+  }
 
   void _initializeTools() {
     _toolManager = ToolManager(chapter: _chapter);
