@@ -1,22 +1,34 @@
+import 'dart:async';
 import 'dart:math';
 
 import '../models/game_board.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
+import 'save_manager.dart';
 import 'tool_manager.dart';
 
 class GameEngine {
   GameEngine({Random? random, GameChapter chapter = GameChapter.ocean})
     : _random = random ?? Random(),
       _chapter = chapter {
+    _autoSaveEnabled = false;
     _initializeTools();
     reset();
+
+    final saved = SaveManager.loadCached();
+    if (saved != null && _shouldRestoreSavedChapter(saved)) {
+      restoreFromSaveData(saved);
+    }
+
+    _autoSaveEnabled = true;
   }
 
   static const int boardSize = 4;
 
   final Random _random;
-  final GameChapter _chapter;
+  GameChapter _chapter;
+  bool _autoSaveEnabled = false;
+  Future<void> _saveQueue = Future<void>.value();
 
   late GameBoard _board;
   late ToolManager _toolManager;
@@ -84,9 +96,33 @@ class GameEngine {
     };
   }
 
+  void _saveLocal() {
+    if (!_autoSaveEnabled) return;
+    final snapshot = createSaveData();
+    _saveQueue = _saveQueue.then((_) => SaveManager.save(snapshot));
+  }
+
+  bool _shouldRestoreSavedChapter(Map<String, dynamic> data) {
+    final savedChapter = data['chapter'];
+    if (savedChapter is! String) return false;
+
+    // The app entry point creates the Ocean engine. It may need to resume
+    // any chapter. Explicitly starting a later chapter only restores a save
+    // belonging to that same chapter.
+    return _chapter == GameChapter.ocean || savedChapter == _chapter.name;
+  }
+
   bool restoreFromSaveData(Map<String, dynamic> data) {
     final savedChapter = data['chapter'];
-    if (savedChapter != _chapter.name) {
+    if (savedChapter is! String) {
+      return false;
+    }
+
+    final restoredChapter = GameChapter.values.cast<GameChapter?>().firstWhere(
+      (value) => value?.name == savedChapter,
+      orElse: () => null,
+    );
+    if (restoredChapter == null) {
       return false;
     }
 
@@ -107,6 +143,8 @@ class GameEngine {
       values.add(raw.toInt());
     }
 
+    _chapter = restoredChapter;
+    _initializeTools();
     _board = GameBoard(size: boardSize);
     for (var index = 0; index < values.length; index++) {
       final value = values[index];
@@ -161,6 +199,7 @@ class GameEngine {
     if (!_toolManager.use(GameToolType.revive)) return false;
     _board.setTile(row, column, null);
     gameOver = false;
+    _saveLocal();
     return true;
   }
 
@@ -171,6 +210,7 @@ class GameEngine {
     _restorePreviousState();
     _hasPreviousState = false;
     _previousBoard = null;
+    _saveLocal();
     return true;
   }
 
@@ -205,6 +245,7 @@ class GameEngine {
     _board.setTile(firstRow, firstColumn, second);
     _board.setTile(secondRow, secondColumn, first);
     gameOver = false;
+    _saveLocal();
     return true;
   }
 
@@ -251,6 +292,7 @@ class GameEngine {
     );
 
     gameOver = false;
+    _saveLocal();
     return true;
   }
 
@@ -311,6 +353,7 @@ class GameEngine {
     score = 0;
     _spawnTile();
     _spawnTile();
+    _saveLocal();
   }
 
   void debugCompleteChapter(int chapterNumber) {
@@ -337,6 +380,7 @@ class GameEngine {
     _hasPreviousState = false;
     _previousBoard = null;
     _updateBestScore();
+    _saveLocal();
   }
 
   void debugCompleteChapter1() => debugCompleteChapter(1);
@@ -368,11 +412,13 @@ class GameEngine {
       _hasPreviousState = false;
       _previousBoard = null;
       _updateBestScore();
+      _saveLocal();
       return true;
     }
     if (!_board.isFull) _spawnTile();
     gameOver = _isGameOver();
     _updateBestScore();
+    _saveLocal();
     return true;
   }
 
