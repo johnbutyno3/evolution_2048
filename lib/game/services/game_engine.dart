@@ -45,6 +45,8 @@ class GameEngine {
   bool _previousChapterComplete = false;
   bool _hasPreviousState = false;
 
+  final List<int> _newEvolutionValuesThisMove = <int>[];
+
   GameBoard get board => _board;
   GameChapter get chapter => _chapter;
   ToolManager get toolManager => _toolManager;
@@ -57,6 +59,17 @@ class GameEngine {
   bool get canUseDuplicate => _toolManager.canUse(GameToolType.duplicate);
   bool get canUseHistoryRestore => false;
   bool get hasPreviousState => _hasPreviousState;
+
+  /// The highest stage the player has ever reached in this chapter.
+  /// This is intentionally independent from the current board so Undo
+  /// cannot make the evolution label move backwards.
+  int _highestEvolutionValue = 2;
+
+  int get highestEvolutionValue => _highestEvolutionValue;
+
+  /// New stages first reached by the most recent action, in order.
+  List<int> get newEvolutionValuesThisMove =>
+      List.unmodifiable(_newEvolutionValuesThisMove);
 
   bool hasReached2048 = false;
   bool hasReached4096 = false;
@@ -93,6 +106,7 @@ class GameEngine {
       'hasReached4096': hasReached4096,
       'hasReached8192': hasReached8192,
       'hasReached16384': hasReached16384,
+      'highestEvolutionValue': _highestEvolutionValue,
       'gameOver': gameOver,
       'chapterComplete': chapterComplete,
     };
@@ -154,9 +168,19 @@ class GameEngine {
     hasReached4096 = data['hasReached4096'] == true;
     hasReached8192 = data['hasReached8192'] == true;
     hasReached16384 = data['hasReached16384'] == true;
+
+    final savedHighestEvolution = _readInt(data['highestEvolutionValue']);
+    _highestEvolutionValue = savedHighestEvolution >= 2
+        ? savedHighestEvolution
+        : _highestStageFromBoard();
+    if (_highestEvolutionValue < 2) {
+      _highestEvolutionValue = 2;
+    }
+
     gameOver = data['gameOver'] == true;
     chapterComplete = data['chapterComplete'] == true;
 
+    _newEvolutionValuesThisMove.clear();
     _previousBoard = null;
     _hasPreviousState = false;
     _previousScore = 0;
@@ -169,6 +193,11 @@ class GameEngine {
 
     _updateBestScore();
     return true;
+  }
+
+  int _highestStageFromBoard() {
+    final boardHighest = highestValue;
+    return boardHighest >= 2 ? boardHighest : 2;
   }
 
   int _readInt(dynamic value) {
@@ -189,6 +218,7 @@ class GameEngine {
     if (!_toolManager.use(GameToolType.revive)) return false;
     _board.setTile(row, column, null);
     gameOver = false;
+    _newEvolutionValuesThisMove.clear();
     _saveLocal();
     return true;
   }
@@ -200,6 +230,7 @@ class GameEngine {
     _restorePreviousState();
     _hasPreviousState = false;
     _previousBoard = null;
+    _newEvolutionValuesThisMove.clear();
     _saveLocal();
     return true;
   }
@@ -235,6 +266,7 @@ class GameEngine {
     _board.setTile(firstRow, firstColumn, second);
     _board.setTile(secondRow, secondColumn, first);
     gameOver = false;
+    _newEvolutionValuesThisMove.clear();
     _saveLocal();
     return true;
   }
@@ -272,6 +304,7 @@ class GameEngine {
       GameTile(value: source.value, chapter: _chapter),
     );
     gameOver = false;
+    _recordHighestEvolutionValue(source.value);
     _saveLocal();
     return true;
   }
@@ -324,6 +357,8 @@ class GameEngine {
     _previousGameOver = false;
     _previousChapterComplete = false;
     _hasPreviousState = false;
+    _newEvolutionValuesThisMove.clear();
+    _highestEvolutionValue = 2;
     hasReached2048 = false;
     hasReached4096 = false;
     hasReached8192 = false;
@@ -350,6 +385,8 @@ class GameEngine {
     final value = targetValue;
     _board = GameBoard(size: boardSize);
     _board.setTile(0, 0, GameTile(value: value, chapter: _chapter));
+    _highestEvolutionValue = value;
+    _newEvolutionValuesThisMove.clear();
     hasReached2048 = value >= 2048;
     hasReached4096 = value >= 4096;
     hasReached8192 = value >= 8192;
@@ -377,6 +414,7 @@ class GameEngine {
 
   bool _move(bool Function() move) {
     if (gameOver || chapterComplete) return false;
+    _newEvolutionValuesThisMove.clear();
     _savePreviousState();
     final changed = move();
     if (!changed) {
@@ -386,6 +424,7 @@ class GameEngine {
       return false;
     }
     _updateScore();
+    _updateEvolutionHistory();
     _updateMilestones();
     if (chapterComplete) {
       gameOver = true;
@@ -405,6 +444,18 @@ class GameEngine {
   void _updateScore() {
     score += _board.lastMergeScore;
     _updateBestScore();
+  }
+
+  void _recordHighestEvolutionValue(int value) {
+    if (value <= _highestEvolutionValue) return;
+    _highestEvolutionValue = value;
+    _newEvolutionValuesThisMove.add(value);
+  }
+
+  void _updateEvolutionHistory() {
+    for (final value in _board.lastMergedValues) {
+      _recordHighestEvolutionValue(value);
+    }
   }
 
   void _updateBestScore() {
