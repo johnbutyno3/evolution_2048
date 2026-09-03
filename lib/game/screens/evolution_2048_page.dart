@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/creature.dart';
@@ -27,17 +27,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   String? _toolMode;
   int? _firstSwapIndex;
 
-  // ------------------------------------------------------------
-  // ???內
-  //
-  // ?芸?祕??????憿舐內??
-  // 銝???擃?憿舐內??
-  // 銝蝙??Dialog??
-  // ------------------------------------------------------------
-
   int? _evolutionValue;
   String? _evolutionCreatureName;
-  final Set<int> _shownEvolutionValues = <int>{};
 
   static const double _swipeThreshold = 30;
 
@@ -234,22 +225,16 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return;
     }
 
-    final mergedValue = _engine.board.lastMergedValue;
+    final newEvolutionValues = _engine.newEvolutionValuesThisMove;
 
     if (mounted) {
       setState(() {});
     }
 
-    if (mergedValue != null &&
-        mergedValue >= 4 &&
-        _shownEvolutionValues.add(mergedValue)) {
-      _showEvolutionNotice(mergedValue);
+    if (newEvolutionValues.isNotEmpty) {
+      _showEvolutionNotice(newEvolutionValues.last);
       HapticFeedback.mediumImpact();
     }
-
-    // ----------------------------------------------------------
-    // Chapter Complete ?芸???Game Over
-    // ----------------------------------------------------------
 
     if (_engine.chapterComplete) {
       _showChapterComplete();
@@ -275,8 +260,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   // ============================================================
   // Creature name
-  //
-  // ?ㄐ?芾?鞎祇＊蝷綽?銝蔣??GameEngine??
   // ============================================================
 
   String _creatureNameForValue(int value) {
@@ -312,7 +295,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
       _evolutionValue = null;
       _evolutionCreatureName = null;
-      _shownEvolutionValues.clear();
 
       _firstSwapIndex = null;
       _dragStart = null;
@@ -669,7 +651,6 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
       _evolutionValue = null;
       _evolutionCreatureName = null;
-      _shownEvolutionValues.clear();
     });
 
     _focusNode.requestFocus();
@@ -700,7 +681,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   // ============================================================
 
   Widget _buildEvolutionNotice() {
-    if (_evolutionValue == null) {
+    final value = _evolutionValue ?? _engine.highestEvolutionValue;
+    final name = _evolutionCreatureName ?? _creatureNameForValue(value);
+
+    if (name.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -711,12 +695,10 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         color: Colors.black.withValues(alpha: 0.68),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.45),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.45)),
       ),
       child: Text(
-        _evolutionCreatureName ?? '',
+        name,
         textAlign: TextAlign.center,
         style: const TextStyle(
           fontSize: 21,
@@ -804,15 +786,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
                       const SizedBox(height: 10),
 
-                      // ------------------------------------------------
-                      // ???內
-                      //
-                      // 瘜冽?嚗?蝵桀停?舀??扎??Ｕ?
-                      // 銝璉 Stack 鋆～?
-                      // 銝??桐?璉??
-                      // 銝?閬???
- 
-_buildEvolutionNotice(),
+                      _buildEvolutionNotice(),
 
                       // ------------------------------------------------
                       // Board
@@ -1029,7 +1003,7 @@ class _ChapterCompletePage extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   Text(
-                    'Score $score  ?? Highest $highestValue',
+                    'Score $score  •  Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
 
