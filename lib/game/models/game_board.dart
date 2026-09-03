@@ -21,6 +21,11 @@ class GameBoard {
 
   int? get lastMergedValue => _lastMergedValue;
 
+  /// Compatibility view for the engine's evolution-history update.
+  /// The board only records the final merge from the current move.
+  List<int> get lastMergedValues =>
+      _lastMergedValue == null ? const <int>[] : <int>[_lastMergedValue!];
+
   void reset() {
     _tiles = List<GameTile?>.filled(_size * _size, null);
 
