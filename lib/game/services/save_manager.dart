@@ -7,19 +7,41 @@ class SaveManager {
 
   static const String _saveKey = 'rebirth_2048_local_save_v1';
 
+  static SharedPreferences? _preferences;
+  static Map<String, dynamic>? _cachedSave;
+
+  static Future<void> initialize() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    final raw = _preferences!.getString(_saveKey);
+    _cachedSave = _decode(raw);
+  }
+
+  static Map<String, dynamic>? loadCached() =>
+      _cachedSave == null ? null : Map<String, dynamic>.from(_cachedSave!);
+
   static Future<void> save(Map<String, dynamic> data) async {
-    final preferences = await SharedPreferences.getInstance();
+    _preferences ??= await SharedPreferences.getInstance();
     final payload = <String, dynamic>{
       'version': 1,
       'savedAt': DateTime.now().millisecondsSinceEpoch,
       ...data,
     };
-    await preferences.setString(_saveKey, jsonEncode(payload));
+    _cachedSave = payload;
+    await _preferences!.setString(_saveKey, jsonEncode(payload));
   }
 
   static Future<Map<String, dynamic>?> load() async {
-    final preferences = await SharedPreferences.getInstance();
-    final raw = preferences.getString(_saveKey);
+    await initialize();
+    return loadCached();
+  }
+
+  static Future<void> clear() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    _cachedSave = null;
+    await _preferences!.remove(_saveKey);
+  }
+
+  static Map<String, dynamic>? _decode(String? raw) {
     if (raw == null || raw.isEmpty) {
       return null;
     }
@@ -35,10 +57,5 @@ class SaveManager {
     } on TypeError {
       return null;
     }
-  }
-
-  static Future<void> clear() async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.remove(_saveKey);
   }
 }
