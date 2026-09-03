@@ -75,31 +75,31 @@ class Creature {
     Creature(
       value: 128,
       stage: CreatureStage.stage07,
-      name: 'Ancient Deep-Sea Fish',
+      name: 'Sea Turtle',
       imagePath: 'assets/creatures/chapter_01_ocean/creature_128.png',
     ),
     Creature(
       value: 256,
       stage: CreatureStage.stage08,
-      name: 'Deep-Sea Predator',
+      name: 'Yellowfin Tuna',
       imagePath: 'assets/creatures/chapter_01_ocean/creature_256.png',
     ),
     Creature(
       value: 512,
       stage: CreatureStage.stage09,
-      name: 'Large Marine Animal',
+      name: 'Shark',
       imagePath: 'assets/creatures/chapter_01_ocean/creature_512.png',
     ),
     Creature(
       value: 1024,
       stage: CreatureStage.stage10,
-      name: 'Ocean Apex Predator',
+      name: 'Orca',
       imagePath: 'assets/creatures/chapter_01_ocean/creature_1024.png',
     ),
     Creature(
       value: 2048,
       stage: CreatureStage.stage11,
-      name: 'Yellowfin Tuna',
+      name: 'Blue Whale',
       imagePath: 'assets/creatures/chapter_01_ocean/creature_2048.png',
     ),
     Creature(
@@ -118,61 +118,61 @@ class Creature {
     Creature(
       value: 2,
       stage: CreatureStage.stage01,
-      name: 'Primordial Land Life',
+      name: 'Land Plant',
       imagePath: 'assets/creatures/chapter_02_land/creature_02.png',
     ),
     Creature(
       value: 4,
       stage: CreatureStage.stage02,
-      name: 'Primitive Algae',
+      name: 'Fern',
       imagePath: 'assets/creatures/chapter_02_land/creature_04.png',
     ),
     Creature(
       value: 8,
       stage: CreatureStage.stage03,
-      name: 'Primitive Arthropod',
+      name: 'Arthropod',
       imagePath: 'assets/creatures/chapter_02_land/creature_08.png',
     ),
     Creature(
       value: 16,
       stage: CreatureStage.stage04,
-      name: 'Primitive Insect',
+      name: 'Insect',
       imagePath: 'assets/creatures/chapter_02_land/creature_16.png',
     ),
     Creature(
       value: 32,
       stage: CreatureStage.stage05,
-      name: 'Primitive Amphibian',
+      name: 'Amphibian',
       imagePath: 'assets/creatures/chapter_02_land/creature_32.png',
     ),
     Creature(
       value: 64,
       stage: CreatureStage.stage06,
-      name: 'Primitive Reptile',
+      name: 'Reptile',
       imagePath: 'assets/creatures/chapter_02_land/creature_64.png',
     ),
     Creature(
       value: 128,
       stage: CreatureStage.stage07,
-      name: 'Primitive Mammal',
+      name: 'Small Mammal',
       imagePath: 'assets/creatures/chapter_02_land/creature_128.png',
     ),
     Creature(
       value: 256,
       stage: CreatureStage.stage08,
-      name: 'Large Prehistoric Mammal',
+      name: 'Large Mammal',
       imagePath: 'assets/creatures/chapter_02_land/creature_256.png',
     ),
     Creature(
       value: 512,
       stage: CreatureStage.stage09,
-      name: 'Primitive Primate',
+      name: 'Primate',
       imagePath: 'assets/creatures/chapter_02_land/creature_512.png',
     ),
     Creature(
       value: 1024,
       stage: CreatureStage.stage10,
-      name: 'Early Human Ancestor',
+      name: 'Early Human',
       imagePath: 'assets/creatures/chapter_02_land/creature_1024.png',
     ),
     Creature(
@@ -184,13 +184,13 @@ class Creature {
     Creature(
       value: 4096,
       stage: CreatureStage.stage12,
-      name: 'Modern Human',
+      name: 'Civilized Human',
       imagePath: 'assets/creatures/chapter_02_land/creature_4096.png',
     ),
     Creature(
       value: 8192,
       stage: CreatureStage.stage13,
-      name: 'Evolved Future Human',
+      name: 'Future Human',
       imagePath: 'assets/creatures/chapter_02_land/creature_8192.png',
     ),
   ];
@@ -203,31 +203,31 @@ class Creature {
     Creature(
       value: 2,
       stage: CreatureStage.stage01,
-      name: 'Sky Microbe',
+      name: 'Hairy Cell Organism',
       imagePath: 'assets/creatures/chapter_03_sky/creature_02.png',
     ),
     Creature(
       value: 4,
       stage: CreatureStage.stage02,
-      name: 'Airborne Microorganism',
+      name: 'Mosquito',
       imagePath: 'assets/creatures/chapter_03_sky/creature_04.png',
     ),
     Creature(
       value: 8,
       stage: CreatureStage.stage03,
-      name: 'Primitive Flying Insect',
+      name: 'Dragonfly',
       imagePath: 'assets/creatures/chapter_03_sky/creature_08.png',
     ),
     Creature(
       value: 16,
       stage: CreatureStage.stage04,
-      name: 'Ancient Winged Insect',
+      name: 'Archaeopteryx',
       imagePath: 'assets/creatures/chapter_03_sky/creature_16.png',
     ),
     Creature(
       value: 32,
       stage: CreatureStage.stage05,
-      name: 'Early Flying Reptile',
+      name: 'Eagle',
       imagePath: 'assets/creatures/chapter_03_sky/creature_32.png',
     ),
     Creature(
@@ -239,49 +239,49 @@ class Creature {
     Creature(
       value: 128,
       stage: CreatureStage.stage07,
-      name: 'Primitive Bird',
+      name: 'Bat',
       imagePath: 'assets/creatures/chapter_03_sky/creature_128.png',
     ),
     Creature(
       value: 256,
       stage: CreatureStage.stage08,
-      name: 'Large Prehistoric Bird',
+      name: 'Glider',
       imagePath: 'assets/creatures/chapter_03_sky/creature_256.png',
     ),
     Creature(
       value: 512,
       stage: CreatureStage.stage09,
-      name: 'Raptor',
+      name: 'Early Aircraft',
       imagePath: 'assets/creatures/chapter_03_sky/creature_512.png',
     ),
     Creature(
       value: 1024,
       stage: CreatureStage.stage10,
-      name: 'Eagle',
+      name: 'Jet Fighter',
       imagePath: 'assets/creatures/chapter_03_sky/creature_1024.png',
     ),
     Creature(
       value: 2048,
       stage: CreatureStage.stage11,
-      name: 'Giant Eagle',
+      name: 'Stealth Fighter',
       imagePath: 'assets/creatures/chapter_03_sky/creature_2048.png',
     ),
     Creature(
       value: 4096,
       stage: CreatureStage.stage12,
-      name: 'Sky Apex Predator',
+      name: 'Aircraft',
       imagePath: 'assets/creatures/chapter_03_sky/creature_4096.png',
     ),
     Creature(
       value: 8192,
       stage: CreatureStage.stage13,
-      name: 'Legendary Flying Creature',
+      name: 'Wing Suit',
       imagePath: 'assets/creatures/chapter_03_sky/creature_8192.png',
     ),
     Creature(
       value: 16384,
       stage: CreatureStage.stage14,
-      name: 'Celestial Lifeform',
+      name: 'Winged Human',
       imagePath: 'assets/creatures/chapter_03_sky/creature_16384.png',
     ),
   ];
@@ -300,32 +300,32 @@ class Creature {
     Creature(
       value: 4,
       stage: CreatureStage.stage02,
-      name: 'Civilization',
+      name: 'Wall',
       imagePath:
           'assets/creatures/chapter_04_history/history_04_civilization.png',
     ),
     Creature(
       value: 8,
       stage: CreatureStage.stage03,
-      name: 'Ancient Egypt',
+      name: 'Pyramid',
       imagePath: 'assets/creatures/chapter_04_history/history_08_egypt.png',
     ),
     Creature(
       value: 16,
       stage: CreatureStage.stage04,
-      name: 'Rome',
+      name: 'Roman Architecture',
       imagePath: 'assets/creatures/chapter_04_history/history_16_rome.png',
     ),
     Creature(
       value: 32,
       stage: CreatureStage.stage05,
-      name: 'Tang Dynasty',
+      name: 'Tang Architecture',
       imagePath: 'assets/creatures/chapter_04_history/history_32_tang.png',
     ),
     Creature(
       value: 64,
       stage: CreatureStage.stage06,
-      name: 'Mongol Empire',
+      name: 'Mongol Invasion',
       imagePath: 'assets/creatures/chapter_04_history/history_64_mongol.png',
     ),
     Creature(
@@ -338,7 +338,7 @@ class Creature {
     Creature(
       value: 256,
       stage: CreatureStage.stage08,
-      name: 'Independence',
+      name: 'American Independence',
       imagePath:
           'assets/creatures/chapter_04_history/history_256_independence.png',
     ),
@@ -352,40 +352,40 @@ class Creature {
     Creature(
       value: 1024,
       stage: CreatureStage.stage10,
-      name: 'Communication',
+      name: 'Communication Revolution',
       imagePath:
           'assets/creatures/chapter_04_history/history_1024_communication.png',
     ),
     Creature(
       value: 2048,
       stage: CreatureStage.stage11,
-      name: 'Automobile',
+      name: 'Automobile Invention',
       imagePath:
           'assets/creatures/chapter_04_history/history_2048_automobile.png',
     ),
     Creature(
       value: 4096,
       stage: CreatureStage.stage12,
-      name: 'Flight',
+      name: 'Airplane Invention',
       imagePath: 'assets/creatures/chapter_04_history/history_4096_flight.png',
     ),
     Creature(
       value: 8192,
       stage: CreatureStage.stage13,
-      name: 'World War',
+      name: 'World War II',
       imagePath:
           'assets/creatures/chapter_04_history/history_8192_world_war.png',
     ),
     Creature(
       value: 16384,
       stage: CreatureStage.stage14,
-      name: 'Moon Landing',
+      name: 'Space Exploration',
       imagePath: 'assets/creatures/chapter_04_history/history_16384_moon.png',
     ),
     Creature(
       value: 32768,
       stage: CreatureStage.stage15,
-      name: 'Internet',
+      name: 'Information Age',
       imagePath:
           'assets/creatures/chapter_04_history/history_32768_internet.png',
     ),
@@ -446,21 +446,21 @@ class Creature {
     Creature(
       value: 256,
       stage: CreatureStage.stage08,
-      name: 'Game Controller',
+      name: 'Remote Control',
       imagePath:
           'assets/creatures/chapter_05_modern_world/modern_256_game_controller.png',
     ),
     Creature(
       value: 512,
       stage: CreatureStage.stage09,
-      name: 'Laptop',
+      name: 'Computer',
       imagePath:
           'assets/creatures/chapter_05_modern_world/modern_512_laptop.png',
     ),
     Creature(
       value: 1024,
       stage: CreatureStage.stage10,
-      name: 'Smartphone',
+      name: 'Mobile Phone',
       imagePath:
           'assets/creatures/chapter_05_modern_world/modern_1024_smartphone.png',
     ),
@@ -481,28 +481,28 @@ class Creature {
     Creature(
       value: 8192,
       stage: CreatureStage.stage13,
-      name: 'VR Headset',
+      name: 'VR Device',
       imagePath:
           'assets/creatures/chapter_05_modern_world/modern_8192_vr_headset.png',
     ),
     Creature(
       value: 16384,
       stage: CreatureStage.stage14,
-      name: 'AI Robot',
+      name: 'Robot',
       imagePath:
           'assets/creatures/chapter_05_modern_world/modern_16384_robot.png',
     ),
     Creature(
       value: 32768,
       stage: CreatureStage.stage15,
-      name: 'AI Core',
+      name: 'Chip',
       imagePath:
           'assets/creatures/chapter_05_modern_world/modern_32768_ai_core.png',
     ),
     Creature(
       value: 65536,
       stage: CreatureStage.stage16,
-      name: 'Future Device',
+      name: 'Future Technology',
       imagePath:
           'assets/creatures/chapter_05_modern_world/modern_65536_future_device.png',
     ),
@@ -522,7 +522,7 @@ class Creature {
     Creature(
       value: 4,
       stage: CreatureStage.stage02,
-      name: 'Star',
+      name: 'New Star Formation',
       imagePath: 'assets/creatures/chapter_06_universe/universe_4_star.png',
     ),
     Creature(
@@ -540,34 +540,34 @@ class Creature {
     Creature(
       value: 32,
       stage: CreatureStage.stage05,
-      name: 'Moon',
+      name: 'Moon Visit',
       imagePath: 'assets/creatures/chapter_06_universe/universe_32_moon.png',
     ),
     Creature(
       value: 64,
       stage: CreatureStage.stage06,
-      name: 'Space Probe',
+      name: 'Communication Satellite',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_64_space_probe.png',
     ),
     Creature(
       value: 128,
       stage: CreatureStage.stage07,
-      name: 'Space Colony',
+      name: 'Space Station',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_128_space_colony.png',
     ),
     Creature(
       value: 256,
       stage: CreatureStage.stage08,
-      name: 'Asteroid Mining',
+      name: 'Planet Mining',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_256_asteroid_mining.png',
     ),
     Creature(
       value: 512,
       stage: CreatureStage.stage09,
-      name: 'Solar Expansion',
+      name: 'Solar System Challenge',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_512_solar_expansion.png',
     ),
@@ -581,7 +581,7 @@ class Creature {
     Creature(
       value: 2048,
       stage: CreatureStage.stage11,
-      name: 'Alien Intelligence',
+      name: 'Alien',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_2048_alien_intelligence.png',
     ),
@@ -595,35 +595,35 @@ class Creature {
     Creature(
       value: 8192,
       stage: CreatureStage.stage13,
-      name: 'Interstellar Travel',
+      name: 'Unified Exploration',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_8192_interstellar_travel.png',
     ),
     Creature(
       value: 16384,
       stage: CreatureStage.stage14,
-      name: 'Galaxy Exploration',
+      name: 'Galactic Voyage',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_16384_galaxy_exploration.png',
     ),
     Creature(
       value: 32768,
       stage: CreatureStage.stage15,
-      name: 'Cosmic Civilization',
+      name: 'Visit Alien Civilization',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_32768_cosmic_civilization.png',
     ),
     Creature(
       value: 65536,
       stage: CreatureStage.stage16,
-      name: 'Earth Development',
+      name: 'Return to Maintain Earth',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_65536_earth_development.png',
     ),
     Creature(
       value: 131072,
       stage: CreatureStage.stage17,
-      name: 'God Perspective',
+      name: 'God Hand',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_131072_god_perspective.png',
     ),
@@ -641,7 +641,6 @@ class Creature {
         return creature;
       }
     }
-
     return null;
   }
 
@@ -651,7 +650,6 @@ class Creature {
         return creature;
       }
     }
-
     return null;
   }
 
@@ -661,7 +659,6 @@ class Creature {
         return creature;
       }
     }
-
     return null;
   }
 
@@ -671,7 +668,6 @@ class Creature {
         return creature;
       }
     }
-
     return null;
   }
 
@@ -681,7 +677,6 @@ class Creature {
         return creature;
       }
     }
-
     return null;
   }
 
@@ -691,7 +686,6 @@ class Creature {
         return creature;
       }
     }
-
     return null;
   }
 
