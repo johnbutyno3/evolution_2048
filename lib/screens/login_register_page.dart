@@ -59,7 +59,10 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       }
       if (mounted) _goToGame();
     } on FirebaseAuthException catch (error) {
-      _showError(_authError(AppLocalizations.of(context)!, error.code));
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        _showError(_authError(l10n, error.code));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -79,9 +82,11 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       }
       if (mounted) _goToGame();
     } on FirebaseAuthException catch (error) {
-      if (error.code != 'popup-closed-by-user' &&
+      if (mounted &&
+          error.code != 'popup-closed-by-user' &&
           error.code != 'cancelled-popup-request') {
-        _showError(_authError(AppLocalizations.of(context)!, error.code));
+        final l10n = AppLocalizations.of(context)!;
+        _showError(_authError(l10n, error.code));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -91,13 +96,15 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   Future<void> _sendPhoneCode() async {
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
-      _showError(AppLocalizations.of(context)!.authPhoneRequired);
+      if (mounted) _showError(AppLocalizations.of(context)!.authPhoneRequired);
       return;
     }
+
     setState(() => _loading = true);
     try {
       if (kIsWeb) {
         _phoneConfirmation = await FirebaseAuth.instance.signInWithPhoneNumber(phone);
+        if (mounted) _showError(AppLocalizations.of(context)!.authCodeSent);
       } else {
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phone,
@@ -107,20 +114,30 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           },
           verificationFailed: (error) {
             if (mounted) {
-              _showError(_authError(AppLocalizations.of(context)!, error.code));
+              final l10n = AppLocalizations.of(context)!;
+              _showError(_authError(l10n, error.code));
             }
           },
-          codeSent: (_, __) {},
-          codeAutoRetrievalTimeout: (_) {},
+          codeSent: (verificationId, _) {
+            _phoneVerificationId = verificationId;
+            if (mounted) _showError(AppLocalizations.of(context)!.authCodeSent);
+          },
+          codeAutoRetrievalTimeout: (verificationId) {
+            _phoneVerificationId = verificationId;
+          },
         );
       }
-      if (mounted) _showError(AppLocalizations.of(context)!.authCodeSent);
     } on FirebaseAuthException catch (error) {
-      _showError(_authError(AppLocalizations.of(context)!, error.code));
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        _showError(_authError(l10n, error.code));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  String? _phoneVerificationId;
 
   Future<void> _verifyPhoneCode() async {
     final code = _smsController.text.trim();
@@ -130,16 +147,32 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       if (kIsWeb) {
         final confirmation = _phoneConfirmation;
         if (confirmation == null) {
-          _showError(AppLocalizations.of(context)!.authSendCodeFirst);
+          if (mounted) {
+            _showError(AppLocalizations.of(context)!.authSendCodeFirst);
+          }
           return;
         }
         await confirmation.confirm(code);
-        if (mounted) _goToGame();
       } else {
-        _showError(AppLocalizations.of(context)!.authPhoneMobileSetupRequired);
+        final verificationId = _phoneVerificationId;
+        if (verificationId == null) {
+          if (mounted) {
+            _showError(AppLocalizations.of(context)!.authSendCodeFirst);
+          }
+          return;
+        }
+        final credential = PhoneAuthProvider.credential(
+          verificationId: verificationId,
+          smsCode: code,
+        );
+        await FirebaseAuth.instance.signInWithCredential(credential);
       }
+      if (mounted) _goToGame();
     } on FirebaseAuthException catch (error) {
-      _showError(_authError(AppLocalizations.of(context)!, error.code));
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        _showError(_authError(l10n, error.code));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
