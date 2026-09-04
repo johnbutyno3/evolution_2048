@@ -116,4 +116,130 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboardingStart => '開始';
+
+  @override
+  String get profileTitle => '個人資料';
+
+  @override
+  String get profileWelcome => '歡迎來到重生2048';
+
+  @override
+  String get profileDescription => '設定你的玩家名稱，之後可以再修改。';
+
+  @override
+  String get profileNameLabel => '玩家名稱';
+
+  @override
+  String get profileNameHint => '輸入名稱';
+
+  @override
+  String get profileNameRequired => '請輸入玩家名稱。';
+
+  @override
+  String get profileNameTooLong => '玩家名稱最多30個字元。';
+
+  @override
+  String get profileContinue => '繼續';
+
+  @override
+  String get authTitle => '帳號';
+
+  @override
+  String get authLoginTitle => '登入';
+
+  @override
+  String get authRegisterTitle => '建立帳號';
+
+  @override
+  String get authEmail => '電子郵件';
+
+  @override
+  String get authPassword => '密碼';
+
+  @override
+  String get authEmailRequired => '請輸入電子郵件。';
+
+  @override
+  String get authPasswordRequired => '請輸入密碼。';
+
+  @override
+  String get authPasswordTooShort => '密碼至少需要6個字元。';
+
+  @override
+  String get authInvalidEmail => '請輸入有效的電子郵件地址。';
+
+  @override
+  String get authInvalidCredentials => '電子郵件或密碼錯誤。';
+
+  @override
+  String get authEmailAlreadyInUse => '此電子郵件已被使用。';
+
+  @override
+  String get authWeakPassword => '請選擇更安全的密碼。';
+
+  @override
+  String get authFailed => '驗證失敗，請再試一次。';
+
+  @override
+  String get authLogin => '登入';
+
+  @override
+  String get authRegister => '建立帳號';
+
+  @override
+  String get authSwitchToLogin => '已經有帳號？登入';
+
+  @override
+  String get authSwitchToRegister => '還沒有帳號？建立帳號';
+
+  @override
+  String get authChooseMethod => '選擇登入方式';
+
+  @override
+  String get authGoogle => '使用 Google 登入';
+
+  @override
+  String get authApple => '使用 Apple 登入';
+
+  @override
+  String get authPhone => '手機號碼／SMS 驗證碼';
+
+  @override
+  String get authOr => '或';
+
+  @override
+  String get authSkip => '跳過，直接進入遊戲';
+
+  @override
+  String get authPhoneRequired => '請輸入手機號碼。';
+
+  @override
+  String get authCodeSent => '驗證碼已送出。';
+
+  @override
+  String get authSendCodeFirst => '請先取得 SMS 驗證碼。';
+
+  @override
+  String get authPhoneMobileSetupRequired => '手機驗證功能尚未完成平台設定。';
+
+  @override
+  String get authInvalidPhone => '請輸入有效的手機號碼。';
+
+  @override
+  String get authTooManyRequests => '請求次數過多，請稍後再試。';
+
+  @override
+  String get authPhoneNumber => '手機號碼';
+
+  @override
+  String get authSmsCode => 'SMS 驗證碼';
+
+  @override
+  String get authCancel => '取消';
+
+  @override
+  String get authSendCode => '發送驗證碼';
+
+  @override
+  String get authVerify => '驗證';
 }

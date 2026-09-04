@@ -118,4 +118,135 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboardingStart => 'Start';
+
+  @override
+  String get profileTitle => 'Personal Profile';
+
+  @override
+  String get profileWelcome => 'Welcome to Rebirth 2048';
+
+  @override
+  String get profileDescription =>
+      'Choose a name for your player profile. You can change it later.';
+
+  @override
+  String get profileNameLabel => 'Player Name';
+
+  @override
+  String get profileNameHint => 'Enter your name';
+
+  @override
+  String get profileNameRequired => 'Please enter a player name.';
+
+  @override
+  String get profileNameTooLong =>
+      'Player name must be 30 characters or fewer.';
+
+  @override
+  String get profileContinue => 'Continue';
+
+  @override
+  String get authTitle => 'Account';
+
+  @override
+  String get authLoginTitle => 'Log In';
+
+  @override
+  String get authRegisterTitle => 'Create Account';
+
+  @override
+  String get authEmail => 'Email';
+
+  @override
+  String get authPassword => 'Password';
+
+  @override
+  String get authEmailRequired => 'Please enter your email.';
+
+  @override
+  String get authPasswordRequired => 'Please enter your password.';
+
+  @override
+  String get authPasswordTooShort => 'Password must be at least 6 characters.';
+
+  @override
+  String get authInvalidEmail => 'Please enter a valid email address.';
+
+  @override
+  String get authInvalidCredentials => 'Email or password is incorrect.';
+
+  @override
+  String get authEmailAlreadyInUse => 'This email is already in use.';
+
+  @override
+  String get authWeakPassword => 'Please choose a stronger password.';
+
+  @override
+  String get authFailed => 'Authentication failed. Please try again.';
+
+  @override
+  String get authLogin => 'Log In';
+
+  @override
+  String get authRegister => 'Create Account';
+
+  @override
+  String get authSwitchToLogin => 'Already have an account? Log in';
+
+  @override
+  String get authSwitchToRegister => 'New here? Create an account';
+
+  @override
+  String get authChooseMethod => 'Choose a sign-in method';
+
+  @override
+  String get authGoogle => 'Continue with Google';
+
+  @override
+  String get authApple => 'Continue with Apple';
+
+  @override
+  String get authPhone => 'Phone Number / SMS Code';
+
+  @override
+  String get authOr => 'OR';
+
+  @override
+  String get authSkip => 'Skip and enter the game';
+
+  @override
+  String get authPhoneRequired => 'Please enter your phone number.';
+
+  @override
+  String get authCodeSent => 'Verification code sent.';
+
+  @override
+  String get authSendCodeFirst =>
+      'Please request an SMS verification code first.';
+
+  @override
+  String get authPhoneMobileSetupRequired =>
+      'Phone verification is not fully configured for this platform yet.';
+
+  @override
+  String get authInvalidPhone => 'Please enter a valid phone number.';
+
+  @override
+  String get authTooManyRequests =>
+      'Too many requests. Please try again later.';
+
+  @override
+  String get authPhoneNumber => 'Phone Number';
+
+  @override
+  String get authSmsCode => 'SMS Verification Code';
+
+  @override
+  String get authCancel => 'Cancel';
+
+  @override
+  String get authSendCode => 'Send Code';
+
+  @override
+  String get authVerify => 'Verify';
 }
