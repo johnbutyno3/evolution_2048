@@ -17,12 +17,14 @@ dependencies:
   cupertino_icons: ^1.0.8
   intl: ^0.20.2
   shared_preferences: ^2.5.3
+  firebase_core: ^4.14.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   generate: true
@@ -39,7 +41,14 @@ flutter:
     - assets/backgrounds/chapter_04_history/
     - assets/creatures/chapter_05_modern_world/
     - assets/backgrounds/chapter_05_tech/
+    - assets/onboarding/
     - assets/creatures/chapter_06_universe/
     - assets/backgrounds/chapter_06_universe/
 
     - assets/tools/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21

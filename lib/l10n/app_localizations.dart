@@ -265,6 +265,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Best'**
   String get best;
+
+  /// No description provided for @onboarding01Title.
+  ///
+  /// In en, this message translates to:
+  /// **'A World Waiting to Live Again'**
+  String get onboarding01Title;
+
+  /// No description provided for @onboarding01Description.
+  ///
+  /// In en, this message translates to:
+  /// **'A lifeless world is waiting for you. Restore its oceans, awaken life, and begin the journey of evolution.'**
+  String get onboarding01Description;
+
+  /// No description provided for @onboarding02Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge to Evolve'**
+  String get onboarding02Title;
+
+  /// No description provided for @onboarding02Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge identical life forms to create the next stage of evolution. Every move brings the ecosystem back to life.'**
+  String get onboarding02Description;
+
+  /// No description provided for @onboarding03Title.
+  ///
+  /// In en, this message translates to:
+  /// **'From Life to the Universe'**
+  String get onboarding03Title;
+
+  /// No description provided for @onboarding03Description.
+  ///
+  /// In en, this message translates to:
+  /// **'Journey through six chapters of evolution, from the first life in the ocean to civilizations, technology, and the universe.'**
+  String get onboarding03Description;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardingNext;
+
+  /// No description provided for @onboardingStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get onboardingStart;
 }
 
 class _AppLocalizationsDelegate

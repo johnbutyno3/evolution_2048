@@ -91,4 +91,29 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get best => '最高分';
+
+  @override
+  String get onboarding01Title => '一個等待重生的世界';
+
+  @override
+  String get onboarding01Description => '一個死寂的世界正在等待你的到來。恢復海洋、喚醒生命，展開進化之旅。';
+
+  @override
+  String get onboarding02Title => '合併，讓生命進化';
+
+  @override
+  String get onboarding02Description =>
+      '合併相同的生命形態，創造下一階段的生命。每一次移動，都讓生態系統逐漸重獲生機。';
+
+  @override
+  String get onboarding03Title => '從生命走向宇宙';
+
+  @override
+  String get onboarding03Description => '穿越六大章節，從海洋最初的生命，到陸地、歷史、科技，最後探索浩瀚宇宙。';
+
+  @override
+  String get onboardingNext => '下一步';
+
+  @override
+  String get onboardingStart => '開始';
 }

@@ -1,31 +1,49 @@
 ﻿{
-    "@@locale":  "zh",
-    "gameTitle":  "重生2048",
-    "chapterOcean":  "海洋篇",
-    "chapterLand":  "陸地篇",
-    "chapterSky":  "天空篇",
-    "chapterHistory":  "歷史篇",
-    "chapterTechnology":  "科技篇",
-    "chapterSpace":  "宇宙篇",
-    "creature01":  "矽藻",
-    "creature02":  "鞭毛蟲",
-    "creature03":  "磷蝦",
-    "creature04":  "小丑魚",
-    "creature05":  "水母",
-    "creature06":  "魷魚",
-    "creature07":  "深海古魚",
-    "creature08":  "深海掠食者",
-    "creature09":  "大型海洋生物",
-    "creature10":  "海洋頂級掠食者",
-    "creature11":  "黃鰭鮪魚",
-    "creature12":  "海底人類",
-    "chapterComplete":  "章節完成",
-    "nextChapterUnlocked":  "下一章已解鎖",
-    "finalChallenge":  "終極挑戰",
-    "tools":  "道具",
-    "toolsLocked":  "道具鎖定",
-    "toolsDisabled":  "道具禁用",
-    "continueGame":  "繼續",
-    "score":  "分數",
-    "best":  "最高分"
+  "@@locale": "zh",
+
+  "gameTitle": "重生2048",
+
+  "chapterOcean": "海洋篇",
+  "chapterLand": "陸地篇",
+  "chapterSky": "天空篇",
+  "chapterHistory": "歷史篇",
+  "chapterTechnology": "科技篇",
+  "chapterSpace": "宇宙篇",
+
+  "creature01": "矽藻",
+  "creature02": "鞭毛蟲",
+  "creature03": "磷蝦",
+  "creature04": "小丑魚",
+  "creature05": "水母",
+  "creature06": "魷魚",
+  "creature07": "深海古魚",
+  "creature08": "深海掠食者",
+  "creature09": "大型海洋生物",
+  "creature10": "海洋頂級掠食者",
+  "creature11": "黃鰭鮪魚",
+  "creature12": "海底人類",
+
+  "chapterComplete": "章節完成",
+  "nextChapterUnlocked": "下一章已解鎖",
+  "finalChallenge": "終極挑戰",
+
+  "tools": "道具",
+  "toolsLocked": "道具鎖定",
+  "toolsDisabled": "道具禁用",
+
+  "continueGame": "繼續",
+  "score": "分數",
+  "best": "最高分",
+
+  "onboarding01Title": "一個等待重生的世界",
+  "onboarding01Description": "一個死寂的世界正在等待你的到來。恢復海洋、喚醒生命，展開進化之旅。",
+
+  "onboarding02Title": "合併，讓生命進化",
+  "onboarding02Description": "合併相同的生命形態，創造下一階段的生命。每一次移動，都讓生態系統逐漸重獲生機。",
+
+  "onboarding03Title": "從生命走向宇宙",
+  "onboarding03Description": "穿越六大章節，從海洋最初的生命，到陸地、歷史、科技，最後探索浩瀚宇宙。",
+
+  "onboardingNext": "下一步",
+  "onboardingStart": "開始"
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "en",
 
   "gameTitle": "Rebirth 2048",
@@ -33,5 +33,17 @@
 
   "continueGame": "Continue",
   "score": "Score",
-  "best": "Best"
+  "best": "Best",
+
+  "onboarding01Title": "A World Waiting to Live Again",
+  "onboarding01Description": "A lifeless world is waiting for you. Restore its oceans, awaken life, and begin the journey of evolution.",
+
+  "onboarding02Title": "Merge to Evolve",
+  "onboarding02Description": "Merge identical life forms to create the next stage of evolution. Every move brings the ecosystem back to life.",
+
+  "onboarding03Title": "From Life to the Universe",
+  "onboarding03Description": "Journey through six chapters of evolution, from the first life in the ocean to civilizations, technology, and the universe.",
+
+  "onboardingNext": "Next",
+  "onboardingStart": "Start"
 }

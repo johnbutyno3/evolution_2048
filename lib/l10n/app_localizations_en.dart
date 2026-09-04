@@ -91,4 +91,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get best => 'Best';
+
+  @override
+  String get onboarding01Title => 'A World Waiting to Live Again';
+
+  @override
+  String get onboarding01Description =>
+      'A lifeless world is waiting for you. Restore its oceans, awaken life, and begin the journey of evolution.';
+
+  @override
+  String get onboarding02Title => 'Merge to Evolve';
+
+  @override
+  String get onboarding02Description =>
+      'Merge identical life forms to create the next stage of evolution. Every move brings the ecosystem back to life.';
+
+  @override
+  String get onboarding03Title => 'From Life to the Universe';
+
+  @override
+  String get onboarding03Description =>
+      'Journey through six chapters of evolution, from the first life in the ocean to civilizations, technology, and the universe.';
+
+  @override
+  String get onboardingNext => 'Next';
+
+  @override
+  String get onboardingStart => 'Start';
 }

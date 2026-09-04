@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,6 +6,7 @@ class SaveManager {
   SaveManager._();
 
   static const String _saveKey = 'rebirth_2048_local_save_v1';
+  static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
 
   static SharedPreferences? _preferences;
   static Map<String, dynamic>? _cachedSave;
@@ -14,6 +15,15 @@ class SaveManager {
     _preferences ??= await SharedPreferences.getInstance();
     final raw = _preferences!.getString(_saveKey);
     _cachedSave = _decode(raw);
+  }
+
+  static bool get hasCompletedOnboarding {
+    return _preferences?.getBool(_onboardingKey) ?? false;
+  }
+
+  static Future<void> completeOnboarding() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setBool(_onboardingKey, true);
   }
 
   static Map<String, dynamic>? loadCached() =>

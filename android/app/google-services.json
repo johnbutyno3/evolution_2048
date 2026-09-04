@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "980968758380",
+    "project_id": "rebirth-2048",
+    "storage_bucket": "rebirth-2048.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980968758380:android:bbc653501aa72128b08c49",
+        "android_client_info": {
+          "package_name": "com.example.rebirth_2048"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtcVzQYyO8BDUE00EeGcbF_LYFZsvdBzM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
