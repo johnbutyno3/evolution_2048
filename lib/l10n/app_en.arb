@@ -1,15 +1,12 @@
 ﻿{
   "@@locale": "en",
-
   "gameTitle": "Rebirth 2048",
-
   "chapterOcean": "Ocean",
   "chapterLand": "Land",
   "chapterSky": "Sky",
   "chapterHistory": "History",
   "chapterTechnology": "Technology",
   "chapterSpace": "Space",
-
   "creature01": "Diatom",
   "creature02": "Flagellate",
   "creature03": "Krill",
@@ -22,28 +19,46 @@
   "creature10": "Ocean Apex Predator",
   "creature11": "Yellowfin Tuna",
   "creature12": "Seabed Human",
-
   "chapterComplete": "Chapter Complete",
   "nextChapterUnlocked": "Next Chapter Unlocked",
   "finalChallenge": "Ultimate Challenge",
-
   "tools": "Tools",
   "toolsLocked": "Tools Locked",
   "toolsDisabled": "Tools Disabled",
-
   "continueGame": "Continue",
   "score": "Score",
   "best": "Best",
-
   "onboarding01Title": "A World Waiting to Live Again",
   "onboarding01Description": "A lifeless world is waiting for you. Restore its oceans, awaken life, and begin the journey of evolution.",
-
   "onboarding02Title": "Merge to Evolve",
   "onboarding02Description": "Merge identical life forms to create the next stage of evolution. Every move brings the ecosystem back to life.",
-
   "onboarding03Title": "From Life to the Universe",
   "onboarding03Description": "Journey through six chapters of evolution, from the first life in the ocean to civilizations, technology, and the universe.",
-
   "onboardingNext": "Next",
-  "onboardingStart": "Start"
+  "onboardingStart": "Start",
+  "profileTitle": "Personal Profile",
+  "profileWelcome": "Welcome to Rebirth 2048",
+  "profileDescription": "Choose a name for your player profile. You can change it later.",
+  "profileNameLabel": "Player Name",
+  "profileNameHint": "Enter your name",
+  "profileNameRequired": "Please enter a player name.",
+  "profileNameTooLong": "Player name must be 30 characters or fewer.",
+  "profileContinue": "Continue",
+  "authTitle": "Account",
+  "authLoginTitle": "Log In",
+  "authRegisterTitle": "Create Account",
+  "authEmail": "Email",
+  "authPassword": "Password",
+  "authEmailRequired": "Please enter your email.",
+  "authPasswordRequired": "Please enter your password.",
+  "authPasswordTooShort": "Password must be at least 6 characters.",
+  "authInvalidEmail": "Please enter a valid email address.",
+  "authInvalidCredentials": "Email or password is incorrect.",
+  "authEmailAlreadyInUse": "This email is already in use.",
+  "authWeakPassword": "Please choose a stronger password.",
+  "authFailed": "Authentication failed. Please try again.",
+  "authLogin": "Log In",
+  "authRegister": "Create Account",
+  "authSwitchToLogin": "Already have an account? Log in",
+  "authSwitchToRegister": "New here? Create an account"
 }
