@@ -1,8 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
-import '../game/screens/evolution_2048_page.dart';
 import '../game/services/save_manager.dart';
+import 'profile_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -58,9 +58,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => const Evolution2048Page(),
-      ),
+      MaterialPageRoute(builder: (_) => const ProfilePage()),
     );
   }
 
@@ -78,22 +76,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
             controller: _pageController,
             itemCount: pages.length,
             onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
+              setState(() => _currentPage = index);
             },
             itemBuilder: (context, index) {
               final page = pages[index];
-
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset(
-                    page.imagePath,
-                    fit: BoxFit.cover,
-                  ),
-
-                  // Dark gradient only for text readability.
+                  Image.asset(page.imagePath, fit: BoxFit.cover),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -109,7 +99,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       ),
                     ),
                   ),
-
                   SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(28, 48, 28, 105),
@@ -158,8 +147,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
               );
             },
           ),
-
-          // Page indicators.
           Positioned(
             left: 0,
             right: 0,
@@ -183,8 +170,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
             ),
           ),
-
-          // Next / Start button.
           Positioned(
             left: 24,
             right: 24,
@@ -198,9 +183,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   foregroundColor: Colors.black87,
                 ),
                 child: Text(
-                  isLastPage
-                      ? l10n.onboardingStart
-                      : l10n.onboardingNext,
+                  isLastPage ? l10n.onboardingStart : l10n.onboardingNext,
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -226,5 +209,3 @@ class _OnboardingItem {
     required this.description,
   });
 }
-
-
