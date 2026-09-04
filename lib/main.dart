@@ -1,11 +1,14 @@
-﻿import 'package:firebase_core/firebase_core.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'game/screens/evolution_2048_page.dart';
 import 'game/services/save_manager.dart';
 import 'l10n/app_localizations.dart';
+import 'screens/login_register_page.dart';
 import 'screens/onboarding_page.dart';
+import 'screens/profile_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +25,22 @@ Future<void> main() async {
 class Rebirth2048App extends StatelessWidget {
   const Rebirth2048App({super.key});
 
+  Widget _home() {
+    if (!SaveManager.hasCompletedOnboarding) {
+      return const OnboardingPage();
+    }
+
+    if (!SaveManager.hasProfile) {
+      return const ProfilePage();
+    }
+
+    if (FirebaseAuth.instance.currentUser == null) {
+      return const LoginRegisterPage();
+    }
+
+    return const Evolution2048Page();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -33,9 +52,7 @@ class Rebirth2048App extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: SaveManager.hasCompletedOnboarding
-          ? const Evolution2048Page()
-          : const OnboardingPage(),
+      home: _home(),
     );
   }
 }
