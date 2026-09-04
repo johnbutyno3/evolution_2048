@@ -53,7 +53,7 @@ class ToolManager {
         break;
 
       case GameChapter.universe:
-        // Chapter 6: all tools are disabled.
+        _add(GameTool.timeRewind);
         break;
     }
   }
