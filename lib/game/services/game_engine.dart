@@ -67,6 +67,11 @@ class GameEngine {
 
   int get highestEvolutionValue => _highestEvolutionValue;
 
+  /// Total score removed by tool usage in the current game.
+  int _toolPenaltyTotal = 0;
+
+  int get toolPenaltyTotal => _toolPenaltyTotal;
+
   /// New stages first reached by the most recent action, in order.
   List<int> get newEvolutionValuesThisMove =>
       List.unmodifiable(_newEvolutionValuesThisMove);
@@ -102,6 +107,7 @@ class GameEngine {
       'tiles': _board.tiles.map((tile) => tile?.value).toList(),
       'score': score,
       'bestScore': bestScore,
+      'toolPenaltyTotal': _toolPenaltyTotal,
       'hasReached2048': hasReached2048,
       'hasReached4096': hasReached4096,
       'hasReached8192': hasReached8192,
@@ -164,6 +170,7 @@ class GameEngine {
 
     score = _readInt(data['score']);
     bestScore = _readInt(data['bestScore']);
+    _toolPenaltyTotal = _readInt(data['toolPenaltyTotal']);
     hasReached2048 = data['hasReached2048'] == true;
     hasReached4096 = data['hasReached4096'] == true;
     hasReached8192 = data['hasReached8192'] == true;
@@ -209,14 +216,24 @@ class GameEngine {
     _toolManager = ToolManager(chapter: _chapter);
   }
 
+  void _deductToolScore(int amount) {
+    if (amount <= 0) return;
+    final before = score;
+    score = max(0, score - amount);
+    _toolPenaltyTotal += before - score;
+    _updateBestScore();
+  }
+
   bool useRevive(int row, int column) {
     if (chapterComplete || !canUseRevive) return false;
     if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
       return false;
     }
-    if (_board.tileAt(row, column) == null) return false;
+    final tile = _board.tileAt(row, column);
+    if (tile == null) return false;
     if (!_toolManager.use(GameToolType.revive)) return false;
     _board.setTile(row, column, null);
+    _deductToolScore(tile.value);
     gameOver = false;
     _newEvolutionValuesThisMove.clear();
     _saveLocal();
@@ -227,7 +244,10 @@ class GameEngine {
     if (chapterComplete || !canUseTimeRewind) return false;
     if (_previousBoard == null) return false;
     if (!_toolManager.use(GameToolType.timeRewind)) return false;
+
+    final revertedScore = max(0, score - _previousScore);
     _restorePreviousState();
+    _toolPenaltyTotal += revertedScore;
     _hasPreviousState = false;
     _previousBoard = null;
     _newEvolutionValuesThisMove.clear();
@@ -265,6 +285,7 @@ class GameEngine {
     if (!_toolManager.use(GameToolType.positionSwap)) return false;
     _board.setTile(firstRow, firstColumn, second);
     _board.setTile(secondRow, secondColumn, first);
+    _deductToolScore(first.value + second.value);
     gameOver = false;
     _newEvolutionValuesThisMove.clear();
     _saveLocal();
@@ -303,6 +324,7 @@ class GameEngine {
       targetColumn,
       GameTile(value: source.value, chapter: _chapter),
     );
+    _deductToolScore(source.value);
     gameOver = false;
     _recordHighestEvolutionValue(source.value);
     _saveLocal();
@@ -359,6 +381,7 @@ class GameEngine {
     _hasPreviousState = false;
     _newEvolutionValuesThisMove.clear();
     _highestEvolutionValue = 2;
+    _toolPenaltyTotal = 0;
     hasReached2048 = false;
     hasReached4096 = false;
     hasReached8192 = false;
@@ -394,6 +417,7 @@ class GameEngine {
     chapterComplete = true;
     gameOver = true;
     score = chapterNumber * 10000;
+    _toolPenaltyTotal = 0;
     _hasPreviousState = false;
     _previousBoard = null;
     _updateBestScore();
