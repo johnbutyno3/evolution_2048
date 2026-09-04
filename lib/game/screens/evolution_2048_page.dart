@@ -5,6 +5,7 @@ import '../models/creature.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
+import '../services/haptic_service.dart';
 
 class Evolution2048Page extends StatefulWidget {
   const Evolution2048Page({super.key});
@@ -13,7 +14,8 @@ class Evolution2048Page extends StatefulWidget {
   State<Evolution2048Page> createState() => _Evolution2048PageState();
 }
 
-class _Evolution2048PageState extends State<Evolution2048Page> {
+class _Evolution2048PageState extends State<Evolution2048Page>
+    with SingleTickerProviderStateMixin {
   GameEngine _engine = GameEngine(chapter: GameChapter.ocean);
 
   final FocusNode _focusNode = FocusNode();
@@ -23,6 +25,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   bool _gameOverDialogShowing = false;
   bool _chapterCompleteShowing = false;
+  bool _completionAnimationPlaying = false;
+
+  late final AnimationController _completionAnimationController;
+  int? _completionAnimationIndex;
+  String? _completionAnimationImagePath;
 
   String? _toolMode;
   int? _firstSwapIndex;
@@ -102,6 +109,11 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   void initState() {
     super.initState();
 
+    _completionAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..addStatusListener(_handleCompletionAnimationStatus);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _focusNode.requestFocus();
@@ -111,8 +123,23 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
   @override
   void dispose() {
+    _completionAnimationController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _handleCompletionAnimationStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _completionAnimationPlaying = false;
+      _completionAnimationIndex = null;
+      _completionAnimationImagePath = null;
+    });
+
+    _showChapterComplete();
   }
 
   // ============================================================
@@ -126,6 +153,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     if (_gameOverDialogShowing ||
         _chapterCompleteShowing ||
+        _completionAnimationPlaying ||
         _toolMode != null) {
       return KeyEventResult.handled;
     }
@@ -154,6 +182,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   void _handleDragStart(DragStartDetails details) {
     if (_gameOverDialogShowing ||
         _chapterCompleteShowing ||
+        _completionAnimationPlaying ||
         _toolMode != null) {
       return;
     }
@@ -198,6 +227,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   void _move(String direction) {
     if (_gameOverDialogShowing ||
         _chapterCompleteShowing ||
+        _completionAnimationPlaying ||
         _toolMode != null) {
       return;
     }
@@ -233,14 +263,101 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     if (newEvolutionValues.isNotEmpty) {
       _showEvolutionNotice(newEvolutionValues.last);
-      HapticFeedback.mediumImpact();
+      HapticService.evolutionImpact();
     }
 
     if (_engine.chapterComplete) {
-      _showChapterComplete();
+      if (newEvolutionValues.contains(_engine.targetValue)) {
+        _startCompletionAnimation(_engine.targetValue);
+      } else {
+        _showChapterComplete();
+      }
     } else if (_engine.gameOver) {
       _showGameOver();
     }
+  }
+
+  void _startCompletionAnimation(int value) {
+    if (_completionAnimationPlaying || !mounted) {
+      return;
+    }
+
+    final index = _engine.board.tiles.indexWhere(
+      (tile) => tile?.value == value,
+    );
+    if (index < 0) {
+      _showChapterComplete();
+      return;
+    }
+
+    setState(() {
+      _completionAnimationPlaying = true;
+      _completionAnimationIndex = index;
+      _completionAnimationImagePath =
+          _engine.board.tiles[index]!.creature.imagePath;
+    });
+
+    _completionAnimationController
+      ..reset()
+      ..forward();
+  }
+
+  Widget _buildCompletionAnimation() {
+    final index = _completionAnimationIndex;
+    final imagePath = _completionAnimationImagePath;
+
+    if (!_completionAnimationPlaying || index == null || imagePath == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            const boardPadding = 8.0;
+            const tileGap = 6.0;
+            final tileSize =
+                (constraints.maxWidth - boardPadding * 2 - tileGap * 3) / 4;
+            final row = index ~/ 4;
+            final column = index % 4;
+            final startX = boardPadding + column * (tileSize + tileGap);
+            final startY = boardPadding + row * (tileSize + tileGap);
+            final startCenter = Offset(
+              startX + tileSize / 2,
+              startY + tileSize / 2,
+            );
+            final boardCenter = Offset(
+              constraints.maxWidth / 2,
+              constraints.maxHeight / 2,
+            );
+
+            return AnimatedBuilder(
+              animation: _completionAnimationController,
+              builder: (context, child) {
+                final progress = Curves.easeInOutCubic.transform(
+                  _completionAnimationController.value,
+                );
+                final center = Offset.lerp(startCenter, boardCenter, progress)!;
+                final scale = 1 + progress * 1.5;
+
+                return Transform.translate(
+                  offset: center - boardCenter,
+                  child: Transform.scale(scale: scale, child: child),
+                );
+              },
+              child: Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: tileSize,
+                  height: tileSize,
+                  child: Image.asset(imagePath, fit: BoxFit.contain),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -286,7 +403,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   // ============================================================
 
   void _reset() {
-    if (!mounted) {
+    if (!mounted || _completionAnimationPlaying) {
       return;
     }
 
@@ -312,7 +429,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   void _startTool(String mode) {
     if (!_engine.hasTools ||
         _gameOverDialogShowing ||
-        _chapterCompleteShowing) {
+        _chapterCompleteShowing ||
+        _completionAnimationPlaying) {
       return;
     }
 
@@ -365,19 +483,35 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
 
     final tile = _engine.board.tiles[index];
 
-    if (tile == null) {
-      return;
-    }
-
     final row = index ~/ 4;
     final column = index % 4;
 
     // ----------------------------------------------------------
-    // Revive
+    // Duplicate
     // ----------------------------------------------------------
 
-    if (mode == 'revive') {
-      if (_engine.useRevive(row, column)) {
+    if (mode == 'duplicate') {
+      if (_firstSwapIndex == null) {
+        if (tile == null) {
+          return;
+        }
+
+        setState(() {
+          _firstSwapIndex = index;
+        });
+
+        return;
+      }
+
+      final first = _firstSwapIndex!;
+
+      if (first == index || tile != null) {
+        return;
+      }
+
+      final changed = _engine.useDuplicate(first ~/ 4, first % 4, row, column);
+
+      if (changed) {
         setState(() {
           _toolMode = null;
           _firstSwapIndex = null;
@@ -389,28 +523,16 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
       return;
     }
 
+    if (tile == null) {
+      return;
+    }
+
     // ----------------------------------------------------------
-    // Duplicate
+    // Revive
     // ----------------------------------------------------------
 
-    if (mode == 'duplicate') {
-      if (_firstSwapIndex == null) {
-        setState(() {
-          _firstSwapIndex = index;
-        });
-
-        return;
-      }
-
-      final first = _firstSwapIndex!;
-
-      if (first == index) {
-        return;
-      }
-
-      final changed = _engine.useDuplicate(first ~/ 4, first % 4, row, column);
-
-      if (changed) {
+    if (mode == 'revive') {
+      if (_engine.useRevive(row, column)) {
         setState(() {
           _toolMode = null;
           _firstSwapIndex = null;
@@ -550,7 +672,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
   // ============================================================
 
   void _debugCompleteChapter() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing) {
+    if (_gameOverDialogShowing ||
+        _chapterCompleteShowing ||
+        _completionAnimationPlaying) {
       return;
     }
 
@@ -816,6 +940,9 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                 itemCount: 16,
                                 itemBuilder: (context, index) {
                                   final tile = _engine.board.tiles[index];
+                                  final isAnimatedTile =
+                                      _completionAnimationPlaying &&
+                                      _completionAnimationIndex == index;
 
                                   final selected = _firstSwapIndex == index;
 
@@ -843,7 +970,7 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                             ? 2
                                             : 6,
                                       ),
-                                      child: tile == null
+                                      child: tile == null || isAnimatedTile
                                           ? const SizedBox.shrink()
                                           : Image.asset(
                                               tile.creature.imagePath,
@@ -853,6 +980,8 @@ class _Evolution2048PageState extends State<Evolution2048Page> {
                                   );
                                 },
                               ),
+
+                              _buildCompletionAnimation(),
                             ],
                           ),
                         ),

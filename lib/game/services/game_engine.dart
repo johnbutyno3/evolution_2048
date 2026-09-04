@@ -316,7 +316,7 @@ class GameEngine {
     if (sourceRow == targetRow && sourceColumn == targetColumn) return false;
     final source = _board.tileAt(sourceRow, sourceColumn);
     final target = _board.tileAt(targetRow, targetColumn);
-    if (source == null || source.value >= 512) return false;
+    if (source == null) return false;
     if (target != null) return false;
     if (!_toolManager.use(GameToolType.duplicate)) return false;
     _board.setTile(
