@@ -1,4 +1,4 @@
-﻿{
+{
   "@@locale": "zh",
   "gameTitle": "重生2048",
   "chapterOcean": "海洋篇",
@@ -60,5 +60,22 @@
   "authLogin": "登入",
   "authRegister": "建立帳號",
   "authSwitchToLogin": "已經有帳號？登入",
-  "authSwitchToRegister": "還沒有帳號？建立帳號"
+  "authSwitchToRegister": "還沒有帳號？建立帳號",
+  "authChooseMethod": "選擇登入方式",
+  "authGoogle": "使用 Google 登入",
+  "authApple": "使用 Apple 登入",
+  "authPhone": "手機號碼／SMS 驗證碼",
+  "authOr": "或",
+  "authSkip": "跳過，直接進入遊戲",
+  "authPhoneRequired": "請輸入手機號碼。",
+  "authCodeSent": "驗證碼已送出。",
+  "authSendCodeFirst": "請先取得 SMS 驗證碼。",
+  "authPhoneMobileSetupRequired": "手機驗證功能尚未完成平台設定。",
+  "authInvalidPhone": "請輸入有效的手機號碼。",
+  "authTooManyRequests": "請求次數過多，請稍後再試。",
+  "authPhoneNumber": "手機號碼",
+  "authSmsCode": "SMS 驗證碼",
+  "authCancel": "取消",
+  "authSendCode": "發送驗證碼",
+  "authVerify": "驗證"
 }
