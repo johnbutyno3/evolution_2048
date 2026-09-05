@@ -1,11 +1,14 @@
 # REBIRTH 2048｜正式發布準備待辦
 
-最後更新：2026-09-04
-目前版本：1d0ff5d
+最後更新：2026-09-05
+目前版本：App Icon 已正式產生 Android / iOS 圖示，待本機同步後提交
 分支：feature/chapter1-spec-implementation
 
 ## 階段 1｜產品素材
-- [ ] 1. 確認 App Icon
+- [x] 1. 確認 App Icon
+  - 已確認設計包含「REBIRTH 2048」字樣。
+  - 已使用 `assets/icon/app_icon.png` 產生 Android 與 iOS 多尺寸 App Icon。
+  - `flutter analyze` 已通過；`git diff --check` 僅有 Windows LF/CRLF 提示。
 - [ ] 2. 確認 REBIRTH 2048 Logo
 - [ ] 3. 整理開場介紹
 - [ ] 4. 整理遊戲玩法說明
@@ -40,6 +43,13 @@
 - [ ] 27. 正式發布
 
 ## 每日進度紀錄
+
+### 2026-09-05
+- 完成第 1 項「確認 App Icon」。
+- 使用者確認最終圖示包含清楚可辨識的「REBIRTH 2048」。
+- 已在本機產生 Android 與 iOS App Icon 資源。
+- 驗證結果：`flutter analyze` 無問題；`git diff --check` 無內容錯誤，只有換行格式提示。
+- 下一步：第 2 項「確認 REBIRTH 2048 Logo」。
 
 ### 2026-09-04
 - 建立正式發布準備待辦清單。
