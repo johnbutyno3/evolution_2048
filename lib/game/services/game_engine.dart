@@ -52,11 +52,17 @@ class GameEngine {
   ToolManager get toolManager => _toolManager;
   bool get hasTools => _toolManager.hasTools;
   int get availableToolCount => _toolManager.availableToolCount;
-  bool get canUseRevive => _toolManager.canUse(GameToolType.revive);
+  bool get canUseRevive =>
+      !gameOver && !chapterComplete && _toolManager.canUse(GameToolType.revive);
   bool get canUseTimeRewind =>
-      _toolManager.canUse(GameToolType.timeRewind) && _hasPreviousState;
-  bool get canUsePositionSwap => _toolManager.canUse(GameToolType.positionSwap);
-  bool get canUseDuplicate => _toolManager.canUse(GameToolType.duplicate);
+      !gameOver &&
+      !chapterComplete &&
+      _toolManager.canUse(GameToolType.timeRewind) &&
+      _hasPreviousState;
+  bool get canUsePositionSwap =>
+      !gameOver && !chapterComplete && _toolManager.canUse(GameToolType.positionSwap);
+  bool get canUseDuplicate =>
+      !gameOver && !chapterComplete && _toolManager.canUse(GameToolType.duplicate);
   bool get canUseHistoryRestore => false;
   bool get hasPreviousState => _hasPreviousState;
 
@@ -225,7 +231,7 @@ class GameEngine {
   }
 
   bool useRevive(int row, int column) {
-    if (chapterComplete || !canUseRevive) return false;
+    if (gameOver || chapterComplete || !canUseRevive) return false;
     if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
       return false;
     }
@@ -234,14 +240,13 @@ class GameEngine {
     if (!_toolManager.use(GameToolType.revive)) return false;
     _board.setTile(row, column, null);
     _deductToolScore(tile.value);
-    gameOver = false;
     _newEvolutionValuesThisMove.clear();
     _saveLocal();
     return true;
   }
 
   bool useTimeRewind() {
-    if (chapterComplete || !canUseTimeRewind) return false;
+    if (gameOver || chapterComplete || !canUseTimeRewind) return false;
     if (_previousBoard == null) return false;
     if (!_toolManager.use(GameToolType.timeRewind)) return false;
 
@@ -267,7 +272,7 @@ class GameEngine {
         _chapter != GameChapter.tech) {
       return false;
     }
-    if (chapterComplete || !canUsePositionSwap) return false;
+    if (gameOver || chapterComplete || !canUsePositionSwap) return false;
     if (firstRow < 0 ||
         firstRow >= boardSize ||
         firstColumn < 0 ||
@@ -286,7 +291,6 @@ class GameEngine {
     _board.setTile(firstRow, firstColumn, second);
     _board.setTile(secondRow, secondColumn, first);
     _deductToolScore(first.value + second.value);
-    gameOver = false;
     _newEvolutionValuesThisMove.clear();
     _saveLocal();
     return true;
@@ -302,7 +306,7 @@ class GameEngine {
         chapterComplete) {
       return false;
     }
-    if (!canUseDuplicate) return false;
+    if (gameOver || !canUseDuplicate) return false;
     if (sourceRow < 0 ||
         sourceRow >= boardSize ||
         sourceColumn < 0 ||
@@ -325,7 +329,7 @@ class GameEngine {
       GameTile(value: source.value, chapter: _chapter),
     );
     _deductToolScore(source.value);
-    gameOver = false;
+    _newEvolutionValuesThisMove.clear();
     _recordHighestEvolutionValue(source.value);
     _saveLocal();
     return true;
@@ -511,39 +515,21 @@ class GameEngine {
     }
   }
 
-  void _spawnTile() {
-    final empty = <int>[];
-    for (var i = 0; i < boardSize * boardSize; i++) {
-      if (_board.tiles[i] == null) empty.add(i);
-    }
-    if (empty.isEmpty) return;
-    final index = empty[_random.nextInt(empty.length)];
-    final value = _random.nextDouble() < 0.9 ? 2 : 4;
-    _board.setTile(
-      index ~/ boardSize,
-      index % boardSize,
-      GameTile(value: value, chapter: _chapter),
-    );
-  }
-
   bool _isGameOver() {
     if (!_board.isFull) return false;
-    for (var row = 0; row < boardSize; row++) {
-      for (var column = 0; column < boardSize; column++) {
-        final current = _board.tileAt(row, column);
-        if (current == null) return false;
-        if (column + 1 < boardSize &&
-            current.value == _board.tileAt(row, column + 1)?.value &&
-            !current.isFinal) {
-          return false;
-        }
-        if (row + 1 < boardSize &&
-            current.value == _board.tileAt(row + 1, column)?.value &&
-            !current.isFinal) {
-          return false;
-        }
-      }
-    }
-    return true;
+    return !_board.hasAvailableMerge;
+  }
+
+  void _spawnTile() {
+    final empty = _board.emptyPositions;
+    if (empty.isEmpty) return;
+    final position = empty[_random.nextInt(empty.length)];
+    final value = _random.nextInt(10) == 0 ? 4 : 2;
+    _board.setTile(
+      position.row,
+      position.column,
+      GameTile(value: value, chapter: _chapter),
+    );
+    _recordHighestEvolutionValue(value);
   }
 }
