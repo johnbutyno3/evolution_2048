@@ -787,10 +787,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   String _toolLabel(GameToolType type) {
     switch (type) {
       case GameToolType.revive:
-        return 'Revive';
+        return 'REMOVE';
 
       case GameToolType.timeRewind:
-        return 'Rewind';
+        return 'UNDO';
 
       case GameToolType.positionSwap:
         return 'Swap';
@@ -904,7 +904,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                                       ? 'Swap'
                                       : _toolMode == 'duplicate'
                                       ? 'Duplicate'
-                                      : 'Revive'}',
+                                      : 'REMOVE'}',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
 
@@ -1157,3 +1157,4 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+

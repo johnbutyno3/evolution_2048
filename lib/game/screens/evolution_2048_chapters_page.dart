@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -791,8 +791,8 @@ class _Tools extends StatelessWidget {
   final VoidCallback onCancel;
 
   String _name(_Tool tool) => switch (tool) {
-    _Tool.revive => 'REVIVE',
-    _Tool.rewind => 'REWIND',
+    _Tool.revive => 'REMOVE',
+    _Tool.rewind => 'UNDO',
     _Tool.swap => 'POSITION SWAP',
     _Tool.duplicate => 'DUPLICATE',
   };
@@ -882,3 +882,4 @@ class _CompletePage extends StatelessWidget {
     ),
   );
 }
+
