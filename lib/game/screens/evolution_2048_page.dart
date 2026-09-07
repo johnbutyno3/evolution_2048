@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/creature.dart';
@@ -33,6 +33,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   String? _toolMode;
   int? _firstSwapIndex;
+  String? _pressedToolMode;
 
   int? _evolutionValue;
   String? _evolutionCreatureName;
@@ -115,8 +116,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     )..addStatusListener(_handleCompletionAnimationStatus);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _focusNode.requestFocus();
+      if (!mounted) {
+        return;
+      }
+
+      _focusNode.requestFocus();
+
+      if (_engine.gameOver && !_engine.chapterComplete) {
+        _showGameOver();
       }
     });
   }
@@ -417,6 +424,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _dragStart = null;
       _swipeHandled = false;
       _toolMode = null;
+      _pressedToolMode = null;
     });
 
     _focusNode.requestFocus();
@@ -428,6 +436,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _startTool(String mode) {
     if (!_engine.hasTools ||
+        _engine.gameOver ||
+        _engine.chapterComplete ||
         _gameOverDialogShowing ||
         _chapterCompleteShowing ||
         _completionAnimationPlaying) {
@@ -469,6 +479,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     setState(() {
       _toolMode = null;
       _firstSwapIndex = null;
+      _pressedToolMode = null;
     });
 
     _focusNode.requestFocus();
@@ -793,11 +804,183 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return 'UNDO';
 
       case GameToolType.positionSwap:
-        return 'Swap';
+        return 'SWAP';
 
       case GameToolType.duplicate:
-        return 'Duplicate';
+        return 'DUPLICATE';
     }
+  }
+
+  String _toolModeForType(GameToolType type) {
+    switch (type) {
+      case GameToolType.revive:
+        return 'revive';
+
+      case GameToolType.timeRewind:
+        return 'rewind';
+
+      case GameToolType.positionSwap:
+        return 'swap';
+
+      case GameToolType.duplicate:
+        return 'duplicate';
+    }
+  }
+
+  String _toolImagePath(String mode, {required bool pressed}) {
+    return switch (mode) {
+      'rewind' =>
+        pressed
+            ? 'assets/tools/tool_undo_pressed.png'
+            : 'assets/tools/tool_undo.png',
+
+      'swap' =>
+        pressed
+            ? 'assets/tools/tool_swap_pressed.png'
+            : 'assets/tools/tool_swap.png',
+
+      'revive' =>
+        pressed
+            ? 'assets/tools/tool_remove_pressed.png'
+            : 'assets/tools/tool_remove.png',
+
+      'duplicate' =>
+        pressed
+            ? 'assets/tools/tool_duplicate_pressed.png'
+            : 'assets/tools/tool_duplicate.png',
+
+      _ => '',
+    };
+  }
+
+  Widget _buildToolButton(GameToolType type) {
+    final mode = _toolModeForType(type);
+
+    final matching = _engine.toolManager.tools.where(
+      (state) => state.tool.type == type,
+    );
+
+    final state = matching.isEmpty ? null : matching.first;
+
+    final unlocked = state != null;
+
+    final enabled =
+        unlocked &&
+        state.canUse &&
+        switch (type) {
+          GameToolType.revive => _engine.canUseRevive,
+          GameToolType.timeRewind => _engine.canUseTimeRewind,
+          GameToolType.positionSwap => _engine.canUsePositionSwap,
+          GameToolType.duplicate => _engine.canUseDuplicate,
+        };
+
+    final selected = _toolMode == mode;
+    final pressed = _pressedToolMode == mode;
+
+    final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35);
+
+    final canTap = selected || enabled;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+
+      onTapDown: canTap
+          ? (_) {
+              setState(() {
+                _pressedToolMode = mode;
+              });
+
+              HapticFeedback.lightImpact();
+            }
+          : null,
+
+      onTapUp: canTap
+          ? (_) {
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _pressedToolMode = null;
+              });
+
+              if (selected) {
+                _cancelTool();
+              } else {
+                _startTool(mode);
+              }
+            }
+          : null,
+
+      onTapCancel: canTap
+          ? () {
+              if (!mounted) {
+                return;
+              }
+
+              setState(() {
+                _pressedToolMode = null;
+              });
+            }
+          : null,
+
+      child: Opacity(
+        opacity: opacity,
+        child: SizedBox(
+          height: 112,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 76,
+                    height: 72,
+                    child: Image.asset(
+                      _toolImagePath(mode, pressed: pressed),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+
+                  const SizedBox(height: 1),
+
+                  Text(
+                    selected ? 'CANCEL' : _toolLabel(type),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 1),
+
+                  Text(
+                    state == null ? '?' : '${state.usesRemaining}',
+                    style: const TextStyle(fontSize: 8),
+                  ),
+                ],
+              ),
+
+              if (!unlocked)
+                const Positioned(top: 4, child: Icon(Icons.lock, size: 25)),
+
+              if (selected)
+                const Positioned(
+                  top: 2,
+                  child: Text(
+                    'CANCEL',
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ============================================================
@@ -990,66 +1173,29 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                       const SizedBox(height: 12),
 
                       // ------------------------------------------------
-                      // Tools
+                      // Tools - fixed single horizontal row
                       // ------------------------------------------------
-                      if (_toolMode != null)
-                        TextButton(
-                          onPressed: _cancelTool,
-                          child: const Text('Cancel'),
-                        )
-                      else if (_engine.hasTools)
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _engine.toolManager.tools.map((state) {
-                            final type = state.tool.type;
-
-                            final enabled =
-                                state.canUse &&
-                                switch (type) {
-                                  GameToolType.revive => true,
-                                  GameToolType.timeRewind =>
-                                    _engine.canUseTimeRewind,
-                                  GameToolType.positionSwap =>
-                                    _engine.canUsePositionSwap,
-                                  GameToolType.duplicate =>
-                                    _engine.canUseDuplicate,
-                                };
-
-                            final mode = switch (type) {
-                              GameToolType.revive => 'revive',
-                              GameToolType.timeRewind => 'rewind',
-                              GameToolType.positionSwap => 'swap',
-                              GameToolType.duplicate => 'duplicate',
-                            };
-
-                            return OutlinedButton.icon(
-                              onPressed: enabled
-                                  ? () => _startTool(mode)
-                                  : null,
-                              icon: Image.asset(
-                                switch (type) {
-                                  GameToolType.revive =>
-                                    'assets/tools/tool_revive.png',
-                                  GameToolType.timeRewind =>
-                                    'assets/tools/tool_rewind.png',
-                                  GameToolType.positionSwap =>
-                                    'assets/tools/tool_swap.png',
-                                  GameToolType.duplicate =>
-                                    'assets/tools/tool_duplicate.png',
-                                },
-                                width: 28,
-                                height: 28,
-                                fit: BoxFit.contain,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildToolButton(GameToolType.timeRewind),
+                            ),
+                            Expanded(
+                              child: _buildToolButton(
+                                GameToolType.positionSwap,
                               ),
-                              label: Text(
-                                '${_toolLabel(type)} '
-                                '(${state.usesRemaining})',
-                              ),
-                            );
-                          }).toList(),
+                            ),
+                            Expanded(
+                              child: _buildToolButton(GameToolType.revive),
+                            ),
+                            Expanded(
+                              child: _buildToolButton(GameToolType.duplicate),
+                            ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -1157,4 +1303,3 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
-

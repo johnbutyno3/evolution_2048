@@ -60,9 +60,13 @@ class GameEngine {
       _toolManager.canUse(GameToolType.timeRewind) &&
       _hasPreviousState;
   bool get canUsePositionSwap =>
-      !gameOver && !chapterComplete && _toolManager.canUse(GameToolType.positionSwap);
+      !gameOver &&
+      !chapterComplete &&
+      _toolManager.canUse(GameToolType.positionSwap);
   bool get canUseDuplicate =>
-      !gameOver && !chapterComplete && _toolManager.canUse(GameToolType.duplicate);
+      !gameOver &&
+      !chapterComplete &&
+      _toolManager.canUse(GameToolType.duplicate);
   bool get canUseHistoryRestore => false;
   bool get hasPreviousState => _hasPreviousState;
 
@@ -241,6 +245,13 @@ class GameEngine {
     _board.setTile(row, column, null);
     _deductToolScore(tile.value);
     _newEvolutionValuesThisMove.clear();
+
+    // REMOVE ?????????????????????
+    // ??????????????
+    if (_board.tiles.every((tile) => tile == null)) {
+      _spawnTile();
+    }
+
     _saveLocal();
     return true;
   }
