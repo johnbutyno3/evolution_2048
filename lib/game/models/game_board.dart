@@ -24,6 +24,48 @@ class GameBoard {
 
   List<int> get lastMergedValues => List.unmodifiable(_lastMergedValues);
 
+  /// Returns true when at least one legal adjacent merge is available.
+  /// Final tiles cannot merge, matching the normal move rules.
+  bool get hasAvailableMerge {
+    for (var row = 0; row < _size; row++) {
+      for (var column = 0; column < _size; column++) {
+        final tile = tileAt(row, column);
+        if (tile == null || tile.isFinal) continue;
+
+        if (column + 1 < _size) {
+          final right = tileAt(row, column + 1);
+          if (right != null && right.value == tile.value && !right.isFinal) {
+            return true;
+          }
+        }
+
+        if (row + 1 < _size) {
+          final down = tileAt(row + 1, column);
+          if (down != null && down.value == tile.value && !down.isFinal) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /// Returns all currently empty board positions.
+  List<({int row, int column})> get emptyPositions {
+    final positions = <({int row, int column})>[];
+
+    for (var row = 0; row < _size; row++) {
+      for (var column = 0; column < _size; column++) {
+        if (tileAt(row, column) == null) {
+          positions.add((row: row, column: column));
+        }
+      }
+    }
+
+    return positions;
+  }
+
   void reset() {
     _tiles = List<GameTile?>.filled(_size * _size, null);
 
