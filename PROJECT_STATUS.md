@@ -1,21 +1,19 @@
 # Rebirth 2048 — Project Status
 
-Last updated: 2026-09-04
+Last updated: 2026-09-07
 
 ## 1. Current status
 
 - Project: Rebirth 2048 / Evolution 2048
 - Current branch: `feature/chapter1-spec-implementation`
-- Latest game commit before this status document: `45a4b89`
+- Latest confirmed game/auth commit: `7dbeca6`
 - Onboarding: **completed and verified on Chrome**
-- Current startup flow: **First launch → 3 onboarding pages → Game**
-- The direct-to-game transition after onboarding is intentional for the current development stage.
-- Final planned flow remains: **Onboarding → Personal Profile → Login/Register → Game**
+- Startup flow: **First launch → 3 onboarding pages → Personal Profile → Login/Register → Game**
 - Windows desktop launch remains unresolved; Chrome is the current verification platform.
 
 ## 2. Confirmed game rules — authoritative
 
-The following rules are the final rules and supersede older working notes or obsolete implementations.
+The current implementation is the source of truth for tool behavior. Do not change the following tool distribution unless explicitly decided later.
 
 ### Chapters
 
@@ -28,20 +26,28 @@ The following rules are the final rules and supersede older working notes or obs
 | 5 | Technology | 16 | 32768 |
 | 6 | Universe | 17 | Ultimate challenge |
 
-### Tools
+### Tools — current implementation
 
-- Chapters **1–6**: Undo
-- Chapters **2–5**: Swap
-- Chapter 2: Revive
-- Chapter 3: Revive + Rewind
-- Chapter 4: Revive + Rewind + Duplicate
-- Chapter 5: Revive + Rewind + Duplicate
-- Chapter 6: **Undo only**; all other tools disabled
-- After reaching the chapter unlock target, the next chapter becomes available.
-- A 4096 challenge can be chosen without restarting after 2048; challenge mode locks tools.
+- Chapter 1 Ocean: **UNDO**
+- Chapter 2 Land: **UNDO + SWAP**
+- Chapter 3 Sky: **UNDO + SWAP + REVIVE**
+- Chapter 4 History: **UNDO + SWAP + REVIVE + DUPLICATE**
+- Chapter 5 Technology: **UNDO + SWAP + REVIVE + DUPLICATE**
+- Chapter 6 Universe: **UNDO**
+- `UNDO` is currently implemented internally as `timeRewind`.
+- Tools currently use unlimited uses in the active development/test configuration.
 - Board: 4×4
 - Core gameplay remains based on 2048 sliding and merging.
 - Mobile input: swipe gestures; keyboard may remain for desktop testing.
+
+### Tool behavior currently implemented
+
+- UNDO: restores the previous valid move state.
+- SWAP: swaps two occupied tiles.
+- REVIVE: removes one selected tile.
+- DUPLICATE: copies a selected tile into an empty position.
+- Tool actions apply their existing score penalties.
+- Chapter 6 has only UNDO; other tools are disabled.
 
 ## 3. Chapter 1 — final 12-tier sequence
 
@@ -77,7 +83,7 @@ Requirements implemented:
 - Next / Start controls localized
 - Page indicators
 - First-launch-only behavior using `SaveManager`
-- After completion, currently enters the game directly
+- After completion, enters Personal Profile
 
 ### Chapter backgrounds
 
@@ -98,38 +104,41 @@ Gameplay backgrounds are intended to fill the 4×4 board area; chapter-complete 
 - Onboarding strings are localized
 - Avoid hardcoded Chinese UI text in new code.
 
-## 6. Firebase / app setup
+## 6. Firebase / authentication
 
 - Firebase configuration added.
 - `lib/firebase_options.dart` added.
-- Android Google Services configuration added.
-- App icon assets/configuration updated for Android/iOS.
+- Email/password authentication implemented.
+- Google authentication implemented.
+- Apple authentication implemented.
+- Phone/SMS authentication implemented.
+- Temporary Skip option remains for testing.
+- Real provider configuration still requires Firebase Console/platform setup.
 
 ## 7. Verification
 
 - `flutter analyze`: **No issues found** at the last verification.
-- `git diff --check`: no whitespace errors; remaining LF→CRLF messages are Git line-ending warnings only.
+- `git diff --check`: no whitespace errors.
 - Chrome launch: **verified working**.
-- Onboarding → direct game: **verified working**.
+- Onboarding → Profile → Login/Register → Game flow: implemented.
+- GitHub and local development baseline were synchronized at commit `7dbeca6`.
 
 ## 8. Current development priorities
 
 ### Next
 
-1. Build Personal Profile screen.
-2. Build Login / Register flow.
-3. Connect Profile → Login/Register → Game flow.
-4. Keep onboarding behavior unchanged unless a specific bug is found.
+1. Verify the actual tool UI/layout against the current tool distribution above.
+2. Complete and verify the final 6-chapter progression.
+3. Align GameEngine target values and chapter progression with the authoritative chapter rules.
+4. Verify chapter transitions, especially 4 → 5 → 6.
+5. Complete Chapter 5 Technology and Chapter 6 Universe assets/data.
+6. Remove or retain debug chapter-complete controls based on final testing needs.
+7. Run full Chrome gameplay verification.
+8. Return to Windows desktop launch/build issue after core game flow is stable.
 
-### Then
+## 9. Important implementation notes
 
-5. Complete and verify the final 6-chapter progression.
-6. Align GameEngine target values and chapter data with the authoritative 6-chapter rules.
-7. Implement and verify the exact tool layout for Chapters 1–6.
-8. Complete Chapter 5 Technology and Chapter 6 Universe assets/data.
-9. Verify chapter transition 4 → 5 and later transitions.
-10. Return to Windows desktop launch/build issue after core game flow is stable.
-
-## 9. Obsolete notes — do not use as current rules
-
-Older saved working notes contain implementations with only Ocean/Land/Sky/History targets and older tool-display conditions. Those are historical implementation details and **must not override the final 6-chapter rules above**.
+- Current tool distribution in `lib/game/services/tool_manager.dart` is authoritative for the next development stage.
+- Do not add REVIVE to Chapter 2 unless explicitly requested; the current implementation is intentional.
+- Do not rename the internal `timeRewind` type merely for naming cleanup unless the gameplay behavior is also being changed.
+- Do not restore obsolete 4-chapter or older tool rules.
