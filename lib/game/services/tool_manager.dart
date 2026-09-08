@@ -1,15 +1,15 @@
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
+import 'save_manager.dart';
 
 class ToolManager {
-  ToolManager({required this.chapter, this.unlimitedTools = true}) {
+  ToolManager({required this.chapter}) {
     _initialize();
   }
 
   final GameChapter chapter;
 
-  /// Debug/testing cheat: when enabled, tools do not consume their uses.
-  final bool unlimitedTools;
+  static const String _saveKey = 'toolUses';
 
   final List<ToolState> _tools = [];
 
@@ -26,32 +26,27 @@ class ToolManager {
       case GameChapter.ocean:
         _add(GameTool.timeRewind);
         break;
-
       case GameChapter.land:
         _add(GameTool.timeRewind);
         _add(GameTool.positionSwap);
         break;
-
       case GameChapter.sky:
         _add(GameTool.timeRewind);
         _add(GameTool.positionSwap);
         _add(GameTool.revive);
         break;
-
       case GameChapter.history:
         _add(GameTool.timeRewind);
         _add(GameTool.positionSwap);
         _add(GameTool.revive);
         _add(GameTool.duplicate);
         break;
-
       case GameChapter.tech:
         _add(GameTool.timeRewind);
         _add(GameTool.positionSwap);
         _add(GameTool.revive);
         _add(GameTool.duplicate);
         break;
-
       case GameChapter.universe:
         _add(GameTool.timeRewind);
         break;
@@ -59,7 +54,16 @@ class ToolManager {
   }
 
   void _add(GameTool tool) {
-    _tools.add(ToolState(tool: tool, unlimited: unlimitedTools));
+    final savedUses = _savedUses(tool.type);
+    _tools.add(ToolState(tool: tool, uses: savedUses ?? tool.maxUses));
+  }
+
+  int? _savedUses(GameToolType type) {
+    final save = SaveManager.loadCached();
+    final raw = save?[_saveKey];
+    if (raw is! Map) return null;
+    final value = raw[type.name];
+    return value is num ? value.toInt().clamp(0, 1000000) : null;
   }
 
   ToolState? getTool(GameToolType type) {
@@ -71,17 +75,86 @@ class ToolManager {
     return null;
   }
 
-  bool canUse(GameToolType type) {
-    return getTool(type)?.canUse ?? false;
+  bool canUse(GameToolType type) => getTool(type)?.canUse ?? false;
+
+  bool use(GameToolType type) => getTool(type)?.use() ?? false;
+
+  void addUsesForNextChapter() {
+    for (final type in _nextChapterToolTypes) {
+      final tool = getTool(type);
+      if (tool != null) {
+        tool.addUses(1);
+      }
+    }
   }
 
-  bool use(GameToolType type) {
-    return getTool(type)?.use() ?? false;
+  static List<GameToolType> toolsForChapter(GameChapter chapter) {
+    return switch (chapter) {
+      GameChapter.ocean => [GameToolType.timeRewind],
+      GameChapter.land => [
+          GameToolType.timeRewind,
+          GameToolType.positionSwap,
+        ],
+      GameChapter.sky => [
+          GameToolType.timeRewind,
+          GameToolType.positionSwap,
+          GameToolType.revive,
+        ],
+      GameChapter.history => [
+          GameToolType.timeRewind,
+          GameToolType.positionSwap,
+          GameToolType.revive,
+          GameToolType.duplicate,
+        ],
+      GameChapter.tech => [
+          GameToolType.timeRewind,
+          GameToolType.positionSwap,
+          GameToolType.revive,
+          GameToolType.duplicate,
+        ],
+      GameChapter.universe => [GameToolType.timeRewind],
+    };
   }
 
-  void reset() {
-    for (final tool in _tools) {
-      tool.reset();
+  List<GameToolType> get _nextChapterToolTypes {
+    return switch (chapter) {
+      GameChapter.ocean => toolsForChapter(GameChapter.land),
+      GameChapter.land => toolsForChapter(GameChapter.sky),
+      GameChapter.sky => toolsForChapter(GameChapter.history),
+      GameChapter.history => toolsForChapter(GameChapter.tech),
+      GameChapter.tech => toolsForChapter(GameChapter.universe),
+      GameChapter.universe => const [],
+    };
+  }
+
+  Map<String, int> createSaveData() {
+    final result = <String, int>{};
+    for (final type in GameToolType.values) {
+      final tool = getTool(type);
+      if (tool != null) {
+        result[type.name] = tool.usesRemaining;
+      } else {
+        final saved = _savedUses(type);
+        if (saved != null) {
+          result[type.name] = saved;
+        }
+      }
+    }
+    return result;
+  }
+
+  void restoreFromSaveData(Map<String, dynamic> data) {
+    final raw = data[_saveKey];
+    if (raw is! Map) return;
+
+    for (final type in GameToolType.values) {
+      final value = raw[type.name];
+      if (value is num) {
+        final tool = getTool(type);
+        if (tool != null) {
+          tool.usesRemaining = value.toInt().clamp(0, 1000000);
+        }
+      }
     }
   }
 }
