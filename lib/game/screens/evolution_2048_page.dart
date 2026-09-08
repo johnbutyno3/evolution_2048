@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -5,7 +7,9 @@ import '../models/creature.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
+import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
+import '../../screens/shop_page.dart';
 
 class Evolution2048Page extends StatefulWidget {
   const Evolution2048Page({super.key});
@@ -121,6 +125,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }
 
       _focusNode.requestFocus();
+
+      AudioManager.instance.initialize().then((_) {
+        if (mounted) {
+          AudioManager.instance.playChapterMusic(_engine.chapter);
+        }
+      });
 
       if (_engine.gameOver && !_engine.chapterComplete) {
         _showGameOver();
@@ -263,6 +273,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     final newEvolutionValues = _engine.newEvolutionValuesThisMove;
+
+    if (newEvolutionValues.isNotEmpty) {
+      AudioManager.instance.playSfx(GameSfx.tileMerge);
+    } else {
+      AudioManager.instance.playSfx(GameSfx.tileMove);
+    }
 
     if (mounted) {
       setState(() {});
@@ -444,19 +460,49 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    final canUse = switch (mode) {
-      'revive' => _engine.canUseRevive,
-      'rewind' => _engine.canUseTimeRewind,
-      'swap' => _engine.canUsePositionSwap,
-      'duplicate' => _engine.canUseDuplicate,
-      _ => false,
+    final toolType = switch (mode) {
+      'revive' => GameToolType.revive,
+      'rewind' => GameToolType.timeRewind,
+      'swap' => GameToolType.positionSwap,
+      'duplicate' => GameToolType.duplicate,
+      _ => null,
     };
 
-    if (!canUse) {
+    if (toolType == null) {
       return;
     }
 
+    final toolState = _engine.toolManager.getTool(toolType);
+
+    if (toolState == null) {
+      return;
+    }
+
+    // Only open Shop when the tool has zero remaining uses.
+    if (!toolState.canUse) {
+      if (!mounted) return;
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ShopPage(initialTool: toolType),
+        ),
+      ).then((_) {
+        if (!mounted) return;
+
+        _engine.refreshToolProgress();
+        setState(() {});
+      });
+
+      return;
+    }
+
+    // UNDO may have uses but cannot work before a previous move exists.
+    // This must not open Shop.
     if (mode == 'rewind') {
+      if (!_engine.canUseTimeRewind) {
+        return;
+      }
+
       if (_engine.useTimeRewind()) {
         setState(() {});
       }
@@ -465,26 +511,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
+    // Other tools enter selection mode when they have available uses.
     setState(() {
       _toolMode = mode;
       _firstSwapIndex = null;
     });
   }
-
-  void _cancelTool() {
-    if (_toolMode == null) {
-      return;
-    }
-
-    setState(() {
-      _toolMode = null;
-      _firstSwapIndex = null;
-      _pressedToolMode = null;
-    });
-
-    _focusNode.requestFocus();
-  }
-
   void _selectToolTile(int index) {
     final mode = _toolMode;
 
@@ -603,6 +635,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     _gameOverDialogShowing = true;
 
+    await AudioManager.instance.stopMusic();
+    await AudioManager.instance.playSfx(GameSfx.gameOver);
+
+    if (!mounted) {
+      return;
+    }
+
     final shouldRestart = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -616,6 +655,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           actions: [
             TextButton(
               onPressed: () {
+                unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
                 Navigator.of(context).pop(true);
               },
               child: const Text('Restart'),
@@ -633,6 +673,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     if (shouldRestart == true) {
       _reset();
+      unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
     }
   }
 
@@ -718,6 +759,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final completedChapter = _engine.chapter;
 
+    await AudioManager.instance.stopMusic();
+    await AudioManager.instance.playSfxAndWait(GameSfx.chapterUnlock);
+
+    if (!mounted) {
+      return;
+    }
+
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) {
@@ -762,6 +810,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       case GameChapter.universe:
         _focusNode.requestFocus();
+
         break;
     }
   }
@@ -787,6 +836,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _evolutionValue = null;
       _evolutionCreatureName = null;
     });
+
+    AudioManager.instance.playChapterMusic(chapter);
 
     _focusNode.requestFocus();
   }
@@ -879,7 +930,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35);
 
-    final canTap = selected || enabled;
+    // 已解鎖但用盡的工具仍可開啟對應的購買頁；其他情況則只
+    // 允許實際可執行的工具互動。
+    final canOpenShop = unlocked && !state.canUse;
+    final canTap = selected || enabled || canOpenShop;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -890,7 +944,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                 _pressedToolMode = mode;
               });
 
-              HapticFeedback.lightImpact();
             }
           : null,
 
@@ -905,8 +958,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
               });
 
               if (selected) {
-                _cancelTool();
+                unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel));
+                setState(() {
+                  _toolMode = null;
+                  _firstSwapIndex = null;
+                  _pressedToolMode = null;
+                });
+                _focusNode.requestFocus();
               } else {
+                unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect));
                 _startTool(mode);
               }
             }
@@ -1029,12 +1089,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         title: Text(_chapterTitle),
         actions: [
           IconButton(
-            onPressed: _reset,
+            onPressed: () {
+              unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+              _reset();
+            },
             tooltip: 'Restart',
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
-            onPressed: _debugCompleteChapter,
+            onPressed: () {
+              unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+              _debugCompleteChapter();
+            },
             tooltip: 'Test Chapter Complete',
             icon: const Icon(Icons.bug_report),
           ),
@@ -1278,7 +1344,7 @@ class _ChapterCompletePage extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   Text(
-                    'Score $score  •  Highest $highestValue',
+                    'Score $score  ?? Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
 
@@ -1289,7 +1355,12 @@ class _ChapterCompletePage extends StatelessWidget {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: onContinue,
+                        onPressed: () {
+                          unawaited(
+                            AudioManager.instance.playSfx(GameSfx.buttonClick),
+                          );
+                          onContinue();
+                        },
                         child: const Text('Continue'),
                       ),
                     ),

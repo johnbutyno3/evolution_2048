@@ -44,17 +44,24 @@ class ToolManager {
 
   void _initialize() {
     _tools.clear();
+
     for (final type in toolsForChapter(chapter)) {
       final gameTool = _gameToolForType(type);
+
+      // Chapter 1 starts with one UNDO.
+      // Later chapters start at zero and receive uses from chapter rewards
+      // or shop purchases.
+      final initialUses = _uses[type] ??
+          (chapter == GameChapter.ocean ? gameTool.maxUses : 0);
+
       _tools.add(
         ToolState(
           tool: gameTool,
-          uses: _uses[type] ?? gameTool.maxUses,
+          uses: initialUses,
         ),
       );
     }
   }
-
   void _claimNextChapterRewardIfNeeded() {
     if (chapter == GameChapter.ocean) return;
 
@@ -69,7 +76,7 @@ class ToolManager {
     if (_rewardsClaimed.contains(rewardKey)) return;
 
     for (final type in toolsForChapter(chapter)) {
-      _uses[type] = (_uses[type] ?? 1) + 1;
+      _uses[type] = (_uses[type] ?? 0) + 1;
       final tool = getTool(type);
       if (tool != null) tool.usesRemaining = _uses[type]!;
     }
@@ -96,6 +103,26 @@ class ToolManager {
 
   bool canUse(GameToolType type) => getTool(type)?.canUse ?? false;
 
+  /// Refresh tool uses from the persistent save.
+  void refreshFromSavedProgress() {
+    _uses.clear();
+
+    final save = SaveManager.loadCached();
+    final rawUses = save?[_saveKey];
+
+    if (rawUses is Map) {
+      for (final type in GameToolType.values) {
+        final value = rawUses[type.name];
+        if (value is num) {
+          _uses[type] = value.toInt().clamp(0, 1000000);
+        }
+      }
+    }
+
+    for (final tool in _tools) {
+      tool.usesRemaining = _uses[tool.tool.type] ?? 0;
+    }
+  }
   bool use(GameToolType type) {
     final tool = getTool(type);
     if (tool == null || !tool.use()) return false;
@@ -113,14 +140,14 @@ class ToolManager {
     if (rawUses is Map) {
       for (final toolType in GameToolType.values) {
         final value = rawUses[toolType.name];
-        uses[toolType.name] = value is num ? value.toInt().clamp(0, 1000000) : 1;
+        uses[toolType.name] = value is num ? value.toInt().clamp(0, 1000000) : 0;
       }
     } else {
       for (final toolType in GameToolType.values) {
-        uses[toolType.name] = 1;
+        uses[toolType.name] = 0;
       }
     }
-    uses[type.name] = (uses[type.name] ?? 1) + amount;
+    uses[type.name] = (uses[type.name] ?? 0) + amount;
 
     final rewards = <String>[];
     final rawRewards = save[_claimedKey];
@@ -142,7 +169,7 @@ class ToolManager {
 
   void grantNextChapterReward() {
     for (final type in _nextChapterToolTypes) {
-      _uses[type] = (_uses[type] ?? 1) + 1;
+      _uses[type] = (_uses[type] ?? 0) + 1;
     }
     _persistProgress();
   }
@@ -169,7 +196,7 @@ class ToolManager {
       if (tool != null) _uses[type] = tool.usesRemaining;
     }
     return <String, int>{
-      for (final type in GameToolType.values) type.name: _uses[type] ?? 1,
+      for (final type in GameToolType.values) type.name: _uses[type] ?? 0,
     };
   }
 
