@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'game/screens/evolution_2048_page.dart';
+import 'game/services/life_manager.dart';
 import 'game/services/save_manager.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/login_register_page.dart';
@@ -18,6 +19,7 @@ Future<void> main() async {
   );
 
   await SaveManager.initialize();
+  await LifeManager.initialize();
 
   runApp(const Rebirth2048App());
 }
