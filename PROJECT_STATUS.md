@@ -26,7 +26,7 @@
 
 Important: the table above records the existing chapter tool configuration found in the current code. Do not redesign it while implementing the new reward system.
 
-Chapter progression is now intended to be simple normal gameplay → chapter complete → next chapter unlock. There is no separate Challenge Mode.
+Chapter progression is simple normal gameplay → chapter complete → next chapter unlock. There is no separate Challenge Mode.
 
 ## 3. Chapter 1 Ocean sequence
 
@@ -65,7 +65,9 @@ Existing tool UI requirements:
 - Selected tool remains in the row.
 - Selected tool uses pressed/selected visual and CANCEL label behavior already implemented.
 - No separate Cancel button.
-- No vibration requirement; this was tested on Android and cancelled by decision.
+- **No vibration. Tool interaction uses sound effect only.**
+- Tool click uses `tool_select.mp3` only.
+- Tool cancel uses `button_cancel.mp3`.
 
 Current tool assets include:
 - tool_undo.png / tool_undo_pressed.png
@@ -73,7 +75,7 @@ Current tool assets include:
 - tool_remove.png / tool_remove_pressed.png
 - tool_duplicate.png / tool_duplicate_pressed.png
 
-## 5. Tool-use reward system — NEW confirmed rule
+## 5. Tool-use reward system — confirmed rule
 
 When a chapter is successfully completed:
 
@@ -93,7 +95,7 @@ Rules:
 
 The reward must be applied by the actual chapter-complete flow, not by Menu UI.
 
-## 6. 2048 / 4096 Challenge removal — NEW confirmed rule
+## 6. 2048 / 4096 Challenge removal — confirmed rule
 
 Remove the old challenge concepts completely from the active game flow:
 - 2048-based chapter unlock logic.
@@ -105,7 +107,7 @@ Remove the old challenge concepts completely from the active game flow:
 
 The numeric values still exist as normal tile/evolution values where required by the chapter content; they are not special unlock/challenge triggers.
 
-## 7. Life system — NEW confirmed rule
+## 7. Life system — confirmed rule
 
 Normal life:
 - Automatic-life storage/refill cap = 5.
@@ -129,7 +131,7 @@ Gameplay UI:
 - When life >=5, countdown stops and may show `--:--`.
 - Golden member displays `∞` and does not use the countdown.
 
-## 8. Membership — NEW confirmed rule
+## 8. Membership — confirmed rule
 
 Exactly three membership states:
 
@@ -157,7 +159,7 @@ Exactly three membership states:
 
 Do not use the old names「訂閱會員」or「高級會員」for the NT$299 tier.
 
-## 9. Gold packages — NEW confirmed rule
+## 9. Gold packages — confirmed rule
 
 Real-money gold packages:
 - 500 gold / NT$49
@@ -210,8 +212,8 @@ Shop:
 
 Repository contains the chapter BGM structure and gameplay/system/tool/UI audio assets.
 
-Confirmed audio behavior already specified:
-- Tool click: `tool_select.mp3` only.
+Confirmed audio behavior:
+- Tool click: `tool_select.mp3` only. No vibration.
 - Tool cancel: `button_cancel.mp3`.
 - Game Over: stop BGM, play `game_over.mp3`, then existing Game Over UI.
 - Chapter Complete: stop BGM, play/wait for `chapter_unlock.mp3`, then existing completion screen.
@@ -238,7 +240,7 @@ These are implementation tasks, not new rules.
 1. Implement persistent life count + 40-minute countdown + Golden member infinity behavior.
 2. Add life display/countdown to gameplay UI.
 3. Convert tool uses from unlimited debug behavior to persistent finite accumulated uses while preserving existing chapter configuration.
-4. Implement chapter-clear next-chapter tool reward: +1 for each tool available in the next chapter.
+4. Implement chapter-clear next-chapter tool reward: +1 for each tool available in next chapter.
 5. Remove legacy 2048/4096 challenge branches and related UI.
 6. Implement finalized membership names/benefits.
 7. Implement finalized gold package prices and gold-only life/tool purchases.
@@ -254,7 +256,7 @@ Do not:
 - rename REMOVE to REVIVE in the UI.
 - rename UNDO to REWIND in the UI.
 - change the existing chapter tool distribution.
-- add tool vibration back.
+- add tool vibration; tool interaction is sound-only.
 - restore Challenge Mode.
 - make 2048 or 4096 a chapter-unlock trigger.
 - give extra chapter-clear rewards beyond next-chapter tool +1.
