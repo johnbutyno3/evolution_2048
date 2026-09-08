@@ -104,6 +104,14 @@ class ToolManager {
     return true;
   }
 
+  /// Reset the current chapter's tool states from persisted global counts.
+  /// Gameplay restart must never restore consumed uses or erase earned uses.
+  void reset() {
+    for (final tool in _tools) {
+      tool.usesRemaining = _uses[tool.tool.type] ?? tool.usesRemaining;
+    }
+  }
+
   /// Retained for callers/tests. The actual reward is claimed automatically
   /// when the next chapter is opened after a real chapter completion.
   void grantNextChapterReward() {
