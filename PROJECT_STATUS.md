@@ -1,53 +1,34 @@
-﻿# Evolution 2048 / rebirth_2048
+# Evolution 2048 / rebirth_2048
 # PROJECT STATUS
-# Last updated: 2026-09-07
+# Last updated: 2026-09-08
 
-## 1. Project
+## 1. Current project baseline
 
-Evolution 2048 is a 2048-based evolution game.
+- 4x4 Evolution 2048 board.
+- Creature/life-stage images instead of numeric tile display.
+- Six chapters: Ocean, Land, Sky, History, Technology, Universe.
+- Mobile swipe gameplay.
+- Local save/restore exists.
+- Chapter-specific tool configuration already exists and must be preserved.
+- Internationalization architecture exists.
+- Audio assets for chapter/gameplay/system/tool/UI flows are present in the repository.
 
-Core concept:
-- 4x4 board
-- Merge identical life stages to evolve
-- Creature images instead of traditional numeric tiles
-- Six chapters
-- Mobile swipe gameplay
-- Chapter progression and persistent local save
-- Chapter-specific tools
-- Chapter complete screen/background
-- Internationalization readiness
+## 2. Confirmed chapter rules
 
----
-
-## 2. Chapter Progression
-
-| Chapter | Name | Tiers | Unlock / Target | Tools |
+| Chapter | Name | Tiers | Current target | Existing tool configuration |
 |---|---|---:|---:|---|
-| 1 | Ocean | 12 | 2048 | UNDO |
-| 2 | Land | 13 | 4096 | UNDO + SWAP |
-| 3 | Sky | 14 | 8192 | UNDO + SWAP + REMOVE |
-| 4 | History | 15 | 16384 | UNDO + SWAP + REMOVE + DUPLICATE |
-| 5 | Technology | 16 | 32768 | UNDO + SWAP + REMOVE + DUPLICATE |
-| 6 | Universe | 17 | Ultimate | UNDO |
+| 1 | Ocean | 12 | 4096 | UNDO |
+| 2 | Land | 13 | 8192 | UNDO + SWAP |
+| 3 | Sky | 14 | 16384 | UNDO + SWAP + REMOVE |
+| 4 | History | 15 | 32768 | UNDO + SWAP + REMOVE + DUPLICATE |
+| 5 | Technology | 16 | 65536 | UNDO + SWAP + REMOVE + DUPLICATE |
+| 6 | Universe | 17 | 131072 | UNDO |
 
-Important:
-- Do NOT change the above tool distribution.
-- Chapter 6 is an ultimate challenge.
-- Tools are disabled in challenge mode where specified by game rules.
-- Internal identifiers may still use old names:
-  - timeRewind = UNDO
-  - revive = REMOVE
-  - positionSwap = SWAP
-  - duplicate = DUPLICATE
-- User-facing names must use:
-  - UNDO
-  - REMOVE
-  - SWAP
-  - DUPLICATE
+Important: the table above records the existing chapter tool configuration found in the current code. Do not redesign it while implementing the new reward system.
 
----
+Chapter progression is now intended to be simple normal gameplay → chapter complete → next chapter unlock. There is no separate Challenge Mode.
 
-## 3. Chapter 1 Ocean Creature Sequence
+## 3. Chapter 1 Ocean sequence
 
 1. 矽藻 - 2
 2. 鞭毛蟲 - 4
@@ -62,243 +43,224 @@ Important:
 11. 藍鯨 - 2048
 12. 海底人類 - 4096
 
-Do NOT revert to the older 18-tier Chapter 1 design.
+Do not restore the old 18-tier Chapter 1 design.
 
----
+## 4. Tool naming and UI
 
-## 4. Current Tool UI
+User-facing tool names:
+- UNDO
+- REMOVE
+- SWAP
+- DUPLICATE
 
-Current required layout:
+Internal identifiers may remain:
+- timeRewind = UNDO
+- revive = REMOVE
+- positionSwap = SWAP
+- duplicate = DUPLICATE
 
-- Four tools in ONE horizontal row.
-- Do NOT use 2x2 layout.
-- Tool image is the main visual.
-- Small label below the image.
-- Locked tools are semi-transparent.
-- Lock icon appears ON TOP OF the tool image.
-- Locked tools cannot be used.
-- Selecting a tool does NOT remove the tool from the row.
-- Selected tool becomes semi-transparent.
-- Selected tool displays international-language label:
-  CANCEL
-- Tapping the selected tool again cancels the tool mode.
-- Do NOT add a separate Cancel button.
-- Tool press image must switch to the corresponding pressed asset.
+Existing tool UI requirements:
+- Four tools in one horizontal row.
+- Square normal/pressed image assets.
+- Selected tool remains in the row.
+- Selected tool uses pressed/selected visual and CANCEL label behavior already implemented.
+- No separate Cancel button.
+- No vibration requirement; this was tested on Android and cancelled by decision.
 
-Tool assets:
+Current tool assets include:
+- tool_undo.png / tool_undo_pressed.png
+- tool_swap.png / tool_swap_pressed.png
+- tool_remove.png / tool_remove_pressed.png
+- tool_duplicate.png / tool_duplicate_pressed.png
 
-assets/tools/
-- tool_undo.png
-- tool_undo_pressed.png
-- tool_swap.png
-- tool_swap_pressed.png
-- tool_remove.png
-- tool_remove_pressed.png
-- tool_duplicate.png
-- tool_duplicate_pressed.png
+## 5. Tool-use reward system — NEW confirmed rule
 
-Old assets:
-- tool_revive.png = deleted
-- tool_rewind.png = deleted
+When a chapter is successfully completed:
 
----
+**Only the tools available in the NEXT chapter receive +1 use each.**
 
-## 5. Vibration Decision
+Rules:
+- Each eligible next-chapter tool gets exactly +1 use.
+- Existing unused uses are retained.
+- New reward uses accumulate with previous unused uses.
+- No other chapter-clear reward is granted.
+- No gold reward.
+- No life reward.
+- No achievement reward.
+- No collection reward.
+- No 2048/4096 challenge reward.
+- Chapter 6 has no next chapter, so it grants no next-chapter tool reward.
 
-IMPORTANT:
-Tool vibration has been tested on the Android APK.
+The reward must be applied by the actual chapter-complete flow, not by Menu UI.
 
-Result:
-- No vibration was observed.
-- Android VIBRATE permission was checked.
-- User decided to CANCEL the vibration requirement.
+## 6. 2048 / 4096 Challenge removal — NEW confirmed rule
 
-Final decision:
-- DO NOT continue implementing tool vibration.
-- DO NOT replace it with native Android vibration.
-- DO NOT modify unrelated vibration behavior elsewhere.
-- Keep current pressed-image behavior only.
+Remove the old challenge concepts completely from the active game flow:
+- 2048-based chapter unlock logic.
+- 4096 Challenge.
+- Challenge Mode.
+- Challenge Mode tool locking.
+- Any UI offering a 4096 challenge.
+- Any chapter progression branch based on optional challenge mode.
 
----
+The numeric values still exist as normal tile/evolution values where required by the chapter content; they are not special unlock/challenge triggers.
 
-## 6. REMOVE Safety Fix
+## 7. Life system — NEW confirmed rule
 
-Problem found:
-If REMOVE deletes the last remaining tile, the board becomes completely empty and the game can no longer continue.
+Normal life:
+- Automatic-life storage/refill cap = 5.
+- General member and High-level member use the normal life system.
+- Every 40 minutes, +1 life while life is below 5.
+- At 5 or above, the automatic timer stops.
+- After consuming life and dropping below 5, a fresh 40-minute countdown starts.
 
-Required behavior:
-- When REMOVE deletes the final tile on the board:
-  - immediately spawn one new tile
-  - game remains playable
-  - save the new board state
+Purchased life:
+- Life +1 costs gold.
+- Purchased life can raise the current life count above 5.
+- Example: 2 lives + purchase 5 = 7 lives.
+- If the count later falls to 4, automatic refill only goes to 5.
+- To exceed 5 again, purchase life again.
 
-Current local change:
-GameEngine.useRevive() has been modified to check:
+Gameplay UI:
+- Life count must be visible during gameplay.
+- Show a regeneration countdown next to the life count.
+- Recommended format: `生命 ♥ 5   ⏱ --:--`.
+- When life <5, countdown runs from 40:00.
+- When life >=5, countdown stops and may show `--:--`.
+- Golden member displays `∞` and does not use the countdown.
 
-    if (_board.tiles.every((tile) => tile == null)) {
-      _spawnTile();
-    }
+## 8. Membership — NEW confirmed rule
 
-This is the implementation of the user-facing REMOVE tool.
+Exactly three membership states:
 
----
+### 一般會員
+- Free.
+- Ads enabled.
+- After 30 accumulated minutes of actual gameplay, automatically show one ad.
+- Normal life system.
+- Automatic +1 life every 40 minutes, refill cap 5.
 
-## 7. Pressed Tool Image
+### 高級會員
+- NT$99/month.
+- Ad-free.
+- Normal life system.
+- Automatic +1 life every 40 minutes, refill cap 5.
 
-Required behavior:
+### 黃金會員
+- NT$299/month.
+- Ad-free.
+- Infinite lives.
+- Display `∞`.
+- No 40-minute wait.
+- No 5-life cap.
+- Normal life is not consumed.
 
-Press tool:
-- use *_pressed.png
+Do not use the old names「訂閱會員」or「高級會員」for the NT$299 tier.
 
-Release tool:
-- return to normal tool image
+## 9. Gold packages — NEW confirmed rule
 
-Mapping:
-- UNDO -> tool_undo_pressed.png
-- SWAP -> tool_swap_pressed.png
-- REMOVE -> tool_remove_pressed.png
-- DUPLICATE -> tool_duplicate_pressed.png
+Real-money gold packages:
+- 500 gold / NT$49
+- 1,000 gold / NT$89
+- 5,000 gold / NT$399
+- 10,000 gold / NT$799
 
-This has been added to the current tool UI implementation.
+Tools and life purchases remain gold-only.
 
----
+## 10. Gold purchase prices
 
-## 8. Save / Restore
+| Item | 1 | 5 | 10 | 20 | 50 |
+|---|---:|---:|---:|---:|---:|
+| 生命 +1 | 50 | 225 | 400 | 700 | 1,500 |
+| UNDO | 50 | 225 | 400 | 700 | 1,500 |
+| REMOVE | 100 | 450 | 800 | 1,400 | 3,000 |
+| SWAP | 200 | 900 | 1,600 | 2,800 | 6,000 |
+| DUPLICATE | 500 | 2,250 | 4,000 | 7,000 | 15,000 |
 
-Game state is locally saved.
+Discounts: 1 = full price, 5 = 90%, 10 = 80%, 20 = 70%, 50 = 60%.
 
-Saved information includes:
-- chapter
-- board tile values
-- score
-- best score
-- tool penalty
-- milestone flags
-- highest evolution value
-- gameOver
-- chapterComplete
+## 11. Chapter completion / Menu
 
-Important behavior:
-- Reopening the app restores the saved board/game state.
-- Game Over state is restored.
-- Game Over screen can be shown again after reopening.
-- Restart remains available from Game Over.
+- Menu reads the existing chapter completion/unlock state.
+- Menu must not create a second unlock state.
+- Next chapter unlocks only after previous chapter completion.
+- Six chapters only.
+- Chapter 6 completion leads to final completion screen with 回到首頁.
+- No Chapter 7.
 
----
+## 12. Personal Profile / Shop
 
-## 9. Current Important Source Files
+Profile contains:
+- 玩家資料
+- 進化進度
+- 收藏
+- 金幣
+- 設定
 
-Main game files:
+No Achievements feature.
 
-lib/main.dart
-lib/game/models/creature.dart
-lib/game/models/game_board.dart
-lib/game/models/game_tile.dart
-lib/game/models/tools/game_tool.dart
-lib/game/services/game_engine.dart
-lib/game/services/tool_manager.dart
-lib/game/services/save_manager.dart
-lib/game/screens/evolution_2048_page.dart
-lib/game/screens/evolution_2048_chapters_page.dart
+Shop:
+- Top: real-money gold packages and memberships.
+- Bottom: gold-only life/tools.
+- All five gold-purchase items remain listed regardless of current chapter.
+- Shop cannot buy chapter unlocks, collection entries, challenge modes, or skip chapter completion.
+- When a tool has zero uses, its game UI should route directly to that tool's purchase page.
 
-Assets:
+## 13. Audio implementation status
 
-assets/creatures/
-assets/backgrounds/
-assets/tools/
+Repository contains the chapter BGM structure and gameplay/system/tool/UI audio assets.
 
----
+Confirmed audio behavior already specified:
+- Tool click: `tool_select.mp3` only.
+- Tool cancel: `button_cancel.mp3`.
+- Game Over: stop BGM, play `game_over.mp3`, then existing Game Over UI.
+- Chapter Complete: stop BGM, play/wait for `chapter_unlock.mp3`, then existing completion screen.
+- General UI actions use `button_click.mp3` where appropriate.
 
-## 10. Current Development State
+Do not add a drawer/menu-open behavior solely to consume audio assets.
 
-Recently completed / verified:
+## 14. Current code gap — IMPORTANT
 
-- Six-chapter structure implemented.
-- Chapter progression implemented.
-- Chapter-specific tool distribution implemented.
-- Tool UI changed to four horizontal buttons.
-- Lock overlay implemented.
-- Tool selected state implemented.
-- CANCEL behavior implemented.
-- Pressed tool image behavior implemented.
-- Game Over restore behavior implemented.
-- Local save/restore implemented.
-- REMOVE final-tile safety behavior added.
-- Flutter analyzer previously verified with:
-  No issues found!
-- git diff --check previously verified successfully.
-- Android APK was generated and tested.
-- Tool vibration was tested and then explicitly cancelled as a requirement.
+The latest repository inspection shows the newly confirmed rules are **documented but not yet fully implemented in code**.
 
----
+Confirmed gaps found in current source:
+- `GameEngine` still contains legacy milestone flags such as hasReached2048/4096/8192/16384.
+- `GameEngine` still persists those legacy milestone flags.
+- Current tool manager is constructed with `unlimitedTools = true`, so actual tool uses do not currently behave as accumulating finite uses.
+- Existing chapter tool distribution must be preserved while changing the use-count behavior.
+- A gameplay life/countdown system was not found in the inspected current game engine/page code.
+- Membership, gold packages, and shop purchase behavior are not yet represented as the finalized system in the inspected game-engine code.
 
-## 11. Current Testing Checklist
+These are implementation tasks, not new rules.
 
-Before committing the latest local changes:
+## 15. Implementation order
 
-[ ] Four tools display in one horizontal row
-[ ] Locked tools show lock over image
-[ ] Locked tools cannot be tapped
-[ ] Pressing a tool displays *_pressed.png
-[ ] Releasing restores normal image
-[ ] Selecting a tool keeps the tool visible
-[ ] Selected tool becomes semi-transparent
-[ ] Selected tool displays CANCEL
-[ ] Tapping selected tool cancels the mode
-[ ] REMOVE can delete a tile
-[ ] REMOVE deleting the final tile creates a new tile
-[ ] Game Over survives app restart
-[ ] Restart remains available
-[ ] No tool vibration requirement
-[ ] Flutter analyze = No issues found!
-[ ] git diff --check = clean
+1. Implement persistent life count + 40-minute countdown + Golden member infinity behavior.
+2. Add life display/countdown to gameplay UI.
+3. Convert tool uses from unlimited debug behavior to persistent finite accumulated uses while preserving existing chapter configuration.
+4. Implement chapter-clear next-chapter tool reward: +1 for each tool available in the next chapter.
+5. Remove legacy 2048/4096 challenge branches and related UI.
+6. Implement finalized membership names/benefits.
+7. Implement finalized gold package prices and gold-only life/tool purchases.
+8. Verify zero-use tool routing to the corresponding Shop purchase page.
+9. Run Flutter analyzer and formatting checks.
+10. Build/test Android and web as appropriate.
+11. Commit and push only after verification.
 
----
+## 16. Do Not Regress
 
-## 12. Current Known Local Changes
+Do not:
+- restore the old 18-tier Chapter 1 list.
+- rename REMOVE to REVIVE in the UI.
+- rename UNDO to REWIND in the UI.
+- change the existing chapter tool distribution.
+- add tool vibration back.
+- restore Challenge Mode.
+- make 2048 or 4096 a chapter-unlock trigger.
+- give extra chapter-clear rewards beyond next-chapter tool +1.
+- cap purchased life at 5.
+- let automatic refill exceed 5.
+- call the NT$99 tier 訂閱會員.
+- call the NT$299 tier 高級會員.
 
-Expected current work includes:
-
-M lib/game/screens/evolution_2048_page.dart
-M lib/game/services/game_engine.dart
-
-Do NOT commit .bak files.
-
-Temporary .bak files must be deleted before commit.
-
----
-
-## 13. Next Work
-
-Priority order:
-
-1. Complete Android APK test of the current tool UI.
-2. Verify REMOVE final-tile recovery.
-3. Verify Game Over restore/restart.
-4. Verify all six chapter transitions.
-5. Verify chapter-specific tools.
-6. Verify assets and backgrounds for all chapters.
-7. Verify chapter complete screens.
-8. Run flutter analyze.
-9. Run git diff --check.
-10. Commit and push the verified state.
-11. Continue remaining Chapter 5 / Chapter 6 implementation and polish.
-
----
-
-## 14. Do Not Regress
-
-Do NOT:
-- restore the old 18-tier Chapter 1 list
-- rename REMOVE back to REVIVE in the UI
-- rename UNDO back to REWIND in the UI
-- change the confirmed tool distribution
-- change the tool row back to 2x2
-- add a separate Cancel button
-- remove the selected tool from the row
-- add vibration again
-- replace pressed images with text-only pressed states
-- break local save/restore
-- allow REMOVE to leave the board permanently empty
-
-This file is the continuity reference for future development sessions.
+This document is the continuity reference for the current implementation phase.
