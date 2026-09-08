@@ -1,9 +1,10 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'game/screens/life_aware_evolution_2048_page.dart';
+import 'game/services/gold_manager.dart';
 import 'game/services/life_manager.dart';
 import 'game/services/save_manager.dart';
 import 'l10n/app_localizations.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
 
   await SaveManager.initialize();
   await LifeManager.initialize();
+  await GoldManager.initialize();
 
   runApp(const Rebirth2048App());
 }
