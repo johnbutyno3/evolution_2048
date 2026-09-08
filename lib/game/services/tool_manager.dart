@@ -104,16 +104,42 @@ class ToolManager {
     return true;
   }
 
-  /// Reset the current chapter's tool states from persisted global counts.
-  /// Gameplay restart must never restore consumed uses or erase earned uses.
+  /// Adds shop-purchased uses to the global persistent tool wallet.
+  static Future<void> addPurchasedUses(GameToolType type, int amount) async {
+    if (amount <= 0) return;
+    final save = SaveManager.loadCached() ?? <String, dynamic>{};
+    final uses = <String, int>{};
+    final rawUses = save[_saveKey];
+    if (rawUses is Map) {
+      for (final toolType in GameToolType.values) {
+        final value = rawUses[toolType.name];
+        uses[toolType.name] = value is num ? value.toInt().clamp(0, 1000000) : 1;
+      }
+    } else {
+      for (final toolType in GameToolType.values) {
+        uses[toolType.name] = 1;
+      }
+    }
+    uses[type.name] = (uses[type.name] ?? 1) + amount;
+
+    final rewards = <String>[];
+    final rawRewards = save[_claimedKey];
+    if (rawRewards is List) {
+      rewards.addAll(rawRewards.whereType<String>());
+    }
+
+    await SaveManager.saveToolProgress(
+      toolUses: uses,
+      rewardsClaimed: rewards,
+    );
+  }
+
   void reset() {
     for (final tool in _tools) {
       tool.usesRemaining = _uses[tool.tool.type] ?? tool.usesRemaining;
     }
   }
 
-  /// Retained for callers/tests. The actual reward is claimed automatically
-  /// when the next chapter is opened after a real chapter completion.
   void grantNextChapterReward() {
     for (final type in _nextChapterToolTypes) {
       _uses[type] = (_uses[type] ?? 1) + 1;
@@ -124,27 +150,10 @@ class ToolManager {
   static List<GameToolType> toolsForChapter(GameChapter chapter) {
     return switch (chapter) {
       GameChapter.ocean => [GameToolType.timeRewind],
-      GameChapter.land => [
-          GameToolType.timeRewind,
-          GameToolType.positionSwap,
-        ],
-      GameChapter.sky => [
-          GameToolType.timeRewind,
-          GameToolType.positionSwap,
-          GameToolType.revive,
-        ],
-      GameChapter.history => [
-          GameToolType.timeRewind,
-          GameToolType.positionSwap,
-          GameToolType.revive,
-          GameToolType.duplicate,
-        ],
-      GameChapter.tech => [
-          GameToolType.timeRewind,
-          GameToolType.positionSwap,
-          GameToolType.revive,
-          GameToolType.duplicate,
-        ],
+      GameChapter.land => [GameToolType.timeRewind, GameToolType.positionSwap],
+      GameChapter.sky => [GameToolType.timeRewind, GameToolType.positionSwap, GameToolType.revive],
+      GameChapter.history => [GameToolType.timeRewind, GameToolType.positionSwap, GameToolType.revive, GameToolType.duplicate],
+      GameChapter.tech => [GameToolType.timeRewind, GameToolType.positionSwap, GameToolType.revive, GameToolType.duplicate],
       GameChapter.universe => [GameToolType.timeRewind],
     };
   }
