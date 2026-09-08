@@ -46,10 +46,38 @@ class SaveManager {
 
   static Future<void> save(Map<String, dynamic> data) async {
     _preferences ??= await SharedPreferences.getInstance();
+
     final payload = <String, dynamic>{
       'version': 1,
       'savedAt': DateTime.now().millisecondsSinceEpoch,
       ...data,
+    };
+
+    // Tool uses are a global progression resource. Preserve them when a
+    // gameplay save is written without explicitly including the field.
+    if (!payload.containsKey('toolUses') && _cachedSave?['toolUses'] != null) {
+      payload['toolUses'] = _cachedSave!['toolUses'];
+    }
+    if (!payload.containsKey('toolRewardsClaimed') &&
+        _cachedSave?['toolRewardsClaimed'] != null) {
+      payload['toolRewardsClaimed'] = _cachedSave!['toolRewardsClaimed'];
+    }
+
+    _cachedSave = payload;
+    await _preferences!.setString(_saveKey, jsonEncode(payload));
+  }
+
+  static Future<void> saveToolProgress({
+    required Map<String, int> toolUses,
+    required List<String> rewardsClaimed,
+  }) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    final payload = <String, dynamic>{
+      ...?_cachedSave,
+      'version': 1,
+      'savedAt': DateTime.now().millisecondsSinceEpoch,
+      'toolUses': toolUses,
+      'toolRewardsClaimed': rewardsClaimed,
     };
     _cachedSave = payload;
     await _preferences!.setString(_saveKey, jsonEncode(payload));
