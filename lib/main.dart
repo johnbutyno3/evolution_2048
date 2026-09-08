@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
-import 'game/screens/evolution_2048_page.dart';
+import 'game/screens/life_aware_evolution_2048_page.dart';
 import 'game/services/life_manager.dart';
 import 'game/services/save_manager.dart';
 import 'l10n/app_localizations.dart';
@@ -40,7 +40,7 @@ class Rebirth2048App extends StatelessWidget {
       return const LoginRegisterPage();
     }
 
-    return const Evolution2048Page();
+    return const LifeAwareEvolution2048Page();
   }
 
   @override
