@@ -516,20 +516,22 @@ class Creature {
     Creature(
       value: 2,
       stage: CreatureStage.stage01,
-      name: 'Atom',
-      imagePath: 'assets/creatures/chapter_06_universe/universe_2_atom.png',
+      name: 'Big Bang',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_2_ the Big Bang.png',
     ),
     Creature(
       value: 4,
       stage: CreatureStage.stage02,
-      name: 'New Star Formation',
-      imagePath: 'assets/creatures/chapter_06_universe/universe_4_star.png',
+      name: 'Planet Formation',
+      imagePath:
+          'assets/creatures/chapter_06_universe/universe_4_planet formation.png',
     ),
     Creature(
       value: 8,
       stage: CreatureStage.stage03,
-      name: 'Planet',
-      imagePath: 'assets/creatures/chapter_06_universe/universe_8_planet.png',
+      name: 'Star',
+      imagePath: 'assets/creatures/chapter_06_universe/universe_8_sun.png',
     ),
     Creature(
       value: 16,
@@ -540,34 +542,33 @@ class Creature {
     Creature(
       value: 32,
       stage: CreatureStage.stage05,
-      name: 'Moon Visit',
+      name: 'Moon',
       imagePath: 'assets/creatures/chapter_06_universe/universe_32_moon.png',
     ),
     Creature(
       value: 64,
       stage: CreatureStage.stage06,
-      name: 'Communication Satellite',
-      imagePath:
-          'assets/creatures/chapter_06_universe/universe_64_space_probe.png',
+      name: 'Mars',
+      imagePath: 'assets/creatures/chapter_06_universe/universe_64_mars.png',
     ),
     Creature(
       value: 128,
       stage: CreatureStage.stage07,
-      name: 'Space Station',
+      name: 'Ring Space Station',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_128_space_colony.png',
     ),
     Creature(
       value: 256,
       stage: CreatureStage.stage08,
-      name: 'Planet Mining',
+      name: 'Asteroid Mining',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_256_asteroid_mining.png',
     ),
     Creature(
       value: 512,
       stage: CreatureStage.stage09,
-      name: 'Solar System Challenge',
+      name: 'Solar System Expansion',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_512_solar_expansion.png',
     ),
@@ -595,35 +596,35 @@ class Creature {
     Creature(
       value: 8192,
       stage: CreatureStage.stage13,
-      name: 'Unified Exploration',
+      name: 'Interstellar Travel',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_8192_interstellar_travel.png',
     ),
     Creature(
       value: 16384,
       stage: CreatureStage.stage14,
-      name: 'Galactic Voyage',
+      name: 'Galaxy Exploration',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_16384_galaxy_exploration.png',
     ),
     Creature(
       value: 32768,
       stage: CreatureStage.stage15,
-      name: 'Visit Alien Civilization',
+      name: 'Cosmic Civilization',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_32768_cosmic_civilization.png',
     ),
     Creature(
       value: 65536,
       stage: CreatureStage.stage16,
-      name: 'Return to Maintain Earth',
+      name: 'Earth Development',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_65536_earth_development.png',
     ),
     Creature(
       value: 131072,
       stage: CreatureStage.stage17,
-      name: 'God Hand',
+      name: 'Divine Perspective',
       imagePath:
           'assets/creatures/chapter_06_universe/universe_131072_god_perspective.png',
     ),
