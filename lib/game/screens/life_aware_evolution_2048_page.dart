@@ -2,14 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../services/save_manager.dart';
+import '../../l10n/app_localizations.dart';
 import '../services/life_manager.dart';
+import '../services/save_manager.dart';
 import 'evolution_2048_page.dart';
 
 /// Wraps the gameplay page with the persistent life system.
 ///
-/// One normal life is consumed when a gameplay session starts. Golden members
-/// have infinite lives and therefore never consume a life or show a timer.
+/// A life is consumed only when a brand-new gameplay attempt is started.
+/// Existing saved games, Game Over states, and completed chapters never
+/// consume another life merely by opening the page.
 class LifeAwareEvolution2048Page extends StatefulWidget {
   const LifeAwareEvolution2048Page({super.key});
 
@@ -35,15 +37,19 @@ class _LifeAwareEvolution2048PageState
   Future<void> _initialize() async {
     await LifeManager.initialize();
 
+    // The first actual game start consumes one life. Once a save exists,
+    // reopening the app resumes that state without consuming another life.
     final saved = SaveManager.loadCached();
-    final hasActiveSavedGame =
-        saved != null &&
+    final hasSavedGame = saved != null &&
         saved['tiles'] is List &&
-        saved['gameOver'] != true &&
-        saved['chapterComplete'] != true;
-    final allowed = hasActiveSavedGame
-        ? LifeManager.lifeCount > 0
+        (saved['tiles'] as List).length == 16;
+
+    final allowed = hasSavedGame
+        ? LifeManager.lifeCount > 0 ||
+            saved['gameOver'] == true ||
+            saved['chapterComplete'] == true
         : await LifeManager.consumeLife();
+
     if (!mounted) {
       return;
     }
@@ -73,6 +79,10 @@ class _LifeAwareEvolution2048PageState
 
     _lifeCount = LifeManager.lifeCount;
     _remaining = LifeManager.regenerationRemaining;
+
+    // A saved Game Over/completed chapter can still be displayed even when
+    // no life remains; the next explicit new game/restart is responsible for
+    // checking whether a life can be consumed.
     _hasLife = _lifeCount > 0;
   }
 
@@ -84,7 +94,7 @@ class _LifeAwareEvolution2048PageState
 
   String _formatRemaining(Duration? duration) {
     if (duration == null) {
-      return '--:--';
+      return '';
     }
 
     final totalSeconds = duration.inSeconds.clamp(0, 5999);
@@ -94,10 +104,14 @@ class _LifeAwareEvolution2048PageState
   }
 
   Widget _buildLifeIndicator() {
-    final text = LifeManager.isGoldenMember ? '生命 ♥ ∞' : '生命 ♥ $_lifeCount';
-    final timerText = LifeManager.isGoldenMember
-        ? ''
-        : '⏱ ${_formatRemaining(_remaining)}';
+    final l10n = AppLocalizations.of(context)!;
+    final text = LifeManager.isGoldenMember
+        ? '${l10n.life} ♥ ∞'
+        : '${l10n.life} ♥ $_lifeCount';
+
+    final timerText = _lifeCount < LifeManager.normalCap
+        ? _formatRemaining(_remaining)
+        : '';
 
     return IgnorePointer(
       child: Container(
@@ -132,6 +146,8 @@ class _LifeAwareEvolution2048PageState
   }
 
   Widget _buildNoLifeOverlay() {
+    final l10n = AppLocalizations.of(context)!;
+
     return Positioned.fill(
       child: ColoredBox(
         color: Colors.black.withValues(alpha: 0.72),
@@ -153,9 +169,9 @@ class _LifeAwareEvolution2048PageState
                   color: Colors.white,
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  '生命不足',
-                  style: TextStyle(
+                Text(
+                  l10n.life,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -163,7 +179,7 @@ class _LifeAwareEvolution2048PageState
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '下一點生命將在 ${_formatRemaining(_remaining)} 後恢復。',
+                  '${_formatRemaining(_remaining)}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white70, fontSize: 15),
                 ),
