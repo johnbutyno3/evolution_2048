@@ -25,6 +25,7 @@ class _LifeAwareEvolution2048PageState
   Timer? _timer;
   bool _ready = false;
   bool _hasLife = true;
+  bool _allowSavedTerminalState = false;
   int _lifeCount = LifeManager.normalCap;
   Duration? _remaining;
 
@@ -44,10 +45,11 @@ class _LifeAwareEvolution2048PageState
         saved['tiles'] is List &&
         (saved['tiles'] as List).length == 16;
 
+    _allowSavedTerminalState = hasSavedGame &&
+        (saved['gameOver'] == true || saved['chapterComplete'] == true);
+
     final allowed = hasSavedGame
-        ? LifeManager.lifeCount > 0 ||
-            saved['gameOver'] == true ||
-            saved['chapterComplete'] == true
+        ? LifeManager.lifeCount > 0 || _allowSavedTerminalState
         : await LifeManager.consumeLife();
 
     if (!mounted) {
@@ -79,11 +81,7 @@ class _LifeAwareEvolution2048PageState
 
     _lifeCount = LifeManager.lifeCount;
     _remaining = LifeManager.regenerationRemaining;
-
-    // A saved Game Over/completed chapter can still be displayed even when
-    // no life remains; the next explicit new game/restart is responsible for
-    // checking whether a life can be consumed.
-    _hasLife = _lifeCount > 0;
+    _hasLife = _lifeCount > 0 || _allowSavedTerminalState;
   }
 
   @override
@@ -179,7 +177,7 @@ class _LifeAwareEvolution2048PageState
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${_formatRemaining(_remaining)}',
+                  _formatRemaining(_remaining),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white70, fontSize: 15),
                 ),
