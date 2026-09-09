@@ -43,7 +43,17 @@ class LifeManager {
     return isGoldenMember ? -1 : _lifeCount;
   }
 
-  static int? get nextLifeAtMillis => _regenStart?.millisecondsSinceEpoch;
+  /// Returns the timestamp of the next life regeneration, not the start of
+  /// the current regeneration cycle.
+  static int? get nextLifeAtMillis {
+    _applyAutomaticRegeneration();
+    if (isGoldenMember || _lifeCount >= normalCap) return null;
+
+    final start = _regenStart;
+    if (start == null) return DateTime.now().add(regenerationInterval).millisecondsSinceEpoch;
+
+    return start.add(regenerationInterval).millisecondsSinceEpoch;
+  }
 
   static String get membership => _membership;
 
