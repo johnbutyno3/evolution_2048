@@ -300,7 +300,7 @@ class Creature {
     Creature(
       value: 4,
       stage: CreatureStage.stage02,
-      name: 'Wall',
+      name: 'Tribe',
       imagePath:
           'assets/creatures/chapter_04_history/history_04_civilization.png',
     ),
@@ -530,7 +530,7 @@ class Creature {
     Creature(
       value: 8,
       stage: CreatureStage.stage03,
-      name: 'Star',
+      name: 'Sun',
       imagePath: 'assets/creatures/chapter_06_universe/universe_8_sun.png',
     ),
     Creature(
@@ -698,3 +698,4 @@ class Creature {
 
   bool get is8192 => value == 8192;
 }
+
