@@ -1,5 +1,8 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
 
+import 'package:flutter/material.dart';
+
+import '../game/services/audio_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../game/services/save_manager.dart';
 import 'profile_page.dart';
@@ -42,6 +45,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _nextPage() {
+    unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+
     if (_currentPage < 2) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 350),
@@ -57,9 +62,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     if (!mounted) return;
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const ProfilePage()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const ProfilePage()));
   }
 
   @override

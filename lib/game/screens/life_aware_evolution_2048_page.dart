@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/save_manager.dart';
 import '../services/life_manager.dart';
 import 'evolution_2048_page.dart';
 
@@ -34,7 +35,15 @@ class _LifeAwareEvolution2048PageState
   Future<void> _initialize() async {
     await LifeManager.initialize();
 
-    final allowed = await LifeManager.consumeLife();
+    final saved = SaveManager.loadCached();
+    final hasActiveSavedGame =
+        saved != null &&
+        saved['tiles'] is List &&
+        saved['gameOver'] != true &&
+        saved['chapterComplete'] != true;
+    final allowed = hasActiveSavedGame
+        ? LifeManager.lifeCount > 0
+        : await LifeManager.consumeLife();
     if (!mounted) {
       return;
     }
@@ -85,9 +94,7 @@ class _LifeAwareEvolution2048PageState
   }
 
   Widget _buildLifeIndicator() {
-    final text = LifeManager.isGoldenMember
-        ? '生命 ♥ ∞'
-        : '生命 ♥ $_lifeCount';
+    final text = LifeManager.isGoldenMember ? '生命 ♥ ∞' : '生命 ♥ $_lifeCount';
     final timerText = LifeManager.isGoldenMember
         ? ''
         : '⏱ ${_formatRemaining(_remaining)}';
@@ -115,10 +122,7 @@ class _LifeAwareEvolution2048PageState
               const SizedBox(width: 8),
               Text(
                 timerText,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             ],
           ],
@@ -143,7 +147,11 @@ class _LifeAwareEvolution2048PageState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.favorite_border, size: 52, color: Colors.white),
+                const Icon(
+                  Icons.favorite_border,
+                  size: 52,
+                  color: Colors.white,
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   '生命不足',
@@ -170,9 +178,7 @@ class _LifeAwareEvolution2048PageState
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Stack(

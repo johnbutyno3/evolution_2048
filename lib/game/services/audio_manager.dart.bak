@@ -1,0 +1,208 @@
+﻿import 'package:audioplayers/audioplayers.dart';
+
+import '../models/tools/game_tool.dart';
+import '../models/game_tile.dart';
+
+enum GameSfx {
+  buttonClick,
+  buttonCancel,
+  menuOpen,
+  menuClose,
+  tileMove,
+  tileMerge,
+  toolSelect,
+  gameOver,
+  chapterUnlock,
+}
+
+class AudioManager {
+  AudioManager._();
+
+  static final AudioManager instance = AudioManager._();
+
+  final AudioPlayer _bgmPlayer = AudioPlayer();
+
+  final Map<GameSfx, AudioPlayer> _sfxPlayers = {
+    for (final sfx in GameSfx.values) sfx: AudioPlayer(),
+  };
+
+  double _musicVolume = 0.35;
+  double _sfxVolume = 0.55;
+
+  bool _musicEnabled = true;
+  bool _sfxEnabled = true;
+
+  GameChapter? _currentChapter;
+
+  double get musicVolume => _musicVolume;
+  double get sfxVolume => _sfxVolume;
+
+  bool get musicEnabled => _musicEnabled;
+  bool get sfxEnabled => _sfxEnabled;
+
+  static const Map<GameChapter, String> _chapterMusic = {
+    GameChapter.ocean:
+        'audio/chapter/chapter_01_ocean.mp3',
+    GameChapter.land:
+        'audio/chapter/chapter_02_land.mp3',
+    GameChapter.sky:
+        'audio/chapter/chapter_03_sky.mp3',
+    GameChapter.history:
+        'audio/chapter/chapter_04_history.mp3',
+    GameChapter.tech:
+        'audio/chapter/chapter_05_technology.mp3',
+    GameChapter.universe:
+        'audio/chapter/chapter_06_universe.mp3',
+  };
+
+  static const Map<GameSfx, String> _sfxAssets = {
+    GameSfx.buttonClick:
+        'audio/ui/button_click.mp3',
+    GameSfx.buttonCancel:
+        'audio/ui/button_cancel.mp3',
+    GameSfx.menuOpen:
+        'audio/ui/menu_open.mp3',
+    GameSfx.menuClose:
+        'audio/ui/menu_close.mp3',
+    GameSfx.tileMove:
+        'audio/gameplay/tile_move.mp3',
+    GameSfx.tileMerge:
+        'audio/gameplay/tile_merge.mp3',
+    GameSfx.toolSelect:
+        'audio/tools/tool_select.mp3',
+    GameSfx.gameOver:
+        'audio/system/game_over.mp3',
+    GameSfx.chapterUnlock:
+        'audio/chapter/chapter_unlock.mp3',
+  };
+
+  Future<void> initialize() async {
+    await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
+    await _bgmPlayer.setVolume(_musicVolume);
+
+    for (final player in _sfxPlayers.values) {
+      await player.setReleaseMode(ReleaseMode.release);
+      await player.setVolume(_sfxVolume);
+    }
+  }
+
+  Future<void> playChapterMusic(GameChapter chapter) async {
+    if (!_musicEnabled) {
+      return;
+    }
+
+    if (_currentChapter == chapter && _bgmPlayer.state == PlayerState.playing) {
+      return;
+    }
+
+    final asset = _chapterMusic[chapter];
+
+    if (asset == null) {
+      return;
+    }
+
+    _currentChapter = chapter;
+
+    await _bgmPlayer.stop();
+    await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
+    await _bgmPlayer.setVolume(_musicVolume);
+    await _bgmPlayer.play(AssetSource(asset));
+  }
+
+  Future<void> stopMusic() async {
+    await _bgmPlayer.stop();
+    _currentChapter = null;
+  }
+
+  Future<void> pauseMusic() async {
+    if (_bgmPlayer.state == PlayerState.playing) {
+      await _bgmPlayer.pause();
+    }
+  }
+
+  Future<void> resumeMusic() async {
+    if (!_musicEnabled) {
+      return;
+    }
+
+    if (_bgmPlayer.state == PlayerState.paused) {
+      await _bgmPlayer.resume();
+    }
+  }
+
+  Future<void> playSfx(GameSfx sfx) async {
+    if (!_sfxEnabled) {
+      return;
+    }
+
+    final asset = _sfxAssets[sfx];
+
+    if (asset == null) {
+      return;
+    }
+
+    final player = _sfxPlayers[sfx];
+
+    if (player == null) {
+      return;
+    }
+
+    await player.stop();
+    await player.setVolume(_sfxVolume);
+    await player.play(AssetSource(asset));
+  }
+
+  Future<void> setMusicVolume(double volume) async {
+    _musicVolume = volume.clamp(0.0, 1.0);
+    await _bgmPlayer.setVolume(_musicVolume);
+  }
+
+  Future<void> setSfxVolume(double volume) async {
+    _sfxVolume = volume.clamp(0.0, 1.0);
+
+    for (final player in _sfxPlayers.values) {
+      await player.setVolume(_sfxVolume);
+    }
+  }
+
+  Future<void> setMusicEnabled(bool enabled) async {
+    _musicEnabled = enabled;
+
+    if (!enabled) {
+      await _bgmPlayer.stop();
+      return;
+    }
+
+    final chapter = _currentChapter;
+    if (chapter != null) {
+      await playChapterMusic(chapter);
+    }
+  }
+
+  Future<void> setSfxEnabled(bool enabled) async {
+    _sfxEnabled = enabled;
+  }
+
+  Future<void> playToolButton(GameToolType type) async {
+    await playSfx(GameSfx.buttonClick);
+
+    switch (type) {
+      case GameToolType.timeRewind:
+        break;
+
+      case GameToolType.positionSwap:
+      case GameToolType.revive:
+      case GameToolType.duplicate:
+        await playSfx(GameSfx.toolSelect);
+    }
+  }
+
+  Future<void> dispose() async {
+    await _bgmPlayer.dispose();
+
+    for (final player in _sfxPlayers.values) {
+      await player.dispose();
+    }
+  }
+}
+

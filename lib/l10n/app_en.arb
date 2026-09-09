@@ -64,18 +64,9 @@
   "authChooseMethod": "Choose a sign-in method",
   "authGoogle": "Continue with Google",
   "authApple": "Continue with Apple",
-  "authPhone": "Phone Number / SMS Code",
   "authOr": "OR",
   "authSkip": "Skip and enter the game",
-  "authPhoneRequired": "Please enter your phone number.",
-  "authCodeSent": "Verification code sent.",
-  "authSendCodeFirst": "Please request an SMS verification code first.",
-  "authPhoneMobileSetupRequired": "Phone verification is not fully configured for this platform yet.",
-  "authInvalidPhone": "Please enter a valid phone number.",
   "authTooManyRequests": "Too many requests. Please try again later.",
-  "authPhoneNumber": "Phone Number",
-  "authSmsCode": "SMS Verification Code",
-  "authCancel": "Cancel",
-  "authSendCode": "Send Code",
-  "authVerify": "Verify"
+  "life": "Life",
+  "gameTime": "Game Time"
 }

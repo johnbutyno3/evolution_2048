@@ -482,12 +482,6 @@ abstract class AppLocalizations {
   /// **'Continue with Apple'**
   String get authApple;
 
-  /// No description provided for @authPhone.
-  ///
-  /// In en, this message translates to:
-  /// **'Phone Number / SMS Code'**
-  String get authPhone;
-
   /// No description provided for @authOr.
   ///
   /// In en, this message translates to:
@@ -500,71 +494,23 @@ abstract class AppLocalizations {
   /// **'Skip and enter the game'**
   String get authSkip;
 
-  /// No description provided for @authPhoneRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter your phone number.'**
-  String get authPhoneRequired;
-
-  /// No description provided for @authCodeSent.
-  ///
-  /// In en, this message translates to:
-  /// **'Verification code sent.'**
-  String get authCodeSent;
-
-  /// No description provided for @authSendCodeFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Please request an SMS verification code first.'**
-  String get authSendCodeFirst;
-
-  /// No description provided for @authPhoneMobileSetupRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Phone verification is not fully configured for this platform yet.'**
-  String get authPhoneMobileSetupRequired;
-
-  /// No description provided for @authInvalidPhone.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter a valid phone number.'**
-  String get authInvalidPhone;
-
   /// No description provided for @authTooManyRequests.
   ///
   /// In en, this message translates to:
   /// **'Too many requests. Please try again later.'**
   String get authTooManyRequests;
 
-  /// No description provided for @authPhoneNumber.
+  /// No description provided for @life.
   ///
   /// In en, this message translates to:
-  /// **'Phone Number'**
-  String get authPhoneNumber;
+  /// **'Life'**
+  String get life;
 
-  /// No description provided for @authSmsCode.
+  /// No description provided for @gameTime.
   ///
   /// In en, this message translates to:
-  /// **'SMS Verification Code'**
-  String get authSmsCode;
-
-  /// No description provided for @authCancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get authCancel;
-
-  /// No description provided for @authSendCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Send Code'**
-  String get authSendCode;
-
-  /// No description provided for @authVerify.
-  ///
-  /// In en, this message translates to:
-  /// **'Verify'**
-  String get authVerify;
+  /// **'Game Time'**
+  String get gameTime;
 }
 
 class _AppLocalizationsDelegate

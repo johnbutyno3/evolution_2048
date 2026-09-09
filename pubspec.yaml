@@ -19,6 +19,8 @@ dependencies:
   shared_preferences: ^2.5.3
   firebase_core: ^4.14.0
   firebase_auth: ^6.6.1
+  audioplayers: 6.8.1
+  cloud_firestore: ^6.9.0
 
 dev_dependencies:
   flutter_test:
@@ -47,6 +49,22 @@ flutter:
     - assets/backgrounds/chapter_06_universe/
 
     - assets/tools/
+    - assets/audio/
+    - assets/audio/chapter/chapter_01_ocean.mp3
+    - assets/audio/chapter/chapter_02_land.mp3
+    - assets/audio/chapter/chapter_03_sky.mp3
+    - assets/audio/chapter/chapter_04_history.mp3
+    - assets/audio/chapter/chapter_05_technology.mp3
+    - assets/audio/chapter/chapter_06_universe.mp3
+    - assets/audio/chapter/chapter_unlock.mp3
+    - assets/audio/gameplay/tile_merge.mp3
+    - assets/audio/gameplay/tile_move.mp3
+    - assets/audio/system/game_over.mp3
+    - assets/audio/tools/tool_select.mp3
+    - assets/audio/ui/button_cancel.mp3
+    - assets/audio/ui/button_click.mp3
+    - assets/audio/ui/menu_close.mp3
+    - assets/audio/ui/menu_open.mp3
 
 flutter_launcher_icons:
   android: true

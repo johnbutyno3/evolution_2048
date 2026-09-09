@@ -202,44 +202,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authApple => '使用 Apple 登入';
 
   @override
-  String get authPhone => '手機號碼／SMS 驗證碼';
-
-  @override
   String get authOr => '或';
 
   @override
   String get authSkip => '跳過，直接進入遊戲';
 
   @override
-  String get authPhoneRequired => '請輸入手機號碼。';
-
-  @override
-  String get authCodeSent => '驗證碼已送出。';
-
-  @override
-  String get authSendCodeFirst => '請先取得 SMS 驗證碼。';
-
-  @override
-  String get authPhoneMobileSetupRequired => '手機驗證功能尚未完成平台設定。';
-
-  @override
-  String get authInvalidPhone => '請輸入有效的手機號碼。';
-
-  @override
   String get authTooManyRequests => '請求次數過多，請稍後再試。';
 
   @override
-  String get authPhoneNumber => '手機號碼';
+  String get life => '生命';
 
   @override
-  String get authSmsCode => 'SMS 驗證碼';
-
-  @override
-  String get authCancel => '取消';
-
-  @override
-  String get authSendCode => '發送驗證碼';
-
-  @override
-  String get authVerify => '驗證';
+  String get gameTime => '遊戲時間';
 }

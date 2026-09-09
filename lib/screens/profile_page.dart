@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../game/services/audio_manager.dart';
 import '../game/services/save_manager.dart';
 import '../l10n/app_localizations.dart';
 import 'login_register_page.dart';
@@ -28,6 +31,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _continue() async {
+    unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+
     if (!_formKey.currentState!.validate()) return;
 
     await SaveManager.saveProfile(name: _nameController.text.trim());
@@ -62,10 +67,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    l10n.profileDescription,
-                    textAlign: TextAlign.center,
-                  ),
+                  Text(l10n.profileDescription, textAlign: TextAlign.center),
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _nameController,

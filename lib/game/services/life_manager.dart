@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persistent life system for Evolution 2048.
@@ -41,6 +43,8 @@ class LifeManager {
     return isGoldenMember ? -1 : _lifeCount;
   }
 
+  static int? get nextLifeAtMillis => _regenStart?.millisecondsSinceEpoch;
+
   static String get membership => _membership;
 
   static Duration? get regenerationRemaining {
@@ -60,16 +64,22 @@ class LifeManager {
   /// Consume one normal life when starting a gameplay attempt.
   /// Golden members never consume life.
   static Future<bool> consumeLife() async {
+    final consumed = consumeLifeNow();
+    await _persist();
+    return consumed;
+  }
+
+  /// Synchronous gameplay entry point for state transitions.
+  /// Persistence is started immediately without blocking the game action.
+  static bool consumeLifeNow() {
     if (isGoldenMember) return true;
 
     _applyAutomaticRegeneration();
     if (_lifeCount <= 0) return false;
 
     _lifeCount--;
-    if (_lifeCount < normalCap) {
-      _regenStart ??= DateTime.now();
-    }
-    await _persist();
+    _regenStart ??= DateTime.now();
+    unawaited(_persist());
     return true;
   }
 

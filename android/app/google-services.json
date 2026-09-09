@@ -12,7 +12,20 @@
           "package_name": "com.example.rebirth_2048"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "980968758380-he9h64finrhfao5fbk11qj05bse6frlp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.rebirth_2048",
+            "certificate_hash": "8d9b0e0fb0b24e63f5aa56edaf57227fca81925f"
+          }
+        },
+        {
+          "client_id": "980968758380-s91bak1vapaoo775s3q4g2i6cccvp9hc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAtcVzQYyO8BDUE00EeGcbF_LYFZsvdBzM"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "980968758380-s91bak1vapaoo775s3q4g2i6cccvp9hc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "980968758380-cci16p6fc66rgsi3k70cb8b6dq4qb11u.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.rebirth2048"
+              }
+            }
+          ]
         }
       }
     }

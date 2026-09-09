@@ -206,47 +206,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authApple => 'Continue with Apple';
 
   @override
-  String get authPhone => 'Phone Number / SMS Code';
-
-  @override
   String get authOr => 'OR';
 
   @override
   String get authSkip => 'Skip and enter the game';
 
   @override
-  String get authPhoneRequired => 'Please enter your phone number.';
-
-  @override
-  String get authCodeSent => 'Verification code sent.';
-
-  @override
-  String get authSendCodeFirst =>
-      'Please request an SMS verification code first.';
-
-  @override
-  String get authPhoneMobileSetupRequired =>
-      'Phone verification is not fully configured for this platform yet.';
-
-  @override
-  String get authInvalidPhone => 'Please enter a valid phone number.';
-
-  @override
   String get authTooManyRequests =>
       'Too many requests. Please try again later.';
 
   @override
-  String get authPhoneNumber => 'Phone Number';
+  String get life => 'Life';
 
   @override
-  String get authSmsCode => 'SMS Verification Code';
-
-  @override
-  String get authCancel => 'Cancel';
-
-  @override
-  String get authSendCode => 'Send Code';
-
-  @override
-  String get authVerify => 'Verify';
+  String get gameTime => 'Game Time';
 }
