@@ -105,6 +105,14 @@ class LifeManager {
     await _persist();
   }
 
+  /// Developer-only reset of the current life count.
+  /// Membership is intentionally preserved.
+  static Future<void> restoreFiveLivesForDeveloper() async {
+    _lifeCount = normalCap;
+    _regenStart = null;
+    await _persist();
+  }
+
   /// Set membership for the account system.
   /// Accepted values: general, premium, golden.
   static Future<void> setMembership(String membership) async {
