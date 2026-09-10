@@ -9,6 +9,7 @@ class SaveManager {
   static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
   static const String _profileNameKey = 'rebirth_2048_profile_name_v1';
   static const String _developerModeKey = 'rebirth_2048_developer_mode_v1';
+  static const String _developerAllChaptersKey = 'rebirth_2048_developer_all_chapters_v1';
   static const String _developerAllToolsKey = 'rebirth_2048_developer_all_tools_v1';
   static const String _developerUnlimitedToolsKey = 'rebirth_2048_developer_unlimited_tools_v1';
 
@@ -42,9 +43,20 @@ class SaveManager {
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.setBool(_developerModeKey, enabled);
     if (!enabled) {
+      await setDeveloperAllChapters(false);
       await setDeveloperAllTools(false);
       await setDeveloperUnlimitedTools(false);
     }
+  }
+
+  static bool get developerAllChapters {
+    return developerMode &&
+        (_preferences?.getBool(_developerAllChaptersKey) ?? false);
+  }
+
+  static Future<void> setDeveloperAllChapters(bool enabled) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setBool(_developerAllChaptersKey, enabled);
   }
 
   static bool get developerAllTools {
