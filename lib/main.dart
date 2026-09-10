@@ -50,8 +50,9 @@ class Rebirth2048App extends StatelessWidget {
     return MaterialApp(
       title: 'Rebirth 2048',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('en', 'US'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
+      supportedLocales: const [Locale('en', 'US')],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
@@ -60,5 +61,3 @@ class Rebirth2048App extends StatelessWidget {
     );
   }
 }
-
-
