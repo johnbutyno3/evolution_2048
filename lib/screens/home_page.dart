@@ -7,8 +7,8 @@ import '../l10n/app_localizations.dart';
 import '../game/screens/evolution_2048_page.dart';
 import '../game/models/game_tile.dart';
 import '../game/services/audio_manager.dart';
+import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
-
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -63,10 +63,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
-    // ?桀????Ｘ?瘚??蝚砌?蝡?
-    // 敺??乩? SaveManager ??蝭摰??脣漲??
-    const unlockedChapter = 0;
+    final unlockedChapter = SaveManager.developerAllChapters ? 5 : 0;
 
     return Scaffold(
       body: Stack(
@@ -110,16 +107,18 @@ class HomePage extends StatelessWidget {
                             showDialog(
                               context: context,
                               builder: (_) => const _DeveloperDialog(),
-                            );
+                            ).then((_) {
+                              (context as Element).markNeedsBuild();
+                            });
                           },
                         ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                const Text(
                   'Rebirth 2048',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -279,16 +278,130 @@ class _TopButton extends StatelessWidget {
     );
   }
 }
-class _DeveloperDialog extends StatelessWidget {
+
+class _DeveloperDialog extends StatefulWidget {
   const _DeveloperDialog();
+
+  @override
+  State<_DeveloperDialog> createState() => _DeveloperDialogState();
+}
+
+class _DeveloperDialogState extends State<_DeveloperDialog> {
+  bool get _allChapters => SaveManager.developerAllChapters;
+  bool get _allTools => SaveManager.developerAllTools;
+  bool get _unlimitedTools => SaveManager.developerUnlimitedTools;
+
+  Future<void> _setAllChapters(bool value) async {
+    await SaveManager.setDeveloperAllChapters(value);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _setAllTools(bool value) async {
+    await SaveManager.setDeveloperAllTools(value);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _setUnlimitedTools(bool value) async {
+    await SaveManager.setDeveloperUnlimitedTools(value);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _restoreLives() async {
+    await LifeManager.resetToNormal();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lives restored to 5')),
+      );
+      setState(() {});
+    }
+  }
+
+  void _enterChapter(GameChapter chapter) {
+    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Evolution2048Page(initialChapter: chapter),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Developer Mode'),
-      content: const Text(
-        'Developer tools will be added here.\n\n'
-        'Current status: ENABLED',
+      content: SizedBox(
+        width: 380,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('Unlock All Chapters'),
+                subtitle: const Text('Show Chapters 1–6 as unlocked'),
+                value: _allChapters,
+                onChanged: _setAllChapters,
+              ),
+              ListTile(
+                leading: const Icon(Icons.favorite),
+                title: const Text('Restore 5 Lives'),
+                onTap: _restoreLives,
+              ),
+              SwitchListTile(
+                title: const Text('Unlock All Tools'),
+                subtitle: const Text('Make all four tools available'),
+                value: _allTools,
+                onChanged: _setAllTools,
+              ),
+              SwitchListTile(
+                title: const Text('Unlimited Tools'),
+                subtitle: const Text('Tool uses will not decrease'),
+                value: _unlimitedTools,
+                onChanged: _setUnlimitedTools,
+              ),
+              const Divider(),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    'Enter Chapter',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              ListTile(
+                dense: true,
+                title: const Text('Chapter 1 — Ocean'),
+                onTap: () => _enterChapter(GameChapter.ocean),
+              ),
+              ListTile(
+                dense: true,
+                title: const Text('Chapter 2 — Land'),
+                onTap: () => _enterChapter(GameChapter.land),
+              ),
+              ListTile(
+                dense: true,
+                title: const Text('Chapter 3 — Sky'),
+                onTap: () => _enterChapter(GameChapter.sky),
+              ),
+              ListTile(
+                dense: true,
+                title: const Text('Chapter 4 — History'),
+                onTap: () => _enterChapter(GameChapter.history),
+              ),
+              ListTile(
+                dense: true,
+                title: const Text('Chapter 5 — Technology'),
+                onTap: () => _enterChapter(GameChapter.tech),
+              ),
+              ListTile(
+                dense: true,
+                title: const Text('Chapter 6 — Space'),
+                onTap: () => _enterChapter(GameChapter.universe),
+              ),
+            ],
+          ),
+        ),
       ),
       actions: [
         TextButton(
