@@ -13,6 +13,7 @@ class ToolManager {
 
   static const String _saveKey = 'toolUses';
   static const String _claimedKey = 'toolRewardsClaimed';
+  static const int _developerUnlimitedUses = 999999;
 
   final Map<GameToolType, int> _uses = <GameToolType, int>{};
   final Set<String> _rewardsClaimed = <String>{};
@@ -47,12 +48,10 @@ class ToolManager {
 
     for (final type in toolsForChapter(chapter)) {
       final gameTool = _gameToolForType(type);
-
-      // Chapter 1 starts with one UNDO.
-      // Later chapters start at zero and receive uses from chapter rewards
-      // or shop purchases.
-      final initialUses = _uses[type] ??
-          (chapter == GameChapter.ocean ? gameTool.maxUses : 0);
+      final initialUses = SaveManager.developerUnlimitedTools
+          ? _developerUnlimitedUses
+          : (_uses[type] ??
+              (chapter == GameChapter.ocean ? gameTool.maxUses : 0));
 
       _tools.add(
         ToolState(
@@ -62,8 +61,9 @@ class ToolManager {
       );
     }
   }
+
   void _claimNextChapterRewardIfNeeded() {
-    if (chapter == GameChapter.ocean) return;
+    if (chapter == GameChapter.ocean || SaveManager.developerAllTools) return;
 
     final previousChapter = GameChapter.values[chapter.index - 1];
     final save = SaveManager.loadCached();
@@ -120,12 +120,22 @@ class ToolManager {
     }
 
     for (final tool in _tools) {
-      tool.usesRemaining = _uses[tool.tool.type] ?? 0;
+      tool.usesRemaining = SaveManager.developerUnlimitedTools
+          ? _developerUnlimitedUses
+          : (_uses[tool.tool.type] ?? 0);
     }
   }
+
   bool use(GameToolType type) {
     final tool = getTool(type);
-    if (tool == null || !tool.use()) return false;
+    if (tool == null || !tool.canUse) return false;
+
+    if (SaveManager.developerUnlimitedTools) {
+      tool.usesRemaining = _developerUnlimitedUses;
+      return true;
+    }
+
+    if (!tool.use()) return false;
     _uses[type] = tool.usesRemaining;
     _persistProgress();
     return true;
@@ -163,7 +173,9 @@ class ToolManager {
 
   void reset() {
     for (final tool in _tools) {
-      tool.usesRemaining = _uses[tool.tool.type] ?? tool.usesRemaining;
+      tool.usesRemaining = SaveManager.developerUnlimitedTools
+          ? _developerUnlimitedUses
+          : (_uses[tool.tool.type] ?? tool.usesRemaining);
     }
   }
 
@@ -175,6 +187,10 @@ class ToolManager {
   }
 
   static List<GameToolType> toolsForChapter(GameChapter chapter) {
+    if (SaveManager.developerAllTools) {
+      return List<GameToolType>.from(GameToolType.values);
+    }
+
     return switch (chapter) {
       GameChapter.ocean => [GameToolType.timeRewind],
       GameChapter.land => [GameToolType.timeRewind, GameToolType.positionSwap],
@@ -208,7 +224,11 @@ class ToolManager {
       if (value is num) {
         _uses[type] = value.toInt().clamp(0, 1000000);
         final tool = getTool(type);
-        if (tool != null) tool.usesRemaining = _uses[type]!;
+        if (tool != null) {
+          tool.usesRemaining = SaveManager.developerUnlimitedTools
+              ? _developerUnlimitedUses
+              : _uses[type]!;
+        }
       }
     }
   }
