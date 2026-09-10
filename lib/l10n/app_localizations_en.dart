@@ -219,5 +219,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get life => 'Life';
 
   @override
+  String get playerInfo => 'Player Info';
+
+  @override
+  String get shop => 'Shop';
+
+  @override
   String get gameTime => 'Game Time';
 }

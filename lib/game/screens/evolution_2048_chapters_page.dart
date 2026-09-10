@@ -1,9 +1,9 @@
-﻿import 'dart:math';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-enum _Chapter { ocean, land, sky, history, tech }
+enum _Chapter { ocean, land, sky, history, tech, universe }
 
 enum _Tool { revive, rewind, swap, duplicate }
 
@@ -84,6 +84,12 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       'assets/backgrounds/chapter_05_tech/tech_03_future_city.png',
       'assets/backgrounds/chapter_05_tech/tech_04_space_civilization.png',
     ],
+    _Chapter.universe: [
+      'assets/backgrounds/chapter_06_universe/universe_bg_01_origin.jpg',
+      'assets/backgrounds/chapter_06_universe/universe_bg_02_earth.jpg',
+      'assets/backgrounds/chapter_06_universe/universe_bg_03_expansion.jpg',
+      'assets/backgrounds/chapter_06_universe/universe_bg_04_civilization.jpg',
+    ],
   };
 
   static const _completeBackgrounds = <_Chapter, String>{
@@ -95,6 +101,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     _Chapter.history:
         'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png',
     _Chapter.tech: 'assets/backgrounds/chapter_05_tech/tech_complete.png',
+    _Chapter.universe: 'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg',
   };
 
   @override
@@ -116,6 +123,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     _Chapter.sky: 16384,
     _Chapter.history: 32768,
     _Chapter.tech: 65536,
+    _Chapter.universe: 131072,
   }[_chapter]!;
 
   String get _title => const {
@@ -123,22 +131,32 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     _Chapter.land: 'Land Chapter',
     _Chapter.sky: 'Sky Chapter',
     _Chapter.history: 'History Chapter',
-    _Chapter.tech: 'Tech Chapter',
+    _Chapter.tech: 'Technology Chapter',
+    _Chapter.universe: 'Universe Chapter',
   }[_chapter]!;
 
   List<_Tool> get _tools => switch (_chapter) {
-    _Chapter.ocean => const [_Tool.revive],
-    _Chapter.land => const [_Tool.revive],
-    _Chapter.sky => const [_Tool.revive, _Tool.rewind],
-    _Chapter.history => const [_Tool.revive, _Tool.rewind, _Tool.swap],
-    _Chapter.tech => const [
-      _Tool.revive,
+    _Chapter.ocean => const [_Tool.rewind],
+    _Chapter.land => const [_Tool.rewind, _Tool.swap],
+    _Chapter.sky => const [
       _Tool.rewind,
       _Tool.swap,
+      _Tool.revive,
+    ],
+    _Chapter.history => const [
+      _Tool.rewind,
+      _Tool.swap,
+      _Tool.revive,
       _Tool.duplicate,
     ],
+    _Chapter.tech => const [
+      _Tool.rewind,
+      _Tool.swap,
+      _Tool.revive,
+      _Tool.duplicate,
+    ],
+    _Chapter.universe => const [_Tool.rewind],
   };
-
   void _resetBoard() {
     _tiles = List<int?>.filled(16, null);
     _previous = null;
@@ -412,7 +430,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
           if (!mounted) {
             return;
           }
-          if (chapter == _Chapter.tech) {
+          if (chapter == _Chapter.universe) {
             _focus.requestFocus();
             return;
           }
@@ -685,6 +703,8 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
         return images[value];
       case _Chapter.tech:
         return _techCreatures[value];
+      case _Chapter.universe:
+        return null;
     }
   }
 }
@@ -882,4 +902,6 @@ class _CompletePage extends StatelessWidget {
     ),
   );
 }
+
+
 

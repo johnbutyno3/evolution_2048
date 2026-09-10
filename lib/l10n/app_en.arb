@@ -68,5 +68,7 @@
   "authSkip": "Skip and enter the game",
   "authTooManyRequests": "Too many requests. Please try again later.",
   "life": "Life",
+  "playerInfo": "Player Info",
+  "shop": "Shop",
   "gameTime": "Game Time"
 }

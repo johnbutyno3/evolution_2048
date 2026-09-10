@@ -506,6 +506,18 @@ abstract class AppLocalizations {
   /// **'Life'**
   String get life;
 
+  /// No description provided for @playerInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Info'**
+  String get playerInfo;
+
+  /// No description provided for @shop.
+  ///
+  /// In en, this message translates to:
+  /// **'Shop'**
+  String get shop;
+
   /// No description provided for @gameTime.
   ///
   /// In en, this message translates to:

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -8,6 +8,7 @@ class SaveManager {
   static const String _saveKey = 'rebirth_2048_local_save_v1';
   static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
   static const String _profileNameKey = 'rebirth_2048_profile_name_v1';
+  static const String _developerModeKey = 'rebirth_2048_developer_mode_v1';
 
   static SharedPreferences? _preferences;
   static Map<String, dynamic>? _cachedSave;
@@ -29,6 +30,15 @@ class SaveManager {
 
   static String? get profileName {
     return _preferences?.getString(_profileNameKey);
+  }
+
+  static bool get developerMode {
+    return _preferences?.getBool(_developerModeKey) ?? false;
+  }
+
+  static Future<void> setDeveloperMode(bool enabled) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setBool(_developerModeKey, enabled);
   }
 
   static bool get hasProfile {

@@ -13,7 +13,9 @@ import '../../screens/shop_page.dart';
 import '../../l10n/app_localizations.dart';
 
 class Evolution2048Page extends StatefulWidget {
-  const Evolution2048Page({super.key});
+  const Evolution2048Page({super.key, this.initialChapter});
+
+  final GameChapter? initialChapter;
 
   @override
   State<Evolution2048Page> createState() => _Evolution2048PageState();
@@ -21,7 +23,7 @@ class Evolution2048Page extends StatefulWidget {
 
 class _Evolution2048PageState extends State<Evolution2048Page>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  GameEngine _engine = GameEngine(chapter: GameChapter.ocean);
+  late GameEngine _engine;
 
   final FocusNode _focusNode = FocusNode();
 
@@ -114,6 +116,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   @override
   void initState() {
+    _engine = GameEngine(chapter: widget.initialChapter ?? GameChapter.ocean);
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
@@ -1474,3 +1477,8 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
+
+
+
+

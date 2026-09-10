@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../game/services/audio_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../game/services/save_manager.dart';
-import 'profile_page.dart';
+import 'login_register_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -64,7 +64,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     Navigator.of(
       context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const ProfilePage()));
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginRegisterPage()));
   }
 
   @override
@@ -214,3 +214,4 @@ class _OnboardingItem {
     required this.description,
   });
 }
+

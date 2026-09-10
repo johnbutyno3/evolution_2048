@@ -1,9 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
-import 'game/screens/life_aware_evolution_2048_page.dart';
 import 'game/services/gold_manager.dart';
 import 'game/services/life_manager.dart';
 import 'game/services/save_manager.dart';
@@ -11,6 +10,7 @@ import 'l10n/app_localizations.dart';
 import 'screens/login_register_page.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/profile_page.dart';
+import 'screens/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,15 +34,15 @@ class Rebirth2048App extends StatelessWidget {
       return const OnboardingPage();
     }
 
-    if (!SaveManager.hasProfile) {
-      return const ProfilePage();
-    }
-
     if (FirebaseAuth.instance.currentUser == null) {
       return const LoginRegisterPage();
     }
 
-    return const LifeAwareEvolution2048Page();
+    if (!SaveManager.hasProfile) {
+      return const ProfilePage();
+    }
+
+    return const HomePage();
   }
 
   @override
@@ -60,3 +60,5 @@ class Rebirth2048App extends StatelessWidget {
     );
   }
 }
+
+

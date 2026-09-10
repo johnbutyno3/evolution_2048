@@ -38,19 +38,35 @@ class _LifeAwareEvolution2048PageState
   Future<void> _initialize() async {
     await LifeManager.initialize();
 
-    // The first actual game start consumes one life. Once a save exists,
-    // reopening the app resumes that state without consuming another life.
     final saved = SaveManager.loadCached();
-    final hasSavedGame = saved != null &&
+    final hasSavedGame =
+        saved != null &&
         saved['tiles'] is List &&
         (saved['tiles'] as List).length == 16;
 
-    _allowSavedTerminalState = hasSavedGame &&
-        (saved['gameOver'] == true || saved['chapterComplete'] == true);
+    final savedGameOver = saved?['gameOver'] == true;
+    final savedChapterComplete = saved?['chapterComplete'] == true;
 
-    final allowed = hasSavedGame
-        ? LifeManager.lifeCount > 0 || _allowSavedTerminalState
-        : await LifeManager.consumeLife();
+    _allowSavedTerminalState =
+        hasSavedGame && (savedGameOver || savedChapterComplete);
+
+    final savedLifeCount = LifeManager.lifeCount;
+
+    final isFirstGameplayStart =
+        !LifeManager.isGoldenMember &&
+        savedLifeCount >= LifeManager.normalCap &&
+        !savedGameOver &&
+        !savedChapterComplete;
+
+    bool allowed;
+
+    if (isFirstGameplayStart) {
+      allowed = await LifeManager.consumeLife();
+    } else if (hasSavedGame) {
+      allowed = savedLifeCount > 0 || _allowSavedTerminalState;
+    } else {
+      allowed = await LifeManager.consumeLife();
+    }
 
     if (!mounted) {
       return;
