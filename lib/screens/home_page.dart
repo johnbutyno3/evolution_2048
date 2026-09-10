@@ -307,7 +307,7 @@ class _DeveloperDialogState extends State<_DeveloperDialog> {
   }
 
   Future<void> _restoreLives() async {
-    await LifeManager.resetToNormal();
+    await LifeManager.restoreFiveLivesForDeveloper();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lives restored to 5')),
