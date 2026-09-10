@@ -1,4 +1,3 @@
-import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'save_manager.dart';
 
@@ -103,7 +102,6 @@ class ToolManager {
 
   bool canUse(GameToolType type) => getTool(type)?.canUse ?? false;
 
-  /// Refresh tool uses from the persistent save.
   void refreshFromSavedProgress() {
     _uses.clear();
 
@@ -141,7 +139,6 @@ class ToolManager {
     return true;
   }
 
-  /// Adds shop-purchased uses to the global persistent tool wallet.
   static Future<void> addPurchasedUses(GameToolType type, int amount) async {
     if (amount <= 0) return;
     final save = SaveManager.loadCached() ?? <String, dynamic>{};
@@ -192,39 +189,28 @@ class ToolManager {
     }
 
     return switch (chapter) {
-      // UNDO is available in every chapter.
       GameChapter.ocean => [GameToolType.timeRewind],
-
-      // REMOVE is added from Chapter 2.
       GameChapter.land => [
           GameToolType.timeRewind,
           GameToolType.revive,
         ],
-
-      // SWAP is added from Chapter 3.
       GameChapter.sky => [
           GameToolType.timeRewind,
           GameToolType.revive,
           GameToolType.positionSwap,
         ],
-
-      // DUPLICATE is added from Chapter 4, with no tile-value restriction.
       GameChapter.history => [
           GameToolType.timeRewind,
           GameToolType.revive,
           GameToolType.positionSwap,
           GameToolType.duplicate,
         ],
-
-      // Chapter 5 keeps all four tools.
       GameChapter.tech => [
           GameToolType.timeRewind,
           GameToolType.revive,
           GameToolType.positionSwap,
           GameToolType.duplicate,
         ],
-
-      // Chapter 6 keeps UNDO only.
       GameChapter.universe => [GameToolType.timeRewind],
     };
   }
