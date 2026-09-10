@@ -49,9 +49,13 @@ class ToolManager {
     for (final type in toolsForChapter(chapter)) {
       final gameTool = _gameToolForType(type);
       final savedUses = _uses[type];
+
+      // Tool inventory is global and cumulative. Never reset an existing
+      // balance when changing chapters. Chapter 1 starts with one UNDO only.
       final initialUses = SaveManager.developerUnlimitedTools
           ? _developerUnlimitedUses
-          : (savedUses != null && savedUses > 0 ? savedUses : gameTool.maxUses);
+          : (savedUses ??
+              (chapter == GameChapter.ocean ? gameTool.maxUses : 0));
 
       _tools.add(
         ToolState(
@@ -75,15 +79,14 @@ class ToolManager {
     final rewardKey = previousChapter.name;
     if (_rewardsClaimed.contains(rewardKey)) return;
 
-    // Chapter tools are granted as one available use. Do not stack an extra use
-    // on top of a saved/shop-purchased balance.
+    // Completing the previous chapter grants exactly one use of each tool
+    // available in the new chapter. Existing inventory is always preserved
+    // and the new reward is added on top of it.
     for (final type in toolsForChapter(chapter)) {
       final current = _uses[type] ?? 0;
-      if (current < 1) {
-        _uses[type] = 1;
-        final tool = getTool(type);
-        if (tool != null) tool.usesRemaining = 1;
-      }
+      _uses[type] = current + 1;
+      final tool = getTool(type);
+      if (tool != null) tool.usesRemaining = _uses[type]!;
     }
 
     _rewardsClaimed.add(rewardKey);
@@ -126,7 +129,7 @@ class ToolManager {
     for (final tool in _tools) {
       tool.usesRemaining = SaveManager.developerUnlimitedTools
           ? _developerUnlimitedUses
-          : (_uses[tool.tool.type] ?? tool.tool.maxUses);
+          : (_uses[tool.tool.type] ?? 0);
     }
   }
 
@@ -178,7 +181,7 @@ class ToolManager {
     for (final tool in _tools) {
       tool.usesRemaining = SaveManager.developerUnlimitedTools
           ? _developerUnlimitedUses
-          : (_uses[tool.tool.type] ?? tool.usesRemaining);
+          : (_uses[tool.tool.type] ?? 0);
     }
   }
 
