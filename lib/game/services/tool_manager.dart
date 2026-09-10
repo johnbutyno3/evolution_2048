@@ -1,3 +1,4 @@
+import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'save_manager.dart';
 
@@ -47,10 +48,10 @@ class ToolManager {
 
     for (final type in toolsForChapter(chapter)) {
       final gameTool = _gameToolForType(type);
+      final savedUses = _uses[type];
       final initialUses = SaveManager.developerUnlimitedTools
           ? _developerUnlimitedUses
-          : (_uses[type] ??
-              (chapter == GameChapter.ocean ? gameTool.maxUses : 0));
+          : (savedUses != null && savedUses > 0 ? savedUses : gameTool.maxUses);
 
       _tools.add(
         ToolState(
@@ -74,10 +75,15 @@ class ToolManager {
     final rewardKey = previousChapter.name;
     if (_rewardsClaimed.contains(rewardKey)) return;
 
+    // Chapter tools are granted as one available use. Do not stack an extra use
+    // on top of a saved/shop-purchased balance.
     for (final type in toolsForChapter(chapter)) {
-      _uses[type] = (_uses[type] ?? 0) + 1;
-      final tool = getTool(type);
-      if (tool != null) tool.usesRemaining = _uses[type]!;
+      final current = _uses[type] ?? 0;
+      if (current < 1) {
+        _uses[type] = 1;
+        final tool = getTool(type);
+        if (tool != null) tool.usesRemaining = 1;
+      }
     }
 
     _rewardsClaimed.add(rewardKey);
@@ -120,7 +126,7 @@ class ToolManager {
     for (final tool in _tools) {
       tool.usesRemaining = SaveManager.developerUnlimitedTools
           ? _developerUnlimitedUses
-          : (_uses[tool.tool.type] ?? 0);
+          : (_uses[tool.tool.type] ?? tool.tool.maxUses);
     }
   }
 
