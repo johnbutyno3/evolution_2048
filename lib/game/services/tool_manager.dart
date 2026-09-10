@@ -192,11 +192,39 @@ class ToolManager {
     }
 
     return switch (chapter) {
+      // UNDO is available in every chapter.
       GameChapter.ocean => [GameToolType.timeRewind],
-      GameChapter.land => [GameToolType.timeRewind, GameToolType.positionSwap],
-      GameChapter.sky => [GameToolType.timeRewind, GameToolType.positionSwap, GameToolType.revive],
-      GameChapter.history => [GameToolType.timeRewind, GameToolType.positionSwap, GameToolType.revive, GameToolType.duplicate],
-      GameChapter.tech => [GameToolType.timeRewind, GameToolType.positionSwap, GameToolType.revive, GameToolType.duplicate],
+
+      // REMOVE is added from Chapter 2.
+      GameChapter.land => [
+          GameToolType.timeRewind,
+          GameToolType.revive,
+        ],
+
+      // SWAP is added from Chapter 3.
+      GameChapter.sky => [
+          GameToolType.timeRewind,
+          GameToolType.revive,
+          GameToolType.positionSwap,
+        ],
+
+      // DUPLICATE is added from Chapter 4, with no tile-value restriction.
+      GameChapter.history => [
+          GameToolType.timeRewind,
+          GameToolType.revive,
+          GameToolType.positionSwap,
+          GameToolType.duplicate,
+        ],
+
+      // Chapter 5 keeps all four tools.
+      GameChapter.tech => [
+          GameToolType.timeRewind,
+          GameToolType.revive,
+          GameToolType.positionSwap,
+          GameToolType.duplicate,
+        ],
+
+      // Chapter 6 keeps UNDO only.
       GameChapter.universe => [GameToolType.timeRewind],
     };
   }
