@@ -45,7 +45,7 @@ class GameTool {
   static const GameTool duplicate = GameTool(
     type: GameToolType.duplicate,
     name: 'DUPLICATE',
-    description: 'Copy a tile up to value 256 to an empty position.',
+    description: 'Copy any tile to an empty position.',
     maxUses: 1,
   );
 }
