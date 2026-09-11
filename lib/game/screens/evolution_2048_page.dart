@@ -33,6 +33,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _gameOverDialogShowing = false;
   bool _chapterCompleteShowing = false;
   bool _completionAnimationPlaying = false;
+  bool _completionAnimationFinished = false;
 
   late final AnimationController _completionAnimationController;
   int? _completionAnimationIndex;
@@ -151,6 +152,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     WidgetsBinding.instance.removeObserver(this);
     _stopUiRefreshTimer();
     _engine.pauseGameTimer();
+    unawaited(AudioManager.instance.stopMusic());
     _completionAnimationController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -207,8 +209,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     setState(() {
       _completionAnimationPlaying = false;
-      _completionAnimationIndex = null;
-      _completionAnimationImagePath = null;
     });
 
     _showChapterComplete();
@@ -384,7 +384,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final index = _completionAnimationIndex;
     final imagePath = _completionAnimationImagePath;
 
-    if (!_completionAnimationPlaying || index == null || imagePath == null) {
+    if ((!_completionAnimationPlaying && !_completionAnimationFinished) ||
+        index == null ||
+        imagePath == null) {
       return const SizedBox.shrink();
     }
 
@@ -416,7 +418,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                   _completionAnimationController.value,
                 );
                 final center = Offset.lerp(startCenter, boardCenter, progress)!;
-                final scale = 1 + progress * 1.5;
+                final scale = 1 + progress * 3.0;
 
                 return Transform.translate(
                   offset: center - boardCenter,
@@ -1004,7 +1006,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35);
 
-    // 撌脰圾???函?極?瑚??舫?????鞈潸眺???嗡????
+    // ???謘???踐???扔???????賹?????螂??蹐?????????拆
     final canOpenShop = unlocked && !state.canUse;
     final canTap = selected || enabled || canOpenShop;
 
@@ -1178,14 +1180,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           IconButton(
             onPressed: () {
               unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
-              _reset();
-            },
-            tooltip: 'Restart',
-            icon: const Icon(Icons.refresh),
-          ),
-          IconButton(
-            onPressed: () {
-              unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
               _debugCompleteChapter();
             },
             tooltip: 'Test Chapter Complete',
@@ -1233,12 +1227,37 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${l10n.life} ♥ ${_engine.lives}$lifeCountdown',
+                            '${l10n.life} ${_engine.lives}$lifeCountdown',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          Text(
-                            '${l10n.gameTime} ${_engine.formattedGameTime}',
-                            style: Theme.of(context).textTheme.titleMedium,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${l10n.gameTime} ${_engine.formattedGameTime}',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              IconButton(
+                                onPressed: _completionAnimationPlaying
+                                    ? null
+                                    : () {
+                                        unawaited(
+                                          AudioManager.instance.playSfx(
+                                            GameSfx.buttonClick,
+                                          ),
+                                        );
+                                        _reset();
+                                      },
+                                tooltip: 'Restart',
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                icon: const Icon(Icons.refresh, size: 20),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1292,11 +1311,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                                 itemCount: 16,
                                 itemBuilder: (context, index) {
                                   final tile = _engine.board.tiles[index];
-                                  final isAnimatedTile =
-                                      _completionAnimationPlaying &&
-                                      _completionAnimationIndex == index;
-
-                                  final selected = _firstSwapIndex == index;
+final selected = _firstSwapIndex == index;
 
                                   return GestureDetector(
                                     onTap: () => _selectToolTile(index),
@@ -1322,7 +1337,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                                             ? 2
                                             : 6,
                                       ),
-                                      child: tile == null || isAnimatedTile
+                                      child: tile == null
                                           ? const SizedBox.shrink()
                                           : Image.asset(
                                               tile.creature.imagePath,
@@ -1447,7 +1462,7 @@ class _ChapterCompletePage extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   Text(
-                    'Score $score  ?? Highest $highestValue',
+                    'Score $score  ·  Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
 
@@ -1477,6 +1492,15 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
 
 
 

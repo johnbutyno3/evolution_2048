@@ -39,15 +39,21 @@ class SaveManager {
     return _preferences?.getBool(_developerModeKey) ?? false;
   }
 
-  static Future<void> setDeveloperMode(bool enabled) async {
-    _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setBool(_developerModeKey, enabled);
-    if (!enabled) {
-      await setDeveloperAllChapters(false);
-      await setDeveloperAllTools(false);
-      await setDeveloperUnlimitedTools(false);
-    }
+ static Future<void> setDeveloperMode(bool enabled) async {
+  _preferences ??= await SharedPreferences.getInstance();
+
+  await _preferences!.setBool(_developerModeKey, enabled);
+
+  if (enabled) {
+    await _preferences!.setBool(_developerAllChaptersKey, true);
+    await _preferences!.setBool(_developerAllToolsKey, true);
+    await _preferences!.setBool(_developerUnlimitedToolsKey, true);
+  } else {
+    await _preferences!.setBool(_developerAllChaptersKey, false);
+    await _preferences!.setBool(_developerAllToolsKey, false);
+    await _preferences!.setBool(_developerUnlimitedToolsKey, false);
   }
+}
 
   static bool get developerAllChapters {
     return developerMode &&

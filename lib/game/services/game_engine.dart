@@ -122,6 +122,17 @@ class GameEngine {
     return true;
   }
 
+  /// Consume one life when a gameplay page is entered.
+  bool consumeLifeForGameEntry() {
+    if (_lives <= 0) {
+      return false;
+    }
+
+    _deductLife();
+    _saveLocal();
+    return true;
+  }
+
   void _deductLife() {
     if (!LifeManager.consumeLifeNow()) return;
 
@@ -568,7 +579,8 @@ class GameEngine {
     int secondRow,
     int secondColumn,
   ) {
-    if (_chapter != GameChapter.land &&
+    if (!SaveManager.developerAllTools &&
+        _chapter != GameChapter.land &&
         _chapter != GameChapter.sky &&
         _chapter != GameChapter.history &&
         _chapter != GameChapter.tech) {
@@ -623,7 +635,9 @@ class GameEngine {
     int targetRow,
     int targetColumn,
   ) {
-    if ((_chapter != GameChapter.history && _chapter != GameChapter.tech) ||
+    if ((!SaveManager.developerAllTools &&
+        _chapter != GameChapter.history &&
+        _chapter != GameChapter.tech) ||
         chapterComplete) {
       return false;
     }
@@ -891,7 +905,6 @@ class GameEngine {
 
       if (gameOver) {
         _stopGameTimer();
-        deductLifeForGameOver();
       }
 
       _saveLocal();
@@ -925,7 +938,6 @@ class GameEngine {
 
     if (gameOver) {
       _stopGameTimer();
-      deductLifeForGameOver();
     }
 
     _updateBestScore();
@@ -1025,3 +1037,10 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
+
+
+
+
+
+
+
