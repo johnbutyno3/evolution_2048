@@ -93,6 +93,28 @@ class LifeManager {
     return true;
   }
 
+  /// Refund the life consumed by the board when that board completes a
+  /// chapter successfully. Completing a chapter is not a death.
+  ///
+  /// The refund is capped at the normal five-life pool. Calling this more
+  /// than once for the same board is prevented by the engine's
+  /// board-life-active state.
+  static Future<void> refundChapterCompletionLife() async {
+    if (isGoldenMember) return;
+
+    _applyAutomaticRegeneration();
+    if (_lifeCount < normalCap) {
+      _lifeCount++;
+    }
+
+    if (_lifeCount >= normalCap) {
+      _lifeCount = normalCap;
+      _regenStart = null;
+    }
+
+    await _persist();
+  }
+
   /// Add purchased lives. Purchased lives may exceed the normal cap of 5.
   static Future<void> addPurchasedLives(int amount) async {
     if (amount <= 0 || isGoldenMember) return;
