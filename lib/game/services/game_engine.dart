@@ -21,7 +21,12 @@ class GameEngine {
     final saved = SaveManager.loadCached(
       chapter: _chapter.name,
     );
-    if (saved != null && _shouldRestoreSavedChapter(saved)) {
+    final savedBoardEnded = saved != null &&
+        (saved['gameOver'] == true || saved['chapterComplete'] == true);
+
+    if (saved != null &&
+        _shouldRestoreSavedChapter(saved) &&
+        !savedBoardEnded) {
       restoreFromSaveData(saved);
     }
 
@@ -32,9 +37,6 @@ class GameEngine {
 
     // A genuinely new board consumes exactly one life.
     // Restored boards keep their existing board life.
-    final savedBoardEnded = saved != null &&
-        (saved['gameOver'] == true || saved['chapterComplete'] == true);
-
     final hasSavedBoard = saved != null &&
         _shouldRestoreSavedChapter(saved) &&
         !savedBoardEnded &&
@@ -42,6 +44,7 @@ class GameEngine {
         (saved['tiles'] as List).length == boardSize * boardSize;
 
     if (!hasSavedBoard) {
+      _boardLifeActive = false;
       consumeLifeForGameEntry();
     }
 
@@ -1056,6 +1059,7 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
+
 
 
 
