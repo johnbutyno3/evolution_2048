@@ -31,8 +31,8 @@ class PlayerProgressService {
   }
 
   Future<void> refresh() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) {
+    final user = _auth.currentUser;
+    if (user == null) {
       _unlockedChapterIndex = 0;
       _loadedFromServer = false;
       return;
@@ -41,14 +41,14 @@ class PlayerProgressService {
     try {
       final snapshot = await _firestore
           .collection('users')
-          .doc(uid)
+          .doc(user.uid)
           .collection(_progressCollection)
           .doc(_progressDocument)
           .get();
 
       final value = snapshot.data()?['unlockedChapterIndex'];
-      if (value is int) {
-        _unlockedChapterIndex = value.clamp(0, 5).toInt();
+      if (value is num) {
+        _unlockedChapterIndex = value.toInt().clamp(0, 5);
       } else {
         _unlockedChapterIndex = 0;
       }
@@ -83,9 +83,9 @@ class PlayerProgressService {
       });
 
       final data = result.data;
-      if (data is Map && data['unlockedChapterIndex'] is int) {
+      if (data is Map && data['unlockedChapterIndex'] is num) {
         _unlockedChapterIndex =
-            (data['unlockedChapterIndex'] as int).clamp(0, 5).toInt();
+            (data['unlockedChapterIndex'] as num).toInt().clamp(0, 5);
         _loadedFromServer = true;
         return true;
       }
