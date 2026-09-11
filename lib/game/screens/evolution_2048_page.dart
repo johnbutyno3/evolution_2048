@@ -877,6 +877,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _completionAnimationIndex = null;
     _completionAnimationImagePath = null;
 
+    if (result != 'next') {
+      _focusNode.requestFocus();
+      return;
+    }
+
     switch (completedChapter) {
       case GameChapter.ocean:
         _startChapter(GameChapter.land, forceNewBoard: true);
@@ -1419,13 +1424,15 @@ class _ChapterCompletePage extends StatelessWidget {
     required this.chapter,
     required this.score,
     required this.highestValue,
-    required this.onContinue,
+    required this.onNextChapter,
+    required this.onHome,
   });
 
   final GameChapter chapter;
   final int score;
   final int highestValue;
-  final VoidCallback onContinue;
+  final VoidCallback onNextChapter;
+  final VoidCallback onHome;
 
   String get _background => switch (chapter) {
     GameChapter.ocean =>
@@ -1510,6 +1517,7 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
 
 
 
