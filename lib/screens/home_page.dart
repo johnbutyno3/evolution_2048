@@ -17,28 +17,28 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 
-  static const List<_ChapterInfo> chapters = [
-    _ChapterInfo(
+  static const List<ChapterInfo> chapters = [
+    ChapterInfo(
       titleKey: 'ocean',
       image: 'assets/backgrounds/chapter_01_ocean/ocean_background_01_primordial.jpg',
     ),
-    _ChapterInfo(
+    ChapterInfo(
       titleKey: 'land',
       image: 'assets/backgrounds/chapter_02_land/land_background_01_primordial.jpg',
     ),
-    _ChapterInfo(
+    ChapterInfo(
       titleKey: 'sky',
       image: 'assets/backgrounds/chapter_03_sky/sky_background_01_low_altitude.jpg',
     ),
-    _ChapterInfo(
+    ChapterInfo(
       titleKey: 'history',
       image: 'assets/backgrounds/chapter_04_history/chapter_04_history_bg_01.png',
     ),
-    _ChapterInfo(
+    ChapterInfo(
       titleKey: 'technology',
       image: 'assets/backgrounds/chapter_05_tech/tech_01_electronic_age.png',
     ),
-    _ChapterInfo(
+    ChapterInfo(
       titleKey: 'space',
       image: 'assets/backgrounds/chapter_06_universe/universe_bg_01_origin.jpg',
     ),
@@ -209,18 +209,18 @@ String _localizedChapterTitle(BuildContext context, String key) {
   };
 }
 
-class _ChapterInfo {
+class ChapterInfo {
   final String titleKey;
   final String image;
 
-  const _ChapterInfo({
+  const ChapterInfo({
     required this.titleKey,
     required this.image,
   });
 }
 
 class _ChapterCard extends StatelessWidget {
-  final _ChapterInfo chapter;
+  final ChapterInfo chapter;
   final bool unlocked;
   final VoidCallback? onTap;
 

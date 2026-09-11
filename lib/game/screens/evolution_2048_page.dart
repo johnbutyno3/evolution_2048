@@ -10,6 +10,7 @@ import '../services/game_engine.dart';
 import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
 import '../../screens/shop_page.dart';
+import '../../services/player_progress_service.dart';
 import '../../l10n/app_localizations.dart';
 
 class Evolution2048Page extends StatefulWidget {
@@ -845,6 +846,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final completedChapter = _engine.chapter;
 
+    // Save chapter completion to the server.
+    // _chapterNumber is the player-facing 1..6 number;
+    // Firebase uses the internal 0..5 chapter index.
+    await PlayerProgressService.instance.completeChapter(
+      chapterIndex: _chapterNumber - 1,
+      highestValue: _engine.highestValue,
+      score: _engine.score,
+    );
+
     await AudioManager.instance.stopMusic();
     await AudioManager.instance.playSfxAndWait(GameSfx.chapterUnlock);
 
@@ -1037,7 +1047,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35);
 
-    // ??踝???雓???頦????????????鞈?????????頩???????????
+    // ??頦?????????????????????????????????????????????
     final canOpenShop = unlocked && !state.canUse;
     final canTap = selected || enabled || canOpenShop;
 
@@ -1521,23 +1531,3 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
