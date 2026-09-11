@@ -1,91 +1,235 @@
-# Evolution 2048 / rebirth_2048
+# Rebirth 2048
 # PROJECT STATUS
-# Last updated: 2026-09-07
+# Last updated: 2026-09-11
 
-## 1. Project
+## 1. Current Project State
 
-Evolution 2048 is a 2048-based evolution game.
+Rebirth 2048 is a 4×4 evolution/ecosystem revival game built with Flutter.
 
-Core concept:
-- 4x4 board
-- Merge identical life stages to evolve
-- Creature images instead of traditional numeric tiles
-- Six chapters
-- Mobile swipe gameplay
-- Chapter progression and persistent local save
-- Chapter-specific tools
-- Chapter complete screen/background
-- Internationalization readiness
+Core identity:
+- Player is a creator/revival AI restoring a dead planet.
+- Creature images are the main tile visuals; numeric values are internal game values.
+- Core movement and merging remain 2048-style.
+- Backgrounds and music change by chapter/evolution stage.
+- Mobile uses swipe controls.
+- Chrome is the current practical desktop test target.
+- Local save/restore is implemented.
+- Firebase project/auth integration is in progress.
+- Internationalization structure exists; English is the current UI language target. Do not add extra languages until the game is stable.
 
----
+Current branch:
+- feature/chapter1-spec-implementation
 
-## 2. Chapter Progression
+Latest verified commit:
+- 87cc97d — fix: add chapter completion next and home actions
 
-| Chapter | Name | Tiers | Unlock / Target | Tools |
-|---|---|---:|---:|---|
-| 1 | Ocean | 12 | 2048 | UNDO |
-| 2 | Land | 13 | 4096 | UNDO + SWAP |
-| 3 | Sky | 14 | 8192 | UNDO + SWAP + REMOVE |
-| 4 | History | 15 | 16384 | UNDO + SWAP + REMOVE + DUPLICATE |
-| 5 | Technology | 16 | 32768 | UNDO + SWAP + REMOVE + DUPLICATE |
-| 6 | Universe | 17 | Ultimate | UNDO |
-
-Important:
-- Do NOT change the above tool distribution.
-- Chapter 6 is an ultimate challenge.
-- Tools are disabled in challenge mode where specified by game rules.
-- Internal identifiers may still use old names:
-  - timeRewind = UNDO
-  - revive = REMOVE
-  - positionSwap = SWAP
-  - duplicate = DUPLICATE
-- User-facing names must use:
-  - UNDO
-  - REMOVE
-  - SWAP
-  - DUPLICATE
+Latest analyzer result:
+- flutter analyze → No issues found!
 
 ---
 
-## 3. Chapter 1 Ocean Creature Sequence
+## 2. Authoritative Chapter Rules
 
-1. 矽藻 - 2
-2. 鞭毛蟲 - 4
-3. 磷蝦 - 8
-4. 小丑魚 - 16
-5. 水母 - 32
-6. 魷魚 - 64
-7. 海龜 - 128
-8. 黃鰭鮪魚 - 256
-9. 鯊魚 - 512
-10. 虎鯨 - 1024
-11. 藍鯨 - 2048
-12. 海底人類 - 4096
+The current design is the six-chapter structure below. Do NOT restore the old 18-tier Chapter 1 design.
 
-Do NOT revert to the older 18-tier Chapter 1 design.
+| Chapter | Theme | Stages | Tools usable in chapter | Result |
+|---|---|---:|---|---|
+| 1 | Ocean | 12 | None | Unlock Chapter 2 |
+| 2 | Land | 13 | 1 tool type | Unlock Chapter 3 |
+| 3 | Sky | 14 | 2 tool types | Unlock Chapter 4 |
+| 4 | History | 15 | 3 tool types | Unlock Chapter 5 |
+| 5 | Technology | 16 | 4 tool types | Unlock Chapter 6 |
+| 6 | Space / Universe | 17 | Tools disabled | Ultimate challenge |
+
+Current tool identifiers used internally:
+- revive → REMOVE
+- timeRewind → UNDO
+- positionSwap → SWAP
+- duplicate → DUPLICATE
+
+User-facing tool names:
+- UNDO
+- REMOVE
+- SWAP
+- DUPLICATE
+
+Chapter 6 is the final challenge and does not allow normal tool usage.
 
 ---
 
-## 4. Current Tool UI
+## 3. Creature / Asset Progress
 
-Current required layout:
+### Chapter 1 — Ocean
 
-- Four tools in ONE horizontal row.
-- Do NOT use 2x2 layout.
-- Tool image is the main visual.
-- Small label below the image.
-- Locked tools are semi-transparent.
-- Lock icon appears ON TOP OF the tool image.
-- Locked tools cannot be used.
-- Selecting a tool does NOT remove the tool from the row.
-- Selected tool becomes semi-transparent.
-- Selected tool displays international-language label:
-  CANCEL
-- Tapping the selected tool again cancels the tool mode.
-- Do NOT add a separate Cancel button.
-- Tool press image must switch to the corresponding pressed asset.
+The current Ocean progression is 12 stages, ending at the 2048 target stage for chapter completion, with the future seabed-human visual retained as the chapter-ending/future concept asset.
 
-Tool assets:
+Assets are under:
+- assets/creatures/chapter_01_ocean/
+- assets/backgrounds/chapter_01_ocean/
+
+### Chapter 2 — Land
+
+Land chapter assets and progression are implemented as part of the current six-chapter structure.
+
+### Chapter 3 — Sky
+
+Sky backgrounds are implemented with the intended altitude progression:
+1. low altitude
+2. mid altitude
+3. high altitude
+4. space
+
+Chapter-complete background is separate and uses the completion-screen format.
+
+### Chapter 4 — History
+
+History creature assets are present under:
+- assets/creatures/chapter_04_history/
+
+History progression currently contains the 15-stage sequence through Internet.
+
+History backgrounds are present under:
+- assets/backgrounds/chapter_04_history/
+
+including the chapter completion background.
+
+### Chapter 5 — Technology
+
+Technology creature/background asset paths are already integrated into the project structure and are the next major chapter implementation area.
+
+### Chapter 6 — Space / Universe
+
+Chapter 6 is the final/ultimate challenge chapter. Chapter music/background resources exist and tools are disabled by rule.
+
+---
+
+## 4. Audio
+
+All six chapter background music tracks are now available.
+
+Audio architecture includes:
+- chapter BGM
+- UI SFX
+- gameplay SFX
+- tool-selection SFX
+- game-over/chapter-unlock system sounds
+
+Current decision:
+- Tool vibration is CANCELLED as a requirement.
+- Do not reintroduce vibration.
+- Keep pressed-image/tool feedback instead.
+
+---
+
+## 5. Life System — Confirmed Rules
+
+Persistent life pool:
+- Maximum normal life count: 5.
+- Starting a genuinely NEW board consumes 1 life.
+- Returning to the same active saved board does NOT consume another life.
+- Leaving Home, app pause, or UI rebuild does NOT consume another life.
+
+Chapter completion:
+- Completing a chapter is NOT death.
+- The life consumed when starting that chapter's board is refunded when the chapter is completed.
+- Life remains capped at 5.
+
+After chapter completion, the completion screen has exactly two actions:
+1. Next Chapter
+2. Home
+
+Next Chapter:
+- Starts a genuinely NEW board in the next chapter.
+- Uses the normal new-board rule.
+- Therefore it consumes 1 life.
+- There is NO special no-deduction exception.
+
+Home:
+- Returns to Home.
+- Does not consume another life.
+
+Re-entering a completed chapter:
+- A completed chapter has no active board to resume.
+- Re-entering it later creates a genuinely NEW board and consumes 1 life.
+
+Game Over:
+- Game Over is actual death.
+- Game Over does NOT refund life.
+- Restart creates a genuinely NEW board and therefore consumes another life.
+
+Saved terminal states:
+- Saved Game Over board is not restored as an active board.
+- Saved Chapter Complete board is not restored as an active board.
+- Re-entry from either terminal state creates a new board under the normal life rule.
+
+Implementation status:
+- Life deduction for genuinely new boards is implemented.
+- Active-board restoration without extra deduction is implemented.
+- Chapter-completion life refund is implemented.
+- Forced new-board flow for Next Chapter is implemented.
+- Terminal saved-board reset behavior is implemented.
+
+---
+
+## 6. Chapter Completion Screen — Current State
+
+The chapter completion screen has been corrected.
+
+Current behavior:
+- Shows chapter-specific completion background.
+- Shows chapter title/subtitle.
+- Shows SCORE / BEST / HIGHEST values without the previous malformed text/garbled separator.
+- Provides exactly two actions:
+  - Next Chapter
+  - Home
+- Next Chapter returns a `next` result to the game page.
+- Home returns a `home` result to the game page.
+- Next Chapter uses `forceNewBoard: true` for the next chapter so the next board is genuinely new and life deduction is applied normally.
+
+Latest commit implementing this UI:
+- 87cc97d — fix: add chapter completion next and home actions
+
+---
+
+## 7. Save / Restore
+
+Local save is implemented.
+
+Saved game state includes the active game information needed to resume, including:
+- chapter
+- board tile values
+- score
+- best score
+- tool state/penalties
+- milestone flags
+- highest evolution value
+- gameOver
+- chapterComplete
+- life-related state
+
+Important behavior:
+- Active saved board resumes without consuming another life.
+- Terminal saved states are treated as ended boards and do not resume as active boards.
+
+Save key:
+- rebirth_2048_local_save_v1
+
+---
+
+## 8. Input / Controls
+
+Implemented/current:
+- Keyboard arrow keys for Chrome/desktop testing.
+- Touch swipe for mobile.
+- Keyboard input is blocked while Game Over, Chapter Complete, completion animation, or tool-selection mode is active.
+
+Recent keyboard handling fix is complete.
+
+---
+
+## 9. Tool UI / Tool Architecture
+
+The project has the four tool assets and the four-tool UI architecture:
 
 assets/tools/
 - tool_undo.png
@@ -97,208 +241,163 @@ assets/tools/
 - tool_duplicate.png
 - tool_duplicate_pressed.png
 
-Old assets:
-- tool_revive.png = deleted
-- tool_rewind.png = deleted
+UI rules currently retained:
+- Four tools use one horizontal row where the tool UI is shown.
+- Locked tools are visually locked and cannot be used.
+- Pressed state uses the corresponding *_pressed.png asset.
+- Selecting a tool does not remove it from the row.
+- Selected tool becomes semi-transparent.
+- Selected tool shows CANCEL.
+- Tapping the selected tool again cancels the mode.
+- No separate Cancel button.
+
+Important:
+- The chapter rule decides which tools are usable.
+- Do not confuse tool inventory persistence with chapter usability.
 
 ---
 
-## 5. Vibration Decision
+## 10. Firebase / Auth / Onboarding
 
-IMPORTANT:
-Tool vibration has been tested on the Android APK.
+Firebase project:
+- rebirth-2048
 
-Result:
-- No vibration was observed.
-- Android VIBRATE permission was checked.
-- User decided to CANCEL the vibration requirement.
+FlutterFire configuration has been generated for:
+- Android
+- iOS
+- macOS
+- Web
+- Windows
 
-Final decision:
-- DO NOT continue implementing tool vibration.
-- DO NOT replace it with native Android vibration.
-- DO NOT modify unrelated vibration behavior elsewhere.
-- Keep current pressed-image behavior only.
+Required authentication options:
+- Email/password
+- Phone number + SMS code
+- Google
+- Apple
+- Skip for testing
 
----
+Current product flow:
+1. Onboarding
+2. Login/register/profile flow
+3. Directly enter the game
 
-## 6. REMOVE Safety Fix
+Do NOT reintroduce an unnecessary demo/home screen between onboarding/auth and the game.
 
-Problem found:
-If REMOVE deletes the last remaining tile, the board becomes completely empty and the game can no longer continue.
-
-Required behavior:
-- When REMOVE deletes the final tile on the board:
-  - immediately spawn one new tile
-  - game remains playable
-  - save the new board state
-
-Current local change:
-GameEngine.useRevive() has been modified to check:
-
-    if (_board.tiles.every((tile) => tile == null)) {
-      _spawnTile();
-    }
-
-This is the implementation of the user-facing REMOVE tool.
+Localization:
+- app_en.arb
+- app_zh.arb
+- Keep English as the current implementation target.
+- Do not add extra languages or modify Chinese localization while the core game is still being stabilized.
 
 ---
 
-## 7. Pressed Tool Image
+## 11. Current Important Source Files
 
-Required behavior:
+Main game:
+- lib/main.dart
+- lib/game/models/creature.dart
+- lib/game/models/game_board.dart
+- lib/game/models/game_tile.dart
+- lib/game/models/tools/game_tool.dart
+- lib/game/services/game_engine.dart
+- lib/game/services/tool_manager.dart
+- lib/game/services/save_manager.dart
+- lib/game/services/life_manager.dart
+- lib/game/services/audio_manager.dart
+- lib/game/screens/evolution_2048_page.dart
+- lib/game/screens/evolution_2048_chapters_page.dart
 
-Press tool:
-- use *_pressed.png
-
-Release tool:
-- return to normal tool image
-
-Mapping:
-- UNDO -> tool_undo_pressed.png
-- SWAP -> tool_swap_pressed.png
-- REMOVE -> tool_remove_pressed.png
-- DUPLICATE -> tool_duplicate_pressed.png
-
-This has been added to the current tool UI implementation.
-
----
-
-## 8. Save / Restore
-
-Game state is locally saved.
-
-Saved information includes:
-- chapter
-- board tile values
-- score
-- best score
-- tool penalty
-- milestone flags
-- highest evolution value
-- gameOver
-- chapterComplete
-
-Important behavior:
-- Reopening the app restores the saved board/game state.
-- Game Over state is restored.
-- Game Over screen can be shown again after reopening.
-- Restart remains available from Game Over.
+Documentation:
+- PROJECT_STATUS.md
+- docs/GAME_RULES.md
+- docs/GAME_SPEC_V1.md
+- MEMBERSHIP_AND_LIFE_RULES.md
+- SAVE_SYSTEM_SPEC.md
+- AUDIO_RULES.md
+- CREATURE_PROGRESSION_SPEC.md
+- GAME_CONTENT.md
+- GAME_SCORING_AND_FEEDBACK.md
+- MENU_RULES.md
 
 ---
 
-## 9. Current Important Source Files
+## 12. Current Development State
 
-Main game files:
+### Completed / implemented
 
-lib/main.dart
-lib/game/models/creature.dart
-lib/game/models/game_board.dart
-lib/game/models/game_tile.dart
-lib/game/models/tools/game_tool.dart
-lib/game/services/game_engine.dart
-lib/game/services/tool_manager.dart
-lib/game/services/save_manager.dart
-lib/game/screens/evolution_2048_page.dart
-lib/game/screens/evolution_2048_chapters_page.dart
+- [x] Six-chapter project structure
+- [x] Chapter progression architecture
+- [x] Creature-based 4×4 board
+- [x] Chapter backgrounds
+- [x] Six chapter BGM resources
+- [x] Local save/restore
+- [x] Active-board life preservation
+- [x] Chapter completion life refund
+- [x] Terminal saved-board reset handling
+- [x] Next Chapter starts a new board and deducts life normally
+- [x] Chapter completion screen has Next Chapter + Home only
+- [x] Completion score display cleaned up
+- [x] Keyboard arrow control
+- [x] Mobile swipe control
+- [x] Tool pressed-image feedback
+- [x] Tool selection/CANCEL behavior
+- [x] REMOVE final-tile safety behavior
+- [x] Firebase project configuration
+- [x] Onboarding/auth/profile structure
+- [x] Flutter analyze currently clean
 
-Assets:
+### Not yet considered finished
 
-assets/creatures/
-assets/backgrounds/
-assets/tools/
-
----
-
-## 10. Current Development State
-
-Recently completed / verified:
-
-- Six-chapter structure implemented.
-- Chapter progression implemented.
-- Chapter-specific tool distribution implemented.
-- Tool UI changed to four horizontal buttons.
-- Lock overlay implemented.
-- Tool selected state implemented.
-- CANCEL behavior implemented.
-- Pressed tool image behavior implemented.
-- Game Over restore behavior implemented.
-- Local save/restore implemented.
-- REMOVE final-tile safety behavior added.
-- Flutter analyzer previously verified with:
-  No issues found!
-- git diff --check previously verified successfully.
-- Android APK was generated and tested.
-- Tool vibration was tested and then explicitly cancelled as a requirement.
+- [ ] Full end-to-end play test of life rules
+- [ ] Full end-to-end test of all chapter transitions
+- [ ] Full verification of chapter-specific tool usability/locking against the latest six-chapter rules
+- [ ] Full verification of Chapter 5 Technology
+- [ ] Full verification of Chapter 6 Space/Universe
+- [ ] Final visual polish of all chapters
+- [ ] Final auth flow verification for all four sign-in methods + Skip
+- [ ] Final release validation
 
 ---
 
-## 11. Current Testing Checklist
+## 13. Immediate Next Work
 
-Before committing the latest local changes:
+Do not start another large feature yet.
 
-[ ] Four tools display in one horizontal row
-[ ] Locked tools show lock over image
-[ ] Locked tools cannot be tapped
-[ ] Pressing a tool displays *_pressed.png
-[ ] Releasing restores normal image
-[ ] Selecting a tool keeps the tool visible
-[ ] Selected tool becomes semi-transparent
-[ ] Selected tool displays CANCEL
-[ ] Tapping selected tool cancels the mode
-[ ] REMOVE can delete a tile
-[ ] REMOVE deleting the final tile creates a new tile
-[ ] Game Over survives app restart
-[ ] Restart remains available
-[ ] No tool vibration requirement
-[ ] Flutter analyze = No issues found!
-[ ] git diff --check = clean
+First:
+1. Run the game in Chrome.
+2. Verify the chapter-complete screen visually.
+3. Verify life refund on chapter completion.
+4. Verify Home does not deduct life.
+5. Verify Next Chapter creates a new board and deducts 1 life.
+6. Verify active-board re-entry does not deduct life.
+7. Verify Game Over/restart deducts life correctly.
 
----
-
-## 12. Current Known Local Changes
-
-Expected current work includes:
-
-M lib/game/screens/evolution_2048_page.dart
-M lib/game/services/game_engine.dart
-
-Do NOT commit .bak files.
-
-Temporary .bak files must be deleted before commit.
-
----
-
-## 13. Next Work
-
-Priority order:
-
-1. Complete Android APK test of the current tool UI.
-2. Verify REMOVE final-tile recovery.
-3. Verify Game Over restore/restart.
-4. Verify all six chapter transitions.
-5. Verify chapter-specific tools.
-6. Verify assets and backgrounds for all chapters.
-7. Verify chapter complete screens.
-8. Run flutter analyze.
-9. Run git diff --check.
-10. Commit and push the verified state.
-11. Continue remaining Chapter 5 / Chapter 6 implementation and polish.
+After that:
+8. Continue Chapter 5 / Chapter 6 implementation and verification.
+9. Reconcile any remaining old documentation with the current authoritative rules.
+10. Run flutter analyze and git diff --check before the next code commit.
 
 ---
 
 ## 14. Do Not Regress
 
 Do NOT:
-- restore the old 18-tier Chapter 1 list
+- restore the old 18-tier Chapter 1 design
+- reintroduce old chapter/tool distributions
+- make chapter completion consume a permanent life
+- make Next Chapter free of life cost
+- deduct life when merely reopening an active saved board
+- refund life after Game Over
+- restore a terminal saved board as an active board
+- add a third button to the chapter completion screen
+- reintroduce a Continue-only completion flow
+- reintroduce tool vibration
 - rename REMOVE back to REVIVE in the UI
 - rename UNDO back to REWIND in the UI
-- change the confirmed tool distribution
-- change the tool row back to 2x2
-- add a separate Cancel button
-- remove the selected tool from the row
-- add vibration again
-- replace pressed images with text-only pressed states
+- add a separate Cancel button for tools
+- remove the selected tool from the tool row
 - break local save/restore
 - allow REMOVE to leave the board permanently empty
+- modify extra localization files before the core game is stable
 
-This file is the continuity reference for future development sessions.
+This file is the current continuity reference for future Rebirth 2048 development sessions.
