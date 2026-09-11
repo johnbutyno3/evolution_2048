@@ -9,7 +9,9 @@ setGlobalOptions({ region: 'us-central1' });
 const db = getFirestore();
 const MAX_CHAPTER_INDEX = 5;
 
-const TARGETS = [4096, 8192, 16384, 32768, 65536, 131072];
+// Each chapter adds one evolution stage.
+const STAGE_COUNTS = [12, 13, 14, 15, 16, 17];
+const TARGETS = STAGE_COUNTS.map((stageCount) => 2 ** stageCount);
 
 exports.completeChapter = onCall(async (request) => {
   if (!request.auth) {
@@ -59,10 +61,12 @@ exports.completeChapter = onCall(async (request) => {
       );
     }
 
-    if (highestValue < TARGETS[chapterIndex]) {
+    // A chapter is complete only when its final evolution object appears.
+    // The client cannot claim a later chapter's value to complete an earlier one.
+    if (highestValue !== TARGETS[chapterIndex]) {
       throw new HttpsError(
         'failed-precondition',
-        'Chapter target has not been reached.',
+        'The chapter final evolution stage has not been reached.',
       );
     }
 
