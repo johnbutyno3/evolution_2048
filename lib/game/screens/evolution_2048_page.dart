@@ -1480,7 +1480,7 @@ class _ChapterCompletePage extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   Text(
-                    'Score $score  繚  Highest $highestValue',
+                    'Score $score    Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
 
@@ -1510,6 +1510,7 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
 
 
 
