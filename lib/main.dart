@@ -19,6 +19,11 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // FirebaseAuth restores the persisted session asynchronously. Wait for
+  // its first state event before deciding whether to show login or HomePage.
+  // Otherwise a valid signed-in account can look signed out on a cold start.
+  await FirebaseAuth.instance.authStateChanges().first;
+
   await SaveManager.initialize();
   await LifeManager.initialize();
   await GoldManager.initialize();
