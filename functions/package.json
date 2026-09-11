@@ -1,0 +1,12 @@
+{
+  "name": "rebirth-2048-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.3.2"
+  }
+}
