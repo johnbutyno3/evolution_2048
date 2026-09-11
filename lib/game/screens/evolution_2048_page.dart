@@ -879,23 +879,23 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     switch (completedChapter) {
       case GameChapter.ocean:
-        _startChapter(GameChapter.land);
+        _startChapter(GameChapter.land, forceNewBoard: true);
         break;
 
       case GameChapter.land:
-        _startChapter(GameChapter.sky);
+        _startChapter(GameChapter.sky, forceNewBoard: true);
         break;
 
       case GameChapter.sky:
-        _startChapter(GameChapter.history);
+        _startChapter(GameChapter.history, forceNewBoard: true);
         break;
 
       case GameChapter.history:
-        _startChapter(GameChapter.tech);
+        _startChapter(GameChapter.tech, forceNewBoard: true);
         break;
 
       case GameChapter.tech:
-        _startChapter(GameChapter.universe);
+        _startChapter(GameChapter.universe, forceNewBoard: true);
         break;
 
       case GameChapter.universe:
@@ -909,13 +909,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   // Start Chapter
   // ============================================================
 
-  void _startChapter(GameChapter chapter) {
+  void _startChapter(GameChapter chapter, {bool forceNewBoard = false}) {
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _engine = GameEngine(chapter: chapter);
+      _engine = GameEngine(chapter: chapter, forceNewBoard: forceNewBoard);
 
       _toolMode = null;
       _firstSwapIndex = null;
@@ -1510,6 +1510,7 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
 
 
 

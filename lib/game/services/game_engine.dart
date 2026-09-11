@@ -11,7 +11,7 @@ import 'life_manager.dart';
 import 'tool_manager.dart';
 
 class GameEngine {
-  GameEngine({Random? random, GameChapter chapter = GameChapter.ocean})
+  GameEngine({Random? random, GameChapter chapter = GameChapter.ocean, bool forceNewBoard = false})
     : _random = random ?? Random(),
       _chapter = chapter {
     _autoSaveEnabled = false;
@@ -1081,6 +1081,7 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
+
 
 
 
