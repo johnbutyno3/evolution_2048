@@ -155,6 +155,23 @@ class GameEngine {
     return true;
   }
 
+  /// Refund the life consumed by this board when the chapter is completed.
+  /// Completing a chapter is not a death.
+  bool refundLifeForChapterComplete() {
+    if (!chapterComplete || !_boardLifeActive) {
+      return false;
+    }
+
+    _boardLifeActive = false;
+
+    LifeManager.refundChapterCompletionLife();
+    _lives = LifeManager.lifeCount;
+    _nextLifeAtMillis = LifeManager.nextLifeAtMillis;
+
+    _saveLocal();
+    return true;
+  }
+
   void _deductLife() {
     if (!LifeManager.consumeLifeNow()) return;
 
@@ -1059,6 +1076,7 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
+
 
 
 
