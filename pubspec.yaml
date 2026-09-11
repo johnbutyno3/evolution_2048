@@ -48,6 +48,7 @@ flutter:
     - assets/onboarding/
     - assets/creatures/chapter_06_universe/
     - assets/backgrounds/chapter_06_universe/
+    - assets/avatars/
 
     - assets/tools/
     - assets/audio/
