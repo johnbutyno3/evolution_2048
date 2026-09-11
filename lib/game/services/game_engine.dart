@@ -1027,6 +1027,11 @@ class GameEngine {
     if (highestValue >= targetValue) {
       chapterComplete = true;
 
+      
+// Completing a chapter is not death.
+// Refund the life consumed by this board.
+      refundLifeForChapterComplete();
+
       switch (_chapter) {
         case GameChapter.ocean:
           hasReached4096 = true;
@@ -1076,6 +1081,7 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
+
 
 
 
