@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -852,15 +852,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
         builder: (context) {
           return _ChapterCompletePage(
             chapter: completedChapter,
             score: _engine.score,
             highestValue: _engine.highestValue,
-            onContinue: () {
-              Navigator.of(context).pop();
+            onNextChapter: () {
+              Navigator.of(context).pop('next');
+            },
+            onHome: () {
+              Navigator.of(context).pop('home');
             },
           );
         },
@@ -876,6 +879,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _completionAnimationPlaying = false;
     _completionAnimationIndex = null;
     _completionAnimationImagePath = null;
+
+    if (result == 'home') {
+      Navigator.of(context).pop();
+      return;
+    }
 
     if (result != 'next') {
       _focusNode.requestFocus();
@@ -1497,15 +1505,11 @@ class _ChapterCompletePage extends StatelessWidget {
                     padding: const EdgeInsets.all(24),
                     child: SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          unawaited(
-                            AudioManager.instance.playSfx(GameSfx.buttonClick),
-                          );
-                          onContinue();
-                        },
-                        child: const Text('Continue'),
-                      ),
+                      child: Column(children: [
+                        SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); onNextChapter(); }, child: const Text('Next Chapter'))),
+                        const SizedBox(height: 12),
+                        SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); onHome(); }, child: const Text('Home'))),
+                      ])
                     ),
                   ),
                 ],
