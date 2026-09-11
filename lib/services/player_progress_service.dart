@@ -48,7 +48,7 @@ class PlayerProgressService {
 
       final value = snapshot.data()?['unlockedChapterIndex'];
       if (value is int) {
-        _unlockedChapterIndex = value.clamp(0, 5);
+        _unlockedChapterIndex = value.clamp(0, 5).toInt();
       } else {
         _unlockedChapterIndex = 0;
       }
@@ -85,7 +85,7 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['unlockedChapterIndex'] is int) {
         _unlockedChapterIndex =
-            (data['unlockedChapterIndex'] as int).clamp(0, 5);
+            (data['unlockedChapterIndex'] as int).clamp(0, 5).toInt();
         _loadedFromServer = true;
         return true;
       }
