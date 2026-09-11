@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_initializing_formals
+﻿// ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
 import 'dart:math';
@@ -32,8 +32,12 @@ class GameEngine {
 
     // A genuinely new board consumes exactly one life.
     // Restored boards keep their existing board life.
+    final savedBoardEnded = saved != null &&
+        (saved['gameOver'] == true || saved['chapterComplete'] == true);
+
     final hasSavedBoard = saved != null &&
         _shouldRestoreSavedChapter(saved) &&
+        !savedBoardEnded &&
         saved['tiles'] is List &&
         (saved['tiles'] as List).length == boardSize * boardSize;
 
@@ -1052,6 +1056,7 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
+
 
 
 
