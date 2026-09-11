@@ -105,11 +105,13 @@ class PlayerInfoPage extends StatefulWidget {
 
 class _PlayerInfoPageState extends State<PlayerInfoPage> {
   late final TextEditingController _nameController;
+  late int _avatarIndex;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: SaveManager.profileName ?? '');
+    _avatarIndex = SaveManager.avatarIndex;
   }
 
   @override
@@ -129,6 +131,12 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
     setState(() {});
   }
 
+  Future<void> _selectAvatar(int index) async {
+    await SaveManager.saveAvatarIndex(index);
+    if (!mounted) return;
+    setState(() => _avatarIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -139,7 +147,19 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const CircleAvatar(radius: 44, child: Icon(Icons.person, size: 42)),
+          Center(child: _AvatarCircle(index: _avatarIndex, size: 104)),
+          const SizedBox(height: 12),
+          const Center(
+            child: Text(
+              'Choose your avatar',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _AvatarSheetPicker(
+            selectedIndex: _avatarIndex,
+            onSelected: _selectAvatar,
+          ),
           const SizedBox(height: 24),
           TextField(
             controller: _nameController,
@@ -169,12 +189,91 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
             title: const Text('Sign-in Method'),
             subtitle: Text(providers?.isNotEmpty == true ? providers! : 'Testing / guest'),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Avatar selection will use discovered creatures. Unlocked creature data will be connected here next.',
-            style: TextStyle(color: Colors.grey),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+class _AvatarSheetPicker extends StatelessWidget {
+  const _AvatarSheetPicker({
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 12,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemBuilder: (context, index) {
+        final selected = index == selectedIndex;
+        return GestureDetector(
+          onTap: () => onSelected(index),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.transparent,
+                width: 3,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(3),
+              child: _AvatarCircle(index: index, size: double.infinity),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AvatarCircle extends StatelessWidget {
+  const _AvatarCircle({required this.index, required this.size});
+
+  final int index;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final safeIndex = index.clamp(0, 11);
+    final column = safeIndex % 4;
+    final row = safeIndex ~/ 4;
+    final alignment = Alignment(
+      -1 + (column * 2 / 3),
+      -1 + (row * 2 / 2),
+    );
+
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: OverflowBox(
+          minWidth: 256,
+          maxWidth: 256,
+          minHeight: 256,
+          maxHeight: 256,
+          alignment: alignment,
+          child: Image.asset(
+            'assets/avatars/avatar_sheet.png',
+            width: 256,
+            height: 256,
+            fit: BoxFit.fill,
+            filterQuality: FilterQuality.high,
+          ),
+        ),
       ),
     );
   }
