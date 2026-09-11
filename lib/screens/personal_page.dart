@@ -441,7 +441,7 @@ class VersionInfoPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Version Info')),
-      body: const ListView(
+      body: ListView(
         padding: EdgeInsets.all(20),
         children: [
           ListTile(title: Text('App'), subtitle: Text('Rebirth 2048')),
@@ -480,3 +480,4 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
+
