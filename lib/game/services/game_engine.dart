@@ -18,7 +18,9 @@ class GameEngine {
     _initializeTools();
     reset();
 
-    final saved = SaveManager.loadCached();
+    final saved = SaveManager.loadCached(
+      chapter: _chapter.name,
+    );
     if (saved != null && _shouldRestoreSavedChapter(saved)) {
       restoreFromSaveData(saved);
     }
@@ -1050,6 +1052,7 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
+
 
 
 

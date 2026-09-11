@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -724,7 +724,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           actions: [
             TextButton(
               onPressed: () {
-                unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+                unawaited(
+                  AudioManager.instance.playSfx(GameSfx.buttonClick),
+                );
+                Navigator.of(context).pop(false);
+              },
+              child: const Text('Back'),
+            ),
+            TextButton(
+              onPressed: () {
+                unawaited(
+                  AudioManager.instance.playSfx(GameSfx.buttonClick),
+                );
                 Navigator.of(context).pop(true);
               },
               child: const Text('Restart'),
@@ -740,8 +751,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     _gameOverDialogShowing = false;
 
-    if (shouldRestart == true && _reset()) {
-      unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
+    if (shouldRestart == true) {
+      if (_reset()) {
+        unawaited(
+          AudioManager.instance.playChapterMusic(_engine.chapter),
+        );
+      }
+    } else {
+      Navigator.of(context).pop();
     }
   }
 
@@ -1007,7 +1024,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35);
 
-    // ???謘???踐???扔???????賹?????螂??蹐?????????拆
+    // ??踝???雓???頦????????????鞈?????????頩???????????
     final canOpenShop = unlocked && !state.canUse;
     final canTap = selected || enabled || canOpenShop;
 
@@ -1463,7 +1480,7 @@ class _ChapterCompletePage extends StatelessWidget {
                   const SizedBox(height: 10),
 
                   Text(
-                    'Score $score  ·  Highest $highestValue',
+                    'Score $score  繚  Highest $highestValue',
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
 
@@ -1493,6 +1510,8 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
+
 
 
 
