@@ -10,6 +10,8 @@ class SaveManager {
       'rebirth_2048_onboarding_completed_v1';
   static const String _profileNameKey =
       'rebirth_2048_profile_name_v1';
+  static const String _avatarIndexKey =
+      'rebirth_2048_avatar_index_v1';
   static const String _developerModeKey =
       'rebirth_2048_developer_mode_v1';
   static const String _developerAllChaptersKey =
@@ -21,19 +23,6 @@ class SaveManager {
 
   static SharedPreferences? _preferences;
 
-  /// The complete save container.
-  ///
-  /// {
-  ///   "version": 1,
-  ///   "savedAt": ...,
-  ///   "chapters": {
-  ///     "ocean": {...},
-  ///     "land": {...},
-  ///     ...
-  ///   },
-  ///   "toolUses": {...},
-  ///   "toolRewardsClaimed": [...]
-  /// }
   static Map<String, dynamic>? _cachedSave;
 
   static Future<void> initialize() async {
@@ -54,6 +43,16 @@ class SaveManager {
 
   static String? get profileName {
     return _preferences?.getString(_profileNameKey);
+  }
+
+  static int get avatarIndex {
+    final value = _preferences?.getInt(_avatarIndexKey) ?? 0;
+    return value.clamp(0, 11);
+  }
+
+  static Future<void> saveAvatarIndex(int index) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setInt(_avatarIndexKey, index.clamp(0, 11));
   }
 
   static bool get developerMode {
@@ -116,10 +115,6 @@ class SaveManager {
     await _preferences!.setString(_profileNameKey, name.trim());
   }
 
-  /// Returns the saved game for a specific chapter.
-  ///
-  /// If [chapter] is omitted, returns the most recently saved chapter.
-  /// This keeps ToolManager compatible with the global tool progression.
   static Map<String, dynamic>? loadCached({String? chapter}) {
     final root = _cachedSave;
     if (root == null) {
@@ -139,7 +134,6 @@ class SaveManager {
             ),
           );
 
-          // Global tool progression remains available to callers.
           if (!result.containsKey('toolUses') &&
               root['toolUses'] != null) {
             result['toolUses'] = root['toolUses'];
@@ -147,8 +141,7 @@ class SaveManager {
 
           if (!result.containsKey('toolRewardsClaimed') &&
               root['toolRewardsClaimed'] != null) {
-            result['toolRewardsClaimed'] =
-                root['toolRewardsClaimed'];
+            result['toolRewardsClaimed'] = root['toolRewardsClaimed'];
           }
 
           return result;
@@ -157,7 +150,6 @@ class SaveManager {
         return null;
       }
 
-      // No chapter requested: return the most recently saved chapter.
       final lastChapter = root['lastChapter'];
 
       if (lastChapter is String) {
@@ -177,8 +169,7 @@ class SaveManager {
 
           if (!result.containsKey('toolRewardsClaimed') &&
               root['toolRewardsClaimed'] != null) {
-            result['toolRewardsClaimed'] =
-                root['toolRewardsClaimed'];
+            result['toolRewardsClaimed'] = root['toolRewardsClaimed'];
           }
 
           return result;
@@ -186,13 +177,9 @@ class SaveManager {
       }
     }
 
-    // Backward compatibility with the old single-save format.
     return Map<String, dynamic>.from(root);
   }
 
-  /// Saves gameplay progress into the chapter-specific slot.
-  ///
-  /// Tool progression is global and remains outside the chapter slots.
   static Future<void> save(Map<String, dynamic> data) async {
     _preferences ??= await SharedPreferences.getInstance();
 
@@ -213,8 +200,7 @@ class SaveManager {
     if (existingChapters is Map) {
       for (final entry in existingChapters.entries) {
         if (entry.value is Map) {
-          chapters[entry.key.toString()] =
-              Map<String, dynamic>.from(
+          chapters[entry.key.toString()] = Map<String, dynamic>.from(
             (entry.value as Map).map(
               (key, value) => MapEntry(key.toString(), value),
             ),
@@ -229,9 +215,7 @@ class SaveManager {
       ...data,
     };
 
-    // Tool progress is global, not chapter-specific.
-    if (!chapterPayload.containsKey('toolUses') &&
-        root['toolUses'] != null) {
+    if (!chapterPayload.containsKey('toolUses') && root['toolUses'] != null) {
       chapterPayload.remove('toolUses');
     }
 
@@ -247,27 +231,20 @@ class SaveManager {
     root['lastChapter'] = chapter;
     root['chapters'] = chapters;
 
-    // Preserve global tool progression.
-    if (root['toolUses'] == null &&
-        data['toolUses'] != null) {
+    if (root['toolUses'] == null && data['toolUses'] != null) {
       root['toolUses'] = data['toolUses'];
     }
 
     if (root['toolRewardsClaimed'] == null &&
         data['toolRewardsClaimed'] != null) {
-      root['toolRewardsClaimed'] =
-          data['toolRewardsClaimed'];
+      root['toolRewardsClaimed'] = data['toolRewardsClaimed'];
     }
 
     _cachedSave = root;
 
-    await _preferences!.setString(
-      _saveKey,
-      jsonEncode(root),
-    );
+    await _preferences!.setString(_saveKey, jsonEncode(root));
   }
 
-  /// Saves global tool progression without changing chapter boards.
   static Future<void> saveToolProgress({
     required Map<String, int> toolUses,
     required List<String> rewardsClaimed,
@@ -285,10 +262,7 @@ class SaveManager {
 
     _cachedSave = root;
 
-    await _preferences!.setString(
-      _saveKey,
-      jsonEncode(root),
-    );
+    await _preferences!.setString(_saveKey, jsonEncode(root));
   }
 
   static Future<Map<String, dynamic>?> load() async {
