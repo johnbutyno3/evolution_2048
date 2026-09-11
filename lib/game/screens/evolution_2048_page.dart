@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,7 +33,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _gameOverDialogShowing = false;
   bool _chapterCompleteShowing = false;
   bool _completionAnimationPlaying = false;
-  bool _completionAnimationFinished = false;
 
   late final AnimationController _completionAnimationController;
   int? _completionAnimationIndex;
@@ -384,7 +383,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final index = _completionAnimationIndex;
     final imagePath = _completionAnimationImagePath;
 
-    if ((!_completionAnimationPlaying && !_completionAnimationFinished) ||
+    if (!_completionAnimationPlaying ||
         index == null ||
         imagePath == null) {
       return const SizedBox.shrink();
