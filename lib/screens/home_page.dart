@@ -9,11 +9,15 @@ import '../game/models/game_tile.dart';
 import '../game/services/audio_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
+import '../services/player_progress_service.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
-  static const List<_ChapterInfo> _chapters = [
+  @override
+  State<HomePage> createState() => _HomePageState();
+
+  static const List<_ChapterInfo> chapters = [
     _ChapterInfo(
       titleKey: 'ocean',
       image: 'assets/backgrounds/chapter_01_ocean/ocean_background_01_primordial.jpg',
@@ -39,11 +43,30 @@ class HomePage extends StatelessWidget {
       image: 'assets/backgrounds/chapter_06_universe/universe_bg_01_origin.jpg',
     ),
   ];
+}
+
+class _HomePageState extends State<HomePage> {
+  final PlayerProgressService _progress = PlayerProgressService.instance;
+  bool _loadingProgress = true;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadProgress());
+  }
+
+  Future<void> _loadProgress() async {
+    await _progress.refresh();
+    if (!mounted) return;
+    setState(() => _loadingProgress = false);
+  }
 
   void _enterChapter(BuildContext context, int index) {
-    unawaited(
-      AudioManager.instance.playSfx(GameSfx.buttonClick),
-    );
+    if (!_progress.isChapterUnlocked(index)) {
+      return;
+    }
+
+    unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -63,14 +86,14 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unlockedChapter = SaveManager.developerAllChapters ? 5 : 0;
+    final unlockedChapter = _progress.unlockedChapterIndex;
 
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
             child: Image.asset(
-              _chapters[unlockedChapter].image,
+              HomePage.chapters[unlockedChapter].image,
               fit: BoxFit.cover,
             ),
           ),
@@ -107,9 +130,7 @@ class HomePage extends StatelessWidget {
                             showDialog(
                               context: context,
                               builder: (_) => const _DeveloperDialog(),
-                            ).then((_) {
-                              (context as Element).markNeedsBuild();
-                            });
+                            );
                           },
                         ),
                     ],
@@ -132,33 +153,39 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth >= 700;
+                  child: _loadingProgress
+                      ? const Center(
+                          child: CircularProgressIndicator(),
+                        )
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isWide = constraints.maxWidth >= 700;
 
-                      return GridView.builder(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: isWide ? 3 : 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: isWide ? 1.45 : 1.15,
+                            return GridView.builder(
+                              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: isWide ? 3 : 2,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: isWide ? 1.45 : 1.15,
+                              ),
+                              itemCount: HomePage.chapters.length,
+                              itemBuilder: (context, index) {
+                                final unlocked =
+                                    _progress.isChapterUnlocked(index);
+
+                                return _ChapterCard(
+                                  chapter: HomePage.chapters[index],
+                                  unlocked: unlocked,
+                                  onTap: unlocked
+                                      ? () => _enterChapter(context, index)
+                                      : null,
+                                );
+                              },
+                            );
+                          },
                         ),
-                        itemCount: _chapters.length,
-                        itemBuilder: (context, index) {
-                          final unlocked = index <= unlockedChapter;
-
-                          return _ChapterCard(
-                            chapter: _chapters[index],
-                            unlocked: unlocked,
-                            onTap: unlocked
-                                ? () => _enterChapter(context, index)
-                                : null,
-                          );
-                        },
-                      );
-                    },
-                  ),
                 ),
               ],
             ),
@@ -287,14 +314,8 @@ class _DeveloperDialog extends StatefulWidget {
 }
 
 class _DeveloperDialogState extends State<_DeveloperDialog> {
-  bool get _allChapters => SaveManager.developerAllChapters;
   bool get _allTools => SaveManager.developerAllTools;
   bool get _unlimitedTools => SaveManager.developerUnlimitedTools;
-
-  Future<void> _setAllChapters(bool value) async {
-    await SaveManager.setDeveloperAllChapters(value);
-    if (mounted) setState(() {});
-  }
 
   Future<void> _setAllTools(bool value) async {
     await SaveManager.setDeveloperAllTools(value);
@@ -316,91 +337,33 @@ class _DeveloperDialogState extends State<_DeveloperDialog> {
     }
   }
 
-  void _enterChapter(GameChapter chapter) {
-    Navigator.of(context).pop();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => Evolution2048Page(initialChapter: chapter),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Developer Mode'),
       content: SizedBox(
         width: 380,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                title: const Text('Unlock All Chapters'),
-                subtitle: const Text('Show Chapters 1–6 as unlocked'),
-                value: _allChapters,
-                onChanged: _setAllChapters,
-              ),
-              ListTile(
-                leading: const Icon(Icons.favorite),
-                title: const Text('Restore 5 Lives'),
-                onTap: _restoreLives,
-              ),
-              SwitchListTile(
-                title: const Text('Unlock All Tools'),
-                subtitle: const Text('Make all four tools available'),
-                value: _allTools,
-                onChanged: _setAllTools,
-              ),
-              SwitchListTile(
-                title: const Text('Unlimited Tools'),
-                subtitle: const Text('Tool uses will not decrease'),
-                value: _unlimitedTools,
-                onChanged: _setUnlimitedTools,
-              ),
-              const Divider(),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    'Enter Chapter',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              ListTile(
-                dense: true,
-                title: const Text('Chapter 1 — Ocean'),
-                onTap: () => _enterChapter(GameChapter.ocean),
-              ),
-              ListTile(
-                dense: true,
-                title: const Text('Chapter 2 — Land'),
-                onTap: () => _enterChapter(GameChapter.land),
-              ),
-              ListTile(
-                dense: true,
-                title: const Text('Chapter 3 — Sky'),
-                onTap: () => _enterChapter(GameChapter.sky),
-              ),
-              ListTile(
-                dense: true,
-                title: const Text('Chapter 4 — History'),
-                onTap: () => _enterChapter(GameChapter.history),
-              ),
-              ListTile(
-                dense: true,
-                title: const Text('Chapter 5 — Technology'),
-                onTap: () => _enterChapter(GameChapter.tech),
-              ),
-              ListTile(
-                dense: true,
-                title: const Text('Chapter 6 — Space'),
-                onTap: () => _enterChapter(GameChapter.universe),
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.favorite),
+              title: const Text('Restore 5 Lives'),
+              onTap: _restoreLives,
+            ),
+            SwitchListTile(
+              title: const Text('Unlock All Tools'),
+              subtitle: const Text('Testing only'),
+              value: _allTools,
+              onChanged: _setAllTools,
+            ),
+            SwitchListTile(
+              title: const Text('Unlimited Tools'),
+              subtitle: const Text('Testing only'),
+              value: _unlimitedTools,
+              onChanged: _setUnlimitedTools,
+            ),
+          ],
         ),
       ),
       actions: [
