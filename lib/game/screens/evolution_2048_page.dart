@@ -206,10 +206,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    setState(() {
-      _completionAnimationPlaying = false;
-    });
-
+    // Keep the final enlarged creature visible while the
+    // Chapter Complete transition is being prepared.
     _showChapterComplete();
   }
 
@@ -857,6 +855,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     _chapterCompleteShowing = false;
+
+    _completionAnimationPlaying = false;
+    _completionAnimationIndex = null;
+    _completionAnimationImagePath = null;
 
     switch (completedChapter) {
       case GameChapter.ocean:

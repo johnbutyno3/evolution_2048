@@ -28,6 +28,17 @@ class GameEngine {
     // Restore life state from the persistent save.
     _restoreLifeStateFromSave(saved ?? <String, dynamic>{});
 
+    // A genuinely new board consumes exactly one life.
+    // Restored boards keep their existing board life.
+    final hasSavedBoard = saved != null &&
+        _shouldRestoreSavedChapter(saved) &&
+        saved['tiles'] is List &&
+        (saved['tiles'] as List).length == boardSize * boardSize;
+
+    if (!hasSavedBoard) {
+      consumeLifeForGameEntry();
+    }
+
     // A restored active game continues counting only when the page
     // explicitly resumes it. This prevents time spent outside the app
     // from being counted as active game time.
@@ -55,7 +66,7 @@ class GameEngine {
   int? _nextLifeAtMillis;
 
   /// Prevents the same Game Over from deducting life more than once.
-  bool _gameOverLifeDeducted = false;
+  bool _boardLifeActive = false;
 
   int get lives => _lives;
 
@@ -94,16 +105,13 @@ class GameEngine {
   /// This is intentionally separate from reset/restart so merely leaving
   /// the app never deducts a life.
   bool deductLifeForGameOver() {
-    if (!gameOver || chapterComplete || _gameOverLifeDeducted) {
+    if (!gameOver || chapterComplete || !_boardLifeActive) {
       return false;
     }
 
-    _gameOverLifeDeducted = true;
-
-    _deductLife();
+    _boardLifeActive = false;
 
     _stopGameTimer();
-
     _saveLocal();
     return true;
   }
@@ -124,11 +132,16 @@ class GameEngine {
 
   /// Consume one life when a gameplay page is entered.
   bool consumeLifeForGameEntry() {
+    if (_boardLifeActive) {
+      return true;
+    }
+
     if (_lives <= 0) {
       return false;
     }
 
     _deductLife();
+    _boardLifeActive = true;
     _saveLocal();
     return true;
   }
@@ -147,7 +160,7 @@ class GameEngine {
     _lives = LifeManager.lifeCount;
     _nextLifeAtMillis = LifeManager.nextLifeAtMillis;
 
-    _gameOverLifeDeducted = data['gameOverLifeDeducted'] == true;
+    _boardLifeActive = data['boardLifeActive'] == true;
 
     updateLifeFromRealTime();
   }
@@ -354,7 +367,7 @@ class GameEngine {
       // Life state.
       'lives': _lives,
       'nextLifeAtMillis': _nextLifeAtMillis,
-      'gameOverLifeDeducted': _gameOverLifeDeducted,
+      'boardLifeActive': _boardLifeActive,
 
       // Active gameplay time.
       'gameElapsedSeconds': _gameElapsedSeconds,
@@ -783,7 +796,7 @@ class GameEngine {
     _gameTimerRunning = false;
 
     // Reset Game Over deduction state for the new game.
-    _gameOverLifeDeducted = false;
+    _boardLifeActive = false;
 
     _spawnTile();
     _spawnTile();
@@ -856,7 +869,7 @@ class GameEngine {
     _previousBoard = null;
 
     // Debug completion does not consume life.
-    _gameOverLifeDeducted = false;
+    _boardLifeActive = false;
 
     _stopGameTimer();
 
@@ -904,7 +917,7 @@ class GameEngine {
       gameOver = _isGameOver();
 
       if (gameOver) {
-        _stopGameTimer();
+        deductLifeForGameOver();
       }
 
       _saveLocal();
@@ -937,7 +950,7 @@ class GameEngine {
     gameOver = _isGameOver();
 
     if (gameOver) {
-      _stopGameTimer();
+      deductLifeForGameOver();
     }
 
     _updateBestScore();
