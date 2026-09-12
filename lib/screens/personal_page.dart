@@ -1,6 +1,9 @@
 ﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../game/models/creature.dart';
+import '../services/creature_collection_service.dart';
+
 import '../game/models/tools/game_tool.dart';
 import '../game/services/audio_manager.dart';
 import '../game/services/gold_manager.dart';
@@ -458,22 +461,303 @@ class EvolutionProgressPage extends StatelessWidget {
   }
 }
 
-class CollectionPage extends StatelessWidget {
+class CollectionPage extends StatefulWidget {
   const CollectionPage({super.key});
 
   @override
+  State<CollectionPage> createState() => _CollectionPageState();
+}
+
+class _CollectionPageState extends State<CollectionPage> {
+  bool _loading = true;
+  int _selectedChapter = 0;
+
+  final Map<String, Set<int>> _discovered = {};
+
+  static const List<String> _chapterKeys = [
+    'chapter1Ocean',
+    'chapter2Land',
+    'chapter3Sky',
+    'chapter4History',
+    'chapter5Tech',
+    'chapter6Universe',
+  ];
+
+  static const List<String> _chapterNames = [
+    'Chapter 1 · Ocean',
+    'Chapter 2 · Land',
+    'Chapter 3 · Sky',
+    'Chapter 4 · History',
+    'Chapter 5 · Technology',
+    'Chapter 6 · Space',
+  ];
+
+  static const List<String> _chapterShortNames = [
+    'Ocean',
+    'Land',
+    'Sky',
+    'History',
+    'Technology',
+    'Space',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCollection();
+  }
+
+  Future<void> _loadCollection() async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
+      return;
+    }
+
+    final result = <String, Set<int>>{};
+
+    for (final chapterKey in _chapterKeys) {
+      result[chapterKey] =
+          await CreatureCollectionService.loadDiscovered(chapterKey);
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _discovered
+        ..clear()
+        ..addAll(result);
+      _loading = false;
+    });
+  }
+
+  List<Creature> _creaturesForChapter(int chapter) {
+    switch (chapter) {
+      case 0:
+        return Creature.chapter1Ocean;
+      case 1:
+        return Creature.chapter2Land;
+      case 2:
+        return Creature.chapter3Sky;
+      case 3:
+        return Creature.chapter4History;
+      case 4:
+        return Creature.chapter5Tech;
+      case 5:
+        return Creature.chapter6Universe;
+      default:
+        return const [];
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final creatures = _creaturesForChapter(_selectedChapter);
+    final chapterKey = _chapterKeys[_selectedChapter];
+    final discovered = _discovered[chapterKey] ?? <int>{};
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Creature Collection')),
-      body: const Center(
-        child: Text(
-          'Creature collection will be connected to evolution progress.',
+      appBar: AppBar(
+        title: const Text('Creature Collection'),
+      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : RefreshIndicator(
+              onRefresh: _loadCollection,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: _CollectionSummary(
+                        chapterName: _chapterNames[_selectedChapter],
+                        discovered: discovered.length,
+                        total: creatures.length,
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 52,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _chapterShortNames.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: ChoiceChip(
+                              label: Text(_chapterShortNames[index]),
+                              selected: index == _selectedChapter,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedChapter = index;
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    sliver: SliverGrid(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final creature = creatures[index];
+
+                          return _CreatureCollectionCard(
+                            creature: creature,
+                            discovered: discovered.contains(creature.value),
+                          );
+                        },
+                        childCount: creatures.length,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 0.76,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+class _CollectionSummary extends StatelessWidget {
+  const _CollectionSummary({
+    required this.chapterName,
+    required this.discovered,
+    required this.total,
+  });
+
+  final String chapterName;
+  final int discovered;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = total == 0 ? 0.0 : discovered / total;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              chapterName,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text('$discovered / $total discovered'),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 8,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+class _CreatureCollectionCard extends StatelessWidget {
+  const _CreatureCollectionCard({
+    required this.creature,
+    required this.discovered,
+  });
+
+  final Creature creature;
+  final bool discovered;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: discovered
+            ? Column(
+                children: [
+                  Expanded(
+                    child: Image.asset(
+                      creature.imagePath,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) {
+                        return const Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 40,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    creature.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${creature.value}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Icon(
+                        Icons.lock_outline,
+                        size: 42,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Undiscovered',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Stage ${creature.stage}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
 class GoldPage extends StatelessWidget {
   const GoldPage({super.key});
 
@@ -752,6 +1036,8 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
+
+
 
 
 

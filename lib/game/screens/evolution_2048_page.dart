@@ -1,4 +1,5 @@
-﻿import 'dart:async';
+﻿import '../../services/creature_collection_service.dart';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -326,6 +327,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     final newEvolutionValues = _engine.newEvolutionValuesThisMove;
+
+    // Record every creature actually created by merging.
+    // This collection is permanent and stored per Firebase account.
+    final mergedValues = _engine.board.lastMergedValues;
+    if (mergedValues.isNotEmpty) {
+      unawaited(
+        CreatureCollectionService.discover(
+          _engine.chapter.name,
+          mergedValues,
+        ),
+      );
+    }
 
     if (newEvolutionValues.isNotEmpty) {
       AudioManager.instance.playSfx(GameSfx.tileMerge);
@@ -1531,4 +1544,6 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+
+
 
