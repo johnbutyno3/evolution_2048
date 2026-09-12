@@ -11,6 +11,7 @@ import 'screens/login_register_page.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/profile_page.dart';
 import 'screens/home_page.dart';
+import 'screens/shop_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +64,10 @@ class Rebirth2048App extends StatelessWidget {
         useMaterial3: true,
       ),
       home: _home(),
+      routes: {
+        '/shop': (_) => const ShopPage(),
+      },
     );
   }
 }
+

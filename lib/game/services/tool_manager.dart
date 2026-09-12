@@ -1,4 +1,4 @@
-import '../models/game_tile.dart';
+﻿import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'save_manager.dart';
 
@@ -148,6 +148,36 @@ class ToolManager {
     return true;
   }
 
+  /// Returns the globally saved inventory for a tool.
+  ///
+  /// Tool inventory is cumulative across chapters, so this can be used by
+  /// profile/shop UI even when the tool is not currently unlocked.
+  static int savedUsesFor(GameToolType type) {
+    final save = SaveManager.loadCached();
+    final rawUses = save?[_saveKey];
+
+    if (rawUses is Map) {
+      final value = rawUses[type.name];
+      if (value is num) {
+        return value.toInt().clamp(0, 1000000);
+      }
+    }
+
+    // Chapter 1 starts with one UNDO.
+    if (type == GameToolType.timeRewind &&
+        SaveManager.loadCached()?['chapter'] == GameChapter.ocean.name) {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  static Map<GameToolType, int> savedInventory() {
+    return <GameToolType, int>{
+      for (final type in GameToolType.values) type: savedUsesFor(type),
+    };
+  }
+
   static Future<void> addPurchasedUses(GameToolType type, int amount) async {
     if (amount <= 0) return;
     final save = SaveManager.loadCached() ?? <String, dynamic>{};
@@ -263,3 +293,4 @@ class ToolManager {
     );
   }
 }
+

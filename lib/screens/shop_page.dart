@@ -6,73 +6,106 @@ import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 
 class ShopPage extends StatefulWidget {
-  const ShopPage({super.key, this.initialTool});
-
-  final GameToolType? initialTool;
+  const ShopPage({super.key});
 
   @override
   State<ShopPage> createState() => _ShopPageState();
 }
 
 class _ShopPageState extends State<ShopPage> {
-  @override
-  void initState() {
-    super.initState();
-    GoldManager.initialize();
-    LifeManager.initialize();
+  Future<void> _buyLife({
+    required int amount,
+    required int price,
+  }) async {
+    await GoldManager.initialize();
+    await LifeManager.initialize();
 
-    if (widget.initialTool != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ToolPurchasePage(tool: widget.initialTool!),
-          ),
-        );
-      });
+    if (LifeManager.isGoldenMember) {
+      _message('Golden Members already have unlimited lives.');
+      return;
     }
+
+    if (GoldManager.balance < price) {
+      _message('Not enough Gold.');
+      return;
+    }
+
+    if (!await GoldManager.spend(price)) {
+      _message('Purchase failed.');
+      return;
+    }
+
+    await LifeManager.addPurchasedLives(amount);
+
+    if (!mounted) return;
+    setState(() {});
+    _message('Purchased $amount life${amount == 1 ? '' : 's'}.');
   }
 
-  void _openTool(GameToolType type) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ToolPurchasePage(tool: type),
-      ),
-    );
+  Future<void> _buyTool({
+    required GameToolType type,
+    required String name,
+    required int price,
+  }) async {
+    await GoldManager.initialize();
+
+    if (GoldManager.balance < price) {
+      _message('Not enough Gold.');
+      return;
+    }
+
+    if (!await GoldManager.spend(price)) {
+      _message('Purchase failed.');
+      return;
+    }
+
+    await ToolManager.addPurchasedUses(type, 1);
+
+    if (!mounted) return;
+    setState(() {});
+    _message('Purchased 1 $name use.');
+  }
+
+  void _message(String text) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(text)),
+      );
+  }
+
+  Future<void> _initialize() async {
+    await GoldManager.initialize();
+    await LifeManager.initialize();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('商店'),
+        title: const Text('Shop'),
       ),
-      body: AnimatedBuilder(
-        animation: _ShopRefreshNotifier.instance,
-        builder: (context, _) {
+      body: FutureBuilder<void>(
+        future: _initialize(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Card(
-                child: ListTile(
-                  leading: const Icon(
-                    Icons.monetization_on_outlined,
-                    size: 34,
-                  ),
-                  title: const Text('Gold'),
-                  subtitle: Text(
-                    '累計消費 ${GoldManager.lifetimeSpent} Gold',
-                  ),
-                  trailing: Text(
-                    '${GoldManager.balance}',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
+              _ShopGoldCard(
+                balance: GoldManager.balance,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               const Text(
-                'Gold 商品',
+                'Lives',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -80,27 +113,34 @@ class _ShopPageState extends State<ShopPage> {
               ),
               const SizedBox(height: 8),
 
-              const _GoldPackageTile(
-                gold: 500,
-                price: 'US\$1.49',
+              _ShopProductCard(
+                icon: Icons.favorite,
+                title: '+1 Life',
+                description: 'Add one additional gameplay life.',
+                price: 10,
+                enabled: !LifeManager.isGoldenMember,
+                onBuy: () => _buyLife(
+                  amount: 1,
+                  price: 10,
+                ),
               ),
-              const _GoldPackageTile(
-                gold: 1000,
-                price: 'US\$2.99',
-              ),
-              const _GoldPackageTile(
-                gold: 5000,
-                price: 'US\$12.99',
-              ),
-              const _GoldPackageTile(
-                gold: 10000,
-                price: 'US\$24.99',
+
+              _ShopProductCard(
+                icon: Icons.favorite_border,
+                title: '+5 Lives',
+                description: 'Add five additional gameplay lives.',
+                price: 45,
+                enabled: !LifeManager.isGoldenMember,
+                onBuy: () => _buyLife(
+                  amount: 5,
+                  price: 45,
+                ),
               ),
 
               const SizedBox(height: 20),
 
               const Text(
-                '工具',
+                'Evolution Tools',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -108,54 +148,64 @@ class _ShopPageState extends State<ShopPage> {
               ),
               const SizedBox(height: 8),
 
-              _ToolTile(
+              _ShopToolCard(
                 type: GameToolType.timeRewind,
-                onTap: () => _openTool(GameToolType.timeRewind),
+                name: 'UNDO',
+                description: 'Rewind the most recent move.',
+                icon: Icons.undo,
+                price: 50,
+                onBuy: () => _buyTool(
+                  type: GameToolType.timeRewind,
+                  name: 'UNDO',
+                  price: 50,
+                ),
               ),
-              _ToolTile(
+
+              _ShopToolCard(
                 type: GameToolType.revive,
-                onTap: () => _openTool(GameToolType.revive),
+                name: 'REMOVE',
+                description: 'Remove a selected life form.',
+                icon: Icons.remove_circle_outline,
+                price: 50,
+                onBuy: () => _buyTool(
+                  type: GameToolType.revive,
+                  name: 'REMOVE',
+                  price: 50,
+                ),
               ),
-              _ToolTile(
+
+              _ShopToolCard(
                 type: GameToolType.positionSwap,
-                onTap: () => _openTool(GameToolType.positionSwap),
+                name: 'SWAP',
+                description: 'Swap two life-form positions.',
+                icon: Icons.swap_horiz,
+                price: 75,
+                onBuy: () => _buyTool(
+                  type: GameToolType.positionSwap,
+                  name: 'SWAP',
+                  price: 75,
+                ),
               ),
-              _ToolTile(
+
+              _ShopToolCard(
                 type: GameToolType.duplicate,
-                onTap: () => _openTool(GameToolType.duplicate),
+                name: 'DUPLICATE',
+                description: 'Duplicate a selected life form.',
+                icon: Icons.copy_outlined,
+                price: 100,
+                onBuy: () => _buyTool(
+                  type: GameToolType.duplicate,
+                  name: 'DUPLICATE',
+                  price: 100,
+                ),
               ),
 
               const SizedBox(height: 20),
 
               const Text(
-                '生命',
+                'Purchased items are saved to local game data.',
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.favorite_outline),
-                  title: const Text('生命 +1'),
-                  subtitle: const Text('50 Gold'),
-                  trailing: FilledButton(
-                    onPressed: GoldManager.balance < 50
-                        ? null
-                        : () async {
-                            if (!await GoldManager.spend(50)) return;
-
-                            await LifeManager.addPurchasedLives(1);
-                            _ShopRefreshNotifier.instance.refresh();
-
-                            if (mounted) {
-                              setState(() {});
-                            }
-                          },
-                    child: const Text('購買'),
-                  ),
+                  color: Colors.grey,
                 ),
               ),
             ],
@@ -166,256 +216,119 @@ class _ShopPageState extends State<ShopPage> {
   }
 }
 
-class ToolPurchasePage extends StatefulWidget {
-  const ToolPurchasePage({
-    super.key,
-    required this.tool,
+class _ShopGoldCard extends StatelessWidget {
+  const _ShopGoldCard({
+    required this.balance,
   });
 
-  final GameToolType tool;
-
-  @override
-  State<ToolPurchasePage> createState() => _ToolPurchasePageState();
-}
-
-class _ToolPurchasePageState extends State<ToolPurchasePage> {
-  static const List<int> quantities = [1, 5, 10, 20, 50];
-
-  int _selected = 0;
-
-  int get _unitPrice {
-    return switch (widget.tool) {
-      GameToolType.timeRewind => 50,
-      GameToolType.revive => 100,
-      GameToolType.positionSwap => 200,
-      GameToolType.duplicate => 500,
-    };
-  }
-
-  int get _price {
-    return _priceFor(quantities[_selected]);
-  }
-
-  String get _name {
-    return switch (widget.tool) {
-      GameToolType.timeRewind => 'UNDO',
-      GameToolType.revive => 'REMOVE',
-      GameToolType.positionSwap => 'SWAP',
-      GameToolType.duplicate => 'DUPLICATE',
-    };
-  }
-
-  int _priceFor(int quantity) {
-    final multiplier = switch (quantity) {
-      1 => 1.0,
-      5 => 0.9,
-      10 => 0.8,
-      20 => 0.7,
-      50 => 0.6,
-      _ => 1.0,
-    };
-
-    return (_unitPrice * quantity * multiplier).round();
-  }
-
-  Future<void> _buy() async {
-    final quantity = quantities[_selected];
-
-    if (!await GoldManager.spend(_price)) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gold 不足'),
-        ),
-      );
-      return;
-    }
-
-    await ToolManager.addPurchasedUses(
-      widget.tool,
-      quantity,
-    );
-
-    _ShopRefreshNotifier.instance.refresh();
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '已購買 $quantity 次 $_name',
-        ),
-      ),
-    );
-
-    setState(() {});
-  }
+  final int balance;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('購買 $_name'),
-      ),
-      body: ListView(
+    return Card(
+      child: Padding(
         padding: const EdgeInsets.all(20),
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.build_circle_outlined,
-                    size: 72,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _name,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '目前 Gold：${GoldManager.balance}',
-                  ),
-                ],
+        child: Row(
+          children: [
+            const Icon(
+              Icons.monetization_on,
+              size: 42,
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Text(
+                'Gold Balance',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-
-          const SizedBox(height: 16),
-
-          RadioGroup<int>(
-            groupValue: _selected,
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _selected = value;
-              });
-            },
-            child: Column(
-              children: List.generate(
-                quantities.length,
-                (index) {
-                  final quantity = quantities[index];
-                  final selected = index == _selected;
-
-                  return Card(
-                    child: RadioListTile<int>(
-                      value: index,
-                      title: Text('$quantity 次'),
-                      subtitle: Text(
-                        '${_priceFor(quantity)} Gold',
-                      ),
-                      selected: selected,
-                    ),
-                  );
-                },
+            Text(
+              '$balance',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          FilledButton.icon(
-            onPressed: GoldManager.balance >= _price
-                ? _buy
-                : null,
-            icon: const Icon(
-              Icons.shopping_cart_outlined,
-            ),
-            label: Text(
-              '購買 $_price Gold',
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-class _ToolTile extends StatelessWidget {
-  const _ToolTile({
+class _ShopProductCard extends StatelessWidget {
+  const _ShopProductCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.price,
+    required this.enabled,
+    required this.onBuy,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final int price;
+  final bool enabled;
+  final VoidCallback onBuy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Text(description),
+        trailing: FilledButton.icon(
+          onPressed: enabled ? onBuy : null,
+          icon: const Icon(Icons.monetization_on_outlined),
+          label: Text('$price'),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopToolCard extends StatelessWidget {
+  const _ShopToolCard({
     required this.type,
-    required this.onTap,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.price,
+    required this.onBuy,
   });
 
   final GameToolType type;
-  final VoidCallback onTap;
-
-  String get name {
-    return switch (type) {
-      GameToolType.timeRewind => 'UNDO',
-      GameToolType.revive => 'REMOVE',
-      GameToolType.positionSwap => 'SWAP',
-      GameToolType.duplicate => 'DUPLICATE',
-    };
-  }
-
-  int get price {
-    return switch (type) {
-      GameToolType.timeRewind => 50,
-      GameToolType.revive => 100,
-      GameToolType.positionSwap => 200,
-      GameToolType.duplicate => 500,
-    };
-  }
+  final String name;
+  final String description;
+  final IconData icon;
+  final int price;
+  final VoidCallback onBuy;
 
   @override
   Widget build(BuildContext context) {
+    final owned = ToolManager.savedUsesFor(type);
+
     return Card(
+      margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: const Icon(
-          Icons.extension_outlined,
-        ),
+        leading: Icon(icon),
         title: Text(name),
         subtitle: Text(
-          '1 次・$price Gold',
+          '$description\nOwned: $owned',
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _GoldPackageTile extends StatelessWidget {
-  const _GoldPackageTile({
-    required this.gold,
-    required this.price,
-  });
-
-  final int gold;
-  final String price;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: const Icon(
-          Icons.monetization_on,
-        ),
-        title: Text('$gold Gold'),
-        trailing: OutlinedButton(
-          onPressed: null,
-          child: Text(price),
-        ),
-        subtitle: const Text(
-          '付款功能尚未連接 App Store / Google Play',
+        isThreeLine: true,
+        trailing: FilledButton.icon(
+          onPressed: onBuy,
+          icon: const Icon(Icons.monetization_on_outlined),
+          label: Text('$price'),
         ),
       ),
     );
   }
-}
-
-class _ShopRefreshNotifier extends ChangeNotifier {
-  _ShopRefreshNotifier._();
-
-  static final _ShopRefreshNotifier instance =
-      _ShopRefreshNotifier._();
-
-  void refresh() => notifyListeners();
 }
