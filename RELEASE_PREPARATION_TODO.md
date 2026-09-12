@@ -1,6 +1,6 @@
 # REBIRTH 2048｜正式發布準備待辦
 
-最後更新：2026-09-10
+最後更新：2026-09-12
 目前版本：App Icon 已正式產生 Android / iOS 圖示；第 2 項 Logo 待確認獨立 Logo 素材
 分支：feature/chapter1-spec-implementation
 
@@ -12,6 +12,7 @@
 - [ ] 2. 確認 REBIRTH 2048 Logo
   - 目前尚未找到可獨立使用的 Logo 素材；現有 App Icon 不能直接視為透明背景 Logo。
   - 2026-09-10 再次檢查目前分支與檔案搜尋結果，仍未找到獨立 Logo 檔案。
+  - 2026-09-12 檢查 GitHub 分支 `feature/chapter1-spec-implementation` 的 `assets/icon/`，目前仍只有 `app_icon.png`，沒有獨立 Logo 檔案。
   - 下一步需確認／提供獨立 Logo 圖檔，再進行尺寸、透明背景與版面檢查。
 - [ ] 3. 整理開場介紹
 - [ ] 4. 整理遊戲玩法說明
@@ -46,6 +47,13 @@
 - [ ] 27. 正式發布
 
 ## 每日進度紀錄
+
+### 2026-09-12
+- 依序處理第 2 項「確認 REBIRTH 2048 Logo」。
+- 檢查 GitHub 分支 `feature/chapter1-spec-implementation` 的 `assets/icon/` 資料夾。
+- 目前資料夾只有 `app_icon.png`，未找到可獨立使用的 Logo 圖檔。
+- 第 2 項維持未完成，未跳到第 3 項，也未改變任何既定遊戲規則。
+- 下一步：確認或加入獨立 Logo 圖檔後，完成尺寸、透明背景與版面檢查。
 
 ### 2026-09-10
 - 依序處理第 2 項「確認 REBIRTH 2048 Logo」。
