@@ -32,11 +32,11 @@ class _AdminPageState extends State<AdminPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (!_allowed) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(child: Text('Administrator access required.')),
       );
     }
@@ -51,7 +51,7 @@ class _AdminPageState extends State<AdminPage> {
             title: 'Shop Parameters',
             subtitle: 'Gold, Lives, Tools and Membership settings',
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminShopParametersPage()),
+              MaterialPageRoute(builder: (_) => AdminShopParametersPage()),
             ),
           ),
           _AdminCard(
@@ -180,7 +180,7 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -239,7 +239,7 @@ class AdminQAPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       appBar: AppBar(title: Text('Q&A Management')),
       body: Center(
         child: Text('Q&A editing will be connected to Firestore next.'),
