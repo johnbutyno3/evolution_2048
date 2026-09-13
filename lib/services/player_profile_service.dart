@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,69 +22,33 @@ class PlayerProfileService {
 
     final snapshot = await ref.get();
     final data = snapshot.data();
+
     final name = data?['playerName'];
     final playerId = data?['playerId'];
 
-    if (name is String && name.trim().isNotEmpty &&
-        playerId is String && playerId.isNotEmpty) {
+    if (name is String && name.trim().isNotEmpty) {
       await SaveManager.saveProfile(name: name.trim());
-      return name.trim();
+      if (playerId is String && playerId.isNotEmpty) {
+        return name.trim();
+      }
     }
 
     final newName = name is String && name.trim().isNotEmpty
         ? name.trim()
-        : _generatePlayerName();
+        : 'Player';
+
     final newId = playerId is String && playerId.isNotEmpty
         ? playerId
         : _generatePlayerId();
 
-    await ref.set(
-      {
-        'playerName': newName,
-        'playerId': newId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await ref.set({
+      'playerName': newName,
+      'playerId': newId,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     await SaveManager.saveProfile(name: newName);
     return newName;
-  }
-
-  static String _generatePlayerName() {
-    const first = [
-      'Ocean',
-      'Sky',
-      'Coral',
-      'Wave',
-      'River',
-      'Aqua',
-      'Nova',
-      'Terra',
-      'Luna',
-      'Star',
-      'Deep',
-      'Reef',
-    ];
-    const second = [
-      'Fox',
-      'Wolf',
-      'Otter',
-      'Dolphin',
-      'Shark',
-      'Eagle',
-      'Whale',
-      'Tiger',
-      'Panda',
-      'Hawk',
-      'Orca',
-      'Bear',
-    ];
-
-    final random = Random.secure();
-    final number = 1000 + random.nextInt(9000);
-    return '${first[random.nextInt(first.length)]}'
-        '${second[random.nextInt(second.length)]}$number';
   }
 
   static String _generatePlayerId() {
@@ -106,12 +70,9 @@ class PlayerProfileService {
     final ref = _userRef;
     if (ref == null) return;
 
-    await ref.set(
-      {
-        'playerName': trimmed,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    await ref.set({
+      'playerName': trimmed,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

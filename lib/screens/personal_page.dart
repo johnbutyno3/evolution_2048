@@ -1,24 +1,24 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
+import '../services/player_profile_service.dart';
 
-import '../game/models/tools/game_tool.dart';
 import '../game/services/audio_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
-import '../game/services/tool_manager.dart';
 import 'login_register_page.dart';
+import 'shop_page.dart';
 
 class PersonalPage extends StatelessWidget {
   const PersonalPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final name = SaveManager.profileName?.trim();
+    final user = FirebaseAuth.instance.currentUser;    final name = SaveManager.profileName?.trim();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Personal')),
@@ -31,16 +31,6 @@ class PersonalPage extends StatelessWidget {
             subtitle: name?.isNotEmpty == true ? name! : 'Player profile',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const PlayerInfoPage()),
-            ),
-          ),
-          _SectionCard(
-            icon: Icons.auto_awesome,
-            title: 'Evolution Progress',
-            subtitle: 'Six chapters and current progress',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const EvolutionProgressPage(),
-              ),
             ),
           ),
           _SectionCard(
@@ -115,6 +105,8 @@ class PlayerInfoPage extends StatefulWidget {
 class _PlayerInfoPageState extends State<PlayerInfoPage> {
   late final TextEditingController _nameController;
   late int _avatarIndex;
+  String _playerId = '';
+  bool _loading = true;
 
   @override
   void initState() {
@@ -123,8 +115,28 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       text: SaveManager.profileName ?? '',
     );
     _avatarIndex = SaveManager.avatarIndex;
-    GoldManager.initialize();
-    LifeManager.initialize();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final data = snapshot.data();
+
+      if (mounted) {
+        setState(() {
+          _playerId = data?['playerId'] as String? ?? '';
+          _loading = false;
+        });
+      }
+    } else if (mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   @override
@@ -137,7 +149,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
     final name = _nameController.text.trim();
     if (name.isEmpty || name.length > 30) return;
 
-    await SaveManager.saveProfile(name: name);
+    await PlayerProfileService.updatePlayerName(name);
 
     if (!mounted) return;
 
@@ -155,9 +167,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final providers =
-        user?.providerData.map((p) => p.providerId).join(', ');
+    final membership = LifeManager.membership;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Player Info')),
@@ -183,6 +193,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
             onSelected: _selectAvatar,
           ),
           const SizedBox(height: 24),
+
           TextField(
             controller: _nameController,
             maxLength: 30,
@@ -191,6 +202,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
               border: OutlineInputBorder(),
             ),
           ),
+
           Align(
             alignment: Alignment.centerRight,
             child: FilledButton(
@@ -198,103 +210,49 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
               child: const Text('Save'),
             ),
           ),
-          const SizedBox(height: 12),
-          const Divider(height: 32),
-          _ResourceCard(
-            title: 'Gold',
-            icon: Icons.monetization_on_outlined,
-            value: '${GoldManager.balance}',
-          ),
-          const SizedBox(height: 10),
-          _ResourceCard(
-            title: 'Lives',
-            icon: Icons.favorite_outline,
-            value: LifeManager.isGoldenMember
-                ? '∞'
-                : '${LifeManager.lifeCount}',
-          ),
-          const SizedBox(height: 10),
-          _ResourceCard(
-            title: 'Membership',
-            icon: Icons.workspace_premium_outlined,
-            value: _membershipLabel(LifeManager.membership),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Tool Inventory',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+
+          const SizedBox(height: 16),
+
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.badge_outlined),
+              title: const Text('Player ID'),
+              subtitle: Text(
+                _loading
+                    ? 'Loading...'
+                    : (_playerId.isEmpty ? 'Not available' : _playerId),
+              ),
             ),
           ),
-          const SizedBox(height: 10),
-          ..._toolInventory(),
-          const Divider(height: 32),
-          ListTile(
-            leading: const Icon(Icons.email_outlined),
-            title: const Text('Email'),
-            subtitle: Text(user?.email ?? 'Not connected'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.login_outlined),
-            title: const Text('Sign-in Method'),
-            subtitle: Text(
-              providers?.isNotEmpty == true
-                  ? providers!
-                  : 'Testing / guest',
+
+          const SizedBox(height: 8),
+
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.workspace_premium_outlined),
+              title: const Text('Membership'),
+              subtitle: Text(
+                membership == 'golden'
+                    ? 'Golden Member'
+                    : membership == 'premium'
+                        ? 'Premium Member'
+                        : 'General Member',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ShopPage(),
+                  ),
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
-
-  List<Widget> _toolInventory() {
-    const tools = [
-      (
-        GameToolType.timeRewind,
-        'UNDO',
-        Icons.undo,
-      ),
-      (
-        GameToolType.revive,
-        'REMOVE',
-        Icons.remove_circle_outline,
-      ),
-      (
-        GameToolType.positionSwap,
-        'SWAP',
-        Icons.swap_horiz,
-      ),
-      (
-        GameToolType.duplicate,
-        'DUPLICATE',
-        Icons.copy_outlined,
-      ),
-    ];
-
-    return [
-      for (final item in tools)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _ResourceCard(
-            title: item.$2,
-            icon: item.$3,
-            value: '${ToolManager.savedUsesFor(item.$1)} uses',
-          ),
-        ),
-    ];
-  }
-
-  String _membershipLabel(String membership) {
-    return switch (membership) {
-      'golden' => 'Gold Member',
-      'premium' => 'Premium Member',
-      _ => 'General Member',
-    };
-  }
 }
-
 class _AvatarSheetPicker extends StatelessWidget {
   const _AvatarSheetPicker({
     required this.selectedIndex,
@@ -981,33 +939,7 @@ class VersionInfoPage extends StatelessWidget {
   }
 }
 
-class _ResourceCard extends StatelessWidget {
-  const _ResourceCard({
-    required this.title,
-    required this.icon,
-    required this.value,
-  });
 
-  final String title;
-  final IconData icon;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        trailing: Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
@@ -1036,6 +968,20 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
