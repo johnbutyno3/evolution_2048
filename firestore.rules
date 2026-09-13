@@ -2,14 +2,41 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/progress/{documentId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if false;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    match /users/{userId}/{document=**} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if false;
+    function isAdmin() {
+      return signedIn()
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn()
+          && request.auth.uid == userId
+          && !request.resource.data.keys().hasAny(['isAdmin']);
+      allow update: if signedIn()
+          && (request.auth.uid == userId || isAdmin())
+          && (isAdmin() || request.resource.data.isAdmin == resource.data.isAdmin);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId}/progress/{documentId} {
+      allow read, write: if signedIn()
+          && (request.auth.uid == userId || isAdmin());
+    }
+
+    match /config/{documentId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if signedIn()
+          && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isAdmin()
+          || (signedIn() && resource.data.uid == request.auth.uid);
     }
   }
 }
