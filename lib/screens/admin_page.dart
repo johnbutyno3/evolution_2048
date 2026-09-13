@@ -32,11 +32,11 @@ class _AdminPageState extends State<AdminPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (!_allowed) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(child: Text('Administrator access required.')),
       );
     }
@@ -49,9 +49,9 @@ class _AdminPageState extends State<AdminPage> {
           _AdminCard(
             icon: Icons.storefront_outlined,
             title: 'Shop Parameters',
-            subtitle: 'Gold, Lives, Tools and Membership settings',
+            subtitle: 'Gold, Tools and Membership settings',
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => AdminShopParametersPage()),
+              MaterialPageRoute(builder: (_) => const AdminShopParametersPage()),
             ),
           ),
           _AdminCard(
@@ -159,19 +159,22 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
     );
   }
 
-  Widget _field(String key, String label) {
+  Widget _field(String key, String label, {bool decimal = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         initialValue: '${_values[key] ?? ''}',
-        keyboardType: TextInputType.number,
+        keyboardType: TextInputType.numberWithOptions(decimal: decimal),
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
         ),
         onChanged: (value) {
-          final number = int.tryParse(value);
-          _values[key] = number ?? value;
+          if (decimal) {
+            _values[key] = value;
+          } else {
+            _values[key] = int.tryParse(value) ?? value;
+          }
         },
       ),
     );
@@ -180,7 +183,7 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -188,21 +191,19 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('Gold Packages', style: _headingStyle),
+          const Text('Gold Packages (USD)', style: _headingStyle),
           const SizedBox(height: 12),
-          _field('gold100Price', '100 Gold price'),
-          _field('gold550Price', '550 Gold price'),
-          _field('gold1200Price', '1,200 Gold price'),
-          _field('gold2500Price', '2,500 Gold price'),
+          _field('gold300UsdPrice', '300 Gold — USD', decimal: true),
+          _field('gold1000UsdPrice', '1,000 Gold — USD', decimal: true),
+          _field('gold4000UsdPrice', '4,000 Gold — USD', decimal: true),
+          _field('gold10000UsdPrice', '10,000 Gold — USD', decimal: true),
           const SizedBox(height: 12),
-          const Text('Lives', style: _headingStyle),
+          const Text('Membership (USD / month)', style: _headingStyle),
           const SizedBox(height: 12),
-          _field('life1Price', '+1 Life Gold price'),
-          _field('life5Price', '+5 Lives Gold price'),
-          _field('life10Price', '+10 Lives Gold price'),
-          _field('life25Price', '+25 Lives Gold price'),
+          _field('premiumUsdPrice', 'Premium Member — USD / month', decimal: true),
+          _field('goldenUsdPrice', 'Golden Member — USD / month', decimal: true),
           const SizedBox(height: 12),
-          const Text('Evolution Tools', style: _headingStyle),
+          const Text('Evolution Tools (Gold)', style: _headingStyle),
           const SizedBox(height: 12),
           for (final tool in const [
             ('undo', 'UNDO'),
@@ -214,8 +215,8 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
             const SizedBox(height: 8),
             _field('${tool.$1}1Price', '1 use Gold price'),
             _field('${tool.$1}5Price', '5 uses Gold price'),
-            _field('${tool.$1}10Price', '10 uses Gold price'),
-            _field('${tool.$1}25Price', '25 uses Gold price'),
+            _field('${tool.$1}20Price', '20 uses Gold price'),
+            _field('${tool.$1}50Price', '50 uses Gold price'),
             const SizedBox(height: 8),
           ],
           FilledButton.icon(
@@ -239,11 +240,9 @@ class AdminQAPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       appBar: AppBar(title: Text('Q&A Management')),
-      body: Center(
-        child: Text('Q&A editing will be connected to Firestore next.'),
-      ),
+      body: Center(child: Text('Q&A editing will be connected to Firestore next.')),
     );
   }
 }
