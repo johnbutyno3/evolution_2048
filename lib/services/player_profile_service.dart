@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -14,58 +16,85 @@ class PlayerProfileService {
     return _db.collection('users').doc(uid);
   }
 
-  /// Ensures every authenticated player has a permanent sequential player name.
-  /// Existing names are never replaced.
   static Future<String?> ensureProfile() async {
-    final userRef = _userRef;
-    if (userRef == null) return SaveManager.profileName;
+    final ref = _userRef;
+    if (ref == null) return SaveManager.profileName;
 
-    final existing = await userRef.get();
-    final existingName = existing.data()?['playerName'];
+    final snapshot = await ref.get();
+    final data = snapshot.data();
+    final name = data?['playerName'];
+    final playerId = data?['playerId'];
 
-    if (existingName is String && existingName.trim().isNotEmpty) {
-      final name = existingName.trim();
-      await SaveManager.saveProfile(name: name);
-      return name;
+    if (name is String && name.trim().isNotEmpty &&
+        playerId is String && playerId.isNotEmpty) {
+      await SaveManager.saveProfile(name: name.trim());
+      return name.trim();
     }
 
-    final name = await _createSequentialName();
+    final newName = name is String && name.trim().isNotEmpty
+        ? name.trim()
+        : _generatePlayerName();
+    final newId = playerId is String && playerId.isNotEmpty
+        ? playerId
+        : _generatePlayerId();
 
-    await userRef.set(
+    await ref.set(
       {
-        'playerName': name,
-        'playerSerial': int.tryParse(name.substring('REBIRTH-'.length)),
+        'playerName': newName,
+        'playerId': newId,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
     );
 
-    await SaveManager.saveProfile(name: name);
-    return name;
+    await SaveManager.saveProfile(name: newName);
+    return newName;
   }
 
-  static Future<String> _createSequentialName() async {
-    final counterRef = _db.collection('system').doc('player_serial');
+  static String _generatePlayerName() {
+    const first = [
+      'Ocean',
+      'Sky',
+      'Coral',
+      'Wave',
+      'River',
+      'Aqua',
+      'Nova',
+      'Terra',
+      'Luna',
+      'Star',
+      'Deep',
+      'Reef',
+    ];
+    const second = [
+      'Fox',
+      'Wolf',
+      'Otter',
+      'Dolphin',
+      'Shark',
+      'Eagle',
+      'Whale',
+      'Tiger',
+      'Panda',
+      'Hawk',
+      'Orca',
+      'Bear',
+    ];
 
-    final serial = await _db.runTransaction<int>((transaction) async {
-      final snapshot = await transaction.get(counterRef);
-      final data = snapshot.data();
-      final current = data?['nextSerial'];
-      final nextSerial = current is num ? current.toInt() : 1;
+    final random = Random.secure();
+    final number = 1000 + random.nextInt(9000);
+    return '${first[random.nextInt(first.length)]}'
+        '${second[random.nextInt(second.length)]}$number';
+  }
 
-      transaction.set(
-        counterRef,
-        {
-          'nextSerial': nextSerial + 1,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+  static String _generatePlayerId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
 
-      return nextSerial;
-    });
-
-    return 'REBIRTH-${serial.toString().padLeft(6, '0')}';
+    return 'RB-${List.generate(
+      6,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join()}';
   }
 
   static Future<void> updatePlayerName(String name) async {
@@ -74,10 +103,10 @@ class PlayerProfileService {
 
     await SaveManager.saveProfile(name: trimmed);
 
-    final userRef = _userRef;
-    if (userRef == null) return;
+    final ref = _userRef;
+    if (ref == null) return;
 
-    await userRef.set(
+    await ref.set(
       {
         'playerName': trimmed,
         'updatedAt': FieldValue.serverTimestamp(),
