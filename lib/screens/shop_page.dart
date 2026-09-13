@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
 import '../game/services/gold_manager.dart';
-import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../services/shop_config_service.dart';
 
@@ -24,7 +23,6 @@ class _ShopPageState extends State<ShopPage> {
 
   Future<Map<String, dynamic>> _load() async {
     await GoldManager.initialize();
-    await LifeManager.initialize();
     return ShopConfigService.load();
   }
 
@@ -32,27 +30,8 @@ class _ShopPageState extends State<ShopPage> {
     return ShopConfigService.price(config, key);
   }
 
-  Future<void> _buyLife({
-    required int amount,
-    required int price,
-  }) async {
-    if (LifeManager.isGoldenMember) {
-      _message('Golden Members already have unlimited lives.');
-      return;
-    }
-    if (GoldManager.balance < price) {
-      _message('Not enough Gold.');
-      return;
-    }
-    if (!await GoldManager.spend(price)) {
-      _message('Purchase failed.');
-      return;
-    }
-
-    await LifeManager.addPurchasedLives(amount);
-    if (!mounted) return;
-    setState(() {});
-    _message('Purchased $amount life${amount == 1 ? '' : 's'}.');
+  String _usdPrice(Map<String, dynamic> config, String key) {
+    return ShopConfigService.usdPrice(config, key);
   }
 
   Future<void> _buyTool({
@@ -111,54 +90,43 @@ class _ShopPageState extends State<ShopPage> {
 
               const _ShopSectionTitle(title: 'Membership'),
               _MembershipCard(
-                title: 'Premium Member',
-                description: 'Membership upgrade. Benefits can be configured later.',
-                price: _price(config, 'premiumPrice'),
+                title: '高級會員 · Premium Member',
+                description: 'No ads.',
+                price: _usdPrice(config, 'premiumUsdPrice'),
                 onBuy: _paymentUnavailable,
               ),
               _MembershipCard(
-                title: 'Golden Member',
-                description: 'Unlimited lives and premium membership benefits.',
-                price: _price(config, 'goldenPrice'),
+                title: '黃金會員 · Golden Member',
+                description: 'No ads + unlimited lives.',
+                price: _usdPrice(config, 'goldenUsdPrice'),
                 onBuy: _paymentUnavailable,
               ),
               const SizedBox(height: 20),
 
               const _ShopSectionTitle(title: 'Gold'),
               const Text(
-                'Gold packages are displayed from Firestore. Real-money payment is intentionally disabled until the payment backend is connected.',
+                'Real-money purchases are priced in USD. Payment is intentionally disabled until the payment backend is connected.',
               ),
               const SizedBox(height: 8),
-              _GoldPackageCard('100 Gold', _price(config, 'gold100Price'), _paymentUnavailable),
-              _GoldPackageCard('550 Gold', _price(config, 'gold550Price'), _paymentUnavailable),
-              _GoldPackageCard('1,200 Gold', _price(config, 'gold1200Price'), _paymentUnavailable),
-              _GoldPackageCard('2,500 Gold', _price(config, 'gold2500Price'), _paymentUnavailable),
-              const SizedBox(height: 20),
-
-              const _ShopSectionTitle(title: 'Lives'),
-              _LifePackageCard(
-                amount: 1,
-                price: _price(config, 'life1Price'),
-                enabled: !LifeManager.isGoldenMember,
-                onBuy: () => _buyLife(amount: 1, price: _price(config, 'life1Price')),
+              _GoldPackageCard(
+                '300 Gold',
+                _usdPrice(config, 'gold300UsdPrice'),
+                _paymentUnavailable,
               ),
-              _LifePackageCard(
-                amount: 5,
-                price: _price(config, 'life5Price'),
-                enabled: !LifeManager.isGoldenMember,
-                onBuy: () => _buyLife(amount: 5, price: _price(config, 'life5Price')),
+              _GoldPackageCard(
+                '1,000 Gold',
+                _usdPrice(config, 'gold1000UsdPrice'),
+                _paymentUnavailable,
               ),
-              _LifePackageCard(
-                amount: 10,
-                price: _price(config, 'life10Price'),
-                enabled: !LifeManager.isGoldenMember,
-                onBuy: () => _buyLife(amount: 10, price: _price(config, 'life10Price')),
+              _GoldPackageCard(
+                '4,000 Gold',
+                _usdPrice(config, 'gold4000UsdPrice'),
+                _paymentUnavailable,
               ),
-              _LifePackageCard(
-                amount: 25,
-                price: _price(config, 'life25Price'),
-                enabled: !LifeManager.isGoldenMember,
-                onBuy: () => _buyLife(amount: 25, price: _price(config, 'life25Price')),
+              _GoldPackageCard(
+                '10,000 Gold',
+                _usdPrice(config, 'gold10000UsdPrice'),
+                _paymentUnavailable,
               ),
               const SizedBox(height: 20),
 
@@ -209,10 +177,10 @@ class _ShopPageState extends State<ShopPage> {
     final prices = [
       _price(config, '${key}1Price'),
       _price(config, '${key}5Price'),
-      _price(config, '${key}10Price'),
-      _price(config, '${key}25Price'),
+      _price(config, '${key}20Price'),
+      _price(config, '${key}50Price'),
     ];
-    final amounts = [1, 5, 10, 25];
+    final amounts = [1, 5, 20, 50];
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -246,7 +214,7 @@ class _ShopPageState extends State<ShopPage> {
                       amount: amounts[i],
                       price: prices[i],
                     ),
-                    child: Text('${amounts[i]} · ${prices[i]}'),
+                    child: Text('${amounts[i]} · ${prices[i]} Gold'),
                   ),
               ],
             ),
@@ -315,7 +283,7 @@ class _MembershipCard extends StatelessWidget {
 
   final String title;
   final String description;
-  final int price;
+  final String price;
   final VoidCallback onBuy;
 
   @override
@@ -328,7 +296,7 @@ class _MembershipCard extends StatelessWidget {
         subtitle: Text(description),
         trailing: FilledButton(
           onPressed: onBuy,
-          child: Text('NT$ $price'),
+          child: Text('\$$price / month'),
         ),
       ),
     );
@@ -339,7 +307,7 @@ class _GoldPackageCard extends StatelessWidget {
   const _GoldPackageCard(this.title, this.price, this.onBuy);
 
   final String title;
-  final int price;
+  final String price;
   final VoidCallback onBuy;
 
   @override
@@ -351,37 +319,7 @@ class _GoldPackageCard extends StatelessWidget {
         title: Text(title),
         trailing: FilledButton(
           onPressed: onBuy,
-          child: Text('NT$ $price'),
-        ),
-      ),
-    );
-  }
-}
-
-class _LifePackageCard extends StatelessWidget {
-  const _LifePackageCard({
-    required this.amount,
-    required this.price,
-    required this.enabled,
-    required this.onBuy,
-  });
-
-  final int amount;
-  final int price;
-  final bool enabled;
-  final VoidCallback onBuy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: const Icon(Icons.favorite),
-        title: Text('+$amount ${amount == 1 ? 'Life' : 'Lives'}'),
-        subtitle: const Text('Purchased with Gold'),
-        trailing: FilledButton(
-          onPressed: enabled ? onBuy : null,
-          child: Text('$price Gold'),
+          child: Text('\$$price'),
         ),
       ),
     );
