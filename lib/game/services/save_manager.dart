@@ -47,12 +47,12 @@ class SaveManager {
 
   static int get avatarIndex {
     final value = _preferences?.getInt(_avatarIndexKey) ?? 0;
-    return value.clamp(0, 11);
+    return value.clamp(0, 53);
   }
 
   static Future<void> saveAvatarIndex(int index) async {
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setInt(_avatarIndexKey, index.clamp(0, 11));
+    await _preferences!.setInt(_avatarIndexKey, index.clamp(0, 53));
   }
 
   static bool get developerMode {
@@ -298,3 +298,4 @@ class SaveManager {
     }
   }
 }
+

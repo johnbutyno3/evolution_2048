@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -39,6 +39,20 @@ class PlayerProfileService {
     ).join()}';
   }
 
+  static Future<void> updateAvatarIndex(int index) async {
+    final safeIndex = index.clamp(0, 53);
+
+    await SaveManager.saveAvatarIndex(safeIndex);
+
+    final ref = _userRef;
+    if (ref == null) return;
+
+    await ref.set({
+      'avatarIndex': safeIndex,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   static Future<String?> ensureProfile() async {
     final ref = _userRef;
     if (ref == null) return SaveManager.profileName;
@@ -49,12 +63,15 @@ class PlayerProfileService {
 
     var name = data['playerName'] as String?;
     var playerId = data['playerId'] as String?;
+
     final avatarValue = data['avatarIndex'];
     final avatarIndex = avatarValue is num
-        ? avatarValue.toInt().clamp(0, 11)
+        ? avatarValue.toInt().clamp(0, 53)
         : SaveManager.avatarIndex;
 
-    if (name == null || name.trim().isEmpty || name.trim().toLowerCase() == 'player') {
+    if (name == null ||
+        name.trim().isEmpty ||
+        name.trim().toLowerCase() == 'player') {
       name = await _generateUniqueName();
     } else {
       name = name.trim().replaceAll(RegExp(r'\s+'), ' ');
@@ -71,48 +88,68 @@ class PlayerProfileService {
     await _db.runTransaction((transaction) async {
       final nameSnapshot = await transaction.get(nameRef);
       final existingUid = nameSnapshot.data()?['uid'];
+
       if (existingUid != null && existingUid != uid) {
-        throw const PlayerProfileException('Player name is already in use.');
+        throw const PlayerProfileException(
+          'Player name is already in use.',
+        );
       }
 
       final idSnapshot = await transaction.get(idRef);
       final existingIdUid = idSnapshot.data()?['uid'];
+
       if (existingIdUid != null && existingIdUid != uid) {
-        throw const PlayerProfileException('Player ID is already in use.');
+        throw const PlayerProfileException(
+          'Player ID is already in use.',
+        );
       }
 
-      transaction.set(nameRef, {
-        'uid': uid,
-        'playerName': name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      transaction.set(
+        nameRef,
+        {
+          'uid': uid,
+          'playerName': name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
-      transaction.set(idRef, {
-        'uid': uid,
-        'playerId': playerId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      transaction.set(
+        idRef,
+        {
+          'uid': uid,
+          'playerId': playerId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
-      transaction.set(ref, {
-        'playerName': name,
-        'playerNameNormalized': normalizedName,
-        'playerId': playerId,
-        'avatarIndex': avatarIndex,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      transaction.set(
+        ref,
+        {
+          'playerName': name,
+          'playerNameNormalized': normalizedName,
+          'playerId': playerId,
+          'avatarIndex': avatarIndex,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     });
 
     await SaveManager.saveProfile(name: name);
     await SaveManager.saveAvatarIndex(avatarIndex);
+
     return name;
   }
 
   static Future<String> _generateUniqueName() async {
-    final base = 'Rebirther';
+    const base = 'Rebirther';
 
     for (var attempt = 0; attempt < 20; attempt++) {
       final suffix = 1000 + Random.secure().nextInt(9000);
       final candidate = '$base$suffix';
+
       final snapshot = await _db
           .collection('player_names')
           .doc(_normalizeName(candidate))
@@ -127,42 +164,57 @@ class PlayerProfileService {
   static Future<String> _reserveUniquePlayerId() async {
     for (var attempt = 0; attempt < 20; attempt++) {
       final candidate = _generatePlayerId();
-      final snapshot = await _db.collection('player_ids').doc(candidate).get();
+
+      final snapshot =
+          await _db.collection('player_ids').doc(candidate).get();
+
       if (!snapshot.exists) return candidate;
     }
 
     return _generatePlayerId();
   }
 
-  static Future<void> updatePlayerName(String name) async {
+  static Future<bool> updatePlayerName(String name) async {
     final trimmed = name.trim().replaceAll(RegExp(r'\s+'), ' ');
-    if (trimmed.isEmpty || trimmed.length > 30) {
-      throw const PlayerProfileException('Player name must be 1–30 characters.');
+
+    if (trimmed.isEmpty ||
+        trimmed.length > 30 ||
+        trimmed.toUpperCase() == 'PLAYER') {
+      return false;
     }
 
     final ref = _userRef;
+
     if (ref == null) {
       await SaveManager.saveProfile(name: trimmed);
-      return;
+      return true;
     }
 
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final normalizedName = _normalizeName(trimmed);
+
     final snapshot = await ref.get();
     final data = snapshot.data() ?? <String, dynamic>{};
+
     final oldName = data['playerName'] as String?;
-    final oldNormalizedName = data['playerNameNormalized'] as String? ??
-        (oldName == null ? null : _normalizeName(oldName));
+    final oldNormalizedName =
+        data['playerNameNormalized'] as String? ??
+            (oldName == null ? null : _normalizeName(oldName));
+
     final playerId = data['playerId'] as String?;
 
     if (oldNormalizedName == normalizedName) {
-      await ref.set({
-        'playerName': trimmed,
-        'playerNameNormalized': normalizedName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await ref.set(
+        {
+          'playerName': trimmed,
+          'playerNameNormalized': normalizedName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
       await SaveManager.saveProfile(name: trimmed);
-      return;
+      return true;
     }
 
     if (playerId == null || playerId.isEmpty) {
@@ -170,10 +222,13 @@ class PlayerProfileService {
       return updatePlayerName(trimmed);
     }
 
-    final newNameRef = _db.collection('player_names').doc(normalizedName);
+    final newNameRef =
+        _db.collection('player_names').doc(normalizedName);
+
     final oldNameRef = oldNormalizedName == null
         ? null
         : _db.collection('player_names').doc(oldNormalizedName);
+
     final idRef = _db.collection('player_ids').doc(playerId);
 
     await _db.runTransaction((transaction) async {
@@ -181,45 +236,49 @@ class PlayerProfileService {
       final existingUid = nameSnapshot.data()?['uid'];
 
       if (existingUid != null && existingUid != uid) {
-        throw const PlayerProfileException('Player name is already in use.');
+        throw const PlayerProfileException(
+          'Player name is already in use.',
+        );
       }
 
-      transaction.set(newNameRef, {
-        'uid': uid,
-        'playerName': trimmed,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      transaction.set(
+        newNameRef,
+        {
+          'uid': uid,
+          'playerName': trimmed,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
-      if (oldNameRef != null && oldNormalizedName != normalizedName) {
+      if (oldNameRef != null &&
+          oldNormalizedName != normalizedName) {
         transaction.delete(oldNameRef);
       }
 
-      transaction.set(idRef, {
-        'uid': uid,
-        'playerId': playerId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      transaction.set(
+        idRef,
+        {
+          'uid': uid,
+          'playerId': playerId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
 
-      transaction.set(ref, {
-        'playerName': trimmed,
-        'playerNameNormalized': normalizedName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      transaction.set(
+        ref,
+        {
+          'playerName': trimmed,
+          'playerNameNormalized': normalizedName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
     });
 
     await SaveManager.saveProfile(name: trimmed);
-  }
 
-  static Future<void> updateAvatarIndex(int index) async {
-    final safeIndex = index.clamp(0, 11);
-    await SaveManager.saveAvatarIndex(safeIndex);
-
-    final ref = _userRef;
-    if (ref == null) return;
-
-    await ref.set({
-      'avatarIndex': safeIndex,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    return true;
   }
 }

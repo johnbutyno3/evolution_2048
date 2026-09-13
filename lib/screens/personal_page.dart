@@ -44,7 +44,7 @@ class PersonalPage extends StatelessWidget {
           _SectionCard(
             icon: Icons.monetization_on_outlined,
             title: 'Gold',
-            subtitle: 'Balance and spending history',
+            subtitle: 'Gold balance and Gold Shop',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const GoldPage()),
             ),
@@ -86,16 +86,40 @@ class PersonalPage extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
-    if (!context.mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginRegisterPage()),
-      (_) => false,
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Log Out'),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (confirmed != true) return;
+
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 }
 
 class PlayerInfoPage extends StatefulWidget {
+
   const PlayerInfoPage({super.key});
 
   @override
@@ -103,6 +127,69 @@ class PlayerInfoPage extends StatefulWidget {
 }
 
 class _PlayerInfoPageState extends State<PlayerInfoPage> {
+
+  static const List<String> _avatarAssets = [
+    // Original / White
+    'assets/avatars/avatar_ancient_young_male.png',
+    'assets/avatars/avatar_ancient_young_female.png',
+    'assets/avatars/avatar_ancient_middle_male.png',
+    'assets/avatars/avatar_ancient_middle_female.png',
+    'assets/avatars/avatar_ancient_elder_male.png',
+    'assets/avatars/avatar_ancient_elder_female.png',
+    'assets/avatars/avatar_modern_young_male.png',
+    'assets/avatars/avatar_modern_young_female.png',
+    'assets/avatars/avatar_modern_middle_male.png',
+    'assets/avatars/avatar_modern_middle_female.png',
+    'assets/avatars/avatar_modern_elder_male.png',
+    'assets/avatars/avatar_modern_elder_female.png',
+    'assets/avatars/avatar_future_young_male.png',
+    'assets/avatars/avatar_future_young_female.png',
+    'assets/avatars/avatar_future_middle_male.png',
+    'assets/avatars/avatar_future_middle_female.png',
+    'assets/avatars/avatar_future_elder_male.png',
+    'assets/avatars/avatar_future_elder_female.png',
+
+    // Black / African
+    'assets/avatars/black_avatar_ancient_young_male.png',
+    'assets/avatars/black_avatar_ancient_young_female.png',
+    'assets/avatars/black_avatar_ancient_middle_male.png',
+    'assets/avatars/black_avatar_ancient_middle_female.png',
+    'assets/avatars/black_avatar_ancient_elder_male.png',
+    'assets/avatars/black_avatar_ancient_elder_female.png',
+    'assets/avatars/black_avatar_modern_young_male.png',
+    'assets/avatars/black_avatar_modern_young_female.png',
+    'assets/avatars/black_avatar_modern_middle_male.png',
+    'assets/avatars/black_avatar_modern_middle_female.png',
+    'assets/avatars/black_avatar_modern_elder_male.png',
+    'assets/avatars/black_avatar_modern_elder_female.png',
+    'assets/avatars/black_avatar_future_young_male.png',
+    'assets/avatars/black_avatar_future_young_female.png',
+    'assets/avatars/black_avatar_future_middle_male.png',
+    'assets/avatars/black_avatar_future_middle_female.png',
+    'assets/avatars/black_avatar_future_elder_male.png',
+    'assets/avatars/black_avatar_future_elder_female.png',
+
+    // Asian
+    'assets/avatars/asian_avatar_ancient_young_male.png',
+    'assets/avatars/asian_avatar_ancient_young_female.png',
+    'assets/avatars/asian_avatar_ancient_middle_male.png',
+    'assets/avatars/asian_avatar_ancient_middle_female.png',
+    'assets/avatars/asian_avatar_ancient_elder_male.png',
+    'assets/avatars/asian_avatar_ancient_elder_female.png',
+    'assets/avatars/asian_avatar_modern_young_male.png',
+    'assets/avatars/asian_avatar_modern_young_female.png',
+    'assets/avatars/asian_avatar_modern_middle_male.png',
+    'assets/avatars/asian_avatar_modern_middle_female.png',
+    'assets/avatars/asian_avatar_modern_elder_male.png',
+    'assets/avatars/asian_avatar_modern_elder_female.png',
+    'assets/avatars/asian_avatar_future_young_male.png',
+    'assets/avatars/asian_avatar_future_young_female.png',
+    'assets/avatars/asian_avatar_future_middle_male.png',
+    'assets/avatars/asian_avatar_future_middle_female.png',
+    'assets/avatars/asian_avatar_future_elder_male.png',
+    'assets/avatars/asian_avatar_future_elder_female.png',
+  ];
+
   late final TextEditingController _nameController;
   late int _avatarIndex;
   String _playerId = '';
@@ -120,7 +207,15 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+
+    if (user == null) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+      return;
+    }
+
+    try {
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -128,39 +223,43 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
       final data = snapshot.data();
 
-      if (mounted) {
-        setState(() {
-          _playerId = data?['playerId'] as String? ?? '';
-          _loading = false;
-        });
+      final firebaseAvatarIndex = data?['avatarIndex'];
+      if (firebaseAvatarIndex is int) {
+        _avatarIndex = firebaseAvatarIndex.clamp(0, 53);
+        await SaveManager.saveAvatarIndex(_avatarIndex);
       }
-    } else if (mounted) {
-      setState(() => _loading = false);
+
+      final firebaseName = data?['playerName'];
+
+      if (firebaseName is String &&
+          firebaseName.trim().isNotEmpty &&
+          firebaseName.trim().toUpperCase() != 'PLAYER') {
+        final cleanName = firebaseName.trim();
+        _nameController.text = cleanName;
+        await SaveManager.saveProfile(name: cleanName);
+      }
+
+      final firebasePlayerId = data?['playerId'];
+      if (firebasePlayerId is String && firebasePlayerId.isNotEmpty) {
+        _playerId = firebasePlayerId;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveName() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty || name.length > 30) return;
-
-    await PlayerProfileService.updatePlayerName(name);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Player name saved.')),
-    );
-    setState(() {});
-  }
-
   Future<void> _selectAvatar(int index) async {
-    await SaveManager.saveAvatarIndex(index);
+    await PlayerProfileService.updateAvatarIndex(index);
     if (!mounted) return;
     setState(() => _avatarIndex = index);
   }
@@ -267,29 +366,37 @@ class _AvatarSheetPicker extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 12,
+      itemCount: _PlayerInfoPageState._avatarAssets.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
+        childAspectRatio: 1,
       ),
       itemBuilder: (context, index) {
         final selected = index == selectedIndex;
 
-        return GestureDetector(
-          onTap: () => onSelected(index),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.transparent,
-                width: 3,
-              ),
-            ),
-            child: Padding(
+        return Material(
+          type: MaterialType.transparency,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {
+              onSelected(index);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
               padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  width: 3,
+                ),
+              ),
               child: _AvatarCircle(
                 index: index,
                 size: double.infinity,
@@ -313,32 +420,30 @@ class _AvatarCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safeIndex = index.clamp(0, 11);
-    final column = safeIndex % 4;
-    final row = safeIndex ~/ 4;
-
-    final alignment = Alignment(
-      -1 + (column * 2 / 3),
-      -1 + (row * 2 / 2),
+    final safeIndex = index.clamp(
+      0,
+      _PlayerInfoPageState._avatarAssets.length - 1,
     );
 
     return ClipOval(
       child: SizedBox(
         width: size,
         height: size,
-        child: OverflowBox(
-          minWidth: 256,
-          maxWidth: 256,
-          minHeight: 256,
-          maxHeight: 256,
-          alignment: alignment,
-          child: Image.asset(
-            'assets/avatars/avatar_sheet.png',
-            width: 256,
-            height: 256,
-            fit: BoxFit.fill,
-            filterQuality: FilterQuality.high,
-          ),
+        child: Image.asset(
+          _PlayerInfoPageState._avatarAssets[safeIndex],
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, _, _) {
+            return const ColoredBox(
+              color: Colors.white,
+              child: Icon(
+                Icons.person,
+                size: 40,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -968,6 +1073,12 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
 
 
 
