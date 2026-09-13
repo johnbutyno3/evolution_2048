@@ -11,7 +11,7 @@ class ShopConfigService {
     'gold4000UsdPrice': '9.99',
     'gold10000UsdPrice': '19.99',
     'premiumUsdPrice': '2.99',
-    'goldenUsdPrice': '9.99',
+    'goldenUsdPrice': '5.99',
     'undo1Price': 50,
     'undo5Price': 225,
     'undo20Price': 700,
