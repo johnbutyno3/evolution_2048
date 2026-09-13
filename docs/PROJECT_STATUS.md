@@ -3,6 +3,20 @@
 ## Current Phase
 Personal Information + Shop / Marketplace
 
+## Latest Committed Status (2026-09-13)
+
+- Personal Information + Shop / Marketplace remains the active development phase.
+- The latest committed batch completes the current personal-page and shop-page update set.
+- Player profile uniqueness and secure player-profile indexes are implemented.
+- Golden membership price is documented as USD 5.99.
+- No uncommitted/local-only work is treated as completed here.
+
+Latest relevant commits on `feature/chapter1-spec-implementation`:
+- `1a8d4b5` — `feat: complete personal and shop batch updates`
+- `391694c` — `feat: secure player profile indexes`
+- `cddcb19` — `feat: enforce unique player profiles`
+- `da16705` — `docs: change golden membership price to USD 5.99`
+
 ## Completed
 
 ### Personal Information
@@ -13,6 +27,8 @@ Personal Information + Shop / Marketplace
 - Gold section established.
 - Settings / Game Guide / Version Info / Log Out entries established.
 - Shop is kept separate from Personal Page.
+- Player profile uniqueness is enforced.
+- Secure player profile indexes are implemented.
 
 ### Shop / Marketplace
 - Shop Page established.
@@ -21,7 +37,8 @@ Personal Information + Shop / Marketplace
 - Owned tool quantities are displayed in Shop.
 - Gold balance is used for purchases.
 - Gold Page includes a direct Go to Shop entry.
-- Current shop prices remain provisional and are not treated as final economy values.
+- Current shop prices remain provisional except where explicitly documented.
+- Golden membership price is documented as USD 5.99.
 
 ### Creature Collection - Data Layer
 - Added `lib/services/creature_collection_service.dart`.
