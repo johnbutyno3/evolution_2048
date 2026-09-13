@@ -1,9 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
+import '../services/shop_config_service.dart';
 
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
@@ -13,30 +14,42 @@ class ShopPage extends StatefulWidget {
 }
 
 class _ShopPageState extends State<ShopPage> {
+  late Future<Map<String, dynamic>> _configFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _configFuture = _load();
+  }
+
+  Future<Map<String, dynamic>> _load() async {
+    await GoldManager.initialize();
+    await LifeManager.initialize();
+    return ShopConfigService.load();
+  }
+
+  int _price(Map<String, dynamic> config, String key) {
+    return ShopConfigService.price(config, key);
+  }
+
   Future<void> _buyLife({
     required int amount,
     required int price,
   }) async {
-    await GoldManager.initialize();
-    await LifeManager.initialize();
-
     if (LifeManager.isGoldenMember) {
       _message('Golden Members already have unlimited lives.');
       return;
     }
-
     if (GoldManager.balance < price) {
       _message('Not enough Gold.');
       return;
     }
-
     if (!await GoldManager.spend(price)) {
       _message('Purchase failed.');
       return;
     }
 
     await LifeManager.addPurchasedLives(amount);
-
     if (!mounted) return;
     setState(() {});
     _message('Purchased $amount life${amount == 1 ? '' : 's'}.');
@@ -45,168 +58,138 @@ class _ShopPageState extends State<ShopPage> {
   Future<void> _buyTool({
     required GameToolType type,
     required String name,
+    required int amount,
     required int price,
   }) async {
-    await GoldManager.initialize();
-
     if (GoldManager.balance < price) {
       _message('Not enough Gold.');
       return;
     }
-
     if (!await GoldManager.spend(price)) {
       _message('Purchase failed.');
       return;
     }
 
-    await ToolManager.addPurchasedUses(type, 1);
-
+    await ToolManager.addPurchasedUses(type, amount);
     if (!mounted) return;
     setState(() {});
-    _message('Purchased 1 $name use.');
+    _message('Purchased $amount $name use${amount == 1 ? '' : 's'}.');
   }
 
   void _message(String text) {
     if (!mounted) return;
-
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(text)),
-      );
+      ..showSnackBar(SnackBar(content: Text(text)));
   }
 
-  Future<void> _initialize() async {
-    await GoldManager.initialize();
-    await LifeManager.initialize();
+  void _paymentUnavailable() {
+    _message('Real-money payment is not connected yet.');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Shop'),
-      ),
-      body: FutureBuilder<void>(
-        future: _initialize(),
+      appBar: AppBar(title: const Text('Shop')),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _configFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
+          if (snapshot.hasError) {
+            return Center(child: Text('Unable to load shop: ${snapshot.error}'));
+          }
+
+          final config = snapshot.data ?? ShopConfigService.defaults;
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _ShopGoldCard(
-                balance: GoldManager.balance,
+              _ShopGoldCard(balance: GoldManager.balance),
+              const SizedBox(height: 20),
+
+              const _ShopSectionTitle(title: 'Membership'),
+              _MembershipCard(
+                title: 'Premium Member',
+                description: 'Membership upgrade. Benefits can be configured later.',
+                price: _price(config, 'premiumPrice'),
+                onBuy: _paymentUnavailable,
+              ),
+              _MembershipCard(
+                title: 'Golden Member',
+                description: 'Unlimited lives and premium membership benefits.',
+                price: _price(config, 'goldenPrice'),
+                onBuy: _paymentUnavailable,
               ),
               const SizedBox(height: 20),
 
+              const _ShopSectionTitle(title: 'Gold'),
               const Text(
-                'Lives',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Gold packages are displayed from Firestore. Real-money payment is intentionally disabled until the payment backend is connected.',
               ),
               const SizedBox(height: 8),
-
-              _ShopProductCard(
-                icon: Icons.favorite,
-                title: '+1 Life',
-                description: 'Add one additional gameplay life.',
-                price: 10,
-                enabled: !LifeManager.isGoldenMember,
-                onBuy: () => _buyLife(
-                  amount: 1,
-                  price: 10,
-                ),
-              ),
-
-              _ShopProductCard(
-                icon: Icons.favorite_border,
-                title: '+5 Lives',
-                description: 'Add five additional gameplay lives.',
-                price: 45,
-                enabled: !LifeManager.isGoldenMember,
-                onBuy: () => _buyLife(
-                  amount: 5,
-                  price: 45,
-                ),
-              ),
-
+              _GoldPackageCard('100 Gold', _price(config, 'gold100Price'), _paymentUnavailable),
+              _GoldPackageCard('550 Gold', _price(config, 'gold550Price'), _paymentUnavailable),
+              _GoldPackageCard('1,200 Gold', _price(config, 'gold1200Price'), _paymentUnavailable),
+              _GoldPackageCard('2,500 Gold', _price(config, 'gold2500Price'), _paymentUnavailable),
               const SizedBox(height: 20),
 
-              const Text(
-                'Evolution Tools',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+              const _ShopSectionTitle(title: 'Lives'),
+              _LifePackageCard(
+                amount: 1,
+                price: _price(config, 'life1Price'),
+                enabled: !LifeManager.isGoldenMember,
+                onBuy: () => _buyLife(amount: 1, price: _price(config, 'life1Price')),
               ),
-              const SizedBox(height: 8),
-
-              _ShopToolCard(
-                type: GameToolType.timeRewind,
-                name: 'UNDO',
-                description: 'Rewind the most recent move.',
-                icon: Icons.undo,
-                price: 50,
-                onBuy: () => _buyTool(
-                  type: GameToolType.timeRewind,
-                  name: 'UNDO',
-                  price: 50,
-                ),
+              _LifePackageCard(
+                amount: 5,
+                price: _price(config, 'life5Price'),
+                enabled: !LifeManager.isGoldenMember,
+                onBuy: () => _buyLife(amount: 5, price: _price(config, 'life5Price')),
               ),
-
-              _ShopToolCard(
-                type: GameToolType.revive,
-                name: 'REMOVE',
-                description: 'Remove a selected life form.',
-                icon: Icons.remove_circle_outline,
-                price: 50,
-                onBuy: () => _buyTool(
-                  type: GameToolType.revive,
-                  name: 'REMOVE',
-                  price: 50,
-                ),
+              _LifePackageCard(
+                amount: 10,
+                price: _price(config, 'life10Price'),
+                enabled: !LifeManager.isGoldenMember,
+                onBuy: () => _buyLife(amount: 10, price: _price(config, 'life10Price')),
               ),
-
-              _ShopToolCard(
-                type: GameToolType.positionSwap,
-                name: 'SWAP',
-                description: 'Swap two life-form positions.',
-                icon: Icons.swap_horiz,
-                price: 75,
-                onBuy: () => _buyTool(
-                  type: GameToolType.positionSwap,
-                  name: 'SWAP',
-                  price: 75,
-                ),
+              _LifePackageCard(
+                amount: 25,
+                price: _price(config, 'life25Price'),
+                enabled: !LifeManager.isGoldenMember,
+                onBuy: () => _buyLife(amount: 25, price: _price(config, 'life25Price')),
               ),
-
-              _ShopToolCard(
-                type: GameToolType.duplicate,
-                name: 'DUPLICATE',
-                description: 'Duplicate a selected life form.',
-                icon: Icons.copy_outlined,
-                price: 100,
-                onBuy: () => _buyTool(
-                  type: GameToolType.duplicate,
-                  name: 'DUPLICATE',
-                  price: 100,
-                ),
-              ),
-
               const SizedBox(height: 20),
 
-              const Text(
-                'Purchased items are saved to local game data.',
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
+              const _ShopSectionTitle(title: 'Evolution Tools'),
+              _toolPackages(
+                config,
+                GameToolType.timeRewind,
+                'UNDO',
+                Icons.undo,
+                'undo',
+              ),
+              _toolPackages(
+                config,
+                GameToolType.revive,
+                'REMOVE',
+                Icons.remove_circle_outline,
+                'remove',
+              ),
+              _toolPackages(
+                config,
+                GameToolType.positionSwap,
+                'SWAP',
+                Icons.swap_horiz,
+                'swap',
+              ),
+              _toolPackages(
+                config,
+                GameToolType.duplicate,
+                'DUPLICATE',
+                Icons.copy_outlined,
+                'duplicate',
               ),
             ],
           );
@@ -214,12 +197,85 @@ class _ShopPageState extends State<ShopPage> {
       ),
     );
   }
+
+  Widget _toolPackages(
+    Map<String, dynamic> config,
+    GameToolType type,
+    String name,
+    IconData icon,
+    String key,
+  ) {
+    final owned = ToolManager.savedUsesFor(type);
+    final prices = [
+      _price(config, '${key}1Price'),
+      _price(config, '${key}5Price'),
+      _price(config, '${key}10Price'),
+      _price(config, '${key}25Price'),
+    ];
+    final amounts = [1, 5, 10, 25];
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '$name · Owned: $owned',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < amounts.length; i++)
+                  FilledButton(
+                    onPressed: () => _buyTool(
+                      type: type,
+                      name: name,
+                      amount: amounts[i],
+                      price: prices[i],
+                    ),
+                    child: Text('${amounts[i]} · ${prices[i]}'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ShopSectionTitle extends StatelessWidget {
+  const _ShopSectionTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
 }
 
 class _ShopGoldCard extends StatelessWidget {
-  const _ShopGoldCard({
-    required this.balance,
-  });
+  const _ShopGoldCard({required this.balance});
 
   final int balance;
 
@@ -230,26 +286,17 @@ class _ShopGoldCard extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
-            const Icon(
-              Icons.monetization_on,
-              size: 42,
-            ),
+            const Icon(Icons.monetization_on, size: 42),
             const SizedBox(width: 16),
             const Expanded(
               child: Text(
                 'Gold Balance',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
             ),
             Text(
               '$balance',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -258,19 +305,68 @@ class _ShopGoldCard extends StatelessWidget {
   }
 }
 
-class _ShopProductCard extends StatelessWidget {
-  const _ShopProductCard({
-    required this.icon,
+class _MembershipCard extends StatelessWidget {
+  const _MembershipCard({
     required this.title,
     required this.description,
+    required this.price,
+    required this.onBuy,
+  });
+
+  final String title;
+  final String description;
+  final int price;
+  final VoidCallback onBuy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: const Icon(Icons.workspace_premium_outlined),
+        title: Text(title),
+        subtitle: Text(description),
+        trailing: FilledButton(
+          onPressed: onBuy,
+          child: Text('NT$ $price'),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoldPackageCard extends StatelessWidget {
+  const _GoldPackageCard(this.title, this.price, this.onBuy);
+
+  final String title;
+  final int price;
+  final VoidCallback onBuy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: const Icon(Icons.monetization_on_outlined),
+        title: Text(title),
+        trailing: FilledButton(
+          onPressed: onBuy,
+          child: Text('NT$ $price'),
+        ),
+      ),
+    );
+  }
+}
+
+class _LifePackageCard extends StatelessWidget {
+  const _LifePackageCard({
+    required this.amount,
     required this.price,
     required this.enabled,
     required this.onBuy,
   });
 
-  final IconData icon;
-  final String title;
-  final String description;
+  final int amount;
   final int price;
   final bool enabled;
   final VoidCallback onBuy;
@@ -280,53 +376,12 @@ class _ShopProductCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(description),
-        trailing: FilledButton.icon(
+        leading: const Icon(Icons.favorite),
+        title: Text('+$amount ${amount == 1 ? 'Life' : 'Lives'}'),
+        subtitle: const Text('Purchased with Gold'),
+        trailing: FilledButton(
           onPressed: enabled ? onBuy : null,
-          icon: const Icon(Icons.monetization_on_outlined),
-          label: Text('$price'),
-        ),
-      ),
-    );
-  }
-}
-
-class _ShopToolCard extends StatelessWidget {
-  const _ShopToolCard({
-    required this.type,
-    required this.name,
-    required this.description,
-    required this.icon,
-    required this.price,
-    required this.onBuy,
-  });
-
-  final GameToolType type;
-  final String name;
-  final String description;
-  final IconData icon;
-  final int price;
-  final VoidCallback onBuy;
-
-  @override
-  Widget build(BuildContext context) {
-    final owned = ToolManager.savedUsesFor(type);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(name),
-        subtitle: Text(
-          '$description\nOwned: $owned',
-        ),
-        isThreeLine: true,
-        trailing: FilledButton.icon(
-          onPressed: onBuy,
-          icon: const Icon(Icons.monetization_on_outlined),
-          label: Text('$price'),
+          child: Text('$price Gold'),
         ),
       ),
     );
