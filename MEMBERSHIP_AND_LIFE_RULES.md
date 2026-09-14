@@ -186,6 +186,38 @@ Gold 的內部經濟基準約為 **10 Gold ≈ NT$1**；此數值僅作為遊戲
 
 ## 9. UNDO 規則
 
+### 9.1 Rewarded Ad 免費取得 UNDO
+
+- FREE、PREMIUM 玩家可以透過 Rewarded Ad 免費取得 UNDO。
+- **每一局遊戲最多透過 Rewarded Ad 取得 2 次 UNDO。**
+- 每觀看 1 次完整 Rewarded Ad，可取得 1 次 UNDO。
+- 同一局遊戲第 3 次觀看 Rewarded Ad，不再提供 UNDO。
+- 開始新的一局遊戲後，Rewarded Ad 的 2 次額度重新計算。
+- 透過 Gold 購買的 UNDO 不受此限制。
+- GOLDEN 會員不需要觀看廣告，UNDO 無限。
+
+### 9.2 UNDO 連續使用限制
+
+無論玩家是否擁有無限 UNDO，**UNDO 都不得連續使用**。
+
+正確流程：
+
+有效移動 → UNDO → 鎖定 UNDO → 再完成一次有效移動 → UNDO 重新解鎖
+
+以下情況不算有效移動：
+
+- 無法移動
+- 棋盤沒有變化
+- 其他不造成棋盤狀態改變的操作
+
+因此：
+
+- FREE：每局最多透過廣告取得 2 次 UNDO
+- PREMIUM：每局最多透過廣告取得 2 次 UNDO
+- GOLD：可使用 Gold 購買 UNDO，不受每局廣告取得限制
+- GOLDEN：UNDO 使用次數無限，但仍不得連續使用
+
+
 UNDO 可以透過以下方式取得：
 
 - 使用已持有的 UNDO。
@@ -267,4 +299,5 @@ Google Play / Apple App Store 的：
 - 訂閱狀態同步
 
 暫不在本階段實作，待正式申請 Google Play Console 與 Apple Developer / App Store Connect 後再建立。
+
 
