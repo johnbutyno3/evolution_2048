@@ -77,11 +77,17 @@ class SaveManager {
     await _preferences!.setInt(_avatarIndexKey, index.clamp(0, 53));
   }
 
+  // Developer overrides are intentionally available only in debug/profile
+  // development builds. Release builds can never enable them from local
+  // preferences, even if a previous debug build left the flags behind.
   static bool get developerMode {
+    if (!kDebugMode) return false;
     return _preferences?.getBool(_developerModeKey) ?? false;
   }
 
   static Future<void> setDeveloperMode(bool enabled) async {
+    if (!kDebugMode) return;
+
     _preferences ??= await SharedPreferences.getInstance();
 
     await _preferences!.setBool(_developerModeKey, enabled);
@@ -98,31 +104,37 @@ class SaveManager {
   }
 
   static bool get developerAllChapters {
+    if (!kDebugMode) return false;
     return developerMode &&
         (_preferences?.getBool(_developerAllChaptersKey) ?? false);
   }
 
   static Future<void> setDeveloperAllChapters(bool enabled) async {
+    if (!kDebugMode) return;
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.setBool(_developerAllChaptersKey, enabled);
   }
 
   static bool get developerAllTools {
+    if (!kDebugMode) return false;
     return developerMode &&
         (_preferences?.getBool(_developerAllToolsKey) ?? false);
   }
 
   static Future<void> setDeveloperAllTools(bool enabled) async {
+    if (!kDebugMode) return;
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.setBool(_developerAllToolsKey, enabled);
   }
 
   static bool get developerUnlimitedTools {
+    if (!kDebugMode) return false;
     return developerMode &&
         (_preferences?.getBool(_developerUnlimitedToolsKey) ?? false);
   }
 
   static Future<void> setDeveloperUnlimitedTools(bool enabled) async {
+    if (!kDebugMode) return;
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.setBool(_developerUnlimitedToolsKey, enabled);
   }
@@ -257,40 +269,12 @@ class SaveManager {
     }
 
     _cachedSave = root;
-
     await _preferences!.setString(_saveKey, jsonEncode(root));
-  }
-
-  static Future<void> saveToolProgress({
-    required Map<String, int> toolUses,
-    required List<String> rewardsClaimed,
-  }) async {
-    _preferences ??= await SharedPreferences.getInstance();
-
-    final root = _cachedSave == null
-        ? <String, dynamic>{}
-        : Map<String, dynamic>.from(_cachedSave!);
-
-    root['version'] = 1;
-    root['savedAt'] = DateTime.now().millisecondsSinceEpoch;
-    root['toolUses'] = toolUses;
-    root['toolRewardsClaimed'] = rewardsClaimed;
-
-    _cachedSave = root;
-
-    await _preferences!.setString(_saveKey, jsonEncode(root));
-  }
-
-  static Future<Map<String, dynamic>?> load() async {
-    await initialize();
-    return loadCached();
   }
 
   static Future<void> clear() async {
     _preferences ??= await SharedPreferences.getInstance();
-
     _cachedSave = null;
-
     await _preferences!.remove(_saveKey);
   }
 
@@ -301,16 +285,15 @@ class SaveManager {
 
     try {
       final decoded = jsonDecode(raw);
-
-      if (decoded is! Map) {
-        return null;
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(
+          decoded.map((key, value) => MapEntry(key.toString(), value)),
+        );
       }
-
-      return Map<String, dynamic>.from(decoded);
-    } on FormatException {
-      return null;
-    } on TypeError {
-      return null;
+    } catch (_) {
+      // Ignore malformed local save data and start clean.
     }
+
+    return null;
   }
 }
