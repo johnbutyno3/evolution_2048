@@ -9,7 +9,7 @@ class ReplayEvent {
         ...data,
       };
 
-  static ReplayEvent move({
+  static ReplayEvent.move({
     required String direction,
     required int spawnIndex,
     required int spawnValue,
@@ -28,8 +28,8 @@ class ReplayEvent {
   }) {
     return ReplayEvent._('revive', <String, dynamic>{
       'index': index,
-      ...?{'spawnIndex': spawnIndex},
-      ...?{'spawnValue': spawnValue},
+      if (spawnIndex case final value?) 'spawnIndex': value,
+      if (spawnValue case final value?) 'spawnValue': value,
     });
   }
 
