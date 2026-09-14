@@ -6,6 +6,14 @@
 Repository: `johnbutyno3/evolution_2048`
 Branch: `feature/chapter1-spec-implementation`
 
+## Progress Update Workflow
+
+- `docs/PROJECT_STATUS.md` is the canonical progress source for daily status extraction.
+- During active development, update progress after each meaningful completed task, milestone, major issue, or security finding.
+- Do not depend on a background hourly scheduler.
+- Every completed task must leave the progress document consistent with the actual committed state.
+- Record the latest commit and the next task whenever a meaningful batch is completed.
+
 ## Day 1 — Home + Personal + Shop 整合
 
 ### 已完成
@@ -19,38 +27,21 @@ Branch: `feature/chapter1-spec-implementation`
 - [x] Home Avatar 資產清單接入
 - [x] Home 讀取目前 Avatar
 - [x] `flutter analyze` 通過
+- [x] Player profile uniqueness
+- [x] Secure player profile indexes
+- [x] Remote Shop Config
+- [x] Purchase intent / transaction-lock architecture
 
-### 目前進行中
-- [ ] Home 顯示玩家名稱
-- [ ] Home 顯示 Player ID
-- [ ] Home 顯示 Membership
-- [ ] Home 顯示 Gold 與餘額
-- [ ] Avatar / Name 修改後 Home 即時更新
-- [ ] Personal → Home
-- [ ] Shop → Home
-- [ ] Gold 點擊 → Gold Shop
-
-### Home 頂部最終目標
-```text
-[Avatar]  Player Name
-          Player ID
-          Membership
-
-[Gold]    Gold Balance
-
-[Player Info] [Shop]
-```
-
-## Day 2 — Shop + Tools + Lives
+## Day 2 — Shop + Tools + Membership
 - [ ] Membership / Premium / Golden
 - [ ] Gold balance and packages
-- [ ] Lives packages
 - [ ] Tool packages and owned quantities
 - [ ] Tool purchase / use / locked state
-- [ ] Infinite lives / ad removal
+- [ ] Golden infinite lives / ad removal
 - [ ] USD pricing
 - [ ] Shop UI complete
 - [ ] Real payment backend may be deferred if it blocks launch
+- [x] Life is not sold separately
 
 ## Day 3 — Game Core + Collection
 - [ ] Collection achievement/evolution events
@@ -107,6 +98,20 @@ Branch: `feature/chapter1-spec-implementation`
 - [ ] Final installation test
 - [ ] Submit
 
+## Security / Anti-Cheat
+
+- [x] Security specification documented in `docs/SECURITY_ANTI_CHEAT.md`
+- [x] Server-authoritative architecture defined
+- [x] Purchase intent and transaction uniqueness protections
+- [ ] Server-authoritative Gold
+- [ ] Server-authoritative Membership
+- [ ] Server-authoritative Tool inventory and purchase deduction
+- [ ] Server-authoritative Golden Infinite Lives
+- [ ] Tighten `users/{uid}` Firestore update permissions
+- [ ] Production developer/reset capability isolation
+- [ ] Cheat Audit Log
+- [ ] Admin cheat alerts
+
 ## 開發規則
 1. 不使用舊版 18 階 creature data。
 2. 不使用舊 l10n / backup。
@@ -123,35 +128,26 @@ Branch: `feature/chapter1-spec-implementation`
 13. 非核心功能不得阻塞上架。
 14. 真實付款與進階 Admin 等非核心項目可延後。
 15. 目前優先順序以上架為準。
-
-## 目前接手點
-Home Avatar 已完成：
-
-`SaveManager.avatarIndex` → `_homeAvatarAssets` → Home `CircleAvatar`
-
-目前 `flutter analyze`：`No issues found!`
-
-### 下一項
-**Home 顯示玩家名稱**
-
-完成順序：
-1. Player Name
-2. Player ID
-3. Membership
-4. Gold
-5. Home ↔ Personal
-6. Home ↔ Shop
-7. Gold → Gold Shop
-
-完成 Day 1 後進入 Day 2。
+16. 每完成重要工作即同步更新 `docs/PROJECT_STATUS.md`。
 
 ## Copilot 接手規則
 Copilot 必須先閱讀：
 - `docs/GAME_RULES.md`
 - `docs/LAUNCH_SPRINT.md`
-- `lib/screens/home_page.dart`
-- `lib/screens/personal_page.dart`
-- `lib/game/services/save_manager.dart`
-- `lib/game/services/player_profile_service.dart`
+- `docs/PROJECT_STATUS.md`
+- `docs/SECURITY_ANTI_CHEAT.md`
+- 相關目前實際程式檔案
 
 Copilot 每次只完成一個任務；不得自行連做後續任務。修改前先讀目前實際檔案，不得假設舊版程式碼。修改後必須執行 `flutter analyze`，只有 `No issues found!` 才能進下一項。
+
+## Current Handoff
+
+Current phase: **Launch Security / Anti-Cheat hardening**.
+
+Next task:
+**Server-authoritative Gold**
+
+完成後：
+1. `flutter analyze`
+2. 更新 `docs/PROJECT_STATUS.md`
+3. 再進入下一個明確安全任務。
