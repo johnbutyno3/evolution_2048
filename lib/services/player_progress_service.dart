@@ -22,6 +22,7 @@ class PlayerProgressService {
 
   int _unlockedChapterIndex = 0;
   bool _loadedFromServer = false;
+  String? _activeGameSessionId;
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
   bool get loadedFromServer => _loadedFromServer;
@@ -35,6 +36,7 @@ class PlayerProgressService {
     if (user == null) {
       _unlockedChapterIndex = 0;
       _loadedFromServer = false;
+      _activeGameSessionId = null;
       return;
     }
 
@@ -59,24 +61,59 @@ class PlayerProgressService {
     }
   }
 
+  /// Starts a new server-side gameplay session for one chapter attempt.
+  ///
+  /// The session ID is kept only in memory. It is never stored in the local
+  /// gameplay save, so an old completion token cannot be replayed later.
+  Future<bool> startGameSession(int chapterIndex) async {
+    final user = _auth.currentUser;
+    if (user == null || chapterIndex < 0 || chapterIndex > 5) {
+      return false;
+    }
+
+    try {
+      final callable = _functions.httpsCallable('startGameSession');
+      final result = await callable.call(<String, dynamic>{
+        'chapterIndex': chapterIndex,
+      });
+
+      final data = result.data;
+      if (data is Map && data['sessionId'] is String) {
+        _activeGameSessionId = data['sessionId'] as String;
+        return true;
+      }
+    } on FirebaseFunctionsException {
+      _activeGameSessionId = null;
+    }
+
+    return false;
+  }
+
+  /// Clears the in-memory session when the account/game leaves the attempt.
+  void clearGameSession() {
+    _activeGameSessionId = null;
+  }
+
   /// Requests a server-side chapter unlock after a completed chapter.
   ///
-  /// The callable function is intentionally the only client write path.
-  /// Stronger anti-cheat validation of the game session/result will be added
-  /// to this server operation before rewards are introduced.
+  /// The callable function requires the server-issued gameplay session and
+  /// consumes that session exactly once. The client never writes the progress
+  /// document directly.
   Future<bool> completeChapter({
     required int chapterIndex,
     required int highestValue,
     required int score,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) {
+    final sessionId = _activeGameSessionId;
+    if (user == null || sessionId == null) {
       return false;
     }
 
     try {
       final callable = _functions.httpsCallable('completeChapter');
       final result = await callable.call(<String, dynamic>{
+        'sessionId': sessionId,
         'chapterIndex': chapterIndex,
         'highestValue': highestValue,
         'score': score,
@@ -87,6 +124,7 @@ class PlayerProgressService {
         _unlockedChapterIndex =
             (data['unlockedChapterIndex'] as num).toInt().clamp(0, 5);
         _loadedFromServer = true;
+        _activeGameSessionId = null;
         return true;
       }
     } on FirebaseFunctionsException {
