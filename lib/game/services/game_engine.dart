@@ -1,4 +1,4 @@
-﻿// ignore_for_file: prefer_initializing_formals
+// ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
 import 'dart:math';
@@ -9,6 +9,7 @@ import '../models/tools/game_tool.dart';
 import 'save_manager.dart';
 import 'life_manager.dart';
 import 'tool_manager.dart';
+import 'replay_recorder.dart';
 
 class GameEngine {
   GameEngine({
@@ -19,6 +20,7 @@ class GameEngine {
        _chapter = chapter {
     _autoSaveEnabled = false;
     _initializeTools();
+    _replayRecorder = ReplayRecorder(chapter: _chapter.name);
     reset();
 
     final saved = SaveManager.loadCached(chapter: _chapter.name);
@@ -292,6 +294,7 @@ class GameEngine {
 
   late GameBoard _board;
   late ToolManager _toolManager;
+  late final ReplayRecorder _replayRecorder;
 
   List<int?>? _previousBoard;
   int _previousScore = 0;
@@ -402,6 +405,7 @@ class GameEngine {
       'gameElapsedSeconds': _gameElapsedSeconds,
       'gameTimerRunning': _gameTimerRunning,
       'gameTimerStartedAt': _gameTimerStartedAt?.millisecondsSinceEpoch,
+      'replayLog': _replayRecorder.log?.toJson(),
     };
   }
 
@@ -514,6 +518,8 @@ class GameEngine {
 
     _updateBestScore();
 
+    _replayRecorder.restoreFromSave(data, _board);
+
     return true;
   }
 
@@ -578,9 +584,21 @@ class GameEngine {
 
     _newEvolutionValuesThisMove.clear();
 
+    int? spawnIndex;
+    int? spawnValue;
+
     if (_board.tiles.every((tile) => tile == null)) {
-      _spawnTile();
+      final spawn = _spawnTile();
+      spawnIndex = spawn?.$1;
+      spawnValue = spawn?.$2;
     }
+
+    _replayRecorder.recordRevive(
+      row: row,
+      column: column,
+      spawnIndex: spawnIndex,
+      spawnValue: spawnValue,
+    );
 
     _saveLocal();
 
@@ -610,6 +628,8 @@ class GameEngine {
     _previousBoard = null;
 
     _newEvolutionValuesThisMove.clear();
+
+    _replayRecorder.recordTimeRewind();
 
     _saveLocal();
 
@@ -666,6 +686,13 @@ class GameEngine {
     _deductToolScore(first.value + second.value);
 
     _newEvolutionValuesThisMove.clear();
+
+    _replayRecorder.recordPositionSwap(
+      firstRow: firstRow,
+      firstColumn: firstColumn,
+      secondRow: secondRow,
+      secondColumn: secondColumn,
+    );
 
     _saveLocal();
 
@@ -725,6 +752,13 @@ class GameEngine {
     _newEvolutionValuesThisMove.clear();
 
     _recordHighestEvolutionValue(source.value);
+
+    _replayRecorder.recordDuplicate(
+      sourceRow: sourceRow,
+      sourceColumn: sourceColumn,
+      targetRow: targetRow,
+      targetColumn: targetColumn,
+    );
 
     _saveLocal();
 
@@ -831,6 +865,8 @@ class GameEngine {
     _spawnTile();
     _spawnTile();
 
+    _replayRecorder.start(_board);
+
     _saveLocal();
   }
 
@@ -919,12 +955,12 @@ class GameEngine {
   // Moves
   // ============================================================
 
-  bool moveUp() => _move(_board.moveUp);
-  bool moveDown() => _move(_board.moveDown);
-  bool moveLeft() => _move(_board.moveLeft);
-  bool moveRight() => _move(_board.moveRight);
+  bool moveUp() => _move('up', _board.moveUp);
+  bool moveDown() => _move('down', _board.moveDown);
+  bool moveLeft() => _move('left', _board.moveLeft);
+  bool moveRight() => _move('right', _board.moveRight);
 
-  bool _move(bool Function() move) {
+  bool _move(String direction, bool Function() move) {
     if (gameOver || chapterComplete) {
       return false;
     }
@@ -968,14 +1004,32 @@ class GameEngine {
       _stopGameTimer();
 
       _updateBestScore();
+
+      _replayRecorder.recordMove(
+        direction: direction,
+        spawnIndex: -1,
+        spawnValue: -1,
+      );
+
       _saveLocal();
 
       return true;
     }
 
+    int? spawnIndex;
+    int? spawnValue;
+
     if (!_board.isFull) {
-      _spawnTile();
+      final spawn = _spawnTile();
+      spawnIndex = spawn?.$1;
+      spawnValue = spawn?.$2;
     }
+
+    _replayRecorder.recordMove(
+      direction: direction,
+      spawnIndex: spawnIndex ?? -1,
+      spawnValue: spawnValue ?? -1,
+    );
 
     gameOver = _isGameOver();
 
@@ -1064,11 +1118,11 @@ class GameEngine {
     return !_board.hasAvailableMerge;
   }
 
-  void _spawnTile() {
+  (int index, int value)? _spawnTile() {
     final empty = _board.emptyPositions;
 
     if (empty.isEmpty) {
-      return;
+      return null;
     }
 
     final position = empty[_random.nextInt(empty.length)];
@@ -1082,5 +1136,7 @@ class GameEngine {
     );
 
     _recordHighestEvolutionValue(value);
+
+    return (position.row * boardSize + position.column, value);
   }
 }

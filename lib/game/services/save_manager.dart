@@ -272,6 +272,31 @@ class SaveManager {
     await _preferences!.setString(_saveKey, jsonEncode(root));
   }
 
+  /// Persists developer-only global tool progress in the local save root.
+  ///
+  /// Production tool inventory remains server-authoritative. This helper is
+  /// intentionally used only by ToolManager when developer mode is enabled.
+  static Future<void> saveToolProgress({
+    required Map<String, int> toolUses,
+    required List<String> rewardsClaimed,
+  }) async {
+    if (!kDebugMode) return;
+    if (!developerMode) return;
+
+    _preferences ??= await SharedPreferences.getInstance();
+
+    final root = _cachedSave == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(_cachedSave!);
+
+    root['version'] = 1;
+    root['savedAt'] = DateTime.now().millisecondsSinceEpoch;
+    root['toolUses'] = <String, int>{...toolUses};
+    root['toolRewardsClaimed'] = List<String>.from(rewardsClaimed);
+
+    _cachedSave = root;
+    await _preferences!.setString(_saveKey, jsonEncode(root));
+  }
   static Future<void> clear() async {
     _preferences ??= await SharedPreferences.getInstance();
     _cachedSave = null;

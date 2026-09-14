@@ -1,8 +1,9 @@
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+﻿const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const crypto = require('crypto');
+const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 
 initializeApp();
 setGlobalOptions({ region: 'us-central1' });
@@ -564,10 +565,11 @@ exports.completeChapter = onCall(async (request) => {
   const data = request.data || {};
   const sessionId = data.sessionId;
   const chapterIndex = data.chapterIndex;
-  const highestValue = data.highestValue;
-  const score = data.score;
+  const replayLog = data.replayLog;
 
-  if (typeof sessionId !== 'string' || sessionId.length < 16 || sessionId.length > 128) {
+  if (typeof sessionId !== 'string' ||
+      sessionId.length < 16 ||
+      sessionId.length > 128) {
     await recordSecurityEvent({
       uid: request.auth.uid,
       action: 'complete_chapter',
@@ -590,24 +592,15 @@ exports.completeChapter = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Invalid chapter index.');
   }
 
-  if (!Number.isInteger(highestValue) || highestValue < 0) {
+  if (!replayLog || typeof replayLog !== 'object') {
     await recordSecurityEvent({
       uid: request.auth.uid,
       action: 'complete_chapter',
-      reason: 'invalid_highest_value',
-      details: { chapterIndex, highestValue },
+      severity: 'high',
+      reason: 'missing_replay_log',
+      details: { sessionId, chapterIndex },
     });
-    throw new HttpsError('invalid-argument', 'Invalid highest value.');
-  }
-
-  if (!Number.isSafeInteger(score) || score < 0) {
-    await recordSecurityEvent({
-      uid: request.auth.uid,
-      action: 'complete_chapter',
-      reason: 'invalid_score',
-      details: { chapterIndex, score },
-    });
-    throw new HttpsError('invalid-argument', 'Invalid score.');
+    throw new HttpsError('invalid-argument', 'Replay data is required.');
   }
 
   const uid = request.auth.uid;
@@ -618,11 +611,135 @@ exports.completeChapter = onCall(async (request) => {
     .collection('progress')
     .doc('game');
 
+  /*
+   * Read the session before replay validation so the validator uses
+   * the server-authoritative chapter and target.
+   */
+  const sessionSnapshot = await sessionRef.get();
+
+  if (!sessionSnapshot.exists) {
+    await recordSecurityEvent({
+      uid,
+      action: 'complete_chapter',
+      severity: 'high',
+      reason: 'game_session_not_found',
+      details: { sessionId, chapterIndex },
+    });
+    throw new HttpsError('not-found', 'Game session was not found.');
+  }
+
+  const session = sessionSnapshot.data() || {};
+
+  if (session.status !== 'active') {
+    await recordSecurityEvent({
+      uid,
+      action: 'complete_chapter',
+      severity: 'high',
+      reason: 'game_session_replay',
+      details: { sessionId, chapterIndex, status: session.status },
+    });
+    throw new HttpsError(
+      'failed-precondition',
+      'Game session is no longer active.',
+    );
+  }
+
+  if (session.chapterIndex !== chapterIndex ||
+      session.targetValue !== TARGETS[chapterIndex]) {
+    await recordSecurityEvent({
+      uid,
+      action: 'complete_chapter',
+      severity: 'high',
+      reason: 'game_session_mismatch',
+      details: {
+        sessionId,
+        chapterIndex,
+        sessionChapter: session.chapterIndex,
+      },
+    });
+    throw new HttpsError(
+      'failed-precondition',
+      'Game session does not match the chapter.',
+    );
+  }
+
+  const expiresAt = session.expiresAt?.toMillis?.() ?? 0;
+  if (expiresAt <= Date.now()) {
+    await recordSecurityEvent({
+      uid,
+      action: 'complete_chapter',
+      severity: 'high',
+      reason: 'game_session_expired',
+      details: { sessionId, chapterIndex },
+    });
+    throw new HttpsError(
+      'deadline-exceeded',
+      'Game session has expired.',
+    );
+  }
+
+  let replayResult;
+
+  try {
+    replayResult = replayGame({
+      replayLog,
+      chapterIndex,
+      targetValue: session.targetValue,
+      allowedTools: allowedToolsForChapter(chapterIndex),
+    });
+  } catch (error) {
+    await recordSecurityEvent({
+      uid,
+      action: 'complete_chapter',
+      severity: 'high',
+      reason: 'invalid_replay',
+      details: {
+        sessionId,
+        chapterIndex,
+        error: error?.message || 'Replay validation failed.',
+        code: error?.code || null,
+      },
+    });
+
+    throw new HttpsError(
+      'failed-precondition',
+      'Replay validation failed.',
+    );
+  }
+
+  const highestValue = replayResult.highestValue;
+  const score = replayResult.score;
+  const requiredTarget = TARGETS[chapterIndex];
+
+  if (highestValue !== requiredTarget) {
+    await recordSecurityEvent({
+      uid,
+      action: 'complete_chapter',
+      severity: 'high',
+      reason: 'replay_target_mismatch',
+      details: {
+        sessionId,
+        chapterIndex,
+        highestValue,
+        requiredTarget,
+      },
+    });
+
+    throw new HttpsError(
+      'failed-precondition',
+      'Chapter completion target was not reached.',
+    );
+  }
+
   return db.runTransaction(async (transaction) => {
-    const sessionSnapshot = await transaction.get(sessionRef);
+    /*
+     * Re-read the session inside the transaction to prevent a replay
+     * from completing the same game session twice.
+     */
+    const currentSessionSnapshot = await transaction.get(sessionRef);
     const progressSnapshot = await transaction.get(progressRef);
 
-    if (!sessionSnapshot.exists) {
+    if (!currentSessionSnapshot.exists) {
       await recordSecurityEvent({
         uid,
         action: 'complete_chapter',
@@ -633,32 +750,49 @@ exports.completeChapter = onCall(async (request) => {
       throw new HttpsError('not-found', 'Game session was not found.');
     }
 
-    const session = sessionSnapshot.data() || {};
-    if (session.status !== 'active') {
+    const currentSession = currentSessionSnapshot.data() || {};
+
+    if (currentSession.status !== 'active') {
       await recordSecurityEvent({
         uid,
         action: 'complete_chapter',
         severity: 'high',
         reason: 'game_session_replay',
-        details: { sessionId, chapterIndex, status: session.status },
+        details: {
+          sessionId,
+          chapterIndex,
+          status: currentSession.status,
+        },
       });
-      throw new HttpsError('failed-precondition', 'Game session is no longer active.');
+      throw new HttpsError(
+        'failed-precondition',
+        'Game session is no longer active.',
+      );
     }
 
-    if (session.chapterIndex !== chapterIndex ||
-        session.targetValue !== TARGETS[chapterIndex]) {
+    if (currentSession.chapterIndex !== chapterIndex ||
+        currentSession.targetValue !== TARGETS[chapterIndex]) {
       await recordSecurityEvent({
         uid,
         action: 'complete_chapter',
         severity: 'high',
         reason: 'game_session_mismatch',
-        details: { sessionId, chapterIndex, sessionChapter: session.chapterIndex },
+        details: {
+          sessionId,
+          chapterIndex,
+          sessionChapter: currentSession.chapterIndex,
+        },
       });
-      throw new HttpsError('failed-precondition', 'Game session does not match the chapter.');
+      throw new HttpsError(
+        'failed-precondition',
+        'Game session does not match the chapter.',
+      );
     }
 
-    const expiresAt = session.expiresAt?.toMillis?.() ?? 0;
-    if (expiresAt <= Date.now()) {
+    const currentExpiresAt =
+      currentSession.expiresAt?.toMillis?.() ?? 0;
+
+    if (currentExpiresAt <= Date.now()) {
       await recordSecurityEvent({
         uid,
         action: 'complete_chapter',
@@ -666,27 +800,18 @@ exports.completeChapter = onCall(async (request) => {
         reason: 'game_session_expired',
         details: { sessionId, chapterIndex },
       });
-      throw new HttpsError('deadline-exceeded', 'Game session has expired.');
-    }
-
-    const requiredTarget = TARGETS[chapterIndex];
-    if (highestValue !== requiredTarget) {
-      await recordSecurityEvent({
-        uid,
-        action: 'complete_chapter',
-        severity: 'high',
-        reason: 'completion_target_mismatch',
-        details: { sessionId, chapterIndex, highestValue, requiredTarget },
-      });
       throw new HttpsError(
-        'failed-precondition',
-        'Chapter completion target was not reached.',
+        'deadline-exceeded',
+        'Game session has expired.',
       );
     }
 
     const current = progressSnapshot.data() || {};
     const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
-      ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
+      ? Math.min(
+          Math.max(current.unlockedChapterIndex, 0),
+          MAX_CHAPTER_INDEX,
+        )
       : 0;
 
     if (chapterIndex > currentUnlocked) {
@@ -695,7 +820,11 @@ exports.completeChapter = onCall(async (request) => {
         action: 'complete_chapter',
         severity: 'high',
         reason: 'locked_chapter_completion_attempt',
-        details: { sessionId, chapterIndex, currentUnlocked },
+        details: {
+          sessionId,
+          chapterIndex,
+          currentUnlocked,
+        },
       });
       throw new HttpsError(
         'permission-denied',
@@ -703,14 +832,23 @@ exports.completeChapter = onCall(async (request) => {
       );
     }
 
-    const nextUnlocked = Math.min(chapterIndex + 1, MAX_CHAPTER_INDEX);
+    const nextUnlocked = Math.min(
+      chapterIndex + 1,
+      MAX_CHAPTER_INDEX,
+    );
+
     const currentHighest = Number.isInteger(current.highestValue)
       ? Math.max(current.highestValue, highestValue)
       : highestValue;
+
     const currentScore = Number.isSafeInteger(current.score)
       ? Math.max(current.score, score)
       : score;
-    const unlockedChapterIndex = Math.max(currentUnlocked, nextUnlocked);
+
+    const unlockedChapterIndex = Math.max(
+      currentUnlocked,
+      nextUnlocked,
+    );
 
     transaction.set(progressRef, {
       unlockedChapterIndex,
@@ -724,6 +862,9 @@ exports.completeChapter = onCall(async (request) => {
       completedAt: FieldValue.serverTimestamp(),
       highestValue,
       score,
+      replayEventCount: replayResult.eventCount,
+      toolUsage: replayResult.toolUsage,
+      toolPenaltyTotal: replayResult.toolPenaltyTotal,
     });
 
     return {
