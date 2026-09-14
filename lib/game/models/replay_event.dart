@@ -28,9 +28,13 @@ class ReplayEvent {
   }) {
     return ReplayEvent._('revive', <String, dynamic>{
       'index': index,
-      ?spawnIndex: spawnIndex,
-      ?spawnValue: spawnValue,
+      ..._optionalField('spawnIndex', spawnIndex),
+      ..._optionalField('spawnValue', spawnValue),
     });
+  }
+
+  static Map<String, dynamic> _optionalField(String key, int? value) {
+    return value == null ? <String, dynamic>{} : <String, dynamic>{key: value};
   }
 
   static ReplayEvent positionSwap({
