@@ -97,16 +97,29 @@ class PlayerProgressService {
   /// Requests a server-side chapter unlock after a completed chapter.
   ///
   /// The callable function requires the server-issued gameplay session and
-  /// consumes that session exactly once. The client never writes the progress
-  /// document directly.
+  /// consumes that session exactly once. The fallback session creation keeps
+  /// existing clients functional until the gameplay screen explicitly starts
+  /// a session at the beginning of an attempt.
   Future<bool> completeChapter({
     required int chapterIndex,
     required int highestValue,
     required int score,
   }) async {
     final user = _auth.currentUser;
-    final sessionId = _activeGameSessionId;
-    if (user == null || sessionId == null) {
+    if (user == null) {
+      return false;
+    }
+
+    var sessionId = _activeGameSessionId;
+    if (sessionId == null) {
+      final started = await startGameSession(chapterIndex);
+      if (!started) {
+        return false;
+      }
+      sessionId = _activeGameSessionId;
+    }
+
+    if (sessionId == null) {
       return false;
     }
 
