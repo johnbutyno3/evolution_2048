@@ -5,9 +5,9 @@ import 'save_manager.dart';
 
 /// Records the player's local gameplay actions into the untrusted replay log.
 ///
-/// This class deliberately observes the board before/after an action instead
-/// of generating randomness itself. The server remains responsible for
-/// validating every event and replaying the complete attempt.
+/// This class deliberately records the explicit random spawn supplied by the
+/// game engine. The server remains responsible for validating every event and
+/// replaying the complete attempt.
 class ReplayRecorder {
   ReplayRecorder({required this.chapter});
 
@@ -37,23 +37,21 @@ class ReplayRecorder {
     start(board);
   }
 
-  /// Records a normal 2048 move. The newly spawned tile is detected from the
-  /// board difference after the engine has completed the move.
+  /// Records a normal 2048 move together with the exact tile spawned by the
+  /// engine after the move. The server will validate that spawn during replay.
   void recordMove({
     required String direction,
-    required GameBoard before,
-    required GameBoard after,
+    required int spawnIndex,
+    required int spawnValue,
   }) {
     final log = _log;
     if (log == null) return;
 
-    final spawn = _findSpawn(before, after);
-
     log.events.add(
       ReplayEvent.move(
         direction: direction,
-        spawnIndex: spawn.$1,
-        spawnValue: spawn.$2,
+        spawnIndex: spawnIndex,
+        spawnValue: spawnValue,
       ),
     );
 
@@ -127,21 +125,5 @@ class ReplayRecorder {
 
   List<int?> _tiles(GameBoard board) {
     return board.tiles.map((tile) => tile?.value).toList();
-  }
-
-  (int, int) _findSpawn(GameBoard before, GameBoard after) {
-    final beforeTiles = _tiles(before);
-    final afterTiles = _tiles(after);
-
-    for (var index = 0; index < afterTiles.length; index++) {
-      if (beforeTiles[index] == null && afterTiles[index] != null) {
-        return (index, afterTiles[index]!);
-      }
-    }
-
-    // A successful move that completes the chapter can legitimately have no
-    // spawn because the engine stops before spawning another tile. The server
-    // interprets -1/-1 as "no spawn" and validates that condition itself.
-    return (-1, -1);
   }
 }
