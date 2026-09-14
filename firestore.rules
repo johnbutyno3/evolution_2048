@@ -49,6 +49,12 @@ service cloud.firestore {
               && documentId == 'collection');
     }
 
+    // Game sessions are created and completed only by Cloud Functions.
+    // The client must never read or mutate session state directly.
+    match /users/{userId}/game_sessions/{sessionId} {
+      allow read, write: if false;
+    }
+
     match /users/{userId}/wallet/{walletId} {
       allow read: if signedIn() && request.auth.uid == userId;
       allow write: if false;
@@ -66,6 +72,12 @@ service cloud.firestore {
 
     match /purchase_transactions/{transactionId} {
       allow read, write: if false;
+    }
+
+    // Security events are server-generated audit records.
+    match /security_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /player_names/{nameId} {
