@@ -65,7 +65,7 @@ class ReplayRecorder {
     if (log == null) return;
 
     log.events.add(
-      ReplayEvent.revive(index: row * GameBoard.size + column),
+      ReplayEvent.revive(index: row * 4 + column),
     );
     _save();
   }
@@ -81,8 +81,8 @@ class ReplayRecorder {
 
     log.events.add(
       ReplayEvent.positionSwap(
-        firstIndex: firstRow * GameBoard.size + firstColumn,
-        secondIndex: secondRow * GameBoard.size + secondColumn,
+        firstIndex: firstRow * 4 + firstColumn,
+        secondIndex: secondRow * 4 + secondColumn,
       ),
     );
     _save();
@@ -99,8 +99,8 @@ class ReplayRecorder {
 
     log.events.add(
       ReplayEvent.duplicate(
-        sourceIndex: sourceRow * GameBoard.size + sourceColumn,
-        targetIndex: targetRow * GameBoard.size + targetColumn,
+        sourceIndex: sourceRow * 4 + sourceColumn,
+        targetIndex: targetRow * 4 + targetColumn,
       ),
     );
     _save();
