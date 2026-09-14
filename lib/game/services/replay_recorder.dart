@@ -58,12 +58,21 @@ class ReplayRecorder {
     _save();
   }
 
-  void recordRevive({required int row, required int column}) {
+  void recordRevive({
+    required int row,
+    required int column,
+    int? spawnIndex,
+    int? spawnValue,
+  }) {
     final log = _log;
     if (log == null) return;
 
     log.events.add(
-      ReplayEvent.revive(index: row * 4 + column),
+      ReplayEvent.revive(
+        index: row * 4 + column,
+        spawnIndex: spawnIndex,
+        spawnValue: spawnValue,
+      ),
     );
     _save();
   }
