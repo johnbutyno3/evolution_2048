@@ -12,6 +12,19 @@ function Replace-Exact([string]$old, [string]$new, [string]$label) {
   $script:text = $script:text.Replace($old, $new)
 }
 
+function Replace-Regex([string]$pattern, [string]$replacement, [string]$label) {
+  $updated = [System.Text.RegularExpressions.Regex]::Replace(
+    $script:text,
+    $pattern,
+    $replacement,
+    [System.Text.RegularExpressions.RegexOptions]::Singleline
+  )
+  if ($updated -eq $script:text) {
+    throw "Expected source block not found: $label"
+  }
+  $script:text = $updated
+}
+
 Replace-Exact "import 'tool_manager.dart';" "import 'tool_manager.dart';\nimport 'replay_recorder.dart';" 'imports'
 
 Replace-Exact "    _initializeTools();\n    reset();" "    _initializeTools();\n    _replayRecorder = ReplayRecorder(chapter: _chapter.name);\n    reset();" 'recorder initialization'
@@ -24,9 +37,9 @@ Replace-Exact "    _updateBestScore();\n\n    return true;\n  }\n\n  int _highes
 
 Replace-Exact "    if (_board.tiles.every((tile) => tile == null)) {\n      _spawnTile();\n    }\n\n    _saveLocal();" "    var spawnIndex = -1;\n    var spawnValue = -1;\n\n    if (_board.tiles.every((tile) => tile == null)) {\n      final spawned = _spawnTile();\n      if (spawned != null) {\n        spawnIndex = spawned.$1;\n        spawnValue = spawned.$2;\n      }\n    }\n\n    _replayRecorder.recordRevive(\n      row: row,\n      column: column,\n      spawnIndex: spawnIndex >= 0 ? spawnIndex : null,\n      spawnValue: spawnValue >= 0 ? spawnValue : null,\n    );\n\n    _saveLocal();" 'revive recording'
 
-Replace-Exact "    _newEvolutionValuesThisMove.clear();\n\n    _saveLocal();\n\n    return true;\n  }\n\n  Future<bool> useDuplicate(" "    _newEvolutionValuesThisMove.clear();\n\n    _replayRecorder.recordTimeRewind();\n\n    _saveLocal();\n\n    return true;\n  }\n\n  Future<bool> useDuplicate(" 'rewind recording'
+Replace-Regex "(Future<bool> useTimeRewind\(\) async \{[\\s\\S]*?_newEvolutionValuesThisMove\.clear\(\);)\\s*_saveLocal\(\);" '${1}\n\n    _replayRecorder.recordTimeRewind();\n\n    _saveLocal();' 'rewind recording'
 
-Replace-Exact "    _newEvolutionValuesThisMove.clear();\n\n    _saveLocal();\n\n    return true;\n  }\n\n  Future<bool> useDuplicate(" "    _newEvolutionValuesThisMove.clear();\n\n    _replayRecorder.recordPositionSwap(\n      firstRow: firstRow,\n      firstColumn: firstColumn,\n      secondRow: secondRow,\n      secondColumn: secondColumn,\n    );\n\n    _saveLocal();\n\n    return true;\n  }\n\n  Future<bool> useDuplicate(" 'swap recording'
+Replace-Regex "(Future<bool> usePositionSwap\([\\s\\S]*?_newEvolutionValuesThisMove\.clear\(\);)\\s*_saveLocal\(\);" '${1}\n\n    _replayRecorder.recordPositionSwap(\n      firstRow: firstRow,\n      firstColumn: firstColumn,\n      secondRow: secondRow,\n      secondColumn: secondColumn,\n    );\n\n    _saveLocal();' 'swap recording'
 
 Replace-Exact "    _recordHighestEvolutionValue(source.value);\n\n    _saveLocal();" "    _recordHighestEvolutionValue(source.value);\n\n    _replayRecorder.recordDuplicate(\n      sourceRow: sourceRow,\n      sourceColumn: sourceColumn,\n      targetRow: targetRow,\n      targetColumn: targetColumn,\n    );\n\n    _saveLocal();" 'duplicate recording'
 
