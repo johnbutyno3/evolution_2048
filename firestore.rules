@@ -32,6 +32,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /users/{userId}/membership/{membershipId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     match /users/{userId}/purchases/{purchaseId} {
       allow read: if signedIn() && request.auth.uid == userId;
       allow write: if false;
