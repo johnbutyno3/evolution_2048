@@ -18,6 +18,7 @@ const PURCHASE_PROVIDERS = new Set(['google_play', 'apple']);
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
 const TOOL_TYPES = new Set(['revive', 'timeRewind', 'positionSwap', 'duplicate']);
 const TOOL_AMOUNTS = new Set([1, 5, 20, 50]);
+const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
 
 function goldWalletRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('gold');
@@ -31,6 +32,10 @@ function validateGoldAmount(amount) {
 
 function toolInventoryRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('tools');
+}
+
+function membershipRef(uid) {
+  return db.collection('users').doc(uid).collection('membership').doc('current');
 }
 
 function validateToolType(type) {
@@ -143,6 +148,61 @@ exports.useTool = onCall(async (request) => {
     }, { merge: true });
     return { toolType: type, uses };
   });
+});
+
+exports.getMembershipStatus = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const snapshot = await membershipRef(request.auth.uid).get();
+  const data = snapshot.data() || {};
+  const type = MEMBERSHIP_TYPES.has(data.type) ? data.type : null;
+  const expiresAt = data.expiresAt || null;
+  const active = type !== null &&
+    (expiresAt === null || expiresAt.toMillis() > Date.now());
+
+  return {
+    active,
+    type: active ? type : null,
+    expiresAt: active ? expiresAt : null,
+    infiniteLives: active && type === 'golden',
+    noAds: active,
+  };
+});
+
+exports.grantMembership = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const callerSnapshot = await db.collection('users').doc(request.auth.uid).get();
+  if (callerSnapshot.data()?.isAdmin !== true) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const uid = request.data?.uid;
+  const type = request.data?.type;
+  const durationDays = request.data?.durationDays;
+  if (typeof uid !== 'string' || uid.length === 0 ||
+      !MEMBERSHIP_TYPES.has(type) ||
+      !Number.isInteger(durationDays) || durationDays <= 0 || durationDays > 3660) {
+    throw new HttpsError('invalid-argument', 'Invalid membership grant.');
+  }
+
+  const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+  await membershipRef(uid).set({
+    type,
+    expiresAt,
+    grantedBy: request.auth.uid,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return {
+    uid,
+    type,
+    expiresAt: expiresAt.toISOString(),
+  };
 });
 
 exports.getGoldBalance = onCall(async (request) => {
