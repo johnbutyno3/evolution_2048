@@ -160,31 +160,124 @@ exports.useTool = onCall(async (request) => {
   }
 
   const type = request.data?.toolType;
+  const sessionId = request.data?.sessionId;
+
   validateToolType(type);
-  const ref = toolInventoryRef(request.auth.uid);
+
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
+    throw new HttpsError('invalid-argument', 'A game session is required.');
+  }
+
+  const uid = request.auth.uid;
+  const sessionRef = gameSessionRef(uid, sessionId);
+  const inventoryRef = toolInventoryRef(uid);
+
   return db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
-    const inventory = snapshot.data() || {};
+    const sessionSnapshot = await transaction.get(sessionRef);
+    const inventorySnapshot = await transaction.get(inventoryRef);
+
+    if (!sessionSnapshot.exists) {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'game_session_not_found',
+        details: { sessionId, toolType: type },
+      });
+      throw new HttpsError('failed-precondition', 'Game session is invalid.');
+    }
+
+    const session = sessionSnapshot.data() || {};
+
+    if (session.status !== 'active') {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'game_session_not_active',
+        details: { sessionId, toolType: type, status: session.status },
+      });
+      throw new HttpsError('failed-precondition', 'Game session is not active.');
+    }
+
+    const expiresAt = session.expiresAt;
+    if (!expiresAt || typeof expiresAt.toMillis !== 'function' ||
+        expiresAt.toMillis() <= Date.now()) {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'game_session_expired',
+        details: { sessionId, toolType: type },
+      });
+      throw new HttpsError('failed-precondition', 'Game session has expired.');
+    }
+
+    const chapterIndex = session.chapterIndex;
+    if (!Number.isInteger(chapterIndex) ||
+        chapterIndex < 0 ||
+        chapterIndex > MAX_CHAPTER_INDEX) {
+      throw new HttpsError('failed-precondition', 'Game session chapter is invalid.');
+    }
+
+    const allowedTools = allowedToolsForChapter(chapterIndex);
+    if (!allowedTools.includes(type)) {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'tool_not_allowed_for_chapter',
+        details: { sessionId, chapterIndex, toolType: type },
+      });
+      throw new HttpsError(
+        'failed-precondition',
+        'Tool is not available in this chapter.',
+      );
+    }
+
+    const inventory = inventorySnapshot.data() || {};
     const currentUses = inventory[type] ?? 0;
+
     if (!Number.isSafeInteger(currentUses) || currentUses <= 0) {
       await recordSecurityEvent({
-        uid: request.auth.uid,
+        uid,
         action: 'use_tool',
         reason: 'tool_inventory_invalid_or_empty',
-        details: { toolType: type, currentUses },
+        details: { sessionId, toolType: type, currentUses },
       });
       throw new HttpsError('failed-precondition', 'Tool is unavailable.');
     }
 
     const uses = currentUses - 1;
-    transaction.set(ref, {
+    const toolUsage = session.toolUsage &&
+        typeof session.toolUsage === 'object'
+      ? { ...session.toolUsage }
+      : {};
+
+    const previousUsage = toolUsage[type] ?? 0;
+    if (!Number.isSafeInteger(previousUsage) || previousUsage < 0) {
+      throw new HttpsError('failed-precondition', 'Game session tool usage is invalid.');
+    }
+
+    toolUsage[type] = previousUsage + 1;
+
+    transaction.set(inventoryRef, {
       [type]: uses,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    return { toolType: type, uses };
+
+    transaction.set(sessionRef, {
+      toolUsage,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return {
+      toolType: type,
+      uses,
+      sessionId,
+    };
   });
 });
-
 exports.getMembershipStatus = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
@@ -707,6 +800,46 @@ exports.completeChapter = onCall(async (request) => {
     );
   }
 
+  const replayToolUsage = replayResult.toolUsage &&
+      typeof replayResult.toolUsage === 'object'
+    ? replayResult.toolUsage
+    : {};
+
+  const sessionToolUsage = session.toolUsage &&
+      typeof session.toolUsage === 'object'
+    ? session.toolUsage
+    : {};
+
+  for (const toolType of TOOL_TYPES) {
+    const replayUses = replayToolUsage[toolType] ?? 0;
+    const sessionUses = sessionToolUsage[toolType] ?? 0;
+
+    if (!Number.isSafeInteger(replayUses) ||
+        replayUses < 0 ||
+        !Number.isSafeInteger(sessionUses) ||
+        sessionUses < 0 ||
+        replayUses !== sessionUses) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'replay_tool_usage_mismatch',
+        details: {
+          sessionId,
+          chapterIndex,
+          toolType,
+          replayUses,
+          sessionUses,
+        },
+      });
+
+      throw new HttpsError(
+        'failed-precondition',
+        'Replay tool usage does not match the game session.',
+      );
+    }
+  }
+
   const highestValue = replayResult.highestValue;
   const score = replayResult.score;
   const requiredTarget = TARGETS[chapterIndex];
@@ -874,3 +1007,5 @@ exports.completeChapter = onCall(async (request) => {
     };
   });
 });
+
+
