@@ -20,6 +20,21 @@ const TOOL_TYPES = new Set(['revive', 'timeRewind', 'positionSwap', 'duplicate']
 const TOOL_AMOUNTS = new Set([1, 5, 20, 50]);
 const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
 
+function securityEventRef() {
+  return db.collection('security_events').doc();
+}
+
+function recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {
+  return securityEventRef().set({
+    uid: typeof uid === 'string' ? uid : null,
+    action,
+    severity,
+    reason,
+    details,
+    createdAt: FieldValue.serverTimestamp(),
+  }).catch(() => null);
+}
+
 function goldWalletRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('gold');
 }
@@ -108,6 +123,14 @@ exports.purchaseTool = onCall(async (request) => {
     if (!Number.isSafeInteger(balance) || balance < price ||
         !Number.isSafeInteger(currentUses) || currentUses < 0 ||
         currentUses > MAX_SAFE_INTEGER - amount) {
+      if (balance < price) {
+        await recordSecurityEvent({
+          uid: request.auth.uid,
+          action: 'purchase_tool',
+          reason: 'insufficient_gold',
+          details: { toolType: type, amount, price },
+        });
+      }
       throw new HttpsError('failed-precondition', 'Tool purchase is unavailable.');
     }
 
@@ -138,6 +161,12 @@ exports.useTool = onCall(async (request) => {
     const inventory = snapshot.data() || {};
     const currentUses = inventory[type] ?? 0;
     if (!Number.isSafeInteger(currentUses) || currentUses <= 0) {
+      await recordSecurityEvent({
+        uid: request.auth.uid,
+        action: 'use_tool',
+        reason: 'tool_inventory_invalid_or_empty',
+        details: { toolType: type, currentUses },
+      });
       throw new HttpsError('failed-precondition', 'Tool is unavailable.');
     }
 
@@ -178,6 +207,12 @@ exports.grantMembership = onCall(async (request) => {
 
   const callerSnapshot = await db.collection('users').doc(request.auth.uid).get();
   if (callerSnapshot.data()?.isAdmin !== true) {
+    await recordSecurityEvent({
+      uid: request.auth.uid,
+      action: 'grant_membership',
+      severity: 'high',
+      reason: 'unauthorized_admin_operation',
+    });
     throw new HttpsError('permission-denied', 'Admin access is required.');
   }
 
@@ -218,6 +253,12 @@ exports.getGoldBalance = onCall(async (request) => {
 
     if (!Number.isSafeInteger(balance) || balance < 0 ||
         !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0) {
+      await recordSecurityEvent({
+        uid: request.auth.uid,
+        action: 'get_gold_balance',
+        severity: 'high',
+        reason: 'invalid_wallet_state',
+      });
       throw new HttpsError('internal', 'Gold wallet data is invalid.');
     }
 
@@ -251,9 +292,22 @@ exports.spendGold = onCall(async (request) => {
     if (!Number.isSafeInteger(balance) || balance < 0 ||
       !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0 ||
       lifetimeSpent > MAX_SAFE_INTEGER - amount) {
+      await recordSecurityEvent({
+        uid: request.auth.uid,
+        action: 'spend_gold',
+        severity: 'high',
+        reason: 'invalid_wallet_state',
+        details: { amount },
+      });
       throw new HttpsError('internal', 'Gold wallet data is invalid.');
     }
     if (balance < amount) {
+      await recordSecurityEvent({
+        uid: request.auth.uid,
+        action: 'spend_gold',
+        reason: 'insufficient_gold',
+        details: { amount, balance },
+      });
       throw new HttpsError('failed-precondition', 'Not enough Gold.');
     }
 
@@ -358,6 +412,12 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
   if (typeof purchaseId !== 'string' || purchaseId.length === 0 ||
       typeof transactionId !== 'string' || transactionId.length === 0 ||
       !PURCHASE_PROVIDERS.has(provider)) {
+    await recordSecurityEvent({
+      uid: request.auth.uid,
+      action: 'submit_purchase_for_verification',
+      reason: 'invalid_purchase_verification_data',
+      details: { provider },
+    });
     throw new HttpsError('invalid-argument', 'Invalid purchase verification data.');
   }
 
@@ -374,6 +434,12 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
   return db.runTransaction(async (transaction) => {
     const purchaseSnapshot = await transaction.get(purchaseRef);
     if (!purchaseSnapshot.exists) {
+      await recordSecurityEvent({
+        uid,
+        action: 'submit_purchase_for_verification',
+        reason: 'purchase_intent_not_found',
+        details: { purchaseId, provider },
+      });
       throw new HttpsError('not-found', 'Purchase intent was not found.');
     }
 
@@ -386,6 +452,13 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
     if (transactionSnapshot.exists) {
       const existing = transactionSnapshot.data();
       if (existing.purchaseId !== purchaseId || existing.uid !== uid) {
+        await recordSecurityEvent({
+          uid,
+          action: 'submit_purchase_for_verification',
+          severity: 'high',
+          reason: 'transaction_reuse_detected',
+          details: { purchaseId, provider },
+        });
         throw new HttpsError(
           'already-exists',
           'Transaction has already been associated with another purchase.',
@@ -428,14 +501,32 @@ exports.completeChapter = onCall(async (request) => {
   if (!Number.isInteger(chapterIndex) ||
       chapterIndex < 0 ||
       chapterIndex > MAX_CHAPTER_INDEX) {
+    await recordSecurityEvent({
+      uid: request.auth.uid,
+      action: 'complete_chapter',
+      reason: 'invalid_chapter_index',
+      details: { chapterIndex },
+    });
     throw new HttpsError('invalid-argument', 'Invalid chapter index.');
   }
 
   if (!Number.isInteger(highestValue) || highestValue < 0) {
+    await recordSecurityEvent({
+      uid: request.auth.uid,
+      action: 'complete_chapter',
+      reason: 'invalid_highest_value',
+      details: { chapterIndex, highestValue },
+    });
     throw new HttpsError('invalid-argument', 'Invalid highest value.');
   }
 
   if (!Number.isInteger(score) || score < 0) {
+    await recordSecurityEvent({
+      uid: request.auth.uid,
+      action: 'complete_chapter',
+      reason: 'invalid_score',
+      details: { chapterIndex, score },
+    });
     throw new HttpsError('invalid-argument', 'Invalid score.');
   }
 
@@ -454,38 +545,53 @@ exports.completeChapter = onCall(async (request) => {
       : 0;
 
     if (chapterIndex > currentUnlocked) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'locked_chapter_completion_attempt',
+        details: { chapterIndex, currentUnlocked },
+      });
       throw new HttpsError(
         'permission-denied',
         'Chapter is not unlocked.',
       );
     }
 
-    // A chapter is complete only when its final evolution object appears.
-    // The client cannot claim a later chapter's value to complete an earlier one.
-    if (highestValue !== TARGETS[chapterIndex]) {
+    const requiredTarget = TARGETS[chapterIndex];
+    if (highestValue < requiredTarget) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'completion_target_not_reached',
+        details: { chapterIndex, highestValue, requiredTarget },
+      });
       throw new HttpsError(
         'failed-precondition',
-        'The chapter final evolution stage has not been reached.',
+        'Chapter completion target was not reached.',
       );
     }
 
-    const nextUnlocked = Math.min(
-      MAX_CHAPTER_INDEX,
-      Math.max(currentUnlocked, chapterIndex + 1),
-    );
+    const nextUnlocked = Math.min(chapterIndex + 1, MAX_CHAPTER_INDEX);
+    const currentHighest = Number.isInteger(current.highestValue)
+      ? Math.max(current.highestValue, highestValue)
+      : highestValue;
+    const currentScore = Number.isInteger(current.score)
+      ? Math.max(current.score, score)
+      : score;
 
-    transaction.set(
-      progressRef,
-      {
-        unlockedChapterIndex: nextUnlocked,
-        [`chapter_${chapterIndex}_completed`]: true,
-        [`chapter_${chapterIndex}_highestValue`]: highestValue,
-        [`chapter_${chapterIndex}_bestScore`]: score,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+    transaction.set(progressRef, {
+      unlockedChapterIndex: Math.max(currentUnlocked, nextUnlocked),
+      highestValue: currentHighest,
+      score: currentScore,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
 
-    return { unlockedChapterIndex: nextUnlocked };
+    return {
+      unlockedChapterIndex: Math.max(currentUnlocked, nextUnlocked),
+      highestValue: currentHighest,
+      score: currentScore,
+    };
   });
 });
