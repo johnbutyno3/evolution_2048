@@ -11,45 +11,39 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    function allowedProfileFields() {
-      return [
+    function profileOnlyChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'playerName',
         'playerNameNormalized',
         'playerId',
         'avatarIndex',
         'updatedAt'
-      ];
+      ]);
     }
 
     match /users/{userId} {
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
-
       allow create: if signedIn()
           && request.auth.uid == userId
-          && request.resource.data.keys().hasOnly(allowedProfileFields());
-
+          && !request.resource.data.keys().hasAny([
+            'isAdmin',
+            'gold',
+            'membership',
+            'lives',
+            'toolUses',
+            'toolInventory',
+            'chapterProgress',
+            'unlockedChapterIndex'
+          ]);
       allow update: if signedIn()
-          && (request.auth.uid == userId || isAdmin())
-          && (isAdmin()
-              || request.resource.data.diff(resource.data).affectedKeys()
-                  .hasOnly(allowedProfileFields()));
-
+          && (isAdmin() || (request.auth.uid == userId && profileOnlyChanged()));
       allow delete: if isAdmin();
     }
 
-    // Chapter progress is server-authoritative. The client may read it,
-    // but may only advance it through the completeChapter callable function.
-    match /users/{userId}/progress/game {
-      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin();
-    }
-
-    // Creature collection is permanent achievement history and remains
-    // client-writable for discoveries; it contains no currency or unlock
-    // authority.
-    match /users/{userId}/progress/collection {
-      allow read, write: if signedIn()
+    match /users/{userId}/progress/{documentId} {
+      allow read: if signedIn()
           && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
     }
 
     match /users/{userId}/wallet/{walletId} {
