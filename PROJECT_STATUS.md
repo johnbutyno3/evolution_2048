@@ -1,403 +1,261 @@
 # Rebirth 2048
 # PROJECT STATUS
-# Last updated: 2026-09-11
+# Last updated: 2026-09-14
+
+> **CANONICAL RECOVERY CHECKPOINT:** Read this root `PROJECT_STATUS.md` first when continuing after a conversation interruption. Detailed historical status is in `docs/PROJECT_STATUS.md` and security details are in `docs/GAME_SESSION_SECURITY.md` / `docs/SECURITY_ANTI_CHEAT.md`.
 
 ## 1. Current Project State
 
-Rebirth 2048 is a 4×4 evolution/ecosystem revival game built with Flutter.
+Rebirth 2048 is a 4×4 creature evolution / ecosystem revival game built with Flutter.
 
 Core identity:
-- Player is a creator/revival AI restoring a dead planet.
+- Player is a revival AI restoring a dead planet.
 - Creature images are the main tile visuals; numeric values are internal game values.
 - Core movement and merging remain 2048-style.
-- Backgrounds and music change by chapter/evolution stage.
-- Mobile uses swipe controls.
+- Six chapters are authoritative.
+- Local save is for recovery only; server state is authoritative for protected progression/resources.
 - Chrome is the current practical desktop test target.
-- Local save/restore is implemented.
-- Firebase project/auth integration is in progress.
-- Internationalization structure exists; English is the current UI language target. Do not add extra languages until the game is stable.
 
 Current branch:
-- feature/chapter1-spec-implementation
+- `feature/chapter1-spec-implementation`
 
-Latest verified commit:
-- 87cc97d — fix: add chapter completion next and home actions
-
-Latest analyzer result:
-- flutter analyze → No issues found!
-
----
+Current phase:
+- Launch Security / Anti-Cheat hardening, following the Personal Information + Shop phase.
 
 ## 2. Authoritative Chapter Rules
 
-The current design is the six-chapter structure below. Do NOT restore the old 18-tier Chapter 1 design.
+Do NOT restore the old 18-stage system.
 
-| Chapter | Theme | Stages | Tools usable in chapter | Result |
-|---|---|---:|---|---|
-| 1 | Ocean | 12 | None | Unlock Chapter 2 |
-| 2 | Land | 13 | 1 tool type | Unlock Chapter 3 |
-| 3 | Sky | 14 | 2 tool types | Unlock Chapter 4 |
-| 4 | History | 15 | 3 tool types | Unlock Chapter 5 |
-| 5 | Technology | 16 | 4 tool types | Unlock Chapter 6 |
-| 6 | Space / Universe | 17 | Tools disabled | Ultimate challenge |
+| Chapter | Theme | Stages | Tools |
+|---|---|---:|---|
+| 1 | Ocean | 12 | 0 |
+| 2 | Land | 13 | 1 |
+| 3 | Sky | 14 | 2 |
+| 4 | History | 15 | 3 |
+| 5 | Technology | 16 | 4 |
+| 6 | Space / Universe | 17 | disabled |
 
-Current tool identifiers used internally:
-- revive → REMOVE
-- timeRewind → UNDO
-- positionSwap → SWAP
-- duplicate → DUPLICATE
+Chapter 6 is the final chapter.
 
-User-facing tool names:
-- UNDO
+Current internal tool identifiers:
+- `revive`
+- `timeRewind`
+- `positionSwap`
+- `duplicate`
+
+Current user-facing tool names:
 - REMOVE
+- UNDO
 - SWAP
 - DUPLICATE
 
-Chapter 6 is the final challenge and does not allow normal tool usage.
-
----
-
-## 3. Creature / Asset Progress
-
-### Chapter 1 — Ocean
-
-The current Ocean progression is 12 stages, ending at the 2048 target stage for chapter completion, with the future seabed-human visual retained as the chapter-ending/future concept asset.
-
-Assets are under:
-- assets/creatures/chapter_01_ocean/
-- assets/backgrounds/chapter_01_ocean/
-
-### Chapter 2 — Land
-
-Land chapter assets and progression are implemented as part of the current six-chapter structure.
-
-### Chapter 3 — Sky
-
-Sky backgrounds are implemented with the intended altitude progression:
-1. low altitude
-2. mid altitude
-3. high altitude
-4. space
-
-Chapter-complete background is separate and uses the completion-screen format.
-
-### Chapter 4 — History
-
-History creature assets are present under:
-- assets/creatures/chapter_04_history/
-
-History progression currently contains the 15-stage sequence through Internet.
-
-History backgrounds are present under:
-- assets/backgrounds/chapter_04_history/
-
-including the chapter completion background.
-
-### Chapter 5 — Technology
-
-Technology creature/background asset paths are already integrated into the project structure and are the next major chapter implementation area.
-
-### Chapter 6 — Space / Universe
-
-Chapter 6 is the final/ultimate challenge chapter. Chapter music/background resources exist and tools are disabled by rule.
-
----
-
-## 4. Audio
-
-All six chapter background music tracks are now available.
-
-Audio architecture includes:
-- chapter BGM
-- UI SFX
-- gameplay SFX
-- tool-selection SFX
-- game-over/chapter-unlock system sounds
-
-Current decision:
-- Tool vibration is CANCELLED as a requirement.
-- Do not reintroduce vibration.
-- Keep pressed-image/tool feedback instead.
-
----
-
-## 5. Life System — Confirmed Rules
-
-Persistent life pool:
-- Maximum normal life count: 5.
-- Starting a genuinely NEW board consumes 1 life.
-- Returning to the same active saved board does NOT consume another life.
-- Leaving Home, app pause, or UI rebuild does NOT consume another life.
-
-Chapter completion:
-- Completing a chapter is NOT death.
-- The life consumed when starting that chapter's board is refunded when the chapter is completed.
-- Life remains capped at 5.
-
-After chapter completion, the completion screen has exactly two actions:
-1. Next Chapter
-2. Home
-
-Next Chapter:
-- Starts a genuinely NEW board in the next chapter.
-- Uses the normal new-board rule.
-- Therefore it consumes 1 life.
-- There is NO special no-deduction exception.
-
-Home:
-- Returns to Home.
-- Does not consume another life.
-
-Re-entering a completed chapter:
-- A completed chapter has no active board to resume.
-- Re-entering it later creates a genuinely NEW board and consumes 1 life.
-
-Game Over:
-- Game Over is actual death.
-- Game Over does NOT refund life.
-- Restart creates a genuinely NEW board and therefore consumes another life.
-
-Saved terminal states:
-- Saved Game Over board is not restored as an active board.
-- Saved Chapter Complete board is not restored as an active board.
-- Re-entry from either terminal state creates a new board under the normal life rule.
-
-Implementation status:
-- Life deduction for genuinely new boards is implemented.
-- Active-board restoration without extra deduction is implemented.
-- Chapter-completion life refund is implemented.
-- Forced new-board flow for Next Chapter is implemented.
-- Terminal saved-board reset behavior is implemented.
-
----
-
-## 6. Chapter Completion Screen — Current State
-
-The chapter completion screen has been corrected.
-
-Current behavior:
-- Shows chapter-specific completion background.
-- Shows chapter title/subtitle.
-- Shows SCORE / BEST / HIGHEST values without the previous malformed text/garbled separator.
-- Provides exactly two actions:
-  - Next Chapter
-  - Home
-- Next Chapter returns a `next` result to the game page.
-- Home returns a `home` result to the game page.
-- Next Chapter uses `forceNewBoard: true` for the next chapter so the next board is genuinely new and life deduction is applied normally.
-
-Latest commit implementing this UI:
-- 87cc97d — fix: add chapter completion next and home actions
-
----
-
-## 7. Save / Restore
-
-Local save is implemented.
-
-Saved game state includes the active game information needed to resume, including:
-- chapter
-- board tile values
-- score
-- best score
-- tool state/penalties
-- milestone flags
-- highest evolution value
-- gameOver
-- chapterComplete
-- life-related state
-
-Important behavior:
-- Active saved board resumes without consuming another life.
-- Terminal saved states are treated as ended boards and do not resume as active boards.
-
-Save key:
-- rebirth_2048_local_save_v1
-
----
-
-## 8. Input / Controls
-
-Implemented/current:
-- Keyboard arrow keys for Chrome/desktop testing.
-- Touch swipe for mobile.
-- Keyboard input is blocked while Game Over, Chapter Complete, completion animation, or tool-selection mode is active.
-
-Recent keyboard handling fix is complete.
-
----
-
-## 9. Tool UI / Tool Architecture
-
-The project has the four tool assets and the four-tool UI architecture:
-
-assets/tools/
-- tool_undo.png
-- tool_undo_pressed.png
-- tool_swap.png
-- tool_swap_pressed.png
-- tool_remove.png
-- tool_remove_pressed.png
-- tool_duplicate.png
-- tool_duplicate_pressed.png
-
-UI rules currently retained:
-- Four tools use one horizontal row where the tool UI is shown.
-- Locked tools are visually locked and cannot be used.
-- Pressed state uses the corresponding *_pressed.png asset.
-- Selecting a tool does not remove it from the row.
-- Selected tool becomes semi-transparent.
-- Selected tool shows CANCEL.
-- Tapping the selected tool again cancels the mode.
-- No separate Cancel button.
-
-Important:
-- The chapter rule decides which tools are usable.
-- Do not confuse tool inventory persistence with chapter usability.
-
----
-
-## 10. Firebase / Auth / Onboarding
-
-Firebase project:
-- rebirth-2048
-
-FlutterFire configuration has been generated for:
-- Android
-- iOS
-- macOS
-- Web
-- Windows
-
-Required authentication options:
-- Email/password
-- Phone number + SMS code
-- Google
-- Apple
-- Skip for testing
-
-Current product flow:
-1. Onboarding
-2. Login/register/profile flow
-3. Directly enter the game
-
-Do NOT reintroduce an unnecessary demo/home screen between onboarding/auth and the game.
-
-Localization:
-- app_en.arb
-- app_zh.arb
-- Keep English as the current implementation target.
-- Do not add extra languages or modify Chinese localization while the core game is still being stabilized.
-
----
-
-## 11. Current Important Source Files
-
-Main game:
-- lib/main.dart
-- lib/game/models/creature.dart
-- lib/game/models/game_board.dart
-- lib/game/models/game_tile.dart
-- lib/game/models/tools/game_tool.dart
-- lib/game/services/game_engine.dart
-- lib/game/services/tool_manager.dart
-- lib/game/services/save_manager.dart
-- lib/game/services/life_manager.dart
-- lib/game/services/audio_manager.dart
-- lib/game/screens/evolution_2048_page.dart
-- lib/game/screens/evolution_2048_chapters_page.dart
-
-Documentation:
-- PROJECT_STATUS.md
-- docs/GAME_RULES.md
-- docs/GAME_SPEC_V1.md
-- MEMBERSHIP_AND_LIFE_RULES.md
-- SAVE_SYSTEM_SPEC.md
-- AUDIO_RULES.md
-- CREATURE_PROGRESSION_SPEC.md
-- GAME_CONTENT.md
-- GAME_SCORING_AND_FEEDBACK.md
-- MENU_RULES.md
-
----
-
-## 12. Current Development State
-
-### Completed / implemented
-
-- [x] Six-chapter project structure
-- [x] Chapter progression architecture
-- [x] Creature-based 4×4 board
-- [x] Chapter backgrounds
-- [x] Six chapter BGM resources
-- [x] Local save/restore
-- [x] Active-board life preservation
-- [x] Chapter completion life refund
-- [x] Terminal saved-board reset handling
-- [x] Next Chapter starts a new board and deducts life normally
-- [x] Chapter completion screen has Next Chapter + Home only
-- [x] Completion score display cleaned up
-- [x] Keyboard arrow control
-- [x] Mobile swipe control
-- [x] Tool pressed-image feedback
-- [x] Tool selection/CANCEL behavior
-- [x] REMOVE final-tile safety behavior
-- [x] Firebase project configuration
-- [x] Onboarding/auth/profile structure
-- [x] Flutter analyze currently clean
-
-### Not yet considered finished
-
-- [ ] Full end-to-end play test of life rules
-- [ ] Full end-to-end test of all chapter transitions
-- [ ] Full verification of chapter-specific tool usability/locking against the latest six-chapter rules
-- [ ] Full verification of Chapter 5 Technology
-- [ ] Full verification of Chapter 6 Space/Universe
-- [ ] Final visual polish of all chapters
-- [ ] Final auth flow verification for all four sign-in methods + Skip
-- [ ] Final release validation
-
----
-
-## 13. Immediate Next Work
-
-Do not start another large feature yet.
-
-First:
-1. Run the game in Chrome.
-2. Verify the chapter-complete screen visually.
-3. Verify life refund on chapter completion.
-4. Verify Home does not deduct life.
-5. Verify Next Chapter creates a new board and deducts 1 life.
-6. Verify active-board re-entry does not deduct life.
-7. Verify Game Over/restart deducts life correctly.
-
-After that:
-8. Continue Chapter 5 / Chapter 6 implementation and verification.
-9. Reconcile any remaining old documentation with the current authoritative rules.
-10. Run flutter analyze and git diff --check before the next code commit.
-
----
-
-## 14. Do Not Regress
-
-Do NOT:
-- restore the old 18-tier Chapter 1 design
-- reintroduce old chapter/tool distributions
-- make chapter completion consume a permanent life
-- make Next Chapter free of life cost
-- deduct life when merely reopening an active saved board
-- refund life after Game Over
-- restore a terminal saved board as an active board
-- add a third button to the chapter completion screen
-- reintroduce a Continue-only completion flow
-- reintroduce tool vibration
-- rename REMOVE back to REVIVE in the UI
-- rename UNDO back to REWIND in the UI
-- add a separate Cancel button for tools
-- remove the selected tool from the tool row
-- break local save/restore
-- allow REMOVE to leave the board permanently empty
-- modify extra localization files before the core game is stable
-
-This file is the current continuity reference for future Rebirth 2048 development sessions.
+## 3. Personal Information / Shop
+
+Foundation completed:
+- Personal Information and Shop are separate.
+- Avatar is the direct Player Info entry point; no standalone Player Info menu is required.
+- Current avatar system uses 54 independent avatar files. Do not restore the old avatar-sheet system.
+- Player name/profile uniqueness and Firebase account association are implemented.
+- Creature Collection is account-specific, additive, permanent achievement history.
+- Settings supports English / Traditional Chinese.
+- GAME DATA removal is permanent.
+- Gold is visible in Personal Information; Shop remains the purchase entry.
+- Life is NOT a separate shop product.
+- Golden Membership is USD 5.99/month.
+
+Paid categories:
+- Gold
+- Premium
+- Golden
+- four tool types
+
+## 4. Server Authority
+
+Server-authoritative foundation is implemented for:
+- Gold
+- Membership
+- Tool inventory / spending
+- Golden infinite lives
+- Purchases
+- Chapter progression
+
+Relevant callable functions include:
+- `getGoldBalance`
+- `spendGold`
+- `getMembershipStatus`
+- `grantMembership` (Admin-only)
+- `getToolInventory`
+- `purchaseTool`
+- `useTool`
+- `createPurchaseIntent`
+- `submitPurchaseForVerification`
+- `startGameSession`
+- `completeChapter`
+
+Firestore production client writes are locked down for sensitive wallet, membership, game-session, and security-event data.
+
+Real Google/Apple payment verification remains intentionally paused unless explicitly requested.
+
+## 5. Game Session Security
+
+Implemented:
+- Authenticated server-created session IDs.
+- Chapter validation and server target validation.
+- Session ownership and one-time completion checks.
+- Session expiry.
+- Suspicious completion/security-event logging.
+- `users/{uid}/game_sessions/{sessionId}` is client-inaccessible.
+- `security_events` is server-write/admin-read only.
+
+Important current limitation:
+- The existing `completeChapter` implementation still accepts client-reported `highestValue` and `score` after session validation.
+- A session ID alone cannot prove genuine 2048 gameplay.
+- This is NOT considered final anti-cheat protection.
+
+Final design decision:
+- Local Replay/Event Log + server-side deterministic replay.
+- Do NOT send every move to Firebase.
+- Gameplay stays local; only the session start and final replay submission need Firebase traffic.
+
+## 6. Replay / Anti-Cheat Progress
+
+### Completed
+
+`lib/game/models/replay_event.dart`
+- Version-independent event model currently supports:
+  - move
+  - revive
+  - positionSwap
+  - duplicate
+  - timeRewind
+
+`lib/game/services/replay_log.dart`
+- Versioned local replay container.
+- Stores chapter, initial 4×4 tile state, and ordered events.
+- Validates basic shape/value structure when restoring.
+- Explicitly untrusted; server must validate it.
+
+`lib/game/services/replay_recorder.dart`
+- Records the exact random spawn position/value supplied by the game engine.
+- Previous unsafe idea of inferring random spawns from before/after board differences was removed.
+
+Relevant commits:
+- `b930228a4bad928d6f574e455df59c9b85a688c8` — add replay event model
+- `294f0a0a4afc0582f10be8fb3578ade9b9c40a0b` — add local replay log container
+- `fe66cda93f789be57c0cb5fc92f7e6cd8f1878ab` — record explicit replay spawn events
+
+### NOT completed
+
+- [ ] Connect `GameEngine` to `ReplayRecorder`.
+- [ ] Record every successful normal move from `GameEngine`.
+- [ ] Record exact spawn index/value for each move.
+- [ ] Record successful tool operations.
+- [ ] Define and implement exact time-rewind replay semantics.
+- [ ] Make replay log survive active-board save/restore correctly end-to-end.
+- [ ] Implement server-side replay verifier.
+- [ ] Remove trust in client-submitted final score/highest value.
+- [ ] Deploy/test the final authoritative completion path.
+
+## 7. Immediate Next Task — GameEngine Integration
+
+The next coding step is ONLY the ReplayRecorder integration into:
+
+`lib/game/services/game_engine.dart`
+
+Required behavior:
+1. Initialize a recorder for the current chapter.
+2. Start a fresh replay when a genuinely new board is created.
+3. Restore the replay log together with a resumed active board.
+4. Record each successful move with its direction and exact random spawn.
+5. Record successful REMOVE / UNDO / SWAP / DUPLICATE operations.
+6. Preserve replay data in local save for interruption recovery.
+7. Do not introduce per-move Firebase writes.
+
+Important implementation caution:
+- `game_engine.dart` is a large source file.
+- Never replace it with truncated content.
+- Obtain the complete current file before a GitHub full-file replacement.
+- Never claim the integration is complete until the actual commit exists and local `flutter analyze` passes.
+
+## 8. Planned Server Replay Verification
+
+After GameEngine integration, the server must replay the submitted event stream and independently calculate:
+- initial board validity;
+- move legality/order;
+- spawn position/value;
+- merge results and score;
+- chapter target;
+- tool ownership and use count;
+- tool score penalties;
+- time-rewind semantics;
+- final score;
+- final highest value;
+- session ownership/expiry/one-time completion.
+
+The server, not the client, decides whether chapter completion is valid.
+
+## 9. Life Rules — Do Not Regress
+
+- Normal maximum lives: 5.
+- Genuinely new board: consume 1 life.
+- Resume the same active saved board: consume 0 additional lives.
+- Leaving Home / app pause / UI rebuild: consume 0 additional lives.
+- Game Over: actual death; no refund.
+- Restart: new board and normal life deduction.
+- Chapter completion: not death; refund the life consumed by that board.
+- Next Chapter: genuinely new board and normal life deduction.
+- Re-entering a completed/terminal chapter: new board and normal life deduction.
+- Golden Membership can provide infinite lives based on server membership state.
+
+## 10. Collection Rules
+
+Collection is permanent achievement history, separate from mutable board save.
+
+Firebase path:
+- `users/{uid}/progress/collection`
+
+Rules:
+- discoveries are additive;
+- losing/restarting does not remove discoveries;
+- switching Firebase accounts switches collection data;
+- no second competing progress system;
+- actual gameplay evolution events must eventually feed the collection data layer.
+
+## 11. Cross-Device / Release Hardening — Later
+
+After replay anti-cheat is complete:
+1. Safe Area / notch / Dynamic Island audit.
+2. Responsive layout and small/large screen audit.
+3. Timer / AnimationController / listener / lifecycle cleanup audit.
+4. Image/resource performance and compression audit.
+5. Android/iOS minimum OS confirmation.
+6. Firebase Test Lab.
+7. Google Play Pre-launch testing.
+8. Real-device stress testing.
+
+Object pooling is not a priority because the game is only a 4×4 board with at most 16 tiles.
+
+## 12. Development Rules
+
+- Prefer direct PowerShell commands for local verification.
+- Prefer GitHub inspection/updates when safe.
+- Do not use stale old project data or the old 18-tier creature system.
+- Do not overwrite large files with truncated content.
+- Do not mark a feature complete before it is actually committed and verified.
+- Keep unrelated changes intact.
+- Never force-push.
+- Before committing Flutter code, run `flutter analyze` and require `No issues found!`.
+
+## 13. Recovery Procedure
+
+If a conversation is interrupted or context appears missing:
+
+1. Read **root `PROJECT_STATUS.md` first**.
+2. Confirm branch `feature/chapter1-spec-implementation`.
+3. Inspect the latest relevant commits.
+4. Read `docs/GAME_SESSION_SECURITY.md` for session/replay security details.
+5. Read `docs/SECURITY_ANTI_CHEAT.md` for the broader security model.
+6. Only then inspect source files.
+7. Treat this root file as the short current checkpoint; `docs/PROJECT_STATUS.md` is historical/detail context.
+
+This root file intentionally exists so the project can be recovered quickly even when the longer documentation is difficult to locate.
