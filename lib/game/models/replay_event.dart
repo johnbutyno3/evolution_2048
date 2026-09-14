@@ -21,8 +21,16 @@ class ReplayEvent {
     });
   }
 
-  static ReplayEvent revive({required int index}) {
-    return ReplayEvent._('revive', <String, dynamic>{'index': index});
+  static ReplayEvent revive({
+    required int index,
+    int? spawnIndex,
+    int? spawnValue,
+  }) {
+    return ReplayEvent._('revive', <String, dynamic>{
+      'index': index,
+      if (spawnIndex != null) 'spawnIndex': spawnIndex,
+      if (spawnValue != null) 'spawnValue': spawnValue,
+    });
   }
 
   static ReplayEvent positionSwap({
