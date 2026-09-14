@@ -1,17 +1,29 @@
-﻿# Rebirth 2048 - Project Status
+# Rebirth 2048 - Project Status
 
 ## Current Phase
-Personal Information + Shop / Marketplace
+Personal Information + Shop / Marketplace → Launch Security / Anti-Cheat
 
-## Latest Committed Status (2026-09-13)
+## Progress Update Protocol
 
-- Personal Information + Shop / Marketplace remains the active development phase.
-- The latest committed batch completes the current personal-page and shop-page update set.
-- Player profile uniqueness and secure player-profile indexes are implemented.
-- Golden membership price is documented as USD 5.99.
+- This file is the canonical project-progress source for daily status extraction.
+- During active development, progress is updated continuously after each important completed task, milestone, major issue, or security finding.
+- Do not wait for a fixed hourly background job; documentation updates are tied to actual work completed.
+- Every meaningful completed batch should record the current state, latest commit, and next task.
 - No uncommitted/local-only work is treated as completed here.
 
+## Latest Committed Status (2026-09-14)
+
+- Personal Information + Shop / Marketplace architecture is established.
+- Player profile uniqueness and secure player-profile indexes are implemented.
+- Remote Shop Config is established at `shop_config/global` with authenticated read and admin-only write rules.
+- Purchase intent / verification-record architecture is established; authoritative grant flow remains pending real payment verification.
+- Security and anti-cheat specification is documented in `docs/SECURITY_ANTI_CHEAT.md`.
+- Golden membership price is USD 5.99/month.
+- Life is NOT sold as a separate shop product.
+- Current paid shop categories are Gold, Premium, Golden, and four tool types.
+
 Latest relevant commits on `feature/chapter1-spec-implementation`:
+- `9119892` — `docs: add security and anti-cheat specification`
 - `1a8d4b5` — `feat: complete personal and shop batch updates`
 - `391694c` — `feat: secure player profile indexes`
 - `cddcb19` — `feat: enforce unique player profiles`
@@ -32,13 +44,15 @@ Latest relevant commits on `feature/chapter1-spec-implementation`:
 
 ### Shop / Marketplace
 - Shop Page established.
-- Life purchases implemented.
-- Tool purchases implemented.
+- Life is not sold separately.
+- Tool purchases are established.
 - Owned tool quantities are displayed in Shop.
 - Gold balance is used for purchases.
 - Gold Page includes a direct Go to Shop entry.
-- Current shop prices remain provisional except where explicitly documented.
-- Golden membership price is documented as USD 5.99.
+- Remote Shop Config is established at `shop_config/global`.
+- Purchase intent and transaction-lock architecture is established.
+- Real store payment verification and authoritative resource granting remain pending.
+- Golden membership price is USD 5.99/month.
 
 ### Creature Collection - Data Layer
 - Added `lib/services/creature_collection_service.dart`.
@@ -48,6 +62,13 @@ Latest relevant commits on `feature/chapter1-spec-implementation`:
 - Previously discovered creatures are not removed when replaying, losing, restarting, or replaying a chapter.
 - Switching Firebase accounts naturally switches to that account's collection data.
 - Firestore `arrayUnion` is used so existing discoveries remain permanent.
+
+### Security / Anti-Cheat
+- `docs/SECURITY_ANTI_CHEAT.md` established as the security specification.
+- Server-authoritative direction defined for Gold, Membership, Tools, Lives, Purchases, and Chapter Progress.
+- Cheat Audit severity and risk-score model defined.
+- Admin alert and accountability requirements defined.
+- Purchase intent and transaction uniqueness protections implemented.
 
 ## Current Collection Architecture
 
@@ -61,14 +82,16 @@ The collection is intended to represent permanent achievement history, not the c
 
 ## Next Task
 
-Connect the Creature Collection data layer to the actual game achievement/evolution event.
+Continue launch security hardening:
+1. Make Gold server-authoritative.
+2. Make Membership server-authoritative.
+3. Make Tool inventory and Gold deduction server-authoritative.
+4. Make Golden Infinite Lives depend on server membership.
+5. Tighten `users/{uid}` Firestore update permissions.
+6. Isolate production-reachable developer unlimited/reset capabilities.
+7. Implement Cheat Audit logging and admin alerts.
 
-When a creature/stage is actually reached during gameplay:
-1. Record it in the current Firebase account's collection.
-2. Never remove previously discovered creatures.
-3. Keep discoveries across replay and game-over.
-4. Make Collection Page display the permanent six-chapter collection.
-5. Do not create a second competing progress system.
+After each meaningful implementation step, update this document with the actual committed state and next task.
 
 ## Important Rules
 
@@ -79,6 +102,7 @@ When a creature/stage is actually reached during gameplay:
 - Collection changes only for the currently authenticated Firebase account.
 - Do not show Gold, Lives, tool quantities, Email, or sign-in method in Player Info.
 - Shop remains a separate page.
+- Life is not a separate purchasable product.
 - Do not modify avatar cropping during this phase.
 
 ## Git / Development
