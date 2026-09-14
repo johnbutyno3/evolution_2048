@@ -27,6 +27,20 @@ service cloud.firestore {
           && (request.auth.uid == userId || isAdmin());
     }
 
+    match /users/{userId}/wallet/{walletId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /users/{userId}/purchases/{purchaseId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /purchase_transactions/{transactionId} {
+      allow read, write: if false;
+    }
+
     match /player_names/{nameId} {
       allow read: if signedIn();
       allow create: if signedIn()
@@ -50,6 +64,11 @@ service cloud.firestore {
     }
 
     match /config/{documentId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /shop_config/{configId} {
       allow read: if signedIn();
       allow write: if isAdmin();
     }

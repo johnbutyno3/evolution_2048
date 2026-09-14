@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
 import '../game/services/gold_manager.dart';
+import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../services/shop_config_service.dart';
 
@@ -23,6 +24,7 @@ class _ShopPageState extends State<ShopPage> {
 
   Future<Map<String, dynamic>> _load() async {
     await GoldManager.initialize();
+    await LifeManager.initialize();
     return ShopConfigService.load();
   }
 
@@ -40,12 +42,8 @@ class _ShopPageState extends State<ShopPage> {
     required int amount,
     required int price,
   }) async {
-    if (GoldManager.balance < price) {
-      _message('Not enough Gold.');
-      return;
-    }
     if (!await GoldManager.spend(price)) {
-      _message('Purchase failed.');
+      _message('Not enough Gold or purchase failed.');
       return;
     }
 
@@ -77,30 +75,46 @@ class _ShopPageState extends State<ShopPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Unable to load shop: ${snapshot.error}'));
+            return Center(
+              child: Text('Unable to load shop: ${snapshot.error}'),
+            );
           }
 
           final config = snapshot.data ?? ShopConfigService.defaults;
+          final membership = LifeManager.membership;
+          final goldProducts = _goldProducts(config);
+          final currency = config['currency'] is String
+              ? config['currency'] as String
+              : 'USD';
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _ShopGoldCard(balance: GoldManager.balance),
-              const SizedBox(height: 20),
-
               const _ShopSectionTitle(title: 'Membership'),
+              _MembershipCard(
+                title: 'General Member',
+                description: 'Free membership.',
+                price: 'Free',
+                isCurrent: membership == 'general',
+                onBuy: _paymentUnavailable,
+              ),
               _MembershipCard(
                 title: '高級會員 · Premium Member',
                 description: 'No ads.',
                 price: _usdPrice(config, 'premiumUsdPrice'),
+                isCurrent: membership == 'premium',
                 onBuy: _paymentUnavailable,
               ),
               _MembershipCard(
                 title: '黃金會員 · Golden Member',
                 description: 'No ads + unlimited lives.',
                 price: _usdPrice(config, 'goldenUsdPrice'),
+                isCurrent: membership == 'golden',
                 onBuy: _paymentUnavailable,
               ),
+              const SizedBox(height: 20),
+
+              _ShopGoldCard(balance: GoldManager.balance),
               const SizedBox(height: 20),
 
               const _ShopSectionTitle(title: 'Gold'),
@@ -108,26 +122,13 @@ class _ShopPageState extends State<ShopPage> {
                 'Real-money purchases are priced in USD. Payment is intentionally disabled until the payment backend is connected.',
               ),
               const SizedBox(height: 8),
-              _GoldPackageCard(
-                '300 Gold',
-                _usdPrice(config, 'gold300UsdPrice'),
-                _paymentUnavailable,
-              ),
-              _GoldPackageCard(
-                '1,000 Gold',
-                _usdPrice(config, 'gold1000UsdPrice'),
-                _paymentUnavailable,
-              ),
-              _GoldPackageCard(
-                '4,000 Gold',
-                _usdPrice(config, 'gold4000UsdPrice'),
-                _paymentUnavailable,
-              ),
-              _GoldPackageCard(
-                '10,000 Gold',
-                _usdPrice(config, 'gold10000UsdPrice'),
-                _paymentUnavailable,
-              ),
+              for (final product in goldProducts)
+                _GoldPackageCard(
+                  amount: product.amount,
+                  price: product.price,
+                  currency: product.currency ?? currency,
+                  onBuy: _paymentUnavailable,
+                ),
               const SizedBox(height: 20),
 
               const _ShopSectionTitle(title: 'Evolution Tools'),
@@ -164,6 +165,50 @@ class _ShopPageState extends State<ShopPage> {
         },
       ),
     );
+  }
+
+  List<_GoldProduct> _goldProducts(Map<String, dynamic> config) {
+    final rawProducts = config['products'];
+    if (rawProducts is Map) {
+      final products = <_GoldProduct>[];
+
+      for (final entry in rawProducts.entries) {
+        final data = entry.value;
+        if (data is! Map ||
+            data['type'] != 'gold' ||
+            data['active'] != true ||
+            data['amount'] is! num ||
+            data['priceUsd'] == null) {
+          continue;
+        }
+
+        products.add(
+          _GoldProduct(
+            amount: (data['amount'] as num).toInt(),
+            price: _formatUsd(data['priceUsd']),
+            currency: data['currency'] as String?,
+          ),
+        );
+      }
+
+      products.sort((a, b) => a.amount.compareTo(b.amount));
+      return products;
+    }
+
+    return [
+      _GoldProduct(amount: 300, price: _usdPrice(config, 'gold300UsdPrice')),
+      _GoldProduct(amount: 1000, price: _usdPrice(config, 'gold1000UsdPrice')),
+      _GoldProduct(amount: 4000, price: _usdPrice(config, 'gold4000UsdPrice')),
+      _GoldProduct(
+        amount: 10000,
+        price: _usdPrice(config, 'gold10000UsdPrice'),
+      ),
+    ];
+  }
+
+  String _formatUsd(dynamic value) {
+    if (value is num) return value.toStringAsFixed(2);
+    return '$value';
   }
 
   Widget _toolPackages(
@@ -278,12 +323,14 @@ class _MembershipCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.price,
+    required this.isCurrent,
     required this.onBuy,
   });
 
   final String title;
   final String description;
   final String price;
+  final bool isCurrent;
   final VoidCallback onBuy;
 
   @override
@@ -294,20 +341,27 @@ class _MembershipCard extends StatelessWidget {
         leading: const Icon(Icons.workspace_premium_outlined),
         title: Text(title),
         subtitle: Text(description),
-        trailing: FilledButton(
-          onPressed: onBuy,
-          child: Text('\$$price / month'),
-        ),
+        trailing: isCurrent
+            ? const Chip(label: Text('Current'))
+            : price == 'Free'
+            ? const Text('Free')
+            : FilledButton(onPressed: onBuy, child: Text('\$$price / month')),
       ),
     );
   }
 }
 
 class _GoldPackageCard extends StatelessWidget {
-  const _GoldPackageCard(this.title, this.price, this.onBuy);
+  const _GoldPackageCard({
+    required this.amount,
+    required this.price,
+    required this.currency,
+    required this.onBuy,
+  });
 
-  final String title;
+  final int amount;
   final String price;
+  final String currency;
   final VoidCallback onBuy;
 
   @override
@@ -316,12 +370,32 @@ class _GoldPackageCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         leading: const Icon(Icons.monetization_on_outlined),
-        title: Text(title),
+        title: Text('${_formatAmount(amount)} Gold'),
+        subtitle: Text('$currency \$$price'),
         trailing: FilledButton(
           onPressed: onBuy,
-          child: Text('\$$price'),
+          child: Text('$currency \$$price'),
         ),
       ),
     );
   }
+
+  static String _formatAmount(int amount) {
+    return amount.toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (match) => ',',
+    );
+  }
+}
+
+class _GoldProduct {
+  const _GoldProduct({
+    required this.amount,
+    required this.price,
+    this.currency,
+  });
+
+  final int amount;
+  final String price;
+  final String? currency;
 }

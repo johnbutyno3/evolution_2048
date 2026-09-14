@@ -5,6 +5,7 @@ class ShopConfigService {
 
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  /// Local fallback only. The remote document is the source of shop prices.
   static const Map<String, dynamic> defaults = {
     'gold300UsdPrice': '0.99',
     'gold1000UsdPrice': '2.99',
@@ -32,14 +33,43 @@ class ShopConfigService {
 
   static Future<Map<String, dynamic>> load() async {
     try {
-      final snapshot = await _db.collection('config').doc('shop').get();
+      final snapshot = await _db.collection('shop_config').doc('global').get();
+      final remote = snapshot.data();
+
       return {
         ...defaults,
-        ...(snapshot.data() ?? <String, dynamic>{}),
+        ..._legacyPriceValues(remote),
+        if (remote?['currency'] is String) 'currency': remote!['currency'],
+        if (remote != null)
+          'products': remote['products'] ?? <String, dynamic>{},
       };
     } catch (_) {
       return Map<String, dynamic>.from(defaults);
     }
+  }
+
+  static Map<String, dynamic> _legacyPriceValues(Map<String, dynamic>? remote) {
+    final products = remote?['products'];
+    if (products is! Map) return const <String, dynamic>{};
+
+    final values = <String, dynamic>{};
+    const productKeys = {
+      'gold_300': 'gold300UsdPrice',
+      'gold_1000': 'gold1000UsdPrice',
+      'gold_4000': 'gold4000UsdPrice',
+      'gold_10000': 'gold10000UsdPrice',
+      'membership_premium': 'premiumUsdPrice',
+      'membership_golden': 'goldenUsdPrice',
+    };
+
+    for (final entry in productKeys.entries) {
+      final product = products[entry.key];
+      if (product is Map && product['priceUsd'] != null) {
+        values[entry.value] = product['priceUsd'];
+      }
+    }
+
+    return values;
   }
 
   static int price(Map<String, dynamic> config, String key) {

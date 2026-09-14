@@ -1,40 +1,64 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
-/// Persistent in-game gold wallet.
+/// Client facade for the server-authoritative Gold wallet.
 class GoldManager {
   GoldManager._();
 
-  static const String _balanceKey = 'rebirth_2048_gold_balance_v1';
-  static const String _spentKey = 'rebirth_2048_gold_spent_v1';
-
-  static SharedPreferences? _preferences;
+  static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'us-central1',
+  );
+  static int? _cachedBalance;
+  static int? _cachedLifetimeSpent;
 
   static Future<void> initialize() async {
-    _preferences ??= await SharedPreferences.getInstance();
+    await refresh();
   }
 
-  static int get balance => _preferences?.getInt(_balanceKey) ?? 0;
-  static int get lifetimeSpent => _preferences?.getInt(_spentKey) ?? 0;
+  /// UI cache only. The server remains the source of truth.
+  static int get balance => _cachedBalance ?? 0;
+  static int get lifetimeSpent => _cachedLifetimeSpent ?? 0;
+
+  static Future<int?> refresh() async {
+    try {
+      final callable = _functions.httpsCallable('getGoldBalance');
+      final result = await callable.call();
+      final data = result.data;
+      final value = data is Map ? data['balance'] : null;
+      if (value is num && value.toInt() >= 0) {
+        _cachedBalance = value.toInt();
+        final spent = data is Map ? data['lifetimeSpent'] : null;
+        _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
+            ? spent.toInt()
+            : 0;
+        return _cachedBalance;
+      }
+    } on FirebaseFunctionsException {
+      _cachedBalance = null;
+    }
+
+    return null;
+  }
 
   static Future<bool> spend(int amount) async {
-    if (amount <= 0 || balance < amount) return false;
-    await initialize();
-    final newBalance = balance - amount;
-    final newSpent = lifetimeSpent + amount;
-    await _preferences!.setInt(_balanceKey, newBalance);
-    await _preferences!.setInt(_spentKey, newSpent);
-    return true;
-  }
+    if (amount <= 0) return false;
 
-  static Future<void> add(int amount) async {
-    if (amount <= 0) return;
-    await initialize();
-    await _preferences!.setInt(_balanceKey, balance + amount);
-  }
+    try {
+      final callable = _functions.httpsCallable('spendGold');
+      final result = await callable.call(<String, dynamic>{'amount': amount});
+      final data = result.data;
+      final value = data is Map ? data['balance'] : null;
+      if (value is num && value.toInt() >= 0) {
+        _cachedBalance = value.toInt();
+        final spent = data is Map ? data['lifetimeSpent'] : null;
+        _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
+            ? spent.toInt()
+            : lifetimeSpent + amount;
+        return true;
+      }
+    } on FirebaseFunctionsException {
+      return false;
+    }
 
-  static Future<void> reset() async {
-    await initialize();
-    await _preferences!.remove(_balanceKey);
-    await _preferences!.remove(_spentKey);
+    return false;
   }
 }

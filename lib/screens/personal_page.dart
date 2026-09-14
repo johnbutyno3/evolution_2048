@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+ï»¿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -18,7 +18,8 @@ class PersonalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;    final name = SaveManager.profileName?.trim();
+    final user = FirebaseAuth.instance.currentUser;
+    final name = SaveManager.profileName?.trim();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Personal')),
@@ -29,49 +30,49 @@ class PersonalPage extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'Player Info',
             subtitle: name?.isNotEmpty == true ? name! : 'Player profile',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PlayerInfoPage()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const PlayerInfoPage())),
           ),
           _SectionCard(
             icon: Icons.menu_book_outlined,
             title: 'Creature Collection',
             subtitle: 'Discovered life forms',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CollectionPage()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const CollectionPage())),
           ),
           _SectionCard(
             icon: Icons.monetization_on_outlined,
             title: 'Gold',
             subtitle: 'Gold balance and Gold Shop',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const GoldPage()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const GoldPage())),
           ),
           _SectionCard(
             icon: Icons.settings_outlined,
             title: 'Settings',
             subtitle: 'Music, sound effects, vibration and language',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsPage()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SettingsPage())),
           ),
           _SectionCard(
             icon: Icons.help_outline,
             title: 'Game Guide',
             subtitle: 'Rules and how to play',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const GameGuidePage()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const GameGuidePage())),
           ),
           _SectionCard(
             icon: Icons.info_outline,
             title: 'Version Info',
             subtitle: 'App and game version',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const VersionInfoPage()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const VersionInfoPage())),
           ),
           const SizedBox(height: 12),
           if (user != null)
@@ -114,12 +115,14 @@ class PersonalPage extends StatelessWidget {
 
     if (!context.mounted) return;
 
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginRegisterPage()),
+      (route) => false,
+    );
   }
 }
 
 class PlayerInfoPage extends StatefulWidget {
-
   const PlayerInfoPage({super.key});
 
   @override
@@ -127,7 +130,6 @@ class PlayerInfoPage extends StatefulWidget {
 }
 
 class _PlayerInfoPageState extends State<PlayerInfoPage> {
-
   static const List<String> _avatarAssets = [
     // Original / White
     'assets/avatars/avatar_ancient_young_male.png',
@@ -242,6 +244,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       final firebasePlayerId = data?['playerId'];
       if (firebasePlayerId is String && firebasePlayerId.isNotEmpty) {
         _playerId = firebasePlayerId;
+        await SaveManager.savePlayerId(firebasePlayerId);
       }
 
       if (!context.mounted) return;
@@ -255,6 +258,43 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       setState(() {
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _saveName() async {
+    final name = _nameController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Player name cannot be empty.')),
+      );
+      return;
+    }
+
+    try {
+      final success = await PlayerProfileService.updatePlayerName(name);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Player name updated.' : 'Unable to update player name.',
+          ),
+        ),
+      );
+    } on PlayerProfileException catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update player name: $error')),
+      );
     }
   }
 
@@ -273,12 +313,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Center(
-            child: _AvatarCircle(
-              index: _avatarIndex,
-              size: 104,
-            ),
-          ),
+          Center(child: _AvatarCircle(index: _avatarIndex, size: 104)),
           const SizedBox(height: 12),
           const Center(
             child: Text(
@@ -334,16 +369,14 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
                 membership == 'golden'
                     ? 'Golden Member'
                     : membership == 'premium'
-                        ? 'Premium Member'
-                        : 'General Member',
+                    ? 'Premium Member'
+                    : 'General Member',
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const ShopPage(),
-                  ),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const ShopPage()));
               },
             ),
           ),
@@ -352,6 +385,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
     );
   }
 }
+
 class _AvatarSheetPicker extends StatelessWidget {
   const _AvatarSheetPicker({
     required this.selectedIndex,
@@ -397,10 +431,7 @@ class _AvatarSheetPicker extends StatelessWidget {
                   width: 3,
                 ),
               ),
-              child: _AvatarCircle(
-                index: index,
-                size: double.infinity,
-              ),
+              child: _AvatarCircle(index: index, size: double.infinity),
             ),
           ),
         );
@@ -410,10 +441,7 @@ class _AvatarSheetPicker extends StatelessWidget {
 }
 
 class _AvatarCircle extends StatelessWidget {
-  const _AvatarCircle({
-    required this.index,
-    required this.size,
-  });
+  const _AvatarCircle({required this.index, required this.size});
 
   final int index;
   final double size;
@@ -438,10 +466,7 @@ class _AvatarCircle extends StatelessWidget {
           errorBuilder: (_, _, _) {
             return const ColoredBox(
               color: Colors.white,
-              child: Icon(
-                Icons.person,
-                size: 40,
-              ),
+              child: Icon(Icons.person, size: 40),
             );
           },
         ),
@@ -476,32 +501,27 @@ class EvolutionProgressPage extends StatelessWidget {
         itemBuilder: (_, index) {
           final chapter = chapters[index];
           final isCurrent = chapter.$1.toLowerCase() == currentChapterName;
-          final isCompleted =
-              index < _chapterIndex(currentChapterName);
+          final isCompleted = index < _chapterIndex(currentChapterName);
 
           final status = isCompleted
               ? 'Completed'
               : isCurrent && chapterComplete
-                  ? 'Chapter Complete'
-                  : isCurrent
-                      ? 'Current Chapter'
-                      : 'Locked';
+              ? 'Chapter Complete'
+              : isCurrent
+              ? 'Current Chapter'
+              : 'Locked';
 
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
-              leading: CircleAvatar(
-                child: Text('${index + 1}'),
-              ),
+              leading: CircleAvatar(child: Text('${index + 1}')),
               title: Text(chapter.$1),
-              subtitle: Text(
-                '${chapter.$2} stages ¡P $status',
-              ),
+              subtitle: Text('${chapter.$2} stages Â· $status'),
               trailing: isCompleted
                   ? const Icon(Icons.check_circle_outline)
                   : isCurrent
-                      ? const Icon(Icons.play_arrow)
-                      : const Icon(Icons.lock_outline),
+                  ? const Icon(Icons.play_arrow)
+                  : const Icon(Icons.lock_outline),
             ),
           );
         },
@@ -510,14 +530,7 @@ class EvolutionProgressPage extends StatelessWidget {
   }
 
   int _chapterIndex(String? chapter) {
-    const names = [
-      'ocean',
-      'land',
-      'sky',
-      'history',
-      'tech',
-      'universe',
-    ];
+    const names = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'];
 
     final index = names.indexOf(chapter ?? '');
     return index < 0 ? 0 : index;
@@ -547,12 +560,12 @@ class _CollectionPageState extends State<CollectionPage> {
   ];
 
   static const List<String> _chapterNames = [
-    'Chapter 1 ¡P Ocean',
-    'Chapter 2 ¡P Land',
-    'Chapter 3 ¡P Sky',
-    'Chapter 4 ¡P History',
-    'Chapter 5 ¡P Technology',
-    'Chapter 6 ¡P Space',
+    'Chapter 1 Â· Ocean',
+    'Chapter 2 Â· Land',
+    'Chapter 3 Â· Sky',
+    'Chapter 4 Â· History',
+    'Chapter 5 Â· Technology',
+    'Chapter 6 Â· Space',
   ];
 
   static const List<String> _chapterShortNames = [
@@ -583,8 +596,9 @@ class _CollectionPageState extends State<CollectionPage> {
     final result = <String, Set<int>>{};
 
     for (final chapterKey in _chapterKeys) {
-      result[chapterKey] =
-          await CreatureCollectionService.loadDiscovered(chapterKey);
+      result[chapterKey] = await CreatureCollectionService.loadDiscovered(
+        chapterKey,
+      );
     }
 
     if (!context.mounted) return;
@@ -623,13 +637,9 @@ class _CollectionPageState extends State<CollectionPage> {
     final discovered = _discovered[chapterKey] ?? <int>{};
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Creature Collection'),
-      ),
+      appBar: AppBar(title: const Text('Creature Collection')),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadCollection,
               child: CustomScrollView(
@@ -672,24 +682,21 @@ class _CollectionPageState extends State<CollectionPage> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                     sliver: SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final creature = creatures[index];
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final creature = creatures[index];
 
-                          return _CreatureCollectionCard(
-                            creature: creature,
-                            discovered: discovered.contains(creature.value),
-                          );
-                        },
-                        childCount: creatures.length,
-                      ),
+                        return _CreatureCollectionCard(
+                          creature: creature,
+                          discovered: discovered.contains(creature.value),
+                        );
+                      }, childCount: creatures.length),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 0.76,
-                      ),
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 0.76,
+                          ),
                     ),
                   ),
                 ],
@@ -720,19 +727,13 @@ class _CollectionSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              chapterName,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(chapterName, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text('$discovered / $total discovered'),
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 8,
-              ),
+              child: LinearProgressIndicator(value: progress, minHeight: 8),
             ),
           ],
         ),
@@ -777,9 +778,7 @@ class _CreatureCollectionCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -796,9 +795,7 @@ class _CreatureCollectionCard extends StatelessWidget {
                       child: Icon(
                         Icons.lock_outline,
                         size: 42,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -806,9 +803,7 @@ class _CreatureCollectionCard extends StatelessWidget {
                   const Text(
                     'Undiscovered',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -821,6 +816,7 @@ class _CreatureCollectionCard extends StatelessWidget {
     );
   }
 }
+
 class GoldPage extends StatelessWidget {
   const GoldPage({super.key});
 
@@ -839,10 +835,7 @@ class GoldPage extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      const Icon(
-                        Icons.monetization_on,
-                        size: 56,
-                      ),
+                      const Icon(Icons.monetization_on, size: 56),
                       const SizedBox(height: 12),
                       const Text(
                         'Gold Balance',
@@ -975,34 +968,23 @@ class GameGuidePage extends StatelessWidget {
         children: const [
           Text(
             'How to Play',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 12),
           Text(
-            'Use the 4¡Ñ4 board to move and merge identical life forms into the next evolution stage.',
+            'Use the 4Ã—4 board to move and merge identical life forms into the next evolution stage.',
           ),
           SizedBox(height: 24),
           Text(
             'Six Chapters',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
-          Text(
-            'Ocean ¡÷ Land ¡÷ Sky ¡÷ History ¡÷ Technology ¡÷ Space',
-          ),
+          Text('Ocean â†’ Land â†’ Sky â†’ History â†’ Technology â†’ Space'),
           SizedBox(height: 24),
           Text(
             'Resources',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
           Text(
@@ -1024,10 +1006,7 @@ class VersionInfoPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: const [
-          ListTile(
-            title: Text('App'),
-            subtitle: Text('Rebirth 2048'),
-          ),
+          ListTile(title: Text('App'), subtitle: Text('Rebirth 2048')),
           ListTile(
             title: Text('Game Version'),
             subtitle: Text('Current development build'),
@@ -1043,8 +1022,6 @@ class VersionInfoPage extends StatelessWidget {
     );
   }
 }
-
-
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
@@ -1073,31 +1050,3 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

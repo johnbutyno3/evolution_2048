@@ -6,14 +6,11 @@ class SaveManager {
   SaveManager._();
 
   static const String _saveKey = 'rebirth_2048_local_save_v1';
-  static const String _onboardingKey =
-      'rebirth_2048_onboarding_completed_v1';
-  static const String _profileNameKey =
-      'rebirth_2048_profile_name_v1';
-  static const String _avatarIndexKey =
-      'rebirth_2048_avatar_index_v1';
-  static const String _developerModeKey =
-      'rebirth_2048_developer_mode_v1';
+  static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
+  static const String _profileNameKey = 'rebirth_2048_profile_name_v1';
+  static const String _playerIdKey = 'rebirth_2048_player_id_v1';
+  static const String _avatarIndexKey = 'rebirth_2048_avatar_index_v1';
+  static const String _developerModeKey = 'rebirth_2048_developer_mode_v1';
   static const String _developerAllChaptersKey =
       'rebirth_2048_developer_all_chapters_v1';
   static const String _developerAllToolsKey =
@@ -43,6 +40,15 @@ class SaveManager {
 
   static String? get profileName {
     return _preferences?.getString(_profileNameKey);
+  }
+
+  static String? get playerId {
+    return _preferences?.getString(_playerIdKey);
+  }
+
+  static Future<void> savePlayerId(String playerId) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setString(_playerIdKey, playerId.trim());
   }
 
   static int get avatarIndex {
@@ -129,13 +135,10 @@ class SaveManager {
 
         if (chapterSave is Map) {
           final result = Map<String, dynamic>.from(
-            chapterSave.map(
-              (key, value) => MapEntry(key.toString(), value),
-            ),
+            chapterSave.map((key, value) => MapEntry(key.toString(), value)),
           );
 
-          if (!result.containsKey('toolUses') &&
-              root['toolUses'] != null) {
+          if (!result.containsKey('toolUses') && root['toolUses'] != null) {
             result['toolUses'] = root['toolUses'];
           }
 
@@ -157,13 +160,10 @@ class SaveManager {
 
         if (chapterSave is Map) {
           final result = Map<String, dynamic>.from(
-            chapterSave.map(
-              (key, value) => MapEntry(key.toString(), value),
-            ),
+            chapterSave.map((key, value) => MapEntry(key.toString(), value)),
           );
 
-          if (!result.containsKey('toolUses') &&
-              root['toolUses'] != null) {
+          if (!result.containsKey('toolUses') && root['toolUses'] != null) {
             result['toolUses'] = root['toolUses'];
           }
 
@@ -298,4 +298,3 @@ class SaveManager {
     }
   }
 }
-

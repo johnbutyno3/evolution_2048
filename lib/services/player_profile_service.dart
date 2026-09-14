@@ -33,10 +33,7 @@ class PlayerProfileService {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random.secure();
 
-    return 'RB-${List.generate(
-      8,
-      (_) => chars[random.nextInt(chars.length)],
-    ).join()}';
+    return 'RB-${List.generate(8, (_) => chars[random.nextInt(chars.length)]).join()}';
   }
 
   static Future<void> updateAvatarIndex(int index) async {
@@ -90,54 +87,39 @@ class PlayerProfileService {
       final existingUid = nameSnapshot.data()?['uid'];
 
       if (existingUid != null && existingUid != uid) {
-        throw const PlayerProfileException(
-          'Player name is already in use.',
-        );
+        throw const PlayerProfileException('Player name is already in use.');
       }
 
       final idSnapshot = await transaction.get(idRef);
       final existingIdUid = idSnapshot.data()?['uid'];
 
       if (existingIdUid != null && existingIdUid != uid) {
-        throw const PlayerProfileException(
-          'Player ID is already in use.',
-        );
+        throw const PlayerProfileException('Player ID is already in use.');
       }
 
-      transaction.set(
-        nameRef,
-        {
-          'uid': uid,
-          'playerName': name,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(nameRef, {
+        'uid': uid,
+        'playerName': name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-      transaction.set(
-        idRef,
-        {
-          'uid': uid,
-          'playerId': playerId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(idRef, {
+        'uid': uid,
+        'playerId': playerId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-      transaction.set(
-        ref,
-        {
-          'playerName': name,
-          'playerNameNormalized': normalizedName,
-          'playerId': playerId,
-          'avatarIndex': avatarIndex,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(ref, {
+        'playerName': name,
+        'playerNameNormalized': normalizedName,
+        'playerId': playerId,
+        'avatarIndex': avatarIndex,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     });
 
     await SaveManager.saveProfile(name: name);
+    await SaveManager.savePlayerId(playerId);
     await SaveManager.saveAvatarIndex(avatarIndex);
 
     return name;
@@ -165,8 +147,7 @@ class PlayerProfileService {
     for (var attempt = 0; attempt < 20; attempt++) {
       final candidate = _generatePlayerId();
 
-      final snapshot =
-          await _db.collection('player_ids').doc(candidate).get();
+      final snapshot = await _db.collection('player_ids').doc(candidate).get();
 
       if (!snapshot.exists) return candidate;
     }
@@ -199,19 +180,16 @@ class PlayerProfileService {
     final oldName = data['playerName'] as String?;
     final oldNormalizedName =
         data['playerNameNormalized'] as String? ??
-            (oldName == null ? null : _normalizeName(oldName));
+        (oldName == null ? null : _normalizeName(oldName));
 
     final playerId = data['playerId'] as String?;
 
     if (oldNormalizedName == normalizedName) {
-      await ref.set(
-        {
-          'playerName': trimmed,
-          'playerNameNormalized': normalizedName,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await ref.set({
+        'playerName': trimmed,
+        'playerNameNormalized': normalizedName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       await SaveManager.saveProfile(name: trimmed);
       return true;
@@ -222,8 +200,7 @@ class PlayerProfileService {
       return updatePlayerName(trimmed);
     }
 
-    final newNameRef =
-        _db.collection('player_names').doc(normalizedName);
+    final newNameRef = _db.collection('player_names').doc(normalizedName);
 
     final oldNameRef = oldNormalizedName == null
         ? null
@@ -236,45 +213,30 @@ class PlayerProfileService {
       final existingUid = nameSnapshot.data()?['uid'];
 
       if (existingUid != null && existingUid != uid) {
-        throw const PlayerProfileException(
-          'Player name is already in use.',
-        );
+        throw const PlayerProfileException('Player name is already in use.');
       }
 
-      transaction.set(
-        newNameRef,
-        {
-          'uid': uid,
-          'playerName': trimmed,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(newNameRef, {
+        'uid': uid,
+        'playerName': trimmed,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-      if (oldNameRef != null &&
-          oldNormalizedName != normalizedName) {
+      if (oldNameRef != null && oldNormalizedName != normalizedName) {
         transaction.delete(oldNameRef);
       }
 
-      transaction.set(
-        idRef,
-        {
-          'uid': uid,
-          'playerId': playerId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(idRef, {
+        'uid': uid,
+        'playerId': playerId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-      transaction.set(
-        ref,
-        {
-          'playerName': trimmed,
-          'playerNameNormalized': normalizedName,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      transaction.set(ref, {
+        'playerName': trimmed,
+        'playerNameNormalized': normalizedName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     });
 
     await SaveManager.saveProfile(name: trimmed);

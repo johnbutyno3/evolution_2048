@@ -15,6 +15,7 @@ class LoginRegisterPage extends StatefulWidget {
   @override
   State<LoginRegisterPage> createState() => _LoginRegisterPageState();
 }
+
 class _LoginRegisterPageState extends State<LoginRegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -285,18 +286,6 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _loading
-                      ? null
-                      : () {
-                          unawaited(
-                            AudioManager.instance.playSfx(GameSfx.buttonClick),
-                          );
-                          _goToGame();
-                        },
-                  child: Text(l10n.authSkip),
-                ),
               ],
             ),
           ),
@@ -305,4 +294,3 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     );
   }
 }
-
