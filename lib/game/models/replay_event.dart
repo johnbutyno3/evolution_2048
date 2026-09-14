@@ -28,8 +28,8 @@ class ReplayEvent {
   }) {
     return ReplayEvent._('revive', <String, dynamic>{
       'index': index,
-      if (spawnIndex != null) 'spawnIndex': spawnIndex,
-      if (spawnValue != null) 'spawnValue': spawnValue,
+      ...?{'spawnIndex': spawnIndex},
+      ...?{'spawnValue': spawnValue},
     });
   }
 
