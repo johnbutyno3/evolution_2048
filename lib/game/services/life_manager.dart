@@ -1,12 +1,14 @@
 import 'dart:async';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persistent life system for Evolution 2048.
 ///
 /// Normal members regenerate one life every 40 minutes while below 5.
 /// Purchased lives may raise the current count above 5, but automatic
-/// regeneration never refills above 5. Golden members have infinite lives.
+/// regeneration never refills above 5. Golden membership is determined by
+/// the authenticated server state and grants infinite lives.
 class LifeManager {
   LifeManager._();
 
@@ -16,6 +18,9 @@ class LifeManager {
   static const String _lifeKey = 'rebirth_2048_life_count_v1';
   static const String _regenStartKey = 'rebirth_2048_life_regen_start_v1';
   static const String _membershipKey = 'rebirth_2048_membership_v1';
+
+  static final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'us-central1');
 
   static SharedPreferences? _preferences;
   static int _lifeCount = normalCap;
@@ -32,8 +37,31 @@ class LifeManager {
         ? null
         : DateTime.fromMillisecondsSinceEpoch(storedRegenStart);
 
+    await _refreshMembershipFromServer();
     _applyAutomaticRegeneration();
     await _persist();
+  }
+
+  static Future<void> _refreshMembershipFromServer() async {
+    try {
+      final result = await _functions
+          .httpsCallable('getMembershipStatus')
+          .call();
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final active = data['active'] == true;
+      final type = data['type'];
+
+      if (active && (type == 'golden' || type == 'premium')) {
+        _membership = type as String;
+      } else {
+        _membership = 'general';
+      }
+    } on FirebaseFunctionsException {
+      // Keep the cached membership only as a temporary offline fallback.
+      // A successful server response always replaces it.
+    } catch (_) {
+      // Keep the cached membership when the network is unavailable.
+    }
   }
 
   static bool get isGoldenMember => _membership == 'golden';
@@ -50,7 +78,9 @@ class LifeManager {
     if (isGoldenMember || _lifeCount >= normalCap) return null;
 
     final start = _regenStart;
-    if (start == null) return DateTime.now().add(regenerationInterval).millisecondsSinceEpoch;
+    if (start == null) {
+      return DateTime.now().add(regenerationInterval).millisecondsSinceEpoch;
+    }
 
     return start.add(regenerationInterval).millisecondsSinceEpoch;
   }
@@ -74,6 +104,8 @@ class LifeManager {
   /// Consume one normal life when starting a gameplay attempt.
   /// Golden members never consume life.
   static Future<bool> consumeLife() async {
+    if (isGoldenMember) return true;
+
     final consumed = consumeLifeNow();
     await _persist();
     return consumed;
@@ -95,10 +127,6 @@ class LifeManager {
 
   /// Refund the life consumed by the board when that board completes a
   /// chapter successfully. Completing a chapter is not a death.
-  ///
-  /// The refund is capped at the normal five-life pool. Calling this more
-  /// than once for the same board is prevented by the engine's
-  /// board-life-active state.
   static Future<void> refundChapterCompletionLife() async {
     if (isGoldenMember) return;
 
@@ -135,8 +163,8 @@ class LifeManager {
     await _persist();
   }
 
-  /// Set membership for the account system.
-  /// Accepted values: general, premium, golden.
+  /// Legacy local setter retained for compatibility with development flows.
+  /// Production membership must come from getMembershipStatus on the server.
   static Future<void> setMembership(String membership) async {
     const allowed = {'general', 'premium', 'golden'};
     if (!allowed.contains(membership)) return;
