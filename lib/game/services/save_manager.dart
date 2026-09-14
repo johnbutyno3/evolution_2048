@@ -1,5 +1,6 @@
 ﻿import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SaveManager {
@@ -10,6 +11,7 @@ class SaveManager {
   static const String _profileNameKey = 'rebirth_2048_profile_name_v1';
   static const String _playerIdKey = 'rebirth_2048_player_id_v1';
   static const String _avatarIndexKey = 'rebirth_2048_avatar_index_v1';
+  static const String _localeKey = 'rebirth_2048_locale_v1';
   static const String _developerModeKey = 'rebirth_2048_developer_mode_v1';
   static const String _developerAllChaptersKey =
       'rebirth_2048_developer_all_chapters_v1';
@@ -19,6 +21,7 @@ class SaveManager {
       'rebirth_2048_developer_unlimited_tools_v1';
 
   static SharedPreferences? _preferences;
+  static final ValueNotifier<String> localeCodeNotifier = ValueNotifier('en');
 
   static Map<String, dynamic>? _cachedSave;
 
@@ -27,6 +30,19 @@ class SaveManager {
 
     final raw = _preferences!.getString(_saveKey);
     _cachedSave = _decode(raw);
+    localeCodeNotifier.value = localeCode;
+  }
+
+  static String get localeCode {
+    final value = _preferences?.getString(_localeKey);
+    return value == 'zh' ? 'zh' : 'en';
+  }
+
+  static Future<void> saveLocaleCode(String code) async {
+    final safeCode = code == 'zh' ? 'zh' : 'en';
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setString(_localeKey, safeCode);
+    localeCodeNotifier.value = safeCode;
   }
 
   static bool get hasCompletedOnboarding {

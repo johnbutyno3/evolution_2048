@@ -114,25 +114,27 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
-    await PlayerProfileService.ensureProfile();
-    await LifeManager.initialize();
-    await GoldManager.initialize();
-    await _progress.refresh();
+    try {
+      await PlayerProfileService.ensureProfile();
+    } catch (_) {}
+
+    try {
+      await LifeManager.initialize();
+      await GoldManager.initialize();
+    } catch (_) {}
+
+    try {
+      await _progress.refresh();
+    } catch (_) {}
+
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _openGoldPage() async {
+  Future<void> _openPlayerInfo() async {
     await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const GoldPage()));
-    await GoldManager.initialize();
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _openPersonalPage() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const PersonalPage()));
+    ).push(MaterialPageRoute(builder: (_) => const PlayerInfoPage()));
+    await PlayerProfileService.ensureProfile();
     if (mounted) setState(() {});
   }
 
@@ -157,7 +159,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final unlocked = _progress.unlockedChapterIndex;
+    final unlocked = _progress.unlockedChapterIndex
+        .clamp(0, HomePage.chapters.length - 1)
+        .toInt();
 
     final avatarIndex = SaveManager.avatarIndex.clamp(
       0,
@@ -195,15 +199,19 @@ class _HomePageState extends State<HomePage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: Colors.white,
-                        child: ClipOval(
-                          child: Image.asset(
-                            avatarAsset,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.contain,
+                      InkWell(
+                        onTap: _openPlayerInfo,
+                        borderRadius: BorderRadius.circular(26),
+                        child: CircleAvatar(
+                          radius: 26,
+                          backgroundColor: Colors.white,
+                          child: ClipOval(
+                            child: Image.asset(
+                              avatarAsset,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                       ),
@@ -237,7 +245,9 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                           InkWell(
-                            onTap: _openGoldPage,
+                            onTap: () {
+                              Navigator.of(context).pushNamed('/shop');
+                            },
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Text(
@@ -249,12 +259,6 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          _TopButton(
-                            icon: Icons.person_outline,
-                            label: 'Player Info',
-                            onPressed: _openPersonalPage,
                           ),
                         ],
                       ),

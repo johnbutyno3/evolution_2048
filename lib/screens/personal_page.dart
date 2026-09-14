@@ -19,7 +19,6 @@ class PersonalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final name = SaveManager.profileName?.trim();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Personal')),
@@ -27,28 +26,12 @@ class PersonalPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           _SectionCard(
-            icon: Icons.person_outline,
-            title: 'Player Info',
-            subtitle: name?.isNotEmpty == true ? name! : 'Player profile',
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const PlayerInfoPage())),
-          ),
-          _SectionCard(
             icon: Icons.menu_book_outlined,
             title: 'Creature Collection',
             subtitle: 'Discovered life forms',
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const CollectionPage())),
-          ),
-          _SectionCard(
-            icon: Icons.monetization_on_outlined,
-            title: 'Gold',
-            subtitle: 'Gold balance and Gold Shop',
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const GoldPage())),
           ),
           _SectionCard(
             icon: Icons.settings_outlined,
@@ -200,10 +183,8 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(
-      text: SaveManager.profileName ?? '',
-    );
-    _avatarIndex = SaveManager.avatarIndex;
+    _nameController = TextEditingController();
+    _avatarIndex = 0;
     _loadProfile();
   }
 
@@ -218,6 +199,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
     }
 
     try {
+      await PlayerProfileService.ensureProfile();
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -226,8 +208,8 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       final data = snapshot.data();
 
       final firebaseAvatarIndex = data?['avatarIndex'];
-      if (firebaseAvatarIndex is int) {
-        _avatarIndex = firebaseAvatarIndex.clamp(0, 53);
+      if (firebaseAvatarIndex is num) {
+        _avatarIndex = firebaseAvatarIndex.toInt().clamp(0, 53);
         await SaveManager.saveAvatarIndex(_avatarIndex);
       }
 
@@ -584,24 +566,36 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
   Future<void> _loadCollection() async {
-    if (FirebaseAuth.instance.currentUser == null) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
       if (!context.mounted) return;
 
       setState(() {
+        _discovered.clear();
         _loading = false;
       });
       return;
     }
 
     final result = <String, Set<int>>{};
-
-    for (final chapterKey in _chapterKeys) {
-      result[chapterKey] = await CreatureCollectionService.loadDiscovered(
-        chapterKey,
-      );
+    try {
+      for (final chapterKey in _chapterKeys) {
+        result[chapterKey] = await CreatureCollectionService.loadDiscovered(
+          chapterKey,
+        );
+      }
+    } catch (_) {
+      result.clear();
     }
 
     if (!context.mounted) return;
+    if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+      setState(() {
+        _discovered.clear();
+        _loading = false;
+      });
+      return;
+    }
 
     setState(() {
       _discovered
@@ -940,14 +934,20 @@ class _SettingsPageState extends State<SettingsPage> {
             value: true,
             onChanged: null,
           ),
-          const ListTile(
-            title: Text('Language'),
-            subtitle: Text('Use the app language setting.'),
-          ),
-          const ListTile(
-            title: Text('Game Data'),
-            subtitle: Text(
-              'Save and account data management will be connected later.',
+          ListTile(
+            title: const Text('Language'),
+            trailing: DropdownButton<String>(
+              value: SaveManager.localeCode,
+              underline: const SizedBox.shrink(),
+              items: const [
+                DropdownMenuItem(value: 'en', child: Text('English')),
+                DropdownMenuItem(value: 'zh', child: Text('繁體中文')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  SaveManager.saveLocaleCode(value);
+                }
+              },
             ),
           ),
         ],

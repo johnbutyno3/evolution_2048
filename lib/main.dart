@@ -46,18 +46,23 @@ class Rebirth2048App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Rebirth 2048',
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('en', 'US'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: const [Locale('en', 'US')],
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        useMaterial3: true,
-      ),
-      home: _home(),
-      routes: {'/shop': (_) => const ShopPage()},
+    return ValueListenableBuilder<String>(
+      valueListenable: SaveManager.localeCodeNotifier,
+      builder: (context, languageCode, _) {
+        return MaterialApp(
+          title: 'Rebirth 2048',
+          debugShowCheckedModeBanner: false,
+          locale: Locale(languageCode),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+            useMaterial3: true,
+          ),
+          home: _home(),
+          routes: {'/shop': (_) => const ShopPage()},
+        );
+      },
     );
   }
 }

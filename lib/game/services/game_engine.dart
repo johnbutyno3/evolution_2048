@@ -11,17 +11,19 @@ import 'life_manager.dart';
 import 'tool_manager.dart';
 
 class GameEngine {
-  GameEngine({Random? random, GameChapter chapter = GameChapter.ocean, bool forceNewBoard = false})
-    : _random = random ?? Random(),
-      _chapter = chapter {
+  GameEngine({
+    Random? random,
+    GameChapter chapter = GameChapter.ocean,
+    bool forceNewBoard = false,
+  }) : _random = random ?? Random(),
+       _chapter = chapter {
     _autoSaveEnabled = false;
     _initializeTools();
     reset();
 
-    final saved = SaveManager.loadCached(
-      chapter: _chapter.name,
-    );
-    final savedBoardEnded = saved != null &&
+    final saved = SaveManager.loadCached(chapter: _chapter.name);
+    final savedBoardEnded =
+        saved != null &&
         (saved['gameOver'] == true || saved['chapterComplete'] == true);
 
     if (saved != null &&
@@ -37,7 +39,8 @@ class GameEngine {
 
     // A genuinely new board consumes exactly one life.
     // Restored boards keep their existing board life.
-    final hasSavedBoard = saved != null &&
+    final hasSavedBoard =
+        saved != null &&
         _shouldRestoreSavedChapter(saved) &&
         !savedBoardEnded &&
         saved['tiles'] is List &&
@@ -531,7 +534,8 @@ class GameEngine {
     _toolManager = ToolManager(chapter: _chapter);
   }
 
-  void refreshToolProgress() {
+  Future<void> refreshToolProgress() async {
+    await ToolManager.refreshInventory();
     _toolManager.refreshFromSavedProgress();
   }
 
@@ -551,7 +555,7 @@ class GameEngine {
   // Tools
   // ============================================================
 
-  bool useRevive(int row, int column) {
+  Future<bool> useRevive(int row, int column) async {
     if (gameOver || chapterComplete || !canUseRevive) {
       return false;
     }
@@ -564,7 +568,7 @@ class GameEngine {
 
     if (tile == null) return false;
 
-    if (!_toolManager.use(GameToolType.revive)) {
+    if (!await _toolManager.useServer(GameToolType.revive)) {
       return false;
     }
 
@@ -583,7 +587,7 @@ class GameEngine {
     return true;
   }
 
-  bool useTimeRewind() {
+  Future<bool> useTimeRewind() async {
     if (gameOver || chapterComplete || !canUseTimeRewind) {
       return false;
     }
@@ -592,7 +596,7 @@ class GameEngine {
       return false;
     }
 
-    if (!_toolManager.use(GameToolType.timeRewind)) {
+    if (!await _toolManager.useServer(GameToolType.timeRewind)) {
       return false;
     }
 
@@ -612,12 +616,12 @@ class GameEngine {
     return true;
   }
 
-  bool usePositionSwap(
+  Future<bool> usePositionSwap(
     int firstRow,
     int firstColumn,
     int secondRow,
     int secondColumn,
-  ) {
+  ) async {
     if (!SaveManager.developerAllTools &&
         _chapter != GameChapter.land &&
         _chapter != GameChapter.sky &&
@@ -652,7 +656,7 @@ class GameEngine {
       return false;
     }
 
-    if (!_toolManager.use(GameToolType.positionSwap)) {
+    if (!await _toolManager.useServer(GameToolType.positionSwap)) {
       return false;
     }
 
@@ -668,15 +672,15 @@ class GameEngine {
     return true;
   }
 
-  bool useDuplicate(
+  Future<bool> useDuplicate(
     int sourceRow,
     int sourceColumn,
     int targetRow,
     int targetColumn,
-  ) {
+  ) async {
     if ((!SaveManager.developerAllTools &&
-        _chapter != GameChapter.history &&
-        _chapter != GameChapter.tech) ||
+            _chapter != GameChapter.history &&
+            _chapter != GameChapter.tech) ||
         chapterComplete) {
       return false;
     }
@@ -706,7 +710,7 @@ class GameEngine {
     if (source == null) return false;
     if (target != null) return false;
 
-    if (!_toolManager.use(GameToolType.duplicate)) {
+    if (!await _toolManager.useServer(GameToolType.duplicate)) {
       return false;
     }
 
@@ -1027,9 +1031,8 @@ class GameEngine {
     if (highestValue >= targetValue) {
       chapterComplete = true;
 
-      
-// Completing a chapter is not death.
-// Refund the life consumed by this board.
+      // Completing a chapter is not death.
+      // Refund the life consumed by this board.
       refundLifeForChapterComplete();
 
       switch (_chapter) {
@@ -1081,16 +1084,3 @@ class GameEngine {
     _recordHighestEvolutionValue(value);
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

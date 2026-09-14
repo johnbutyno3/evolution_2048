@@ -135,6 +135,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _focusNode.requestFocus();
 
       _resumeGameplay();
+      unawaited(
+        _engine.refreshToolProgress().then((_) {
+          if (mounted) setState(() {});
+        }),
+      );
 
       AudioManager.instance.initialize().then((_) {
         if (mounted) {
@@ -333,10 +338,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final mergedValues = _engine.board.lastMergedValues;
     if (mergedValues.isNotEmpty) {
       unawaited(
-        CreatureCollectionService.discover(
-          _engine.chapter.name,
-          mergedValues,
-        ),
+        CreatureCollectionService.discover(_engine.chapter.name, mergedValues),
       );
     }
 
@@ -395,9 +397,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final index = _completionAnimationIndex;
     final imagePath = _completionAnimationImagePath;
 
-    if (!_completionAnimationPlaying ||
-        index == null ||
-        imagePath == null) {
+    if (!_completionAnimationPlaying || index == null || imagePath == null) {
       return const SizedBox.shrink();
     }
 
@@ -532,7 +532,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   // Tools
   // ============================================================
 
-  void _startTool(String mode) {
+  Future<void> _startTool(String mode) async {
     if (!_engine.hasTools ||
         _engine.gameOver ||
         _engine.chapterComplete ||
@@ -564,14 +564,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!toolState.canUse) {
       if (!mounted) return;
 
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ShopPage(),
-        ),
-      ).then((_) {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => ShopPage())).then((_) {
         if (!mounted) return;
 
-        _engine.refreshToolProgress();
+        unawaited(_engine.refreshToolProgress());
         setState(() {});
       });
 
@@ -585,7 +583,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return;
       }
 
-      if (_engine.useTimeRewind()) {
+      if (await _engine.useTimeRewind()) {
         setState(() {});
       }
 
@@ -599,7 +597,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _firstSwapIndex = null;
     });
   }
-  void _selectToolTile(int index) {
+
+  Future<void> _selectToolTile(int index) async {
     final mode = _toolMode;
 
     if (mode == null) {
@@ -634,7 +633,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return;
       }
 
-      final changed = _engine.useDuplicate(first ~/ 4, first % 4, row, column);
+      final changed = await _engine.useDuplicate(
+        first ~/ 4,
+        first % 4,
+        row,
+        column,
+      );
 
       if (changed) {
         setState(() {
@@ -657,7 +661,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // ----------------------------------------------------------
 
     if (mode == 'revive') {
-      if (_engine.useRevive(row, column)) {
+      if (await _engine.useRevive(row, column)) {
         setState(() {
           _toolMode = null;
           _firstSwapIndex = null;
@@ -688,7 +692,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return;
       }
 
-      final changed = _engine.usePositionSwap(
+      final changed = await _engine.usePositionSwap(
         first ~/ 4,
         first % 4,
         row,
@@ -738,18 +742,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           actions: [
             TextButton(
               onPressed: () {
-                unawaited(
-                  AudioManager.instance.playSfx(GameSfx.buttonClick),
-                );
+                unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
                 Navigator.of(context).pop(false);
               },
               child: const Text('Back'),
             ),
             TextButton(
               onPressed: () {
-                unawaited(
-                  AudioManager.instance.playSfx(GameSfx.buttonClick),
-                );
+                unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
                 Navigator.of(context).pop(true);
               },
               child: const Text('Restart'),
@@ -767,9 +767,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     if (shouldRestart == true) {
       if (_reset()) {
-        unawaited(
-          AudioManager.instance.playChapterMusic(_engine.chapter),
-        );
+        unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
       }
     } else {
       Navigator.of(context).pop();
@@ -1072,7 +1070,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
               setState(() {
                 _pressedToolMode = mode;
               });
-
             }
           : null,
 
@@ -1096,7 +1093,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                 _focusNode.requestFocus();
               } else {
                 unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect));
-                _startTool(mode);
+                unawaited(_startTool(mode));
               }
             }
           : null,
@@ -1365,10 +1362,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                                 itemCount: 16,
                                 itemBuilder: (context, index) {
                                   final tile = _engine.board.tiles[index];
-final selected = _firstSwapIndex == index;
+                                  final selected = _firstSwapIndex == index;
 
                                   return GestureDetector(
-                                    onTap: () => _selectToolTile(index),
+                                    onTap: () =>
+                                        unawaited(_selectToolTile(index)),
                                     child: Container(
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(10),
@@ -1528,11 +1526,39 @@ class _ChapterCompletePage extends StatelessWidget {
                     padding: const EdgeInsets.all(24),
                     child: SizedBox(
                       width: double.infinity,
-                      child: Column(children: [
-                        SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); onNextChapter(); }, child: const Text('Next Chapter'))),
-                        const SizedBox(height: 12),
-                        SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); onHome(); }, child: const Text('Home'))),
-                      ])
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                unawaited(
+                                  AudioManager.instance.playSfx(
+                                    GameSfx.buttonClick,
+                                  ),
+                                );
+                                onNextChapter();
+                              },
+                              child: const Text('Next Chapter'),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () {
+                                unawaited(
+                                  AudioManager.instance.playSfx(
+                                    GameSfx.buttonClick,
+                                  ),
+                                );
+                                onHome();
+                              },
+                              child: const Text('Home'),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -1544,6 +1570,3 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
-
-
-

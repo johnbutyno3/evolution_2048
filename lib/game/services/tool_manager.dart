@@ -1,5 +1,6 @@
 ﻿import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'save_manager.dart';
 
 class ToolManager {
@@ -14,6 +15,10 @@ class ToolManager {
   static const String _saveKey = 'toolUses';
   static const String _claimedKey = 'toolRewardsClaimed';
   static const int _developerUnlimitedUses = 999999;
+  static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'us-central1',
+  );
+  static final Map<GameToolType, int> _serverUses = {};
 
   final Map<GameToolType, int> _uses = <GameToolType, int>{};
   final Set<String> _rewardsClaimed = <String>{};
@@ -24,6 +29,7 @@ class ToolManager {
   int get availableToolCount => _tools.where((tool) => tool.canUse).length;
 
   void _loadSavedProgress() {
+    if (!SaveManager.developerMode) return;
     final save = SaveManager.loadCached();
     final rawUses = save?[_saveKey];
     if (rawUses is Map) {
@@ -55,19 +61,18 @@ class ToolManager {
       final initialUses = SaveManager.developerUnlimitedTools
           ? _developerUnlimitedUses
           : (savedUses ??
-              (chapter == GameChapter.ocean ? gameTool.maxUses : 0));
+                (chapter == GameChapter.ocean ? gameTool.maxUses : 0));
 
-      _tools.add(
-        ToolState(
-          tool: gameTool,
-          uses: initialUses,
-        ),
-      );
+      _tools.add(ToolState(tool: gameTool, uses: initialUses));
     }
   }
 
   void _claimNextChapterRewardIfNeeded() {
-    if (chapter == GameChapter.ocean || SaveManager.developerAllTools) return;
+    if (!SaveManager.developerMode ||
+        chapter == GameChapter.ocean ||
+        SaveManager.developerAllTools) {
+      return;
+    }
 
     final previousChapter = GameChapter.values[chapter.index - 1];
     final save = SaveManager.loadCached();
@@ -114,6 +119,13 @@ class ToolManager {
   void refreshFromSavedProgress() {
     _uses.clear();
 
+    if (!SaveManager.developerMode) {
+      for (final tool in _tools) {
+        tool.usesRemaining = _serverUses[tool.tool.type] ?? 0;
+      }
+      return;
+    }
+
     final save = SaveManager.loadCached();
     final rawUses = save?[_saveKey];
 
@@ -148,11 +160,64 @@ class ToolManager {
     return true;
   }
 
+  Future<bool> useServer(GameToolType type) async {
+    if (SaveManager.developerUnlimitedTools) return use(type);
+    try {
+      final result = await _functions.httpsCallable('useTool').call({
+        'toolType': type.name,
+      });
+      final uses = result.data is Map ? result.data['uses'] : null;
+      if (uses is! num) return false;
+      _serverUses[type] = uses.toInt();
+      final tool = getTool(type);
+      if (tool != null) tool.usesRemaining = uses.toInt();
+      return true;
+    } on FirebaseFunctionsException {
+      return false;
+    }
+  }
+
+  static Future<void> refreshInventory() async {
+    if (SaveManager.developerMode) return;
+    try {
+      final result = await _functions.httpsCallable('getToolInventory').call();
+      final inventory = result.data is Map ? result.data['inventory'] : null;
+      if (inventory is! Map) return;
+      for (final entry in inventory.entries) {
+        final type = GameToolType.values.where(
+          (value) => value.name == entry.key,
+        );
+        if (type.isNotEmpty && entry.value is num) {
+          _serverUses[type.first] = (entry.value as num).toInt();
+        }
+      }
+    } on FirebaseFunctionsException {
+      return;
+    }
+  }
+
+  static Future<bool> purchase(GameToolType type, int amount) async {
+    if (SaveManager.developerMode) return false;
+    try {
+      final result = await _functions.httpsCallable('purchaseTool').call({
+        'toolType': type.name,
+        'amount': amount,
+      });
+      final uses = result.data is Map ? result.data['uses'] : null;
+      if (uses is! num) return false;
+      _serverUses[type] = uses.toInt();
+      return true;
+    } on FirebaseFunctionsException {
+      return false;
+    }
+  }
+
   /// Returns the globally saved inventory for a tool.
   ///
   /// Tool inventory is cumulative across chapters, so this can be used by
   /// profile/shop UI even when the tool is not currently unlocked.
   static int savedUsesFor(GameToolType type) {
+    if (!SaveManager.developerMode) return _serverUses[type] ?? 0;
     final save = SaveManager.loadCached();
     final rawUses = save?[_saveKey];
 
@@ -179,6 +244,7 @@ class ToolManager {
   }
 
   static Future<void> addPurchasedUses(GameToolType type, int amount) async {
+    if (!SaveManager.developerMode) return;
     if (amount <= 0) return;
     final save = SaveManager.loadCached() ?? <String, dynamic>{};
     final uses = <String, int>{};
@@ -186,7 +252,9 @@ class ToolManager {
     if (rawUses is Map) {
       for (final toolType in GameToolType.values) {
         final value = rawUses[toolType.name];
-        uses[toolType.name] = value is num ? value.toInt().clamp(0, 1000000) : 0;
+        uses[toolType.name] = value is num
+            ? value.toInt().clamp(0, 1000000)
+            : 0;
       }
     } else {
       for (final toolType in GameToolType.values) {
@@ -201,10 +269,7 @@ class ToolManager {
       rewards.addAll(rawRewards.whereType<String>());
     }
 
-    await SaveManager.saveToolProgress(
-      toolUses: uses,
-      rewardsClaimed: rewards,
-    );
+    await SaveManager.saveToolProgress(toolUses: uses, rewardsClaimed: rewards);
   }
 
   void reset() {
@@ -229,27 +294,24 @@ class ToolManager {
 
     return switch (chapter) {
       GameChapter.ocean => [GameToolType.timeRewind],
-      GameChapter.land => [
-          GameToolType.timeRewind,
-          GameToolType.revive,
-        ],
+      GameChapter.land => [GameToolType.timeRewind, GameToolType.revive],
       GameChapter.sky => [
-          GameToolType.timeRewind,
-          GameToolType.revive,
-          GameToolType.positionSwap,
-        ],
+        GameToolType.timeRewind,
+        GameToolType.revive,
+        GameToolType.positionSwap,
+      ],
       GameChapter.history => [
-          GameToolType.timeRewind,
-          GameToolType.revive,
-          GameToolType.positionSwap,
-          GameToolType.duplicate,
-        ],
+        GameToolType.timeRewind,
+        GameToolType.revive,
+        GameToolType.positionSwap,
+        GameToolType.duplicate,
+      ],
       GameChapter.tech => [
-          GameToolType.timeRewind,
-          GameToolType.revive,
-          GameToolType.positionSwap,
-          GameToolType.duplicate,
-        ],
+        GameToolType.timeRewind,
+        GameToolType.revive,
+        GameToolType.positionSwap,
+        GameToolType.duplicate,
+      ],
       GameChapter.universe => [GameToolType.timeRewind],
     };
   }
@@ -270,6 +332,7 @@ class ToolManager {
   }
 
   void restoreFromSaveData(Map<String, dynamic> data) {
+    if (!SaveManager.developerMode) return;
     final raw = data[_saveKey];
     if (raw is! Map) return;
     for (final type in GameToolType.values) {
@@ -293,4 +356,3 @@ class ToolManager {
     );
   }
 }
-

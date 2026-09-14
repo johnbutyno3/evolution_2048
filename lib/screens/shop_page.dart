@@ -25,6 +25,7 @@ class _ShopPageState extends State<ShopPage> {
   Future<Map<String, dynamic>> _load() async {
     await GoldManager.initialize();
     await LifeManager.initialize();
+    await ToolManager.refreshInventory();
     return ShopConfigService.load();
   }
 
@@ -42,12 +43,11 @@ class _ShopPageState extends State<ShopPage> {
     required int amount,
     required int price,
   }) async {
-    if (!await GoldManager.spend(price)) {
+    if (!await ToolManager.purchase(type, amount)) {
       _message('Not enough Gold or purchase failed.');
       return;
     }
 
-    await ToolManager.addPurchasedUses(type, amount);
     if (!mounted) return;
     setState(() {});
     _message('Purchased $amount $name use${amount == 1 ? '' : 's'}.');

@@ -16,6 +16,8 @@ const TARGETS = STAGE_COUNTS.map((stageCount) => 2 ** stageCount);
 
 const PURCHASE_PROVIDERS = new Set(['google_play', 'apple']);
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
+const TOOL_TYPES = new Set(['revive', 'timeRewind', 'positionSwap', 'duplicate']);
+const TOOL_AMOUNTS = new Set([1, 5, 20, 50]);
 
 function goldWalletRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('gold');
@@ -26,6 +28,122 @@ function validateGoldAmount(amount) {
     throw new HttpsError('invalid-argument', 'Amount must be a positive integer.');
   }
 }
+
+function toolInventoryRef(uid) {
+  return db.collection('users').doc(uid).collection('wallet').doc('tools');
+}
+
+function validateToolType(type) {
+  if (!TOOL_TYPES.has(type)) {
+    throw new HttpsError('invalid-argument', 'Invalid tool type.');
+  }
+}
+
+function validateToolAmount(amount) {
+  if (!Number.isInteger(amount) || !TOOL_AMOUNTS.has(amount)) {
+    throw new HttpsError('invalid-argument', 'Invalid tool amount.');
+  }
+}
+
+function toolPriceKey(type, amount) {
+  const names = {
+    revive: 'remove',
+    timeRewind: 'undo',
+    positionSwap: 'swap',
+    duplicate: 'duplicate',
+  };
+  return `${names[type]}${amount}Price`;
+}
+
+exports.getToolInventory = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const ref = toolInventoryRef(request.auth.uid);
+  const snapshot = await ref.get();
+  const inventory = snapshot.data() || {};
+  return {
+    inventory: Object.fromEntries(
+      [...TOOL_TYPES].map((type) => [
+        type,
+        Number.isSafeInteger(inventory[type]) && inventory[type] >= 0
+          ? inventory[type]
+          : 0,
+      ]),
+    ),
+  };
+});
+
+exports.purchaseTool = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const type = request.data?.toolType;
+  const amount = request.data?.amount;
+  validateToolType(type);
+  validateToolAmount(amount);
+
+  const configSnapshot = await db.collection('shop_config').doc('global').get();
+  const price = configSnapshot.data()?.[toolPriceKey(type, amount)];
+  if (!Number.isSafeInteger(price) || price <= 0) {
+    throw new HttpsError('failed-precondition', 'Tool price is unavailable.');
+  }
+
+  const walletRef = goldWalletRef(request.auth.uid);
+  const toolsRef = toolInventoryRef(request.auth.uid);
+  return db.runTransaction(async (transaction) => {
+    const walletSnapshot = await transaction.get(walletRef);
+    const toolsSnapshot = await transaction.get(toolsRef);
+    const balance = walletSnapshot.data()?.balance ?? 0;
+    const inventory = toolsSnapshot.data() || {};
+    const currentUses = inventory[type] ?? 0;
+
+    if (!Number.isSafeInteger(balance) || balance < price ||
+        !Number.isSafeInteger(currentUses) || currentUses < 0 ||
+        currentUses > MAX_SAFE_INTEGER - amount) {
+      throw new HttpsError('failed-precondition', 'Tool purchase is unavailable.');
+    }
+
+    transaction.set(walletRef, {
+      balance: balance - price,
+      lifetimeSpent: (walletSnapshot.data()?.lifetimeSpent ?? 0) + price,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(toolsRef, {
+      [type]: currentUses + amount,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { balance: balance - price, toolType: type, uses: currentUses + amount };
+  });
+});
+
+exports.useTool = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const type = request.data?.toolType;
+  validateToolType(type);
+  const ref = toolInventoryRef(request.auth.uid);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const inventory = snapshot.data() || {};
+    const currentUses = inventory[type] ?? 0;
+    if (!Number.isSafeInteger(currentUses) || currentUses <= 0) {
+      throw new HttpsError('failed-precondition', 'Tool is unavailable.');
+    }
+
+    const uses = currentUses - 1;
+    transaction.set(ref, {
+      [type]: uses,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { toolType: type, uses };
+  });
+});
 
 exports.getGoldBalance = onCall(async (request) => {
   if (!request.auth) {

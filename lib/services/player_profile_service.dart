@@ -64,7 +64,7 @@ class PlayerProfileService {
     final avatarValue = data['avatarIndex'];
     final avatarIndex = avatarValue is num
         ? avatarValue.toInt().clamp(0, 53)
-        : SaveManager.avatarIndex;
+        : 0;
 
     if (name == null ||
         name.trim().isEmpty ||
