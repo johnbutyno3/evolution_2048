@@ -9,6 +9,7 @@ setGlobalOptions({ region: 'us-central1' });
 
 const db = getFirestore();
 const MAX_CHAPTER_INDEX = 5;
+const GAME_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 
 // Each chapter adds one evolution stage.
 const STAGE_COUNTS = [12, 13, 14, 15, 16, 17];
@@ -51,6 +52,10 @@ function toolInventoryRef(uid) {
 
 function membershipRef(uid) {
   return db.collection('users').doc(uid).collection('membership').doc('current');
+}
+
+function gameSessionRef(uid, sessionId) {
+  return db.collection('users').doc(uid).collection('game_sessions').doc(sessionId);
 }
 
 function validateToolType(type) {
@@ -485,6 +490,69 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
   });
 });
 
+exports.startGameSession = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const chapterIndex = request.data?.chapterIndex;
+  if (!Number.isInteger(chapterIndex) ||
+      chapterIndex < 0 ||
+      chapterIndex > MAX_CHAPTER_INDEX) {
+    await recordSecurityEvent({
+      uid: request.auth.uid,
+      action: 'start_game_session',
+      reason: 'invalid_chapter_index',
+      details: { chapterIndex },
+    });
+    throw new HttpsError('invalid-argument', 'Invalid chapter index.');
+  }
+
+  const uid = request.auth.uid;
+  const progressRef = db
+    .collection('users')
+    .doc(uid)
+    .collection('progress')
+    .doc('game');
+  const progressSnapshot = await progressRef.get();
+  const current = progressSnapshot.data() || {};
+  const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
+    ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
+    : 0;
+
+  if (chapterIndex > currentUnlocked) {
+    await recordSecurityEvent({
+      uid,
+      action: 'start_game_session',
+      severity: 'high',
+      reason: 'locked_chapter_session_attempt',
+      details: { chapterIndex, currentUnlocked },
+    });
+    throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
+  }
+
+  const sessionId = crypto.randomUUID();
+  const startedAt = new Date();
+  const expiresAt = new Date(startedAt.getTime() + GAME_SESSION_TTL_MS);
+  const sessionRef = gameSessionRef(uid, sessionId);
+
+  await sessionRef.create({
+    chapterIndex,
+    targetValue: TARGETS[chapterIndex],
+    status: 'active',
+    startedAt,
+    expiresAt,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  return {
+    sessionId,
+    chapterIndex,
+    targetValue: TARGETS[chapterIndex],
+    expiresAt: expiresAt.toISOString(),
+  };
+});
+
 exports.completeChapter = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError(
@@ -494,9 +562,21 @@ exports.completeChapter = onCall(async (request) => {
   }
 
   const data = request.data || {};
+  const sessionId = data.sessionId;
   const chapterIndex = data.chapterIndex;
   const highestValue = data.highestValue;
   const score = data.score;
+
+  if (typeof sessionId !== 'string' || sessionId.length < 16 || sessionId.length > 128) {
+    await recordSecurityEvent({
+      uid: request.auth.uid,
+      action: 'complete_chapter',
+      severity: 'high',
+      reason: 'invalid_game_session_id',
+      details: { chapterIndex },
+    });
+    throw new HttpsError('invalid-argument', 'Invalid game session.');
+  }
 
   if (!Number.isInteger(chapterIndex) ||
       chapterIndex < 0 ||
@@ -520,7 +600,7 @@ exports.completeChapter = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Invalid highest value.');
   }
 
-  if (!Number.isInteger(score) || score < 0) {
+  if (!Number.isSafeInteger(score) || score < 0) {
     await recordSecurityEvent({
       uid: request.auth.uid,
       action: 'complete_chapter',
@@ -531,6 +611,7 @@ exports.completeChapter = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
+  const sessionRef = gameSessionRef(uid, sessionId);
   const progressRef = db
     .collection('users')
     .doc(uid)
@@ -538,8 +619,72 @@ exports.completeChapter = onCall(async (request) => {
     .doc('game');
 
   return db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(progressRef);
-    const current = snapshot.data() || {};
+    const sessionSnapshot = await transaction.get(sessionRef);
+    const progressSnapshot = await transaction.get(progressRef);
+
+    if (!sessionSnapshot.exists) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'game_session_not_found',
+        details: { sessionId, chapterIndex },
+      });
+      throw new HttpsError('not-found', 'Game session was not found.');
+    }
+
+    const session = sessionSnapshot.data() || {};
+    if (session.status !== 'active') {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'game_session_replay',
+        details: { sessionId, chapterIndex, status: session.status },
+      });
+      throw new HttpsError('failed-precondition', 'Game session is no longer active.');
+    }
+
+    if (session.chapterIndex !== chapterIndex ||
+        session.targetValue !== TARGETS[chapterIndex]) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'game_session_mismatch',
+        details: { sessionId, chapterIndex, sessionChapter: session.chapterIndex },
+      });
+      throw new HttpsError('failed-precondition', 'Game session does not match the chapter.');
+    }
+
+    const expiresAt = session.expiresAt?.toMillis?.() ?? 0;
+    if (expiresAt <= Date.now()) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'game_session_expired',
+        details: { sessionId, chapterIndex },
+      });
+      throw new HttpsError('deadline-exceeded', 'Game session has expired.');
+    }
+
+    const requiredTarget = TARGETS[chapterIndex];
+    if (highestValue !== requiredTarget) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'completion_target_mismatch',
+        details: { sessionId, chapterIndex, highestValue, requiredTarget },
+      });
+      throw new HttpsError(
+        'failed-precondition',
+        'Chapter completion target was not reached.',
+      );
+    }
+
+    const current = progressSnapshot.data() || {};
     const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
       ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
       : 0;
@@ -550,7 +695,7 @@ exports.completeChapter = onCall(async (request) => {
         action: 'complete_chapter',
         severity: 'high',
         reason: 'locked_chapter_completion_attempt',
-        details: { chapterIndex, currentUnlocked },
+        details: { sessionId, chapterIndex, currentUnlocked },
       });
       throw new HttpsError(
         'permission-denied',
@@ -558,38 +703,31 @@ exports.completeChapter = onCall(async (request) => {
       );
     }
 
-    const requiredTarget = TARGETS[chapterIndex];
-    if (highestValue < requiredTarget) {
-      await recordSecurityEvent({
-        uid,
-        action: 'complete_chapter',
-        severity: 'high',
-        reason: 'completion_target_not_reached',
-        details: { chapterIndex, highestValue, requiredTarget },
-      });
-      throw new HttpsError(
-        'failed-precondition',
-        'Chapter completion target was not reached.',
-      );
-    }
-
     const nextUnlocked = Math.min(chapterIndex + 1, MAX_CHAPTER_INDEX);
     const currentHighest = Number.isInteger(current.highestValue)
       ? Math.max(current.highestValue, highestValue)
       : highestValue;
-    const currentScore = Number.isInteger(current.score)
+    const currentScore = Number.isSafeInteger(current.score)
       ? Math.max(current.score, score)
       : score;
+    const unlockedChapterIndex = Math.max(currentUnlocked, nextUnlocked);
 
     transaction.set(progressRef, {
-      unlockedChapterIndex: Math.max(currentUnlocked, nextUnlocked),
+      unlockedChapterIndex,
       highestValue: currentHighest,
       score: currentScore,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
+    transaction.update(sessionRef, {
+      status: 'completed',
+      completedAt: FieldValue.serverTimestamp(),
+      highestValue,
+      score,
+    });
+
     return {
-      unlockedChapterIndex: Math.max(currentUnlocked, nextUnlocked),
+      unlockedChapterIndex,
       highestValue: currentHighest,
       score: currentScore,
     };
