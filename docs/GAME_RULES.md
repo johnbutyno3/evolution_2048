@@ -1,4 +1,4 @@
-# Rebirth 2048 — Game Rules
+﻿# Rebirth 2048 — Game Rules
 
 ## 1. 核心遊戲規則
 
@@ -235,3 +235,53 @@ Game Over 出現後：
 ```
 
 第6章完成後為全遊戲終極挑戰完成。
+---
+
+## 10. 廣告與會員規則
+
+### 10.1 Rewarded Ad 基本原則
+
+- Rewarded Ad 必須由玩家主動選擇觀看。
+- 不以強制插頁廣告作為核心收益機制。
+- 廣告獎勵必須在廣告完成後才發放。
+- 同一項獎勵不得因重複回呼而重複發放。
+
+### 10.2 Life 恢復
+
+- Life 上限為 5。
+- Life 不足時，正常恢復方式為等待 40 分鐘恢復 1 Life。
+- 當 Life = 0 時，可選擇觀看 Rewarded Ad，恢復 1 Life。
+- 廣告恢復不得使 Life 超過正常上限 5。
+- Membership 玩家使用 Infinite Lives，不受一般 Life 消耗限制。
+
+### 10.3 Game Over 復活
+
+- Game Over 且玩家仍有 Life 時，使用正常 Restart 流程，Restart 消耗 1 Life。
+- Game Over 且 Life > 0 時，不提供 Rewarded Ad 復活。
+- Game Over 且 Life = 0 時，才提供 Rewarded Ad 復活選項。
+- Rewarded Ad 復活一次只恢復當次 Game Over 的遊戲。
+- 同一次 Game Over 不得重複使用廣告復活。
+
+### 10.4 Rewarded Ad Undo
+
+- 工具不足時，正常取得工具的方式仍為使用 Gold 購買。
+- Rewarded Ad 工具獎勵只提供 UNDO。
+- 每一局遊戲最多透過 Rewarded Ad 取得 1 次 UNDO。
+- REMOVE、SWAP、DUPLICATE 不提供 Rewarded Ad 工具獎勵。
+- 廣告取得的 UNDO 必須遵守一般 UNDO 使用規則。
+
+### 10.5 Membership
+
+Membership 提供：
+
+- No Ads
+- Infinite Lives
+
+Membership 不改變核心 2048 合成規則，也不直接跳過遊戲進程。
+
+### 10.6 Gold 與廣告
+
+- Gold 為遊戲內經濟資源。
+- 工具不足時可使用 Gold 購買。
+- Rewarded Ad 不直接發放 Gold。
+- 如未來新增 Gold 廣告獎勵，必須另行更新正式遊戲規則與伺服器獎勵規則。

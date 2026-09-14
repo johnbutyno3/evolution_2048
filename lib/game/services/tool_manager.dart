@@ -2,6 +2,7 @@
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'save_manager.dart';
+import '../../services/player_progress_service.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -162,8 +163,14 @@ class ToolManager {
 
   Future<bool> useServer(GameToolType type) async {
     if (SaveManager.developerUnlimitedTools) return use(type);
+
+    final sessionId =
+        PlayerProgressService.instance.activeGameSessionId;
+    if (sessionId == null) return false;
+
     try {
       final result = await _functions.httpsCallable('useTool').call({
+        'sessionId': sessionId,
         'toolType': type.name,
       });
       final uses = result.data is Map ? result.data['uses'] : null;
@@ -176,7 +183,6 @@ class ToolManager {
       return false;
     }
   }
-
   static Future<void> refreshInventory() async {
     if (SaveManager.developerMode) return;
     try {

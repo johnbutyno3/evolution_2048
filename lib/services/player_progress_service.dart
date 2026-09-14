@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -26,6 +26,7 @@ class PlayerProgressService {
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
   bool get loadedFromServer => _loadedFromServer;
+  String? get activeGameSessionId => _activeGameSessionId;
 
   bool isChapterUnlocked(int chapterIndex) {
     return chapterIndex >= 0 && chapterIndex <= _unlockedChapterIndex;
@@ -102,23 +103,14 @@ class PlayerProgressService {
   /// a session at the beginning of an attempt.
   Future<bool> completeChapter({
     required int chapterIndex,
-    required int highestValue,
-    required int score,
+    required Map<String, dynamic> replayLog,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
       return false;
     }
 
-    var sessionId = _activeGameSessionId;
-    if (sessionId == null) {
-      final started = await startGameSession(chapterIndex);
-      if (!started) {
-        return false;
-      }
-      sessionId = _activeGameSessionId;
-    }
-
+    final sessionId = _activeGameSessionId;
     if (sessionId == null) {
       return false;
     }
@@ -128,8 +120,7 @@ class PlayerProgressService {
       final result = await callable.call(<String, dynamic>{
         'sessionId': sessionId,
         'chapterIndex': chapterIndex,
-        'highestValue': highestValue,
-        'score': score,
+        'replayLog': replayLog,
       });
 
       final data = result.data;

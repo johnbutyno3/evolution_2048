@@ -860,10 +860,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // Save chapter completion to the server.
     // _chapterNumber is the player-facing 1..6 number;
     // Firebase uses the internal 0..5 chapter index.
+    final saveData = _engine.createSaveData();
+    final replayLog = saveData['replayLog'];
+
+    if (replayLog is! Map) {
+      _chapterCompleteShowing = false;
+      return;
+    }
+
     await PlayerProgressService.instance.completeChapter(
       chapterIndex: _chapterNumber - 1,
-      highestValue: _engine.highestValue,
-      score: _engine.score,
+      replayLog: Map<String, dynamic>.from(replayLog),
     );
 
     await AudioManager.instance.stopMusic();
