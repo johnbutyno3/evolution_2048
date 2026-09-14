@@ -193,15 +193,15 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
         children: [
           const Text('Gold Packages (USD)', style: _headingStyle),
           const SizedBox(height: 12),
-          _field('gold300UsdPrice', '300 Gold — USD', decimal: true),
-          _field('gold1000UsdPrice', '1,000 Gold — USD', decimal: true),
-          _field('gold4000UsdPrice', '4,000 Gold — USD', decimal: true),
-          _field('gold10000UsdPrice', '10,000 Gold — USD', decimal: true),
+          _field('gold300UsdPrice', '300 Gold ??USD', decimal: true),
+          _field('gold1000UsdPrice', '1,000 Gold ??USD', decimal: true),
+          _field('gold4000UsdPrice', '4,000 Gold ??USD', decimal: true),
+          _field('gold10000UsdPrice', '10,000 Gold ??USD', decimal: true),
           const SizedBox(height: 12),
           const Text('Membership (USD / month)', style: _headingStyle),
           const SizedBox(height: 12),
-          _field('premiumUsdPrice', 'Premium Member — USD / month', decimal: true),
-          _field('goldenUsdPrice', 'Golden Member — USD / month', decimal: true),
+          _field('premiumUsdPrice', 'Premium Member ??USD / month', decimal: true),
+          _field('goldenUsdPrice', 'Golden Member ??USD / month', decimal: true),
           const SizedBox(height: 12),
           const Text('Evolution Tools (Gold)', style: _headingStyle),
           const SizedBox(height: 12),
@@ -240,7 +240,7 @@ class AdminQAPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       appBar: AppBar(title: Text('Q&A Management')),
       body: Center(child: Text('Q&A editing will be connected to Firestore next.')),
     );
@@ -292,3 +292,5 @@ class AdminMessagesPage extends StatelessWidget {
     );
   }
 }
+
+

@@ -1,4 +1,4 @@
-ï»¿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -112,7 +112,7 @@ class PersonalPage extends StatelessWidget {
 
     await FirebaseAuth.instance.signOut();
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
@@ -244,13 +244,13 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
         _playerId = firebasePlayerId;
       }
 
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       setState(() {
         _loading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       setState(() {
         _loading = false;
@@ -260,7 +260,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
   Future<void> _selectAvatar(int index) async {
     await PlayerProfileService.updateAvatarIndex(index);
-    if (!mounted) return;
+    if (!context.mounted) return;
     setState(() => _avatarIndex = index);
   }
 
@@ -495,7 +495,7 @@ class EvolutionProgressPage extends StatelessWidget {
               ),
               title: Text(chapter.$1),
               subtitle: Text(
-                '${chapter.$2} stages Â· $status',
+                '${chapter.$2} stages ¡P $status',
               ),
               trailing: isCompleted
                   ? const Icon(Icons.check_circle_outline)
@@ -547,12 +547,12 @@ class _CollectionPageState extends State<CollectionPage> {
   ];
 
   static const List<String> _chapterNames = [
-    'Chapter 1 Â· Ocean',
-    'Chapter 2 Â· Land',
-    'Chapter 3 Â· Sky',
-    'Chapter 4 Â· History',
-    'Chapter 5 Â· Technology',
-    'Chapter 6 Â· Space',
+    'Chapter 1 ¡P Ocean',
+    'Chapter 2 ¡P Land',
+    'Chapter 3 ¡P Sky',
+    'Chapter 4 ¡P History',
+    'Chapter 5 ¡P Technology',
+    'Chapter 6 ¡P Space',
   ];
 
   static const List<String> _chapterShortNames = [
@@ -572,7 +572,7 @@ class _CollectionPageState extends State<CollectionPage> {
 
   Future<void> _loadCollection() async {
     if (FirebaseAuth.instance.currentUser == null) {
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       setState(() {
         _loading = false;
@@ -587,7 +587,7 @@ class _CollectionPageState extends State<CollectionPage> {
           await CreatureCollectionService.loadDiscovered(chapterKey);
     }
 
-    if (!mounted) return;
+    if (!context.mounted) return;
 
     setState(() {
       _discovered
@@ -982,7 +982,7 @@ class GameGuidePage extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Text(
-            'Use the 4Ã—4 board to move and merge identical life forms into the next evolution stage.',
+            'Use the 4¡Ñ4 board to move and merge identical life forms into the next evolution stage.',
           ),
           SizedBox(height: 24),
           Text(
@@ -994,7 +994,7 @@ class GameGuidePage extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            'Ocean â†’ Land â†’ Sky â†’ History â†’ Technology â†’ Space',
+            'Ocean ¡÷ Land ¡÷ Sky ¡÷ History ¡÷ Technology ¡÷ Space',
           ),
           SizedBox(height: 24),
           Text(
@@ -1073,6 +1073,7 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
+
 
 
 
