@@ -10,7 +10,7 @@ import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
 import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
-import '../../screens/shop_page.dart';
+import '../../screens/tools_page.dart';
 import '../../services/player_progress_service.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -566,7 +566,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       Navigator.of(
         context,
-      ).push(MaterialPageRoute(builder: (_) => ShopPage())).then((_) {
+      ).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) {
         if (!mounted) return;
 
         unawaited(_engine.refreshToolProgress());
@@ -1577,3 +1577,4 @@ class _ChapterCompletePage extends StatelessWidget {
     );
   }
 }
+

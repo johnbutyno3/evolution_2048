@@ -1,4 +1,4 @@
-﻿const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -55,6 +55,16 @@ function membershipRef(uid) {
   return db.collection('users').doc(uid).collection('membership').doc('current');
 }
 
+function chapterRewardTools(chapterIndex) {
+  return [
+    ['timeRewind'],
+    ['timeRewind', 'revive'],
+    ['timeRewind', 'revive', 'positionSwap'],
+    ['timeRewind', 'revive', 'positionSwap', 'duplicate'],
+    ['timeRewind', 'revive', 'positionSwap', 'duplicate'],
+    ['timeRewind'],
+  ][chapterIndex] || [];
+}
 function gameSessionRef(uid, sessionId) {
   return db.collection('users').doc(uid).collection('game_sessions').doc(sessionId);
 }
@@ -110,6 +120,25 @@ exports.purchaseTool = onCall(async (request) => {
   const amount = request.data?.amount;
   validateToolType(type);
   validateToolAmount(amount);
+  const membershipSnapshot = await membershipRef(request.auth.uid).get();
+  const membership = membershipSnapshot.data() || {};
+  const membershipType = MEMBERSHIP_TYPES.has(membership.type)
+    ? membership.type
+    : null;
+  const membershipActive = membershipType !== null &&
+    (membership.expiresAt === undefined ||
+      membership.expiresAt === null ||
+      (typeof membership.expiresAt.toMillis === 'function' &&
+        membership.expiresAt.toMillis() > Date.now()));
+
+  if (membershipActive &&
+      membershipType === 'golden' &&
+      type === 'timeRewind') {
+    throw new HttpsError(
+      'failed-precondition',
+      'GOLDEN members have unlimited UNDO and do not need to purchase it.',
+    );
+  }
 
   const configSnapshot = await db.collection('shop_config').doc('global').get();
   const price = configSnapshot.data()?.[toolPriceKey(type, amount)];
@@ -171,10 +200,12 @@ exports.useTool = onCall(async (request) => {
   const uid = request.auth.uid;
   const sessionRef = gameSessionRef(uid, sessionId);
   const inventoryRef = toolInventoryRef(uid);
+  const membershipDocRef = membershipRef(uid);
 
   return db.runTransaction(async (transaction) => {
     const sessionSnapshot = await transaction.get(sessionRef);
     const inventorySnapshot = await transaction.get(inventoryRef);
+    const membershipSnapshot = await transaction.get(membershipDocRef);
 
     if (!sessionSnapshot.exists) {
       await recordSecurityEvent({
@@ -236,9 +267,25 @@ exports.useTool = onCall(async (request) => {
     }
 
     const inventory = inventorySnapshot.data() || {};
+    const membership = membershipSnapshot.data() || {};
+    const membershipType = MEMBERSHIP_TYPES.has(membership.type)
+      ? membership.type
+      : null;
+    const membershipActive = membershipType !== null &&
+      (membership.expiresAt === undefined ||
+        membership.expiresAt === null ||
+        (typeof membership.expiresAt.toMillis === 'function' &&
+          membership.expiresAt.toMillis() > Date.now()));
+
+    const goldenUnlimitedUndo =
+      membershipActive &&
+      membershipType === 'golden' &&
+      type === 'timeRewind';
+
     const currentUses = inventory[type] ?? 0;
 
-    if (!Number.isSafeInteger(currentUses) || currentUses <= 0) {
+    if (!goldenUnlimitedUndo &&
+        (!Number.isSafeInteger(currentUses) || currentUses <= 0)) {
       await recordSecurityEvent({
         uid,
         action: 'use_tool',
@@ -248,7 +295,7 @@ exports.useTool = onCall(async (request) => {
       throw new HttpsError('failed-precondition', 'Tool is unavailable.');
     }
 
-    const uses = currentUses - 1;
+    const uses = goldenUnlimitedUndo ? currentUses : currentUses - 1;
     const toolUsage = session.toolUsage &&
         typeof session.toolUsage === 'object'
       ? { ...session.toolUsage }
@@ -261,10 +308,12 @@ exports.useTool = onCall(async (request) => {
 
     toolUsage[type] = previousUsage + 1;
 
-    transaction.set(inventoryRef, {
-      [type]: uses,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    if (!goldenUnlimitedUndo) {
+      transaction.set(inventoryRef, {
+        [type]: uses,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
 
     transaction.set(sessionRef, {
       toolUsage,
@@ -608,35 +657,101 @@ exports.startGameSession = onCall(async (request) => {
     .doc(uid)
     .collection('progress')
     .doc('game');
-  const progressSnapshot = await progressRef.get();
-  const current = progressSnapshot.data() || {};
-  const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
-    ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
-    : 0;
-
-  if (chapterIndex > currentUnlocked) {
-    await recordSecurityEvent({
-      uid,
-      action: 'start_game_session',
-      severity: 'high',
-      reason: 'locked_chapter_session_attempt',
-      details: { chapterIndex, currentUnlocked },
-    });
-    throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
-  }
+  const toolsRef = toolInventoryRef(uid);
+  const membershipDocRef = membershipRef(uid);
 
   const sessionId = crypto.randomUUID();
   const startedAt = new Date();
   const expiresAt = new Date(startedAt.getTime() + GAME_SESSION_TTL_MS);
   const sessionRef = gameSessionRef(uid, sessionId);
 
-  await sessionRef.create({
-    chapterIndex,
-    targetValue: TARGETS[chapterIndex],
-    status: 'active',
-    startedAt,
-    expiresAt,
-    createdAt: FieldValue.serverTimestamp(),
+  await db.runTransaction(async (transaction) => {
+    const progressSnapshot = await transaction.get(progressRef);
+    const toolsSnapshot = await transaction.get(toolsRef);
+    const membershipSnapshot = await transaction.get(membershipDocRef);
+
+    const current = progressSnapshot.data() || {};
+    const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
+      ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
+      : 0;
+
+    if (chapterIndex > currentUnlocked) {
+      await recordSecurityEvent({
+        uid,
+        action: 'start_game_session',
+        severity: 'high',
+        reason: 'locked_chapter_session_attempt',
+        details: { chapterIndex, currentUnlocked },
+      });
+      throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
+    }
+
+    const tools = toolsSnapshot.data() || {};
+    const claimedRaw = Array.isArray(tools.chapterRewardsClaimed)
+      ? tools.chapterRewardsClaimed
+      : [];
+
+    const claimed = claimedRaw.filter(
+      (value) => Number.isInteger(value) &&
+        value >= 0 &&
+        value <= MAX_CHAPTER_INDEX,
+    );
+
+    const alreadyClaimed = claimed.includes(chapterIndex);
+
+    const membership = membershipSnapshot.data() || {};
+    const membershipType = MEMBERSHIP_TYPES.has(membership.type)
+      ? membership.type
+      : null;
+    const membershipActive = membershipType !== null &&
+      (membership.expiresAt === undefined ||
+        membership.expiresAt === null ||
+        (typeof membership.expiresAt.toMillis === 'function' &&
+          membership.expiresAt.toMillis() > Date.now()));
+
+    if (!alreadyClaimed) {
+      const rewardTools = chapterRewardTools(chapterIndex);
+      const updates = {
+        chapterRewardsClaimed: [...claimed, chapterIndex],
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      for (const toolType of rewardTools) {
+        const currentUses = Number.isSafeInteger(tools[toolType]) &&
+            tools[toolType] >= 0
+          ? tools[toolType]
+          : 0;
+
+        // GOLDEN has unlimited UNDO, so never create a numeric UNDO
+        // reward for GOLDEN. All other tools remain finite and cumulative.
+        if (membershipActive &&
+            membershipType === 'golden' &&
+            toolType === 'timeRewind') {
+          continue;
+        }
+
+        if (currentUses > MAX_SAFE_INTEGER - 1) {
+          throw new HttpsError(
+            'failed-precondition',
+            'Tool inventory is full.',
+          );
+        }
+
+        updates[toolType] = currentUses + 1;
+      }
+
+      transaction.set(toolsRef, updates, { merge: true });
+    }
+
+    transaction.create(sessionRef, {
+      chapterIndex,
+      targetValue: TARGETS[chapterIndex],
+      status: 'active',
+      startedAt,
+      expiresAt,
+      toolUsage: {},
+      createdAt: FieldValue.serverTimestamp(),
+    });
   });
 
   return {

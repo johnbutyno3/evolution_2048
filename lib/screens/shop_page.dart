@@ -1,401 +1,100 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
-import '../game/models/tools/game_tool.dart';
-import '../game/services/gold_manager.dart';
-import '../game/services/life_manager.dart';
-import '../game/services/tool_manager.dart';
-import '../services/shop_config_service.dart';
+import 'gold_page.dart';
+import 'membership_page.dart';
+import 'tools_page.dart';
 
-class ShopPage extends StatefulWidget {
+class ShopPage extends StatelessWidget {
   const ShopPage({super.key});
-
-  @override
-  State<ShopPage> createState() => _ShopPageState();
-}
-
-class _ShopPageState extends State<ShopPage> {
-  late Future<Map<String, dynamic>> _configFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _configFuture = _load();
-  }
-
-  Future<Map<String, dynamic>> _load() async {
-    await GoldManager.initialize();
-    await LifeManager.initialize();
-    await ToolManager.refreshInventory();
-    return ShopConfigService.load();
-  }
-
-  int _price(Map<String, dynamic> config, String key) {
-    return ShopConfigService.price(config, key);
-  }
-
-  String _usdPrice(Map<String, dynamic> config, String key) {
-    return ShopConfigService.usdPrice(config, key);
-  }
-
-  Future<void> _buyTool({
-    required GameToolType type,
-    required String name,
-    required int amount,
-    required int price,
-  }) async {
-    if (!await ToolManager.purchase(type, amount)) {
-      _message('Not enough Gold or purchase failed.');
-      return;
-    }
-
-    if (!mounted) return;
-    setState(() {});
-    _message('Purchased $amount $name use${amount == 1 ? '' : 's'}.');
-  }
-
-  void _message(String text) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
-  }
-
-  void _paymentUnavailable() {
-    _message('Real-money payment is not connected yet.');
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Shop')),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _configFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Unable to load shop: ${snapshot.error}'),
-            );
-          }
-
-          final config = snapshot.data ?? ShopConfigService.defaults;
-          final membership = LifeManager.membership;
-          final goldProducts = _goldProducts(config);
-          final currency = config['currency'] is String
-              ? config['currency'] as String
-              : 'USD';
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const _ShopSectionTitle(title: 'Membership'),
-              _MembershipCard(
-                title: 'General Member',
-                description: 'Free membership.',
-                price: 'Free',
-                isCurrent: membership == 'general',
-                onBuy: _paymentUnavailable,
-              ),
-              _MembershipCard(
-                title: '高級會員 · Premium Member',
-                description: 'No ads.',
-                price: _usdPrice(config, 'premiumUsdPrice'),
-                isCurrent: membership == 'premium',
-                onBuy: _paymentUnavailable,
-              ),
-              _MembershipCard(
-                title: '黃金會員 · Golden Member',
-                description: 'No ads + unlimited lives.',
-                price: _usdPrice(config, 'goldenUsdPrice'),
-                isCurrent: membership == 'golden',
-                onBuy: _paymentUnavailable,
-              ),
-              const SizedBox(height: 20),
-
-              _ShopGoldCard(balance: GoldManager.balance),
-              const SizedBox(height: 20),
-
-              const _ShopSectionTitle(title: 'Gold'),
-              const Text(
-                'Real-money purchases are priced in USD. Payment is intentionally disabled until the payment backend is connected.',
-              ),
-              const SizedBox(height: 8),
-              for (final product in goldProducts)
-                _GoldPackageCard(
-                  amount: product.amount,
-                  price: product.price,
-                  currency: product.currency ?? currency,
-                  onBuy: _paymentUnavailable,
-                ),
-              const SizedBox(height: 20),
-
-              const _ShopSectionTitle(title: 'Evolution Tools'),
-              _toolPackages(
-                config,
-                GameToolType.timeRewind,
-                'UNDO',
-                Icons.undo,
-                'undo',
-              ),
-              _toolPackages(
-                config,
-                GameToolType.revive,
-                'REMOVE',
-                Icons.remove_circle_outline,
-                'remove',
-              ),
-              _toolPackages(
-                config,
-                GameToolType.positionSwap,
-                'SWAP',
-                Icons.swap_horiz,
-                'swap',
-              ),
-              _toolPackages(
-                config,
-                GameToolType.duplicate,
-                'DUPLICATE',
-                Icons.copy_outlined,
-                'duplicate',
-              ),
-            ],
-          );
-        },
+      appBar: AppBar(
+        title: const Text('Shop'),
       ),
-    );
-  }
-
-  List<_GoldProduct> _goldProducts(Map<String, dynamic> config) {
-    final rawProducts = config['products'];
-    if (rawProducts is Map) {
-      final products = <_GoldProduct>[];
-
-      for (final entry in rawProducts.entries) {
-        final data = entry.value;
-        if (data is! Map ||
-            data['type'] != 'gold' ||
-            data['active'] != true ||
-            data['amount'] is! num ||
-            data['priceUsd'] == null) {
-          continue;
-        }
-
-        products.add(
-          _GoldProduct(
-            amount: (data['amount'] as num).toInt(),
-            price: _formatUsd(data['priceUsd']),
-            currency: data['currency'] as String?,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _ShopEntry(
+            icon: Icons.workspace_premium_outlined,
+            title: 'Membership',
+            subtitle: 'Premium and Golden membership',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MembershipPage(),
+                ),
+              );
+            },
           ),
-        );
-      }
-
-      products.sort((a, b) => a.amount.compareTo(b.amount));
-      return products;
-    }
-
-    return [
-      _GoldProduct(amount: 300, price: _usdPrice(config, 'gold300UsdPrice')),
-      _GoldProduct(amount: 1000, price: _usdPrice(config, 'gold1000UsdPrice')),
-      _GoldProduct(amount: 4000, price: _usdPrice(config, 'gold4000UsdPrice')),
-      _GoldProduct(
-        amount: 10000,
-        price: _usdPrice(config, 'gold10000UsdPrice'),
-      ),
-    ];
-  }
-
-  String _formatUsd(dynamic value) {
-    if (value is num) return value.toStringAsFixed(2);
-    return '$value';
-  }
-
-  Widget _toolPackages(
-    Map<String, dynamic> config,
-    GameToolType type,
-    String name,
-    IconData icon,
-    String key,
-  ) {
-    final owned = ToolManager.savedUsesFor(type);
-    final prices = [
-      _price(config, '${key}1Price'),
-      _price(config, '${key}5Price'),
-      _price(config, '${key}20Price'),
-      _price(config, '${key}50Price'),
-    ];
-    final amounts = [1, 5, 20, 50];
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    '$name · Owned: $owned',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+          _ShopEntry(
+            icon: Icons.monetization_on_outlined,
+            title: 'Gold',
+            subtitle: 'Purchase Gold packages',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const GoldPage(),
                 ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (var i = 0; i < amounts.length; i++)
-                  FilledButton(
-                    onPressed: () => _buyTool(
-                      type: type,
-                      name: name,
-                      amount: amounts[i],
-                      price: prices[i],
-                    ),
-                    child: Text('${amounts[i]} · ${prices[i]} Gold'),
-                  ),
-              ],
-            ),
-          ],
-        ),
+              );
+            },
+          ),
+          _ShopEntry(
+            icon: Icons.build_outlined,
+            title: 'Tools',
+            subtitle: 'UNDO, REMOVE, SWAP and DUPLICATE',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ToolsPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ShopSectionTitle extends StatelessWidget {
-  const _ShopSectionTitle({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
-
-class _ShopGoldCard extends StatelessWidget {
-  const _ShopGoldCard({required this.balance});
-
-  final int balance;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            const Icon(Icons.monetization_on, size: 42),
-            const SizedBox(width: 16),
-            const Expanded(
-              child: Text(
-                'Gold Balance',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ),
-            Text(
-              '$balance',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MembershipCard extends StatelessWidget {
-  const _MembershipCard({
+class _ShopEntry extends StatelessWidget {
+  const _ShopEntry({
+    required this.icon,
     required this.title,
-    required this.description,
-    required this.price,
-    required this.isCurrent,
-    required this.onBuy,
+    required this.subtitle,
+    required this.onTap,
   });
 
+  final IconData icon;
   final String title;
-  final String description;
-  final String price;
-  final bool isCurrent;
-  final VoidCallback onBuy;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 14),
       child: ListTile(
-        leading: const Icon(Icons.workspace_premium_outlined),
-        title: Text(title),
-        subtitle: Text(description),
-        trailing: isCurrent
-            ? const Chip(label: Text('Current'))
-            : price == 'Free'
-            ? const Text('Free')
-            : FilledButton(onPressed: onBuy, child: Text('\$$price / month')),
-      ),
-    );
-  }
-}
-
-class _GoldPackageCard extends StatelessWidget {
-  const _GoldPackageCard({
-    required this.amount,
-    required this.price,
-    required this.currency,
-    required this.onBuy,
-  });
-
-  final int amount;
-  final String price;
-  final String currency;
-  final VoidCallback onBuy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: const Icon(Icons.monetization_on_outlined),
-        title: Text('${_formatAmount(amount)} Gold'),
-        subtitle: Text('$currency \$$price'),
-        trailing: FilledButton(
-          onPressed: onBuy,
-          child: Text('$currency \$$price'),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
         ),
+        leading: Icon(icon, size: 34),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(subtitle),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
       ),
     );
   }
-
-  static String _formatAmount(int amount) {
-    return amount.toString().replaceAllMapped(
-      RegExp(r'\B(?=(\d{3})+(?!\d))'),
-      (match) => ',',
-    );
-  }
-}
-
-class _GoldProduct {
-  const _GoldProduct({
-    required this.amount,
-    required this.price,
-    this.currency,
-  });
-
-  final int amount;
-  final String price;
-  final String? currency;
 }

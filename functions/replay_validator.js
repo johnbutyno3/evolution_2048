@@ -42,15 +42,24 @@ function targetForChapter(chapterIndex) {
 }
 
 function allowedToolsForChapter(chapterIndex) {
-  // Keep the authoritative chapter tool mapping outside the replay engine.
-  // The caller may pass an explicit set from the current game rules.
+  // Authoritative chapter tool mapping.
+  //
+  // C1 Ocean:      UNDO
+  // C2 Land:       UNDO + REMOVE
+  // C3 Sky:        UNDO + REMOVE + SWAP
+  // C4 History:    UNDO + REMOVE + SWAP + DUPLICATE
+  // C5 Technology: UNDO + REMOVE + SWAP + DUPLICATE
+  // C6 Universe:   UNDO
+  //
+  // GOLDEN unlimited UNDO is handled by the server inventory/use logic.
+  // It does not change which tools are permitted in a chapter.
   return [
-    [],
-    ['revive'],
-    ['revive', 'timeRewind'],
-    ['revive', 'timeRewind', 'positionSwap'],
-    ['revive', 'timeRewind', 'positionSwap', 'duplicate'],
-    [],
+    ['timeRewind'],
+    ['timeRewind', 'revive'],
+    ['timeRewind', 'revive', 'positionSwap'],
+    ['timeRewind', 'revive', 'positionSwap', 'duplicate'],
+    ['timeRewind', 'revive', 'positionSwap', 'duplicate'],
+    ['timeRewind'],
   ][chapterIndex];
 }
 
