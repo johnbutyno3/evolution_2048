@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
 import '../game/services/life_manager.dart';
