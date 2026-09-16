@@ -147,6 +147,15 @@ exports.purchaseTool = onCall(async (request) => {
   const membershipType = membership.type;
   const membershipActive = membership.active;
 
+  // FREE members may purchase only the single-unit package.
+  // Premium and Golden members may purchase all supported quantities.
+  if (!membershipActive && amount !== 1) {
+    throw new HttpsError(
+      'failed-precondition',
+      'FREE members can only purchase one tool at a time.',
+    );
+  }
+
   if (membershipActive &&
       membershipType === 'golden' &&
       type === 'timeRewind') {
