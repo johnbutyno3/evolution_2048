@@ -8,11 +8,47 @@ const AUDIT_SEVERITIES = new Set([
 ]);
 
 const RISK_RULES = [
-  { score: 100, patterns: ['forged', 'reused transaction', 'authoritative data modification'] },
-  { score: 80, patterns: ['illegal_gold', 'illegal gold'] },
-  { score: 50, patterns: ['illegal_tool', 'illegal tool', 'tool inventory invalid'] },
-  { score: 20, patterns: ['abnormal_frequency', 'abnormal frequency', 'repeated abnormal'] },
-  { score: 10, patterns: ['mismatch', 'invalid_wallet_state'] },
+  {
+    score: 100,
+    patterns: [
+      'forged',
+      'reused transaction',
+      'transaction_reuse_detected',
+      'authoritative data modification',
+    ],
+  },
+  {
+    score: 80,
+    patterns: [
+      'illegal_gold',
+      'illegal gold',
+    ],
+  },
+  {
+    score: 50,
+    patterns: [
+      'illegal_tool',
+      'illegal tool',
+      'tool_inventory_invalid',
+      'tool inventory invalid',
+      'tool_not_allowed_for_chapter',
+    ],
+  },
+  {
+    score: 20,
+    patterns: [
+      'abnormal_frequency',
+      'abnormal frequency',
+      'repeated abnormal',
+    ],
+  },
+  {
+    score: 10,
+    patterns: [
+      'mismatch',
+      'invalid_wallet_state',
+    ],
+  },
 ];
 
 function normalizeAuditSeverity(severity) {
