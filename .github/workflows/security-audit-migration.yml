@@ -37,21 +37,17 @@ jobs:
         run: |
           node -e "const fs=require('fs'); const s=fs.readFileSync('index.js','utf8'); if(!s.includes(\"require('./security_audit')\")) throw new Error('security_audit import missing'); if(s.includes('function securityEventRef()')) throw new Error('legacy securityEventRef remains'); if(!s.includes('recordAuditEvent(db, {')) throw new Error('audit compatibility wrapper missing'); console.log('Security audit integration verification passed.');"
 
-      - name: Apply game session and replay integration
-        run: python scripts/one_time_game_session_patch.py
-
-      - name: Verify patch formatting
+      - name: Verify formatting
         run: git diff --check
 
-      - name: Commit migrated and integrated changes
+      - name: Commit migrated changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add functions/index.js lib/game/services/replay_log.dart lib/game/screens/evolution_2048_page.dart
-          git rm -f scripts/one_time_game_session_patch.py docs/.game_session_patch_trigger
+          git add functions/index.js
           if git diff --cached --quiet; then
-            echo "No migration or integration changes required."
+            echo "No migration changes required."
             exit 0
           fi
-          git commit -m "security-audit-migration-bot: integrate game sessions with replay completion"
+          git commit -m "security-audit-migration-bot: apply deterministic security audit migration"
           git push
