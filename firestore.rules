@@ -19,12 +19,11 @@ service cloud.firestore {
     }
 
     match /users/{userId}/progress/{documentId} {
+      // Progress is server-authoritative. Collection discovery is written through
+      // the discoverCreature callable so direct client writes cannot forge data.
       allow read: if signedIn()
           && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin()
-          || (signedIn()
-              && request.auth.uid == userId
-              && documentId == 'collection');
+      allow write: if isAdmin();
     }
 
     // Game sessions are created and completed only by Cloud Functions.
