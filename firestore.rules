@@ -11,33 +11,11 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    function profileOnlyChanged() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'playerName',
-        'playerNameNormalized',
-        'avatarIndex',
-        'updatedAt'
-      ])
-      && request.resource.data.updatedAt == request.time;
-    }
-
     match /users/{userId} {
+      // Profile and gameplay state are server-authoritative.
+      // Clients may read their own profile; Cloud Functions/admin perform writes.
       allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
-      allow create: if signedIn()
-          && request.auth.uid == userId
-          && !request.resource.data.keys().hasAny([
-            'isAdmin',
-            'gold',
-            'membership',
-            'lives',
-            'toolUses',
-            'toolInventory',
-            'chapterProgress',
-            'unlockedChapterIndex'
-          ]);
-      allow update: if signedIn()
-          && (isAdmin() || (request.auth.uid == userId && profileOnlyChanged()));
-      allow delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     match /users/{userId}/progress/{documentId} {
@@ -80,26 +58,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Name and player-ID reservations are server-authoritative.
     match /player_names/{nameId} {
       allow read: if signedIn();
-      allow create: if signedIn()
-          && request.resource.data.uid == request.auth.uid;
-      allow update: if signedIn()
-          && resource.data.uid == request.auth.uid
-          && request.resource.data.uid == request.auth.uid;
-      allow delete: if signedIn()
-          && resource.data.uid == request.auth.uid;
+      allow write: if false;
     }
 
     match /player_ids/{playerId} {
       allow read: if signedIn();
-      allow create: if signedIn()
-          && request.resource.data.uid == request.auth.uid;
-      allow update: if signedIn()
-          && resource.data.uid == request.auth.uid
-          && request.resource.data.uid == request.auth.uid;
-      allow delete: if signedIn()
-          && resource.data.uid == request.auth.uid;
+      allow write: if false;
     }
 
     match /config/{documentId} {
