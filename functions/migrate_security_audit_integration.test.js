@@ -15,4 +15,5 @@ assert.ok(migration.includes('Legacy security audit block exists but does not ma
 assert.ok(migration.includes('Unexpected functions/index.js structure'));
 assert.ok(migration.includes('Security audit helper is not called with the Firestore db instance.'));
 
+// Keep this guard file intentionally dependency-free so the migration can be checked in CI.
 console.log('Security audit migration guard checks passed.');
