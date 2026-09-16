@@ -58,6 +58,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Cumulative security risk scores are server-generated authority records.
+    // Clients cannot read, create, update, or delete them.
+    match /security_risk_scores/{userId} {
+      allow read, write: if false;
+    }
+
     // Name and player-ID reservations are server-authoritative.
     match /player_names/{nameId} {
       allow read: if signedIn();
