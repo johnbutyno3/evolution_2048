@@ -143,15 +143,9 @@ exports.purchaseTool = onCall(async (request) => {
   validateToolType(type);
   validateToolAmount(amount);
   const membershipSnapshot = await membershipRef(request.auth.uid).get();
-  const membership = membershipSnapshot.data() || {};
-  const membershipType = MEMBERSHIP_TYPES.has(membership.type)
-    ? membership.type
-    : null;
-  const membershipActive = membershipType !== null &&
-    (membership.expiresAt === undefined ||
-      membership.expiresAt === null ||
-      (typeof membership.expiresAt.toMillis === 'function' &&
-        membership.expiresAt.toMillis() > Date.now()));
+  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const membershipType = membership.type;
+  const membershipActive = membership.active;
 
   if (membershipActive &&
       membershipType === 'golden' &&
@@ -289,15 +283,9 @@ exports.useTool = onCall(async (request) => {
     }
 
     const inventory = inventorySnapshot.data() || {};
-    const membership = membershipSnapshot.data() || {};
-    const membershipType = MEMBERSHIP_TYPES.has(membership.type)
-      ? membership.type
-      : null;
-    const membershipActive = membershipType !== null &&
-      (membership.expiresAt === undefined ||
-        membership.expiresAt === null ||
-        (typeof membership.expiresAt.toMillis === 'function' &&
-          membership.expiresAt.toMillis() > Date.now()));
+    const membership = resolveMembership(membershipSnapshot.data() || {});
+    const membershipType = membership.type;
+    const membershipActive = membership.active;
 
     const goldenUnlimitedUndo =
       membershipActive &&
@@ -765,16 +753,9 @@ exports.startGameSession = onCall(async (request) => {
 
     const alreadyClaimed = claimed.includes(chapterIndex);
 
-    const membership = membershipSnapshot.data() || {};
-    const membershipType = MEMBERSHIP_TYPES.has(membership.type)
-      ? membership.type
-      : null;
-    const membershipActive = membershipType !== null &&
-      (membership.expiresAt === undefined ||
-        membership.expiresAt === null ||
-        (typeof membership.expiresAt.toMillis === 'function' &&
-          membership.expiresAt.toMillis() > Date.now()));
-
+    const membership = resolveMembership(membershipSnapshot.data() || {});
+    const membershipType = membership.type;
+    const membershipActive = membership.active;
     if (!alreadyClaimed) {
       const rewardTools = chapterRewardTools(chapterIndex);
       const updates = {
