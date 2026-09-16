@@ -4,6 +4,7 @@ const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const crypto = require('crypto');
 const { replayGame, allowedToolsForChapter } = require('./replay_validator');
+const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
 
 initializeApp();
 setGlobalOptions({ region: 'us-central1' });
@@ -24,19 +25,14 @@ const TOOL_TYPES = new Set(['revive', 'timeRewind', 'positionSwap', 'duplicate']
 const TOOL_AMOUNTS = new Set([1, 5, 20, 50]);
 const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
 
-function securityEventRef() {
-  return db.collection('security_events').doc();
-}
-
 function recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {
-  return securityEventRef().set({
-    uid: typeof uid === 'string' ? uid : null,
+  return recordAuditEvent(db, {
+    uid,
     action,
     severity,
     reason,
     details,
-    createdAt: FieldValue.serverTimestamp(),
-  }).catch(() => null);
+  });
 }
 
 function goldWalletRef(uid) {
