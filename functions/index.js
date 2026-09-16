@@ -333,21 +333,8 @@ exports.getMembershipStatus = onCall(async (request) => {
   }
 
   const snapshot = await membershipRef(request.auth.uid).get();
-  const data = snapshot.data() || {};
-  const type = MEMBERSHIP_TYPES.has(data.type) ? data.type : null;
-  const expiresAt = data.expiresAt || null;
-  const active = type !== null &&
-    (expiresAt === null || expiresAt.toMillis() > Date.now());
-
-  return {
-    active,
-    type: active ? type : null,
-    expiresAt: active ? expiresAt : null,
-    infiniteLives: active && type === 'golden',
-    noAds: active,
-  };
+  return resolveMembership(snapshot.data() || {});
 });
-
 exports.grantMembership = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
