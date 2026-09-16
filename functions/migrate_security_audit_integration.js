@@ -4,7 +4,8 @@ const path = require('path');
 const indexPath = path.join(__dirname, 'index.js');
 const source = fs.readFileSync(indexPath, 'utf8');
 
-const importLine = "const { recordSecurityEvent } = require('./security_audit');";
+const importLine = "const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');";
+const compatibilityWrapper = `function recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {\n  return recordAuditEvent(db, {\n    uid,\n    action,\n    severity,\n    reason,\n    details,\n  });\n}\n`;
 const legacyBlock = `function securityEventRef() {\n  return db.collection('security_events').doc();\n}\n\nfunction recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {\n  return securityEventRef().set({\n    uid: typeof uid === 'string' ? uid : null,\n    action,\n    severity,\n    reason,\n    details,\n    createdAt: FieldValue.serverTimestamp(),\n  }).catch(() => null);\n}\n`;
 
 if (!source.includes("require('./replay_validator')")) {
@@ -22,19 +23,28 @@ if (!source.includes(importLine)) {
   fs.writeFileSync(indexPath, updated, 'utf8');
 }
 
-const current = fs.readFileSync(indexPath, 'utf8');
+let current = fs.readFileSync(indexPath, 'utf8');
 if (current.includes(legacyBlock)) {
-  fs.writeFileSync(indexPath, current.replace(legacyBlock, ''), 'utf8');
+  current = current.replace(legacyBlock, compatibilityWrapper);
+  fs.writeFileSync(indexPath, current, 'utf8');
 } else if (current.includes('function securityEventRef()')) {
   throw new Error('Legacy security audit block exists but does not match the expected canonical form. Stop for manual review.');
+} else if (!current.includes(compatibilityWrapper)) {
+  throw new Error('Security audit wrapper is missing and the legacy block is already absent. Stop for manual review.');
 }
 
 const finalSource = fs.readFileSync(indexPath, 'utf8');
 if (!finalSource.includes(importLine)) {
   throw new Error('Security audit helper import was not installed.');
 }
+if (!finalSource.includes(compatibilityWrapper)) {
+  throw new Error('Security audit compatibility wrapper was not installed.');
+}
 if (finalSource.includes('function securityEventRef()')) {
   throw new Error('Legacy securityEventRef remains after migration.');
+}
+if (!finalSource.includes('recordAuditEvent(db, {')) {
+  throw new Error('Security audit helper is not called with the Firestore db instance.');
 }
 
 console.log('Security audit integration migration completed.');
