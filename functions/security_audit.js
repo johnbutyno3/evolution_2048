@@ -85,6 +85,18 @@ function riskLevel(score) {
   return 'NORMAL';
 }
 
+async function applyCriticalRestrictionIfNeeded(db, uid) {
+  const riskSnapshot = await db.collection('security_risk_scores').doc(uid).get();
+  const totalScore = Number(riskSnapshot.data()?.riskScoreTotal) || 0;
+
+  if (totalScore < 100) {
+    return null;
+  }
+
+  const { applyCriticalRestriction } = require('./security_enforcement');
+  return applyCriticalRestriction(uid, 'critical_security_risk');
+}
+
 function recordSecurityEvent(db, {
   uid,
   playerId = null,
@@ -159,18 +171,25 @@ function recordSecurityEvent(db, {
   }
 
   const riskRef = db.collection('security_risk_scores').doc(uid);
+  const riskWrite = riskRef.set({
+    uid,
+    riskScoreTotal: FieldValue.increment(score),
+    lastEventScore: score,
+    lastEventRiskLevel: calculatedRiskLevel,
+    lastEventId: ref.id,
+    updatedAt: FieldValue.serverTimestamp(),
+    riskSchemaVersion: 1,
+  }, { merge: true });
+
+  const enforcementWrite = riskWrite.then(() =>
+    applyCriticalRestrictionIfNeeded(db, uid).catch(() => null),
+  );
+
   return Promise.all([
     eventWrite,
-    riskRef.set({
-      uid,
-      riskScoreTotal: FieldValue.increment(score),
-      lastEventScore: score,
-      lastEventRiskLevel: calculatedRiskLevel,
-      lastEventId: ref.id,
-      updatedAt: FieldValue.serverTimestamp(),
-      riskSchemaVersion: 1,
-    }, { merge: true }),
+    riskWrite,
     notificationWrite,
+    enforcementWrite,
   ]).catch(() => null);
 }
 
