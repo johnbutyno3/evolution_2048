@@ -18,6 +18,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+
       - name: Run deterministic migration
         working-directory: functions
         run: node migrate_security_audit_integration.js
