@@ -6,6 +6,15 @@ const db = getFirestore();
 const MAX_AVATAR_INDEX = 53;
 const PLAYER_NAME_MAX_LENGTH = 30;
 const PLAYER_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const COLLECTION_CHAPTER_KEYS = new Set([
+  'ocean',
+  'land',
+  'sky',
+  'history',
+  'technology',
+  'space',
+]);
+const COLLECTION_MAX_VALUE = 4096;
 
 function normalizeName(name) {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -245,4 +254,35 @@ exports.updatePlayerAvatar = onCall(async (request) => {
   }, { merge: true });
 
   return { avatarIndex };
+});
+
+exports.discoverCreature = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const chapterKey = request.data?.chapterKey;
+  const value = request.data?.value;
+
+  if (typeof chapterKey !== 'string' || !COLLECTION_CHAPTER_KEYS.has(chapterKey)) {
+    throw new HttpsError('invalid-argument', 'Invalid collection chapter.');
+  }
+
+  if (!Number.isInteger(value) || value < 2 || value > COLLECTION_MAX_VALUE ||
+      (value & (value - 1)) !== 0) {
+    throw new HttpsError('invalid-argument', 'Invalid creature value.');
+  }
+
+  const ref = db
+    .collection('users')
+    .doc(request.auth.uid)
+    .collection('progress')
+    .doc('collection');
+
+  await ref.set({
+    [chapterKey]: FieldValue.arrayUnion(value),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { chapterKey, value };
 });
