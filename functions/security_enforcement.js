@@ -21,6 +21,13 @@ function enforcementRef(uid) {
   return db.collection('security_enforcement').doc(uid);
 }
 
+function riskLevel(score) {
+  if (score >= 100) return 'CRITICAL';
+  if (score >= 60) return 'ADMIN_ALERT';
+  if (score >= 30) return 'WARNING';
+  return 'NORMAL';
+}
+
 function normalizeRiskLevel(value) {
   return RISK_LEVELS.has(value) ? value : 'NORMAL';
 }
@@ -34,8 +41,8 @@ function isRestrictionActive(data) {
 
 /**
  * Server-only gate for sensitive operations.
- * CRITICAL risk can restrict sensitive operations, while lower risk levels
- * remain observable without automatically blocking normal players.
+ * The cumulative risk score is authoritative; an optional explicit
+ * restriction state can also block the operation until its expiry.
  */
 async function enforceSensitiveOperation(uid, operation) {
   if (typeof uid !== 'string' || uid.length === 0) {
@@ -53,11 +60,16 @@ async function enforceSensitiveOperation(uid, operation) {
 
   const risk = riskSnapshot.data() || {};
   const enforcement = enforcementSnapshot.data() || {};
-  const riskLevel = normalizeRiskLevel(risk.riskLevel);
+  const totalScore = Number(risk.riskScoreTotal) || 0;
+  const derivedRiskLevel = riskLevel(totalScore);
+  const storedRiskLevel = normalizeRiskLevel(risk.riskLevel);
+  const effectiveRiskLevel = riskLevel(
+    Math.max(totalScore, storedRiskLevel === 'CRITICAL' ? 100 : 0),
+  );
 
-  if (riskLevel === 'CRITICAL' || isRestrictionActive(enforcement)) {
-    const reason = enforcement.reason || 'critical_security_risk';
-
+  if (derivedRiskLevel === 'CRITICAL'
+      || effectiveRiskLevel === 'CRITICAL'
+      || isRestrictionActive(enforcement)) {
     throw new HttpsError(
       'permission-denied',
       'This operation is temporarily restricted for account security.',
@@ -66,7 +78,7 @@ async function enforceSensitiveOperation(uid, operation) {
 
   return {
     allowed: true,
-    riskLevel,
+    riskLevel: effectiveRiskLevel,
     status: enforcement.status || 'active',
   };
 }
