@@ -24,15 +24,25 @@ assert.strictEqual(riskLevel(60), 'ADMIN_ALERT');
 assert.strictEqual(riskLevel(100), 'CRITICAL');
 
 let written;
+let riskWritten;
 const db = {
   collection(name) {
-    assert.strictEqual(name, 'security_events');
+    assert.ok(name === 'security_events' || name === 'security_risk_scores');
     return {
       doc() {
+        if (name === 'security_events') {
+          return {
+            id: 'test-event-id',
+            set(data) {
+              written = data;
+              return Promise.resolve();
+            },
+          };
+        }
+
         return {
-          id: 'test-event-id',
           set(data) {
-            written = data;
+            riskWritten = data;
             return Promise.resolve();
           },
         };
@@ -75,6 +85,13 @@ recordSecurityEvent(db, {
   assert.strictEqual(written.riskScore, 80);
   assert.strictEqual(written.riskLevel, 'ADMIN_ALERT');
   assert.strictEqual(written.auditSchemaVersion, 2);
+  assert.strictEqual(riskWritten.uid, 'uid-1');
+  assert.strictEqual(riskWritten.riskScoreTotal.__op, 'Increment');
+  assert.strictEqual(riskWritten.riskScoreTotal.__operand, 80);
+  assert.strictEqual(riskWritten.lastEventScore, 80);
+  assert.strictEqual(riskWritten.lastEventRiskLevel, 'ADMIN_ALERT');
+  assert.strictEqual(riskWritten.lastEventId, 'test-event-id');
+  assert.strictEqual(riskWritten.riskSchemaVersion, 1);
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;
