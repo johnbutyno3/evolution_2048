@@ -55,6 +55,28 @@ function membershipRef(uid) {
   return db.collection('users').doc(uid).collection('membership').doc('current');
 }
 
+function resolveMembership(data) {
+  const type = MEMBERSHIP_TYPES.has(data?.type) ? data.type : null;
+  const expiresAt = data?.expiresAt ?? null;
+
+  let active = false;
+
+  if (type !== null) {
+    if (expiresAt === null) {
+      active = true;
+    } else if (typeof expiresAt.toMillis === 'function') {
+      active = expiresAt.toMillis() > Date.now();
+    }
+  }
+
+  return {
+    active,
+    type: active ? type : null,
+    expiresAt: active ? expiresAt : null,
+    infiniteLives: active && type === 'golden',
+    noAds: active,
+  };
+}
 function chapterRewardTools(chapterIndex) {
   return [
     ['timeRewind'],
