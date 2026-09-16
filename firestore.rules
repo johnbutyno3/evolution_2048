@@ -63,6 +63,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Security enforcement state is server-generated and server-consumed.
+    // Clients cannot read, create, update, or delete it.
+    match /security_enforcement/{userId} {
+      allow read, write: if false;
+    }
+
     // Name and player-ID reservations are server-authoritative.
     match /player_names/{nameId} {
       allow read: if signedIn();
