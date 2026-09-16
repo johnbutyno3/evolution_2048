@@ -22,6 +22,12 @@ jobs:
         working-directory: functions
         run: node migrate_security_audit_integration.js
 
+      - name: Run migration guard tests
+        working-directory: functions
+        run: |
+          node migrate_security_audit_integration.test.js
+          node security_audit.test.js
+
       - name: Verify migration output
         working-directory: functions
         run: |
