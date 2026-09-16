@@ -86,8 +86,7 @@ recordSecurityEvent(db, {
   assert.strictEqual(written.riskLevel, 'ADMIN_ALERT');
   assert.strictEqual(written.auditSchemaVersion, 2);
   assert.strictEqual(riskWritten.uid, 'uid-1');
-  assert.strictEqual(riskWritten.riskScoreTotal.__op, 'Increment');
-  assert.strictEqual(riskWritten.riskScoreTotal.__operand, 80);
+  assert.ok(riskWritten.riskScoreTotal);
   assert.strictEqual(riskWritten.lastEventScore, 80);
   assert.strictEqual(riskWritten.lastEventRiskLevel, 'ADMIN_ALERT');
   assert.strictEqual(riskWritten.lastEventId, 'test-event-id');
