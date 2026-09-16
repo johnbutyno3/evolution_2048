@@ -1,8 +1,9 @@
-﻿import '../models/game_tile.dart';
+import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'save_manager.dart';
 import '../../services/player_progress_service.dart';
+import 'life_manager.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -61,8 +62,10 @@ class ToolManager {
       // balance when changing chapters. Chapter 1 starts with one UNDO only.
       final initialUses = SaveManager.developerUnlimitedTools
           ? _developerUnlimitedUses
-          : (savedUses ??
-                (chapter == GameChapter.ocean ? gameTool.maxUses : 0));
+          : (LifeManager.isGoldenMember && type == GameToolType.timeRewind
+                ? _developerUnlimitedUses
+                : (savedUses ??
+                      (chapter == GameChapter.ocean ? gameTool.maxUses : 0)));
 
       _tools.add(ToolState(tool: gameTool, uses: initialUses));
     }
@@ -122,7 +125,11 @@ class ToolManager {
 
     if (!SaveManager.developerMode) {
       for (final tool in _tools) {
-        tool.usesRemaining = _serverUses[tool.tool.type] ?? 0;
+        tool.usesRemaining =
+            LifeManager.isGoldenMember &&
+                tool.tool.type == GameToolType.timeRewind
+            ? _developerUnlimitedUses
+            : (_serverUses[tool.tool.type] ?? 0);
       }
       return;
     }
@@ -164,8 +171,7 @@ class ToolManager {
   Future<bool> useServer(GameToolType type) async {
     if (SaveManager.developerUnlimitedTools) return use(type);
 
-    final sessionId =
-        PlayerProgressService.instance.activeGameSessionId;
+    final sessionId = PlayerProgressService.instance.activeGameSessionId;
     if (sessionId == null) return false;
 
     try {
@@ -177,12 +183,18 @@ class ToolManager {
       if (uses is! num) return false;
       _serverUses[type] = uses.toInt();
       final tool = getTool(type);
-      if (tool != null) tool.usesRemaining = uses.toInt();
+      if (tool != null) {
+        tool.usesRemaining =
+            LifeManager.isGoldenMember && type == GameToolType.timeRewind
+            ? _developerUnlimitedUses
+            : uses.toInt();
+      }
       return true;
     } on FirebaseFunctionsException {
       return false;
     }
   }
+
   static Future<void> refreshInventory() async {
     if (SaveManager.developerMode) return;
     try {
@@ -223,6 +235,10 @@ class ToolManager {
   /// Tool inventory is cumulative across chapters, so this can be used by
   /// profile/shop UI even when the tool is not currently unlocked.
   static int savedUsesFor(GameToolType type) {
+    if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
+      return _developerUnlimitedUses;
+    }
+
     if (!SaveManager.developerMode) return _serverUses[type] ?? 0;
     final save = SaveManager.loadCached();
     final rawUses = save?[_saveKey];

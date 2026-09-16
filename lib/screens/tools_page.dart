@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
+import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../services/shop_config_service.dart';
 
@@ -21,6 +22,7 @@ class _ToolsPageState extends State<ToolsPage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
+    await LifeManager.initialize();
     await ToolManager.refreshInventory();
     return ShopConfigService.load();
   }
@@ -106,7 +108,13 @@ class _ToolsPageState extends State<ToolsPage> {
     IconData icon,
     String key,
   ) {
+    final isGoldenUndo =
+        LifeManager.isGoldenMember &&
+        type == GameToolType.timeRewind;
+
     final owned = ToolManager.savedUsesFor(type);
+    final ownedLabel = isGoldenUndo ? '∞' : '$owned';
+
     final amounts = [1, 5, 20, 50];
     final prices = [
       ShopConfigService.price(config, '${key}1Price'),
@@ -128,7 +136,7 @@ class _ToolsPageState extends State<ToolsPage> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '$name · Owned: $owned',
+                    '$name · Owned: $ownedLabel',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -138,24 +146,25 @@ class _ToolsPageState extends State<ToolsPage> {
               ],
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (var i = 0; i < amounts.length; i++)
-                  FilledButton(
-                    onPressed: () => _buy(
-                      type: type,
-                      name: name,
-                      amount: amounts[i],
-                      price: prices[i],
+            if (!isGoldenUndo)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var i = 0; i < amounts.length; i++)
+                    FilledButton(
+                      onPressed: () => _buy(
+                        type: type,
+                        name: name,
+                        amount: amounts[i],
+                        price: prices[i],
+                      ),
+                      child: Text(
+                        '${amounts[i]} · ${prices[i]} Gold',
+                      ),
                     ),
-                    child: Text(
-                      '${amounts[i]} · ${prices[i]} Gold',
-                    ),
-                  ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),
