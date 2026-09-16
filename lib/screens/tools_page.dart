@@ -153,7 +153,9 @@ class _ToolsPageState extends State<ToolsPage> {
                 children: [
                   for (var i = 0; i < amounts.length; i++)
                     FilledButton(
-                      onPressed: () => _buy(
+                      onPressed: LifeManager.membership == 'general' && amounts[i] != 1
+                          ? null
+                          : () => _buy(
                         type: type,
                         name: name,
                         amount: amounts[i],
