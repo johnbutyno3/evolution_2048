@@ -7,6 +7,14 @@ const AUDIT_SEVERITIES = new Set([
   'CRITICAL',
 ]);
 
+const RISK_RULES = [
+  { score: 100, patterns: ['forged', 'reused transaction', 'authoritative data modification'] },
+  { score: 80, patterns: ['illegal_gold', 'illegal gold'] },
+  { score: 50, patterns: ['illegal_tool', 'illegal tool', 'tool inventory invalid'] },
+  { score: 20, patterns: ['abnormal_frequency', 'abnormal frequency', 'repeated abnormal'] },
+  { score: 10, patterns: ['mismatch', 'invalid_wallet_state'] },
+];
+
 function normalizeAuditSeverity(severity) {
   const normalized = String(severity || 'warning').toUpperCase();
 
@@ -15,6 +23,29 @@ function normalizeAuditSeverity(severity) {
   }
 
   return AUDIT_SEVERITIES.has(normalized) ? normalized : 'WARNING';
+}
+
+function calculateRiskScore(reason, details = {}) {
+  const haystack = [
+    typeof reason === 'string' ? reason : '',
+    typeof details?.reason === 'string' ? details.reason : '',
+    typeof details?.eventType === 'string' ? details.eventType : '',
+  ].join(' ').toLowerCase();
+
+  for (const rule of RISK_RULES) {
+    if (rule.patterns.some((pattern) => haystack.includes(pattern))) {
+      return rule.score;
+    }
+  }
+
+  return 0;
+}
+
+function riskLevel(score) {
+  if (score >= 100) return 'CRITICAL';
+  if (score >= 60) return 'ADMIN_ALERT';
+  if (score >= 30) return 'WARNING';
+  return 'NORMAL';
 }
 
 function recordSecurityEvent(db, {
@@ -39,6 +70,16 @@ function recordSecurityEvent(db, {
     ? details
     : {};
 
+  const derivedClientValue = clientValue ?? safeDetails.clientValue ?? null;
+  const derivedServerValue = serverValue ?? safeDetails.serverValue ?? null;
+  const derivedProductId = productId ?? safeDetails.productId ?? null;
+  const derivedToolType = toolType ?? safeDetails.toolType ?? null;
+  const derivedTransactionId = transactionId ?? safeDetails.transactionId ?? null;
+  const derivedRequestId = requestId ?? safeDetails.requestId ?? null;
+  const derivedPlatform = platform ?? safeDetails.platform ?? null;
+  const derivedAppVersion = appVersion ?? safeDetails.appVersion ?? null;
+  const score = calculateRiskScore(reason, safeDetails);
+
   return ref.set({
     eventId: ref.id,
     uid: typeof uid === 'string' ? uid : null,
@@ -50,22 +91,26 @@ function recordSecurityEvent(db, {
     reason: typeof reason === 'string' && reason.length > 0
       ? reason
       : 'unspecified',
-    clientValue,
-    serverValue,
-    productId,
-    toolType,
-    transactionId,
-    requestId,
-    platform,
-    appVersion,
+    clientValue: derivedClientValue,
+    serverValue: derivedServerValue,
+    productId: derivedProductId,
+    toolType: derivedToolType,
+    transactionId: derivedTransactionId,
+    requestId: derivedRequestId,
+    platform: derivedPlatform,
+    appVersion: derivedAppVersion,
     timestamp: FieldValue.serverTimestamp(),
     status,
+    riskScore: score,
+    riskLevel: riskLevel(score),
     details: safeDetails,
-    auditSchemaVersion: 1,
+    auditSchemaVersion: 2,
   }).catch(() => null);
 }
 
 module.exports = {
+  calculateRiskScore,
   normalizeAuditSeverity,
   recordSecurityEvent,
+  riskLevel,
 };
