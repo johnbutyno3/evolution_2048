@@ -470,6 +470,63 @@ exports.spendGold = onCall(async (request) => {
   });
 });
 
+async function grantGoldToUser({
+  uid,
+  amount,
+  source,
+  purchaseId = null,
+  transactionId = null,
+}) {
+  if (typeof uid !== 'string' || uid.length === 0) {
+    throw new Error('A valid uid is required to grant Gold.');
+  }
+
+  validateGoldAmount(amount);
+
+  if (typeof source !== 'string' || source.length === 0) {
+    throw new Error('A grant source is required.');
+  }
+
+  const walletRef = goldWalletRef(uid);
+
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(walletRef);
+    const data = snapshot.data() || {};
+
+    const balance = data.balance ?? 0;
+    const lifetimeGranted = data.lifetimeGranted ?? 0;
+    const lifetimeSpent = data.lifetimeSpent ?? 0;
+
+    if (!Number.isSafeInteger(balance) || balance < 0 ||
+        !Number.isSafeInteger(lifetimeGranted) || lifetimeGranted < 0 ||
+        !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0) {
+      throw new Error('Gold wallet data is invalid.');
+    }
+
+    if (balance > MAX_SAFE_INTEGER - amount ||
+        lifetimeGranted > MAX_SAFE_INTEGER - amount) {
+      throw new Error('Gold wallet limit exceeded.');
+    }
+
+    const nextBalance = balance + amount;
+    const nextLifetimeGranted = lifetimeGranted + amount;
+
+    transaction.set(walletRef, {
+      balance: nextBalance,
+      lifetimeGranted: nextLifetimeGranted,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return {
+      balance: nextBalance,
+      lifetimeGranted: nextLifetimeGranted,
+      amount,
+      source,
+      purchaseId,
+      transactionId,
+    };
+  });
+}
 async function loadPurchasableProduct(productId) {
   if (typeof productId !== 'string' || productId.length === 0) {
     throw new HttpsError('invalid-argument', 'A productId is required.');
@@ -1122,5 +1179,3 @@ exports.completeChapter = onCall(async (request) => {
     };
   });
 });
-
-
