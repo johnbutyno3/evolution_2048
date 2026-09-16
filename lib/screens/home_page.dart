@@ -135,10 +135,10 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _openPlayerInfo() async {
+  Future<void> _openPersonal() async {
     await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const PlayerInfoPage()));
+    ).push(MaterialPageRoute(builder: (_) => const PersonalPage()));
     await PlayerProfileService.ensureProfile();
     if (mounted) setState(() {});
   }
@@ -205,7 +205,7 @@ class _HomePageState extends State<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       InkWell(
-                        onTap: _openPlayerInfo,
+                        onTap: _openPersonal,
                         borderRadius: BorderRadius.circular(26),
                         child: CircleAvatar(
                           radius: 26,
@@ -491,6 +491,5 @@ class _DeveloperDialogState extends State<_DeveloperDialog> {
     ],
   );
 }
-
 
 
