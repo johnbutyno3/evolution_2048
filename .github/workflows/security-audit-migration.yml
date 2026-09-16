@@ -1,0 +1,40 @@
+name: Security Audit Migration
+
+on:
+  push:
+    branches:
+      - feature/chapter1-spec-implementation
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-security-audit:
+    if: !contains(github.event.head_commit.message, 'security-audit-migration-bot')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run deterministic migration
+        working-directory: functions
+        run: node migrate_security_audit_integration.js
+
+      - name: Verify migration output
+        working-directory: functions
+        run: |
+          node -e "const fs=require('fs'); const s=fs.readFileSync('index.js','utf8'); if(!s.includes(\"require('./security_audit')\")) throw new Error('security_audit import missing'); if(s.includes('function securityEventRef()')) throw new Error('legacy securityEventRef remains'); if(!s.includes('recordAuditEvent(db, {')) throw new Error('audit compatibility wrapper missing'); console.log('Security audit integration verification passed.');"
+
+      - name: Commit migrated index.js
+        run: |
+          if git diff --quiet -- functions/index.js; then
+            echo "No migration changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add functions/index.js
+          git commit -m "security-audit-migration-bot: integrate canonical audit helper"
+          git push
