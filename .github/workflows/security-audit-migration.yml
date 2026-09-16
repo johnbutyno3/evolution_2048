@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   migrate-security-audit:
-    if: !contains(github.event.head_commit.message, 'security-audit-migration-bot')
+    if: ${{ !contains(github.event.head_commit.message, 'security-audit-migration-bot') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
