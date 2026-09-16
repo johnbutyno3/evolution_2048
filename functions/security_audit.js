@@ -1,4 +1,5 @@
 const { FieldValue } = require('firebase-admin/firestore');
+const { createAdminNotifications } = require('./admin_notifications');
 
 const AUDIT_SEVERITIES = new Set([
   'WARNING',
@@ -115,15 +116,17 @@ function recordSecurityEvent(db, {
   const derivedPlatform = platform ?? safeDetails.platform ?? null;
   const derivedAppVersion = appVersion ?? safeDetails.appVersion ?? null;
   const score = calculateRiskScore(reason, safeDetails);
+  const normalizedSeverity = normalizeAuditSeverity(severity);
+  const calculatedRiskLevel = riskLevel(score);
 
-  const eventWrite = ref.set({
+  const event = {
     eventId: ref.id,
     uid: typeof uid === 'string' ? uid : null,
     playerId: typeof playerId === 'string' ? playerId : null,
     eventType: typeof action === 'string' && action.length > 0
       ? action
       : 'unknown',
-    severity: normalizeAuditSeverity(severity),
+    severity: normalizedSeverity,
     reason: typeof reason === 'string' && reason.length > 0
       ? reason
       : 'unspecified',
@@ -135,16 +138,24 @@ function recordSecurityEvent(db, {
     requestId: derivedRequestId,
     platform: derivedPlatform,
     appVersion: derivedAppVersion,
-    timestamp: FieldValue.serverTimestamp(),
     status,
     riskScore: score,
-    riskLevel: riskLevel(score),
+    riskLevel: calculatedRiskLevel,
     details: safeDetails,
+  };
+
+  const eventWrite = ref.set({
+    ...event,
+    timestamp: FieldValue.serverTimestamp(),
     auditSchemaVersion: 2,
   });
 
+  const notificationWrite = calculatedRiskLevel === 'ADMIN_ALERT' || calculatedRiskLevel === 'CRITICAL'
+    ? createAdminNotifications(db, event).catch(() => [])
+    : Promise.resolve([]);
+
   if (typeof uid !== 'string' || uid.length === 0 || score <= 0) {
-    return eventWrite.catch(() => null);
+    return Promise.all([eventWrite, notificationWrite]).catch(() => null);
   }
 
   const riskRef = db.collection('security_risk_scores').doc(uid);
@@ -154,11 +165,12 @@ function recordSecurityEvent(db, {
       uid,
       riskScoreTotal: FieldValue.increment(score),
       lastEventScore: score,
-      lastEventRiskLevel: riskLevel(score),
+      lastEventRiskLevel: calculatedRiskLevel,
       lastEventId: ref.id,
       updatedAt: FieldValue.serverTimestamp(),
       riskSchemaVersion: 1,
     }, { merge: true }),
+    notificationWrite,
   ]).catch(() => null);
 }
 
