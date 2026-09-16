@@ -563,6 +563,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   // ============================================================
 
   Future<void> _startTool(String mode) async {
+    if (!await _ensureGameSession()) {
+      return;
+    }
+
     if (!_engine.hasTools ||
         _engine.gameOver ||
         _engine.chapterComplete ||
