@@ -5,6 +5,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const crypto = require('crypto');
 const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
+const { enforceSensitiveOperation } = require('./security_enforcement');
 
 initializeApp();
 setGlobalOptions({ region: 'us-central1' });
@@ -135,6 +136,7 @@ exports.purchaseTool = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase_tool');
 
   const type = request.data?.toolType;
   const amount = request.data?.amount;
@@ -210,6 +212,7 @@ exports.useTool = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
+  await enforceSensitiveOperation(request.auth.uid, 'use_tool');
 
   const type = request.data?.toolType;
   const sessionId = request.data?.sessionId;
@@ -356,6 +359,7 @@ exports.grantMembership = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
+  await enforceSensitiveOperation(request.auth.uid, 'grant_membership');
 
   const callerSnapshot = await db.collection('users').doc(request.auth.uid).get();
   if (callerSnapshot.data()?.isAdmin !== true) {
@@ -431,6 +435,7 @@ exports.spendGold = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
+  await enforceSensitiveOperation(request.auth.uid, 'spend_gold');
 
   const amount = request.data?.amount;
   validateGoldAmount(amount);
@@ -576,6 +581,7 @@ exports.createPurchaseIntent = onCall(async (request) => {
       'Authentication is required to create a purchase intent.',
     );
   }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase');
 
   const product = await loadPurchasableProduct(request.data?.productId);
   const uid = request.auth.uid;
@@ -613,6 +619,7 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
       'Authentication is required to submit a purchase for verification.',
     );
   }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase');
 
   const purchaseId = request.data?.purchaseId;
   const provider = request.data?.provider;
@@ -698,6 +705,7 @@ exports.startGameSession = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
+  await enforceSensitiveOperation(request.auth.uid, 'start_game_session');
 
   const chapterIndex = request.data?.chapterIndex;
   if (!Number.isInteger(chapterIndex) ||
@@ -823,6 +831,7 @@ exports.completeChapter = onCall(async (request) => {
       'Authentication is required to update chapter progress.',
     );
   }
+  await enforceSensitiveOperation(request.auth.uid, 'complete_chapter');
 
   const data = request.data || {};
   const sessionId = data.sessionId;
