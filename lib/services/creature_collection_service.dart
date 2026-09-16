@@ -1,8 +1,11 @@
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class CreatureCollectionService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'us-central1');
 
   static DocumentReference<Map<String, dynamic>>? get _ref {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -26,18 +29,18 @@ class CreatureCollectionService {
     String chapterKey,
     Iterable<int> values,
   ) async {
-    final ref = _ref;
-    if (ref == null) return;
+    final valid = values.toSet().where((value) {
+      return value >= 2 && value <= 4096 && (value & (value - 1)) == 0;
+    }).toList();
 
-    final valid = values.toSet().toList();
-    if (valid.isEmpty) return;
+    if (valid.isEmpty || FirebaseAuth.instance.currentUser == null) return;
 
-    await ref.set(
-      {
-        chapterKey: FieldValue.arrayUnion(valid),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    final callable = _functions.httpsCallable('discoverCreature');
+    for (final value in valid) {
+      await callable.call(<String, dynamic>{
+        'chapterKey': chapterKey,
+        'value': value,
+      });
+    }
   }
 }
