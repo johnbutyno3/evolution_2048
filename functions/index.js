@@ -9,6 +9,8 @@ initializeApp();
 setGlobalOptions({ region: 'us-central1' });
 
 const db = getFirestore();
+Object.assign(exports, require('./profile'));
+
 const MAX_CHAPTER_INDEX = 5;
 const GAME_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 
