@@ -1,4 +1,4 @@
-﻿import '../../services/creature_collection_service.dart';
+import '../../services/creature_collection_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -47,6 +47,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   int? _evolutionValue;
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
+  bool _gameSessionStarting = false;
 
   static const double _swipeThreshold = 30;
 
@@ -135,6 +136,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _focusNode.requestFocus();
 
       _resumeGameplay();
+      PlayerProgressService.instance.clearGameSession();
+      if (!_engine.gameOver && !_engine.chapterComplete) {
+        unawaited(_ensureGameSession());
+      }
       unawaited(
         _engine.refreshToolProgress().then((_) {
           if (mounted) setState(() {});
@@ -191,6 +196,28 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  Future<bool> _ensureGameSession() async {
+    if (_gameSessionStarting) {
+      while (_gameSessionStarting) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      return PlayerProgressService.instance.activeGameSessionId != null;
+    }
+
+    if (PlayerProgressService.instance.activeGameSessionId != null) {
+      return true;
+    }
+
+    _gameSessionStarting = true;
+    try {
+      return await PlayerProgressService.instance.startGameSession(
+        _chapterNumber - 1,
+      );
+    } finally {
+      _gameSessionStarting = false;
     }
   }
 
@@ -521,6 +548,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return false;
     }
 
+    PlayerProgressService.instance.clearGameSession();
+    unawaited(_ensureGameSession());
+
     _engine.startGameTimer();
     _startUiRefreshTimer();
 
@@ -770,6 +800,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
       }
     } else {
+      PlayerProgressService.instance.clearGameSession();
       Navigator.of(context).pop();
     }
   }
@@ -855,6 +886,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _chapterCompleteShowing = true;
     _engine.stopGameTimer();
 
+    // The session must exist before the server validates the replay.
+    // This also covers very fast/debug completion before the post-frame
+    // session startup has finished.
+    if (!await _ensureGameSession()) {
+      _chapterCompleteShowing = false;
+      return;
+    }
+
     final completedChapter = _engine.chapter;
 
     // Save chapter completion to the server.
@@ -868,10 +907,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    await PlayerProgressService.instance.completeChapter(
-      chapterIndex: _chapterNumber - 1,
-      replayLog: Map<String, dynamic>.from(replayLog),
-    );
+    final completionAccepted =
+        await PlayerProgressService.instance.completeChapter(
+          chapterIndex: _chapterNumber - 1,
+          replayLog: Map<String, dynamic>.from(replayLog),
+        );
+
+    if (!completionAccepted) {
+      _chapterCompleteShowing = false;
+      return;
+    }
 
     await AudioManager.instance.stopMusic();
     await AudioManager.instance.playSfxAndWait(GameSfx.chapterUnlock);
@@ -955,6 +1000,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
+    PlayerProgressService.instance.clearGameSession();
+
     setState(() {
       _engine = GameEngine(chapter: chapter, forceNewBoard: forceNewBoard);
 
@@ -971,6 +1018,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _engine.updateLifeFromRealTime();
     _engine.startGameTimer();
     _startUiRefreshTimer();
+    unawaited(_ensureGameSession());
 
     AudioManager.instance.playChapterMusic(chapter);
 

@@ -19,6 +19,7 @@ class ReplayLog {
   final List<ReplayEvent> events;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'version': currentVersion,
         'replayVersion': currentVersion,
         'chapter': chapter,
         'initialTiles': initialTiles,
@@ -28,7 +29,7 @@ class ReplayLog {
   static ReplayLog? tryFromJson(dynamic raw) {
     if (raw is! Map) return null;
 
-    final version = raw['replayVersion'];
+    final version = raw['version'] ?? raw['replayVersion'];
     if (version != currentVersion) return null;
 
     final chapter = raw['chapter'];
