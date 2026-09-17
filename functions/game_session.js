@@ -1,5 +1,6 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const crypto = require('crypto');
 const { enforceSensitiveOperation } = require('./security_enforcement');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
 
@@ -185,7 +186,7 @@ exports.restartGameSession = onCall(async (request) => {
     const oldSessionId = currentProgress.activeGameSessionId;
     const oldSessionChapter = currentProgress.activeGameChapterIndex;
 
-    if (oldSessionId is String) {
+    if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
       const oldSessionRef = gameSessionRef(uid, oldSessionId);
       const oldSessionSnapshot = await transaction.get(oldSessionRef);
       if (oldSessionSnapshot.exists && oldSessionSnapshot.data()?.status === 'active') {
