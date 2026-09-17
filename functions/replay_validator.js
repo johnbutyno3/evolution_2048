@@ -42,17 +42,6 @@ function targetForChapter(chapterIndex) {
 }
 
 function allowedToolsForChapter(chapterIndex) {
-  // Authoritative chapter tool mapping.
-  //
-  // C1 Ocean:      UNDO
-  // C2 Land:       UNDO + REMOVE
-  // C3 Sky:        UNDO + REMOVE + SWAP
-  // C4 History:    UNDO + REMOVE + SWAP + DUPLICATE
-  // C5 Technology: UNDO + REMOVE + SWAP + DUPLICATE
-  // C6 Universe:   UNDO
-  //
-  // GOLDEN unlimited UNDO is handled by the server inventory/use logic.
-  // It does not change which tools are permitted in a chapter.
   return [
     ['timeRewind'],
     ['timeRewind', 'revive'],
@@ -71,9 +60,14 @@ function validateInitialTiles(initialTiles, target) {
   let nonEmpty = 0;
   for (const value of initialTiles) {
     if (value === null) continue;
-    if (!isPowerOfTwo(value) || value > target) {
-      fail('Initial tile value is invalid.', { value, target });
+
+    // GameEngine starts every new board with exactly two tiles, each 2 or 4.
+    // Rejecting every other value prevents a forged replay from starting at a
+    // later evolution stage.
+    if (value !== 2 && value !== 4) {
+      fail('Initial tile value must be 2 or 4.', { value, target });
     }
+
     nonEmpty += 1;
   }
 
