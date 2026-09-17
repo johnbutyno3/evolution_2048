@@ -75,7 +75,7 @@ function calculateRegeneration({ lives, regenStartMillis, nowMillis, intervalMs 
   };
 }
 
-function responseState({ lives, regenStartMillis, membership, nowMillis }) {
+function responseState({ lives, regenStartMillis, membership }) {
   if (membership.infiniteLives) {
     return {
       lives: -1,
@@ -120,7 +120,6 @@ async function loadAndRegenerate(transaction, uid, membership) {
       lives: NORMAL_CAP,
       regenStartMillis: null,
       membership,
-      nowMillis,
     });
   }
 
@@ -143,7 +142,6 @@ async function loadAndRegenerate(transaction, uid, membership) {
     lives: regenerated.lives,
     regenStartMillis: regenerated.regenStartMillis,
     membership,
-    nowMillis,
   });
 }
 
@@ -203,7 +201,6 @@ exports.consumeLife = onCall(async (request) => {
       lives: nextLives,
       regenStartMillis,
       membership,
-      nowMillis: Date.now(),
     });
   });
 });
@@ -244,55 +241,6 @@ exports.refundLife = onCall(async (request) => {
       lives: nextLives,
       regenStartMillis,
       membership,
-      nowMillis: Date.now(),
-    });
-  });
-});
-
-exports.addPurchasedLives = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Authentication is required.');
-  }
-
-  const amount = request.data?.amount;
-  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 1000) {
-    throw new HttpsError('invalid-argument', 'Invalid life amount.');
-  }
-
-  const uid = request.auth.uid;
-  const ref = lifeRef(uid);
-
-  return db.runTransaction(async (transaction) => {
-    const membershipSnapshot = await transaction.get(membershipRef(uid));
-    const membership = resolveMembership(membershipSnapshot.data() || {});
-    const current = await loadAndRegenerate(transaction, uid, membership);
-
-    if (membership.infiniteLives) {
-      return current;
-    }
-
-    const nextLives = current.lives + amount;
-    transaction.set(ref, {
-      lives: nextLives,
-      regenStartAt: nextLives >= NORMAL_CAP
-        ? null
-        : (current.nextLifeAtMillis == null
-            ? Timestamp.now()
-            : Timestamp.fromMillis(
-                current.nextLifeAtMillis - regenerationIntervalMs(membership),
-              )),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-
-    return responseState({
-      lives: nextLives,
-      regenStartMillis: nextLives >= NORMAL_CAP
-        ? null
-        : (current.nextLifeAtMillis == null
-            ? Date.now()
-            : current.nextLifeAtMillis - regenerationIntervalMs(membership)),
-      membership,
-      nowMillis: Date.now(),
     });
   });
 });
