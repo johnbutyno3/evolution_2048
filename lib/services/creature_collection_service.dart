@@ -14,6 +14,13 @@ class CreatureCollectionService {
     'history': 'history',
     'tech': 'technology',
     'universe': 'space',
+    'chapter1Ocean': 'ocean',
+    'chapter2Land': 'land',
+    'chapter3Sky': 'sky',
+    'chapter4History': 'history',
+    'chapter5Tech': 'technology',
+    'chapter6Space': 'space',
+    'chapter6Universe': 'space',
   };
 
   static DocumentReference<Map<String, dynamic>>? get _ref {
