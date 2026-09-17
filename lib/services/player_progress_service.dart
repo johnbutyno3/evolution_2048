@@ -1,12 +1,12 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 /// Server-authoritative account progression.
 ///
 /// SharedPreferences remains responsible for the local/offline game board.
-/// This service is the authority for chapter unlock state. The client never
-/// writes the progress document directly.
+/// This service is the authority for chapter unlock state and active gameplay
+/// session ownership. The client never writes protected progress directly.
 class PlayerProgressService {
   PlayerProgressService._();
 
@@ -23,13 +23,21 @@ class PlayerProgressService {
   int _unlockedChapterIndex = 0;
   bool _loadedFromServer = false;
   String? _activeGameSessionId;
+  int? _activeGameChapterIndex;
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
   bool get loadedFromServer => _loadedFromServer;
   String? get activeGameSessionId => _activeGameSessionId;
+  int? get activeGameChapterIndex => _activeGameChapterIndex;
+  bool get hasUnfinishedGame => _activeGameSessionId != null;
 
   bool isChapterUnlocked(int chapterIndex) {
     return chapterIndex >= 0 && chapterIndex <= _unlockedChapterIndex;
+  }
+
+  bool isChapterBlockedByUnfinishedGame(int chapterIndex) {
+    final activeChapter = _activeGameChapterIndex;
+    return activeChapter != null && activeChapter != chapterIndex;
   }
 
   Future<void> refresh() async {
@@ -38,6 +46,7 @@ class PlayerProgressService {
       _unlockedChapterIndex = 0;
       _loadedFromServer = false;
       _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
       return;
     }
 
@@ -56,17 +65,31 @@ class PlayerProgressService {
         _unlockedChapterIndex = 0;
       }
 
+      final sessionId = snapshot.data()?['activeGameSessionId'];
+      _activeGameSessionId = sessionId is String && sessionId.isNotEmpty
+          ? sessionId
+          : null;
+
+      final activeChapter = snapshot.data()?['activeGameChapterIndex'];
+      _activeGameChapterIndex = activeChapter is num
+          ? activeChapter.toInt().clamp(0, 5)
+          : null;
+
       _loadedFromServer = true;
     } on FirebaseException {
       _loadedFromServer = false;
     }
   }
 
-  /// Starts a new server-side gameplay session for one chapter attempt.
+  /// Starts or resumes the server-side gameplay session for one chapter.
   ///
-  /// The session ID is kept only in memory. It is never stored in the local
-  /// gameplay save, so an old completion token cannot be replayed later.
-  Future<bool> startGameSession(int chapterIndex) async {
+  /// An existing unfinished session is resumed only for its owning chapter.
+  /// A replacement is allowed only when the caller explicitly requests it
+  /// after the server has already consumed the new attempt's Life.
+  Future<bool> startGameSession(
+    int chapterIndex, {
+    bool replaceActiveSession = false,
+  }) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) {
       return false;
@@ -76,31 +99,41 @@ class PlayerProgressService {
       final callable = _functions.httpsCallable('startGameSession');
       final result = await callable.call(<String, dynamic>{
         'chapterIndex': chapterIndex,
+        'replaceActiveSession': replaceActiveSession,
       });
 
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
+        final returnedChapter = data['chapterIndex'];
+        _activeGameChapterIndex = returnedChapter is num
+            ? returnedChapter.toInt().clamp(0, 5)
+            : chapterIndex;
         return true;
       }
     } on FirebaseFunctionsException {
-      _activeGameSessionId = null;
+      // The server is authoritative. Keep the existing session state when a
+      // normal resume request is rejected instead of fabricating a new one.
+      if (replaceActiveSession) {
+        _activeGameSessionId = null;
+        _activeGameChapterIndex = null;
+      }
     }
 
     return false;
   }
 
-  /// Clears the in-memory session when the account/game leaves the attempt.
+  /// Clears only the in-memory copy after the server has ended the session.
+  ///
+  /// This must never be called merely because the gameplay page was popped
+  /// to Home; an unfinished session belongs to the account until completion,
+  /// Game Over, or explicit Restart replacement.
   void clearGameSession() {
     _activeGameSessionId = null;
+    _activeGameChapterIndex = null;
   }
 
   /// Requests a server-side chapter unlock after a completed chapter.
-  ///
-  /// The callable function requires the server-issued gameplay session and
-  /// consumes that session exactly once. The fallback session creation keeps
-  /// existing clients functional until the gameplay screen explicitly starts
-  /// a session at the beginning of an attempt.
   Future<bool> completeChapter({
     required int chapterIndex,
     required Map<String, dynamic> replayLog,
@@ -128,7 +161,7 @@ class PlayerProgressService {
         _unlockedChapterIndex =
             (data['unlockedChapterIndex'] as num).toInt().clamp(0, 5);
         _loadedFromServer = true;
-        _activeGameSessionId = null;
+        clearGameSession();
         return true;
       }
     } on FirebaseFunctionsException {
