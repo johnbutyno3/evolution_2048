@@ -30,7 +30,6 @@ class LifeManager {
     await refreshFromServer();
   }
 
-  /// Refreshes the authoritative life state from the server.
   static Future<void> refreshFromServer() async {
     final result = await _functions.httpsCallable('getLifeState').call();
     _applyServerState(Map<String, dynamic>.from(result.data as Map));
@@ -83,13 +82,8 @@ class LifeManager {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  /// General-membership regeneration interval exposed for legacy UI/engine
-  /// calculations. The authoritative timestamp is still supplied by server.
   static const Duration regenerationInterval = Duration(hours: 1);
 
-  /// Consumes one life through the server-authoritative callable.
-  ///
-  /// Returns false when the server reports that no life is available.
   static Future<bool> consumeLife() async {
     try {
       final result = await _functions.httpsCallable('consumeLife').call();
@@ -107,12 +101,6 @@ class LifeManager {
     }
   }
 
-  /// Synchronous compatibility method used by the existing GameEngine.
-  ///
-  /// It does not mutate life locally and never calls Firebase. It only
-  /// acknowledges a life that was already consumed successfully by the
-  /// asynchronous consumeLife() call immediately before engine creation or
-  /// restart.
   static bool consumeLifeNow() {
     if (!_engineLifeConsumptionPending) {
       return false;
@@ -122,15 +110,22 @@ class LifeManager {
     return true;
   }
 
-  /// Refunds one life through the server-authoritative callable after a
-  /// chapter completion has been confirmed by the game flow.
   static Future<void> refundChapterCompletionLife() async {
     final result = await _functions.httpsCallable('refundLife').call();
     _applyServerState(Map<String, dynamic>.from(result.data as Map));
     _initialized = true;
   }
 
-  /// Refreshes state after a membership or account transition.
+  /// Developer-only test helper. The actual refill is performed by the
+  /// server-authoritative callable; this method never changes life locally.
+  static Future<void> restoreFiveLivesForDeveloper() async {
+    final result = await _functions
+        .httpsCallable('restoreFiveLivesForDeveloper')
+        .call();
+    _applyServerState(Map<String, dynamic>.from(result.data as Map));
+    _initialized = true;
+  }
+
   static Future<void> refresh() async {
     await refreshFromServer();
   }
