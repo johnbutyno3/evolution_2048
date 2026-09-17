@@ -1,5 +1,11 @@
+const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { HttpsError } = require('firebase-functions/v2/https');
+
+// Keep this module safe when Firebase Functions analyzes or loads it directly.
+if (getApps().length === 0) {
+  initializeApp();
+}
 
 const db = getFirestore();
 const RISK_LEVELS = new Set(['NORMAL', 'WARNING', 'ADMIN_ALERT', 'CRITICAL']);
