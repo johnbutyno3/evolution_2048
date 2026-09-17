@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../game/services/game_engine.dart';
+import '../game/services/life_manager.dart';
+
 /// Server-authoritative account progression.
 ///
 /// SharedPreferences remains responsible for the local/offline game board.
@@ -31,8 +34,12 @@ class PlayerProgressService {
   int? get activeGameChapterIndex => _activeGameChapterIndex;
   bool get hasUnfinishedGame => _activeGameSessionId != null;
 
+  /// Chapter access is gated by both permanent unlock progress and the
+  /// server-owned unfinished-game chapter lock.
   bool isChapterUnlocked(int chapterIndex) {
-    return chapterIndex >= 0 && chapterIndex <= _unlockedChapterIndex;
+    return chapterIndex >= 0 &&
+        chapterIndex <= _unlockedChapterIndex &&
+        !isChapterBlockedByUnfinishedGame(chapterIndex);
   }
 
   bool isChapterBlockedByUnfinishedGame(int chapterIndex) {
@@ -136,6 +143,12 @@ class PlayerProgressService {
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
         _activeGameChapterIndex = chapterIndex;
+
+        // The server has already consumed the Life atomically. Mark that
+        // server-confirmed consumption for the existing synchronous engine
+        // bridge; this does not perform another server mutation.
+        LifeManager.acknowledgeServerConsumedLife();
+
         return true;
       }
     } on FirebaseFunctionsException {
@@ -205,5 +218,18 @@ class PlayerProgressService {
     }
 
     return false;
+  }
+}
+
+/// Keeps the existing GameEngine API call site while the authoritative Life
+/// mutation remains on the server. This is an extension because the engine's
+/// core implementation is intentionally kept focused on local board state.
+extension ServerRestartGameEngineBridge on GameEngine {
+  void markBoardLifeActiveAfterServerRestart() {
+    if (!consumeLifeForGameEntry()) {
+      return;
+    }
+
+    startGameTimer();
   }
 }
