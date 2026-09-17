@@ -34,8 +34,12 @@ class PlayerProgressService {
   int? get activeGameChapterIndex => _activeGameChapterIndex;
   bool get hasUnfinishedGame => _activeGameSessionId != null;
 
+  /// Chapter access is gated by both permanent unlock progress and the
+  /// server-owned unfinished-game chapter lock.
   bool isChapterUnlocked(int chapterIndex) {
-    return chapterIndex >= 0 && chapterIndex <= _unlockedChapterIndex;
+    return chapterIndex >= 0 &&
+        chapterIndex <= _unlockedChapterIndex &&
+        !isChapterBlockedByUnfinishedGame(chapterIndex);
   }
 
   bool isChapterBlockedByUnfinishedGame(int chapterIndex) {
