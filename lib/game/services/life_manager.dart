@@ -101,6 +101,12 @@ class LifeManager {
     }
   }
 
+  /// Marks a server-confirmed Life consumption for the existing synchronous
+  /// GameEngine bridge. This does not mutate server state.
+  static void acknowledgeServerConsumedLife() {
+    _engineLifeConsumptionPending = true;
+  }
+
   static bool consumeLifeNow() {
     if (!_engineLifeConsumptionPending) {
       return false;
