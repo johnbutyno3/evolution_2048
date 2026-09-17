@@ -1,229 +1,111 @@
-import 'dart:async';
-
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-/// Persistent life system for Evolution 2048.
+/// Server-authoritative life state for Evolution 2048.
 ///
-/// Normal members regenerate one life every 40 minutes while below 5.
-/// Purchased lives may raise the current count above 5, but automatic
-/// regeneration never refills above 5. Golden membership is determined by
-/// the authenticated server state and grants infinite lives.
+/// The client keeps only a presentation cache. Life count, membership and
+/// regeneration timing are resolved by Firebase Functions and Firestore.
+/// The client never grants, consumes, refunds or otherwise mutates life state
+/// locally.
 class LifeManager {
   LifeManager._();
 
   static const int normalCap = 5;
-  static const Duration regenerationInterval = Duration(minutes: 40);
-
-  static const String _lifeKey = 'rebirth_2048_life_count_v1';
-  static const String _regenStartKey = 'rebirth_2048_life_regen_start_v1';
-  static const String _membershipKey = 'rebirth_2048_membership_v1';
 
   static final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
-  static SharedPreferences? _preferences;
   static int _lifeCount = normalCap;
-  static DateTime? _regenStart;
+  static bool _infiniteLives = false;
   static String _membership = 'general';
+  static int? _nextLifeAtMillis;
+  static bool _initialized = false;
 
   static Future<void> initialize() async {
-    _preferences ??= await SharedPreferences.getInstance();
-    _lifeCount = _preferences!.getInt(_lifeKey) ?? normalCap;
-    _membership = _preferences!.getString(_membershipKey) ?? 'general';
-
-    final storedRegenStart = _preferences!.getInt(_regenStartKey);
-    _regenStart = storedRegenStart == null
-        ? null
-        : DateTime.fromMillisecondsSinceEpoch(storedRegenStart);
-
-    await _refreshMembershipFromServer();
-    _applyAutomaticRegeneration();
-    await _persist();
+    await refreshFromServer();
   }
 
-  static Future<void> _refreshMembershipFromServer() async {
-    try {
-      final result = await _functions
-          .httpsCallable('getMembershipStatus')
-          .call();
-      final data = Map<String, dynamic>.from(result.data as Map);
-      final active = data['active'] == true;
-      final type = data['type'];
-
-      if (active && (type == 'golden' || type == 'premium')) {
-        _membership = type as String;
-      } else {
-        _membership = 'general';
-      }
-    } on FirebaseFunctionsException {
-      // Keep the cached membership only as a temporary offline fallback.
-      // A successful server response always replaces it.
-    } catch (_) {
-      // Keep the cached membership when the network is unavailable.
-    }
+  /// Refreshes the authoritative life state from the server.
+  static Future<void> refreshFromServer() async {
+    final result = await _functions.httpsCallable('getLifeState').call();
+    _applyServerState(Map<String, dynamic>.from(result.data as Map));
+    _initialized = true;
   }
 
-  static bool get isGoldenMember => _membership == 'golden';
+  static void _applyServerState(Map<String, dynamic> data) {
+    final lives = data['lives'];
+    final infiniteLives = data['infiniteLives'] == true;
+    final membership = data['membership'];
+    final nextLifeAtMillis = data['nextLifeAtMillis'];
 
-  static int get lifeCount {
-    _applyAutomaticRegeneration();
-    return isGoldenMember ? -1 : _lifeCount;
-  }
-
-  /// Returns the timestamp of the next life regeneration, not the start of
-  /// the current regeneration cycle.
-  static int? get nextLifeAtMillis {
-    _applyAutomaticRegeneration();
-    if (isGoldenMember || _lifeCount >= normalCap) return null;
-
-    final start = _regenStart;
-    if (start == null) {
-      return DateTime.now().add(regenerationInterval).millisecondsSinceEpoch;
+    if (lives is! int || lives < -1) {
+      throw StateError('Invalid server life state.');
     }
 
-    return start.add(regenerationInterval).millisecondsSinceEpoch;
+    if (membership != 'general' &&
+        membership != 'premium' &&
+        membership != 'golden') {
+      throw StateError('Invalid server membership state.');
+    }
+
+    if (nextLifeAtMillis != null && nextLifeAtMillis is! int) {
+      throw StateError('Invalid server regeneration timestamp.');
+    }
+
+    _lifeCount = lives;
+    _infiniteLives = infiniteLives;
+    _membership = membership as String;
+    _nextLifeAtMillis = nextLifeAtMillis as int?;
   }
+
+  static bool get isInitialized => _initialized;
+
+  static bool get isGoldenMember => _infiniteLives;
+
+  static int get lifeCount => _infiniteLives ? -1 : _lifeCount;
 
   static String get membership => _membership;
 
+  static int? get nextLifeAtMillis =>
+      _infiniteLives ? null : _nextLifeAtMillis;
+
   static Duration? get regenerationRemaining {
-    if (isGoldenMember || _lifeCount >= normalCap) return null;
+    final next = nextLifeAtMillis;
+    if (next == null) return null;
 
-    _applyAutomaticRegeneration();
-    if (_lifeCount >= normalCap) return null;
-
-    final start = _regenStart;
-    if (start == null) return regenerationInterval;
-
-    final elapsed = DateTime.now().difference(start);
-    final remaining = regenerationInterval - elapsed;
+    final remaining =
+        Duration(milliseconds: next - DateTime.now().millisecondsSinceEpoch);
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  /// Consume one normal life when starting a gameplay attempt.
-  /// Golden members never consume life.
+  /// Consumes one life through the server-authoritative callable.
+  ///
+  /// Returns false when the server reports that no life is available.
   static Future<bool> consumeLife() async {
-    if (isGoldenMember) return true;
-
-    final consumed = consumeLifeNow();
-    await _persist();
-    return consumed;
+    try {
+      final result = await _functions.httpsCallable('consumeLife').call();
+      _applyServerState(Map<String, dynamic>.from(result.data as Map));
+      _initialized = true;
+      return true;
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'failed-precondition' &&
+          error.message == 'No lives available.') {
+        await refreshFromServer();
+        return false;
+      }
+      rethrow;
+    }
   }
 
-  /// Synchronous gameplay entry point for state transitions.
-  /// Persistence is started immediately without blocking the game action.
-  static bool consumeLifeNow() {
-    if (isGoldenMember) return true;
-
-    _applyAutomaticRegeneration();
-    if (_lifeCount <= 0) return false;
-
-    _lifeCount--;
-    _regenStart ??= DateTime.now();
-    unawaited(_persist());
-    return true;
-  }
-
-  /// Refund the life consumed by the board when that board completes a
-  /// chapter successfully. Completing a chapter is not a death.
+  /// Refunds one life through the server-authoritative callable after a
+  /// chapter completion has been confirmed by the game flow.
   static Future<void> refundChapterCompletionLife() async {
-    if (isGoldenMember) return;
-
-    _applyAutomaticRegeneration();
-    if (_lifeCount < normalCap) {
-      _lifeCount++;
-    }
-
-    if (_lifeCount >= normalCap) {
-      _lifeCount = normalCap;
-      _regenStart = null;
-    }
-
-    await _persist();
+    final result = await _functions.httpsCallable('refundLife').call();
+    _applyServerState(Map<String, dynamic>.from(result.data as Map));
+    _initialized = true;
   }
 
-  /// Add purchased lives. Purchased lives may exceed the normal cap of 5.
-  static Future<void> addPurchasedLives(int amount) async {
-    if (amount <= 0 || isGoldenMember) return;
-
-    _applyAutomaticRegeneration();
-    _lifeCount += amount;
-    if (_lifeCount >= normalCap) {
-      _regenStart = null;
-    }
-    await _persist();
-  }
-
-  /// Developer-only reset of the current life count.
-  /// Membership is intentionally preserved.
-  static Future<void> restoreFiveLivesForDeveloper() async {
-    _lifeCount = normalCap;
-    _regenStart = null;
-    await _persist();
-  }
-
-  /// Legacy local setter retained for compatibility with development flows.
-  /// Production membership must come from getMembershipStatus on the server.
-  static Future<void> setMembership(String membership) async {
-    const allowed = {'general', 'premium', 'golden'};
-    if (!allowed.contains(membership)) return;
-
-    _membership = membership;
-    if (isGoldenMember) {
-      _regenStart = null;
-    } else if (_lifeCount < normalCap && _regenStart == null) {
-      _regenStart = DateTime.now();
-    }
-    await _persist();
-  }
-
-  /// Useful for development/reset flows without changing the normal rules.
-  static Future<void> resetToNormal() async {
-    _membership = 'general';
-    _lifeCount = normalCap;
-    _regenStart = null;
-    await _persist();
-  }
-
-  static void _applyAutomaticRegeneration() {
-    if (isGoldenMember || _lifeCount >= normalCap) {
-      _regenStart = null;
-      return;
-    }
-
-    _regenStart ??= DateTime.now();
-    final start = _regenStart!;
-    final elapsed = DateTime.now().difference(start);
-    if (elapsed < regenerationInterval) return;
-
-    final recovered = elapsed.inSeconds ~/ regenerationInterval.inSeconds;
-    final newLifeCount = _lifeCount + recovered;
-
-    if (newLifeCount >= normalCap) {
-      _lifeCount = normalCap;
-      _regenStart = null;
-      return;
-    }
-
-    _lifeCount = newLifeCount;
-    _regenStart = start.add(
-      Duration(seconds: recovered * regenerationInterval.inSeconds),
-    );
-  }
-
-  static Future<void> _persist() async {
-    _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setInt(_lifeKey, _lifeCount);
-    await _preferences!.setString(_membershipKey, _membership);
-
-    if (_regenStart == null) {
-      await _preferences!.remove(_regenStartKey);
-    } else {
-      await _preferences!.setInt(
-        _regenStartKey,
-        _regenStart!.millisecondsSinceEpoch,
-      );
-    }
+  /// Refreshes state after a membership or account transition.
+  static Future<void> refresh() async {
+    await refreshFromServer();
   }
 }
