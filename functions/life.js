@@ -244,3 +244,29 @@ exports.refundLife = onCall(async (request) => {
     });
   });
 });
+
+exports.restoreFiveLivesForDeveloper = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const uid = request.auth.uid;
+  const ref = lifeRef(uid);
+
+  return db.runTransaction(async (transaction) => {
+    const membershipSnapshot = await transaction.get(membershipRef(uid));
+    const membership = resolveMembership(membershipSnapshot.data() || {});
+
+    transaction.set(ref, {
+      lives: NORMAL_CAP,
+      regenStartAt: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return responseState({
+      lives: NORMAL_CAP,
+      regenStartMillis: null,
+      membership,
+    });
+  });
+});
