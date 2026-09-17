@@ -83,9 +83,11 @@ exports.ensurePlayerProfile = onCall(async (request) => {
   const userRef = db.collection('users').doc(uid);
   const requestedName = request.data?.playerName;
   const requestedAvatar = request.data?.avatarIndex;
+  const toolsRef = db.collection('users').doc(uid).collection('wallet').doc('tools');
 
   return db.runTransaction(async (transaction) => {
     const userSnapshot = await transaction.get(userRef);
+    const toolsSnapshot = await transaction.get(toolsRef);
     const data = userSnapshot.data() || {};
 
     let playerName = typeof data.playerName === 'string'
@@ -160,6 +162,17 @@ exports.ensurePlayerProfile = onCall(async (request) => {
       avatarIndex,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    // Every new player starts with one UNDO. Existing inventories are never
+    // overwritten, so this also repairs an account created before the initial
+    // UNDO grant was made server-authoritative.
+    const existingTools = toolsSnapshot.data();
+    if (!toolsSnapshot.exists || existingTools?.timeRewind == null) {
+      transaction.set(toolsRef, {
+        timeRewind: 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
 
     return {
       playerName,
