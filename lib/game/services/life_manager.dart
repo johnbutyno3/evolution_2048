@@ -20,6 +20,12 @@ class LifeManager {
   static int? _nextLifeAtMillis;
   static bool _initialized = false;
 
+  // Compatibility bridge for the existing synchronous GameEngine API.
+  // The actual life mutation is still performed by the server. A successful
+  // consumeLife() reserves one server-confirmed consumption for the engine
+  // call that immediately follows it, preventing a second server deduction.
+  static bool _engineLifeConsumptionPending = false;
+
   static Future<void> initialize() async {
     await refreshFromServer();
   }
@@ -77,6 +83,10 @@ class LifeManager {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
+  /// General-membership regeneration interval exposed for legacy UI/engine
+  /// calculations. The authoritative timestamp is still supplied by server.
+  static const Duration regenerationInterval = Duration(hours: 1);
+
   /// Consumes one life through the server-authoritative callable.
   ///
   /// Returns false when the server reports that no life is available.
@@ -85,6 +95,7 @@ class LifeManager {
       final result = await _functions.httpsCallable('consumeLife').call();
       _applyServerState(Map<String, dynamic>.from(result.data as Map));
       _initialized = true;
+      _engineLifeConsumptionPending = true;
       return true;
     } on FirebaseFunctionsException catch (error) {
       if (error.code == 'failed-precondition' &&
@@ -94,6 +105,21 @@ class LifeManager {
       }
       rethrow;
     }
+  }
+
+  /// Synchronous compatibility method used by the existing GameEngine.
+  ///
+  /// It does not mutate life locally and never calls Firebase. It only
+  /// acknowledges a life that was already consumed successfully by the
+  /// asynchronous consumeLife() call immediately before engine creation or
+  /// restart.
+  static bool consumeLifeNow() {
+    if (!_engineLifeConsumptionPending) {
+      return false;
+    }
+
+    _engineLifeConsumptionPending = false;
+    return true;
   }
 
   /// Refunds one life through the server-authoritative callable after a
