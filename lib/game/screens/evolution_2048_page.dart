@@ -204,23 +204,53 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       while (_gameSessionStarting) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
-      return PlayerProgressService.instance.activeGameSessionId != null;
-    }
 
-    if (PlayerProgressService.instance.activeGameSessionId != null) {
-      return true;
+      final activeChapter =
+          PlayerProgressService.instance.activeGameChapterIndex;
+
+      return PlayerProgressService.instance.activeGameSessionId != null &&
+          activeChapter == _chapterNumber - 1;
     }
 
     _gameSessionStarting = true;
+
     try {
-      return await PlayerProgressService.instance.startGameSession(
+      final progress = PlayerProgressService.instance;
+
+      // Always refresh server state before deciding whether this page may
+      // create or reuse a Game Session.
+      await progress.refresh();
+
+      final activeSessionId = progress.activeGameSessionId;
+      final activeChapter = progress.activeGameChapterIndex;
+
+      if (activeSessionId != null) {
+        // An unfinished game belongs to another chapter.
+        if (activeChapter != _chapterNumber - 1) {
+          return false;
+        }
+
+        // Resume the existing unfinished game. No Life is consumed.
+        return true;
+      }
+
+      // No unfinished game exists. A brand-new attempt must be authorized
+      // by the server before the local board becomes an active attempt.
+      final started = await progress.restartGameSession(
         _chapterNumber - 1,
       );
+
+      if (!started) {
+        return false;
+      }
+
+      _engine.markBoardLifeActiveAfterServerRestart();
+
+      return true;
     } finally {
       _gameSessionStarting = false;
     }
   }
-
   void _startUiRefreshTimer() {
     _uiRefreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       _engine.updateLifeFromRealTime();
