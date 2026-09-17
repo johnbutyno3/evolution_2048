@@ -23,6 +23,15 @@ class CreatureCollectionService {
     'chapter6Universe': 'space',
   };
 
+  static const Map<String, String> _legacyChapterKeys = {
+    'ocean': 'chapter1Ocean',
+    'land': 'chapter2Land',
+    'sky': 'chapter3Sky',
+    'history': 'chapter4History',
+    'technology': 'chapter5Tech',
+    'space': 'chapter6Universe',
+  };
+
   static DocumentReference<Map<String, dynamic>>? get _ref {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return null;
@@ -44,10 +53,18 @@ class CreatureCollectionService {
     final snapshot = await ref.get();
     final data = snapshot.data();
     final normalizedKey = normalizeChapterKey(chapterKey);
-    final values = data?[normalizedKey];
 
-    if (values is! List) return {};
-    return values.whereType<num>().map((e) => e.toInt()).toSet();
+    final values = data?[normalizedKey];
+    final legacyValues = data?[_legacyChapterKeys[normalizedKey]];
+
+    final normalized = values is List
+        ? values.whereType<num>().map((e) => e.toInt())
+        : const <int>[];
+    final legacy = legacyValues is List
+        ? legacyValues.whereType<num>().map((e) => e.toInt())
+        : const <int>[];
+
+    return {...normalized, ...legacy};
   }
 
   static Future<void> discover(
