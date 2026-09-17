@@ -28,8 +28,14 @@ Future<void> main() async {
   await FirebaseAuth.instance.authStateChanges().first;
 
   await SaveManager.initialize();
-  await LifeManager.initialize();
-  await GoldManager.initialize();
+
+  // Life and Gold are server-authoritative and require authentication.
+  // Do not call their protected functions before a signed-in user exists.
+  // After login, HomePage initializes them for the authenticated session.
+  if (FirebaseAuth.instance.currentUser != null) {
+    await LifeManager.initialize();
+    await GoldManager.initialize();
+  }
 
   runApp(const Rebirth2048App());
 }
