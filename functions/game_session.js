@@ -234,3 +234,48 @@ exports.restartGameSession = onCall(async (request) => {
     };
   });
 });
+
+exports.abandonGameSession = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'abandon_game_session');
+
+  const sessionId = request.data?.sessionId;
+  if (typeof sessionId !== 'string' || sessionId.length < 16 || sessionId.length > 128) {
+    throw new HttpsError('invalid-argument', 'Invalid game session.');
+  }
+
+  const uid = request.auth.uid;
+  const sessionRef = gameSessionRef(uid, sessionId);
+  const progress = progressRef(uid);
+
+  await db.runTransaction(async (transaction) => {
+    const sessionSnapshot = await transaction.get(sessionRef);
+    const progressSnapshot = await transaction.get(progress);
+
+    if (!sessionSnapshot.exists) {
+      return;
+    }
+
+    const session = sessionSnapshot.data() || {};
+    if (session.status === 'active') {
+      transaction.update(sessionRef, {
+        status: 'ended',
+        endedAt: FieldValue.serverTimestamp(),
+        endReason: 'game_over',
+      });
+    }
+
+    const current = progressSnapshot.data() || {};
+    if (current.activeGameSessionId === sessionId) {
+      transaction.set(progress, {
+        activeGameSessionId: FieldValue.delete(),
+        activeGameChapterIndex: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+  });
+
+  return { sessionId, status: 'ended' };
+});
