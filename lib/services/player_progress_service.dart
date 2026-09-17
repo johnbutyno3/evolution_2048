@@ -82,10 +82,6 @@ class PlayerProgressService {
   }
 
   /// Starts or resumes the server-side gameplay session for one chapter.
-  ///
-  /// An existing unfinished session is resumed only for its owning chapter.
-  /// A replacement is allowed only when the caller explicitly requests it
-  /// after the server has already consumed the new attempt's Life.
   Future<bool> startGameSession(
     int chapterIndex, {
     bool replaceActiveSession = false,
@@ -112,8 +108,6 @@ class PlayerProgressService {
         return true;
       }
     } on FirebaseFunctionsException {
-      // The server is authoritative. Keep the existing session state when a
-      // normal resume request is rejected instead of fabricating a new one.
       if (replaceActiveSession) {
         _activeGameSessionId = null;
         _activeGameChapterIndex = null;
@@ -123,17 +117,59 @@ class PlayerProgressService {
     return false;
   }
 
+  /// Atomically consumes one Life, replaces the old active session, and
+  /// creates the new session. No new board should be created before this
+  /// succeeds.
+  Future<bool> restartGameSession(int chapterIndex) async {
+    final user = _auth.currentUser;
+    if (user == null || chapterIndex < 0 || chapterIndex > 5) {
+      return false;
+    }
+
+    try {
+      final callable = _functions.httpsCallable('restartGameSession');
+      final result = await callable.call(<String, dynamic>{
+        'chapterIndex': chapterIndex,
+      });
+
+      final data = result.data;
+      if (data is Map && data['sessionId'] is String) {
+        _activeGameSessionId = data['sessionId'] as String;
+        _activeGameChapterIndex = chapterIndex;
+        return true;
+      }
+    } on FirebaseFunctionsException {
+      await refresh();
+    }
+
+    return false;
+  }
+
+  /// Releases an active session after Game Over.
+  Future<void> abandonGameSession() async {
+    final sessionId = _activeGameSessionId;
+    if (sessionId == null) {
+      return;
+    }
+
+    try {
+      final callable = _functions.httpsCallable('abandonGameSession');
+      await callable.call(<String, dynamic>{'sessionId': sessionId});
+    } on FirebaseFunctionsException {
+      // The local copy is still cleared so the current UI cannot retain a
+      // dead session token. The server remains authoritative on next entry.
+    } finally {
+      clearGameSession();
+    }
+  }
+
   /// Clears only the in-memory copy after the server has ended the session.
-  ///
-  /// This must never be called merely because the gameplay page was popped
-  /// to Home; an unfinished session belongs to the account until completion,
-  /// Game Over, or explicit Restart replacement.
+  /// Never call this merely because the gameplay page was popped to Home.
   void clearGameSession() {
     _activeGameSessionId = null;
     _activeGameChapterIndex = null;
   }
 
-  /// Requests a server-side chapter unlock after a completed chapter.
   Future<bool> completeChapter({
     required int chapterIndex,
     required Map<String, dynamic> replayLog,
