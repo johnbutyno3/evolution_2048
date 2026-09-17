@@ -286,3 +286,6 @@ exports.discoverCreature = onCall(async (request) => {
 
   return { chapterKey, value };
 });
+
+// Keep life callables in the existing Functions export surface.
+Object.assign(exports, require('./life'));
