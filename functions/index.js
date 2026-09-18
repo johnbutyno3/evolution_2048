@@ -929,20 +929,27 @@ exports.restartGameSession = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
     }
 
-    await consumeLifeInTransaction(transaction, uid);
-
+    // Read the previous session before consuming Life. Firestore transactions
+    // require all reads to happen before the first write.
     const oldSessionId = current.activeGameSessionId;
+    let oldSessionSnapshot = null;
     if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
       const oldSessionRef = gameSessionRef(uid, oldSessionId);
-      const oldSessionSnapshot = await transaction.get(oldSessionRef);
-      if (oldSessionSnapshot.exists &&
-          oldSessionSnapshot.data()?.status === 'active') {
-        transaction.update(oldSessionRef, {
-          status: 'abandoned',
-          abandonedAt: FieldValue.serverTimestamp(),
-          abandonedReason: 'restart',
-        });
-      }
+      oldSessionSnapshot = await transaction.get(oldSessionRef);
+    }
+
+    // Life consumption is performed after all transaction reads so the
+    // restart can atomically abandon the old session and create the new one.
+    await consumeLifeInTransaction(transaction, uid, membershipSnapshot);
+
+    if (oldSessionSnapshot?.exists &&
+        oldSessionSnapshot.data()?.status === 'active') {
+      const oldSessionRef = gameSessionRef(uid, oldSessionId);
+      transaction.update(oldSessionRef, {
+        status: 'abandoned',
+        abandonedAt: FieldValue.serverTimestamp(),
+        abandonedReason: 'restart',
+      });
     }
 
     const tools = toolsSnapshot.data() || {};
