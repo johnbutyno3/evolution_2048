@@ -14,6 +14,7 @@ const SENSITIVE_OPERATIONS = new Set([
   'use_tool',
   'spend_gold',
   'start_game_session',
+  'restart_game_session',
   'complete_chapter',
   'purchase',
   'grant_membership',
