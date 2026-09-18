@@ -616,7 +616,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
       }
     } else {
-      PlayerProgressService.instance.clearGameSession();
+      // Game Over ends the active server session. Clear local state only
+      // after the server has marked the session ended, otherwise the active
+      // session could be restored and keep the chapter lock alive.
+      await PlayerProgressService.instance.abandonGameSession();
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
   }
