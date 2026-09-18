@@ -798,21 +798,6 @@ exports.startGameSession = onCall(async (request) => {
     const membershipSnapshot = await transaction.get(membershipDocRef);
 
     const current = progressSnapshot.data() || {};
-    if (current.activeGameSessionId !== sessionId ||
-        current.activeGameChapterIndex !== chapterIndex) {
-      await recordSecurityEvent({
-        uid,
-        action: 'complete_chapter',
-        severity: 'high',
-        reason: 'session_not_current_active_game',
-        details: { sessionId, chapterIndex },
-      });
-      throw new HttpsError(
-        'failed-precondition',
-        'Game session is not the current active game.',
-      );
-    }
-
     const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
       ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
       : 0;
@@ -887,6 +872,12 @@ exports.startGameSession = onCall(async (request) => {
       toolUsage: {},
       createdAt: FieldValue.serverTimestamp(),
     });
+
+    transaction.set(progressRef, {
+      activeGameSessionId: sessionId,
+      activeGameChapterIndex: chapterIndex,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
   });
 
   return {
@@ -1349,6 +1340,21 @@ exports.completeChapter = onCall(async (request) => {
     }
 
     const current = progressSnapshot.data() || {};
+    if (current.activeGameSessionId !== sessionId ||
+        current.activeGameChapterIndex !== chapterIndex) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'session_not_current_active_game',
+        details: { sessionId, chapterIndex },
+      });
+      throw new HttpsError(
+        'failed-precondition',
+        'Game session is not the current active game.',
+      );
+    }
+
     const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
       ? Math.min(
           Math.max(current.unlockedChapterIndex, 0),
