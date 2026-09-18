@@ -59,7 +59,7 @@ class PlayerProgressService {
           .doc(user.uid)
           .collection(_progressCollection)
           .doc(_progressDocument)
-          .get();
+          .get(const GetOptions(source: Source.server));
 
       final data = snapshot.data() ?? <String, dynamic>{};
       final value = data['unlockedChapterIndex'];
@@ -156,17 +156,23 @@ class PlayerProgressService {
       await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': sessionId,
       });
+
+      // The callable succeeded, so the server has ended this session.
+      // Clear the local cache immediately and then verify against the
+      // server. This avoids a stale Firestore cache making the next entry
+      // look like an unfinished game.
+      _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
+      await refresh();
     } on FirebaseFunctionsException catch (error) {
-      // Keep the server error visible during development.
+      // Keep the server error visible during development. Do not clear the
+      // local session when the server did not confirm abandonment.
       // ignore: avoid_print
       print(
         'abandonGameSession failed: code=${error.code}, '
         'message=${error.message}, '
         'details=${error.details?.toString() ?? 'null'}',
       );
-    } finally {
-      // Wait for the authoritative server state before leaving the page.
-      await refresh();
     }
   }
 
