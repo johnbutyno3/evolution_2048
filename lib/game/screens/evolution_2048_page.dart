@@ -505,7 +505,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     if (action == 'home') {
-      // Keep the active game session so Home -> chapter re-entry resumes it.
+      // Unfinished exit refunds the Life consumed for this attempt. The
+      // server keeps the same session active so the next chapter entry
+      // resumes this exact board and consumes one Life again.
+      await PlayerProgressService.instance.exitUnfinishedGameSession();
+      if (!mounted) return;
       _engine.pauseGameTimer();
       _stopUiRefreshTimer();
       Navigator.of(context).pop();
