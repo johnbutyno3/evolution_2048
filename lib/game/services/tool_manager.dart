@@ -195,6 +195,13 @@ class ToolManager {
     }
   }
 
+  /// Refreshes the authoritative tool inventory and applies it to the
+  /// currently displayed tool states before gameplay actions are enabled.
+  Future<void> refreshServerState() async {
+    await refreshInventory();
+    refreshFromSavedProgress();
+  }
+
   static Future<void> refreshInventory() async {
     if (SaveManager.developerMode) return;
     try {
