@@ -493,6 +493,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final restarted = await _reset();
       if (restarted && mounted) {
         unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.')),
+        );
       }
     }
   }
@@ -662,6 +666,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final restarted = await _reset();
       if (restarted && mounted) {
         unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.')),
+        );
       }
     } else {
       // Game Over ends the active server session. Clear local state only
