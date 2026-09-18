@@ -690,10 +690,32 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       GameChapter.tech => _techBackgrounds,
       GameChapter.universe => _universeBackgrounds,
     };
-    if (highestValue >= 1024) return backgrounds[3];
-    if (highestValue >= 128) return backgrounds[2];
-    if (highestValue >= 16) return backgrounds[1];
-    return backgrounds[0];
+
+    // Background changes are defined by chapter stage, not by one shared
+    // highest-value threshold. Stage 1 is value 2, stage 2 is value 4, etc.
+    final stage = highestValue > 0
+        ? (highestValue.bitLength - 1)
+        : 1;
+
+    final backgroundIndex = switch (_engine.chapter) {
+      GameChapter.ocean =>
+        stage >= 10 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0,
+      GameChapter.land =>
+        stage >= 12 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0,
+      // C3 currently has 14 stages. The specified fourth switch point is
+      // stage 15, so it remains unreachable until the chapter specification
+      // is explicitly changed.
+      GameChapter.sky =>
+        stage >= 15 ? 3 : stage >= 13 ? 2 : stage >= 5 ? 1 : 0,
+      GameChapter.history =>
+        stage >= 14 ? 3 : stage >= 12 ? 2 : stage >= 7 ? 1 : 0,
+      GameChapter.tech =>
+        stage >= 13 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0,
+      GameChapter.universe =>
+        stage >= 13 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0,
+    };
+
+    return backgrounds[backgroundIndex];
   }
 
   String get _chapterTitle => switch (_engine.chapter) {
