@@ -252,8 +252,15 @@ exports.restoreFiveLivesForDeveloper = onCall(async (request) => {
 
   const uid = request.auth.uid;
   const ref = lifeRef(uid);
+  const userRef = db.collection('users').doc(uid);
 
   return db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    const userData = userSnapshot.data() || {};
+    if (userData.isAdmin !== true) {
+      throw new HttpsError('permission-denied', 'Developer access is required.');
+    }
+
     const membershipSnapshot = await transaction.get(membershipRef(uid));
     const membership = resolveMembership(membershipSnapshot.data() || {});
 
