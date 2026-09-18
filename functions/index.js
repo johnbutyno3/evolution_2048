@@ -881,6 +881,16 @@ exports.completeChapter = onCall(async (request) => {
     .doc(uid)
     .collection('progress')
     .doc('game');
+  const lifeRef = db
+    .collection('users')
+    .doc(uid)
+    .collection('life')
+    .doc('current');
+  const membershipRef = db
+    .collection('users')
+    .doc(uid)
+    .collection('membership')
+    .doc('current');
 
   /*
    * Read the session before replay validation so the validator uses
@@ -1049,6 +1059,8 @@ exports.completeChapter = onCall(async (request) => {
      */
     const currentSessionSnapshot = await transaction.get(sessionRef);
     const progressSnapshot = await transaction.get(progressRef);
+    const lifeSnapshot = await transaction.get(lifeRef);
+    const membershipSnapshot = await transaction.get(membershipRef);
 
     if (!currentSessionSnapshot.exists) {
       await recordSecurityEvent({
@@ -1160,6 +1172,40 @@ exports.completeChapter = onCall(async (request) => {
       currentUnlocked,
       nextUnlocked,
     );
+
+    // Chapter completion is not Game Over. Refund the Life consumed for
+    // this board in the same transaction that closes the session, preventing
+    // duplicate completion/refund races.
+    const membershipData = membershipSnapshot.data() || {};
+    const membershipType = MEMBERSHIP_TYPES.has(membershipData.type)
+      ? membershipData.type
+      : null;
+    const membershipExpiresAt = membershipData.expiresAt ?? null;
+    const membershipActive = membershipType !== null &&
+      (membershipExpiresAt === null ||
+        (typeof membershipExpiresAt.toMillis === 'function' &&
+          membershipExpiresAt.toMillis() > Date.now()));
+    const lifeData = lifeSnapshot.data() || {};
+    const currentLives = Number.isSafeInteger(lifeData.lives)
+      ? Math.max(0, lifeData.lives)
+      : NORMAL_CAP;
+
+    if (membershipActive && membershipType === 'golden') {
+      transaction.set(lifeRef, {
+        lives: NORMAL_CAP,
+        regenStartAt: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    } else {
+      const nextLives = Math.min(NORMAL_CAP, currentLives + 1);
+      transaction.set(lifeRef, {
+        lives: nextLives,
+        regenStartAt: nextLives >= NORMAL_CAP
+          ? null
+          : (lifeData.regenStartAt ?? Timestamp.now()),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
 
     transaction.set(progressRef, {
       unlockedChapterIndex,
