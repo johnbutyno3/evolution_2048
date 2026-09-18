@@ -324,15 +324,15 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
     final membership = LifeManager.membership;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Player Info')),
+      appBar: AppBar(title: Text(_p(context, 'Player Info', '玩家資料'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Center(child: _AvatarCircle(index: _avatarIndex, size: 104)),
           const SizedBox(height: 12),
-          const Center(
+          Center(
             child: Text(
-              'Choose your avatar',
+              _p(context, 'Choose your avatar', '選擇頭像'),
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -379,7 +379,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.workspace_premium_outlined),
-              title: const Text('Membership'),
+              title: const Text(_p(context, 'Membership', '會員資格')),
               subtitle: Text(
                 membership == 'golden'
                     ? 'Golden Member'
@@ -509,7 +509,7 @@ class EvolutionProgressPage extends StatelessWidget {
     final chapterComplete = save?['chapterComplete'] == true;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Evolution Progress')),
+      appBar: AppBar(title: const Text(_p(context, 'Evolution Progress', '進化進度'))),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: chapters.length,
@@ -664,7 +664,7 @@ class _CollectionPageState extends State<CollectionPage> {
     final discovered = _discovered[chapterKey] ?? <int>{};
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Creature Collection')),
+      appBar: AppBar(title: Text(_p(context, 'Creature Collection', '生物圖鑑'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -995,10 +995,10 @@ class GameGuidePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Guide')),
+      appBar: AppBar(title: Text(_p(context, 'Game Guide', '遊戲說明'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
-        children: const [
+        children: [
           Text(
             _p(context, 'How to Play', '遊戲玩法'),
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
@@ -1038,16 +1038,16 @@ class VersionInfoPage extends StatelessWidget {
       appBar: AppBar(title: Text(_p(context, 'Version Info', '版本資訊'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
-        children: const [
-          ListTile(title: Text('App'), subtitle: Text('Rebirth 2048')),
+        children: [
+          ListTile(title: Text(_p(context, 'App', 'APP')), subtitle: Text('Rebirth 2048')),
           ListTile(
-            title: Text('Game Version'),
-            subtitle: Text('Current development build'),
+            title: Text(_p(context, 'Game Version', '遊戲版本')),
+            subtitle: Text(_p(context, 'Current development build', '目前開發版本')),
           ),
           ListTile(
-            title: Text('Build'),
+            title: Text(_p(context, 'Build', '建置版本')),
             subtitle: Text(
-              'Read from the platform package in the release build.',
+              _p(context, 'Read from the platform package in the release build.', '正式發行版將由平台套件讀取版本資訊。'),
             ),
           ),
         ],
