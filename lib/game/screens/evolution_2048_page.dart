@@ -51,6 +51,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Timer? _uiRefreshTimer;
   bool _gameSessionStarting = false;
   bool _restartInProgress = false;
+  bool _allowSystemPop = false;
+  bool _handlingSystemBack = false;
 
   static const double _swipeThreshold = 30;
 
@@ -463,6 +465,32 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return true;
     } finally {
       _restartInProgress = false;
+    }
+  }
+
+  Future<void> _handleSystemBack() async {
+    if (_handlingSystemBack || !mounted) return;
+
+    // System/Android Back must follow the same unfinished-exit rule as the
+    // in-game Home action. Do not let Navigator pop first, otherwise the
+    // server never receives the refund request and the next entry resumes
+    // without consuming the required Life.
+    if (_engine.gameOver || _engine.chapterComplete) {
+      _allowSystemPop = true;
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    _handlingSystemBack = true;
+    try {
+      await PlayerProgressService.instance.exitUnfinishedGameSession();
+      if (!mounted) return;
+      _engine.pauseGameTimer();
+      _stopUiRefreshTimer();
+      _allowSystemPop = true;
+      Navigator.of(context).pop();
+    } finally {
+      _handlingSystemBack = false;
     }
   }
 
@@ -985,8 +1013,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final l10n = AppLocalizations.of(context)!;
     final lifeRemaining = _engine.lifeRegenerationRemaining;
     final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
-    return Scaffold(
-      appBar: AppBar(
+    return PopScope<void>(
+      canPop: _allowSystemPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop || _allowSystemPop) return;
+        unawaited(_handleSystemBack());
+      },
+      child: Scaffold(
+        appBar: AppBar(
         title: Text(_chapterTitle),
         actions: [
           IconButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _debugCompleteChapter(); }, tooltip: 'Test Chapter Complete', icon: const Icon(Icons.bug_report)),
@@ -1083,6 +1117,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
               ),
             ),
           ),
+        ),
         ),
       ),
     );
