@@ -702,6 +702,63 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
   });
 });
 
+async function consumeLifeInTransaction(transaction, uid) {
+  const lifeRef = db.collection('users').doc(uid).collection('life').doc('current');
+  const membershipSnapshot = await transaction.get(membershipRef(uid));
+  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const lifeSnapshot = await transaction.get(lifeRef);
+  const data = lifeSnapshot.data() || {};
+  let lives = Number.isSafeInteger(data.lives) && data.lives >= 0
+    ? data.lives
+    : NORMAL_CAP;
+  let regenStartMillis = data.regenStartAt?.toMillis?.() ?? null;
+  const nowMillis = Date.now();
+
+  if (membership.infiniteLives) {
+    transaction.set(lifeRef, {
+      lives: NORMAL_CAP,
+      regenStartAt: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return;
+  }
+
+  const intervalMillis = membership.type === 'premium'
+    ? 30 * 60 * 1000
+    : 60 * 60 * 1000;
+
+  if (lives < NORMAL_CAP) {
+    const start = regenStartMillis ?? nowMillis;
+    const elapsed = nowMillis - start;
+    if (elapsed >= intervalMillis) {
+      const recovered = Math.floor(elapsed / intervalMillis);
+      lives = Math.min(NORMAL_CAP, lives + recovered);
+      regenStartMillis = lives >= NORMAL_CAP
+        ? null
+        : start + recovered * intervalMillis;
+    } else {
+      regenStartMillis = start;
+    }
+  }
+
+  if (lives <= 0) {
+    throw new HttpsError('failed-precondition', 'No lives available.');
+  }
+
+  lives -= 1;
+  if (lives < NORMAL_CAP && regenStartMillis == null) {
+    regenStartMillis = nowMillis;
+  }
+
+  transaction.set(lifeRef, {
+    lives,
+    regenStartAt: regenStartMillis == null
+      ? null
+      : Timestamp.fromMillis(regenStartMillis),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+}
+
 exports.startGameSession = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
@@ -741,6 +798,21 @@ exports.startGameSession = onCall(async (request) => {
     const membershipSnapshot = await transaction.get(membershipDocRef);
 
     const current = progressSnapshot.data() || {};
+    if (current.activeGameSessionId !== sessionId ||
+        current.activeGameChapterIndex !== chapterIndex) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'high',
+        reason: 'session_not_current_active_game',
+        details: { sessionId, chapterIndex },
+      });
+      throw new HttpsError(
+        'failed-precondition',
+        'Game session is not the current active game.',
+      );
+    }
+
     const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
       ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
       : 0;
@@ -823,6 +895,152 @@ exports.startGameSession = onCall(async (request) => {
     targetValue: TARGETS[chapterIndex],
     expiresAt: expiresAt.toISOString(),
   };
+});
+
+exports.restartGameSession = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'restart_game_session');
+
+  const chapterIndex = request.data?.chapterIndex;
+  if (!Number.isInteger(chapterIndex) ||
+      chapterIndex < 0 ||
+      chapterIndex > MAX_CHAPTER_INDEX) {
+    throw new HttpsError('invalid-argument', 'Invalid chapter index.');
+  }
+
+  const uid = request.auth.uid;
+  const progressRef = db.collection('users').doc(uid)
+    .collection('progress').doc('game');
+  const toolsRef = toolInventoryRef(uid);
+  const membershipDocRef = membershipRef(uid);
+  const sessionId = crypto.randomUUID();
+  const startedAt = new Date();
+  const expiresAt = new Date(startedAt.getTime() + GAME_SESSION_TTL_MS);
+  const sessionRef = gameSessionRef(uid, sessionId);
+
+  await db.runTransaction(async (transaction) => {
+    const progressSnapshot = await transaction.get(progressRef);
+    const toolsSnapshot = await transaction.get(toolsRef);
+    const membershipSnapshot = await transaction.get(membershipDocRef);
+    const current = progressSnapshot.data() || {};
+    const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
+      ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
+      : 0;
+
+    if (chapterIndex > currentUnlocked) {
+      throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
+    }
+
+    await consumeLifeInTransaction(transaction, uid);
+
+    const oldSessionId = current.activeGameSessionId;
+    if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
+      const oldSessionRef = gameSessionRef(uid, oldSessionId);
+      const oldSessionSnapshot = await transaction.get(oldSessionRef);
+      if (oldSessionSnapshot.exists &&
+          oldSessionSnapshot.data()?.status === 'active') {
+        transaction.update(oldSessionRef, {
+          status: 'abandoned',
+          abandonedAt: FieldValue.serverTimestamp(),
+          abandonedReason: 'restart',
+        });
+      }
+    }
+
+    const tools = toolsSnapshot.data() || {};
+    const claimedRaw = Array.isArray(tools.chapterRewardsClaimed)
+      ? tools.chapterRewardsClaimed : [];
+    const claimed = claimedRaw.filter(
+      (value) => Number.isInteger(value) &&
+        value >= 0 && value <= MAX_CHAPTER_INDEX,
+    );
+    if (!claimed.includes(chapterIndex)) {
+      const updates = {
+        chapterRewardsClaimed: [...claimed, chapterIndex],
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      const rewardTools = chapterRewardTools(chapterIndex);
+      const membership = resolveMembership(membershipSnapshot.data() || {});
+      for (const toolType of rewardTools) {
+        if (membership.infiniteLives && toolType === 'timeRewind') continue;
+        const currentUses = Number.isSafeInteger(tools[toolType]) && tools[toolType] >= 0
+          ? tools[toolType] : 0;
+        if (currentUses > MAX_SAFE_INTEGER - 1) {
+          throw new HttpsError('failed-precondition', 'Tool inventory is full.');
+        }
+        updates[toolType] = currentUses + 1;
+      }
+      transaction.set(toolsRef, updates, { merge: true });
+    }
+
+    transaction.create(sessionRef, {
+      chapterIndex,
+      targetValue: TARGETS[chapterIndex],
+      status: 'active',
+      startedAt,
+      expiresAt,
+      toolUsage: {},
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    transaction.set(progressRef, {
+      activeGameSessionId: sessionId,
+      activeGameChapterIndex: chapterIndex,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  return {
+    sessionId,
+    chapterIndex,
+    targetValue: TARGETS[chapterIndex],
+    expiresAt: expiresAt.toISOString(),
+  };
+});
+
+exports.abandonGameSession = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'abandon_game_session');
+
+  const sessionId = request.data?.sessionId;
+  if (typeof sessionId !== 'string' || sessionId.length < 16 || sessionId.length > 128) {
+    throw new HttpsError('invalid-argument', 'Invalid game session.');
+  }
+
+  const uid = request.auth.uid;
+  const sessionRef = gameSessionRef(uid, sessionId);
+  const progressRef = db.collection('users').doc(uid)
+    .collection('progress').doc('game');
+
+  await db.runTransaction(async (transaction) => {
+    const sessionSnapshot = await transaction.get(sessionRef);
+    const progressSnapshot = await transaction.get(progressRef);
+    if (!sessionSnapshot.exists) return;
+
+    const session = sessionSnapshot.data() || {};
+    if (session.status === 'active') {
+      transaction.update(sessionRef, {
+        status: 'abandoned',
+        abandonedAt: FieldValue.serverTimestamp(),
+        abandonedReason: 'game_over_or_exit',
+      });
+    }
+
+    if (progressSnapshot.exists &&
+        progressSnapshot.data()?.activeGameSessionId === sessionId) {
+      transaction.set(progressRef, {
+        activeGameSessionId: FieldValue.delete(),
+        activeGameChapterIndex: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+  });
+
+  return { ok: true };
 });
 
 exports.completeChapter = onCall(async (request) => {
