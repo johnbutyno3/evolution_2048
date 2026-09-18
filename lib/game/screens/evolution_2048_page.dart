@@ -101,7 +101,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (!mounted) return;
       _focusNode.requestFocus();
       _resumeGameplay();
-      PlayerProgressService.instance.clearGameSession();
       if (!_engine.gameOver && !_engine.chapterComplete) {
         unawaited(_ensureGameSession());
       }
@@ -363,12 +362,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     return '';
   }
 
-  bool _reset() {
+  Future<bool> _reset() async {
     if (!mounted || _completionAnimationPlaying) return false;
-    var restarted = false;
+
+    final restarted = await PlayerProgressService.instance.restartGameSession(
+      _chapterNumber - 1,
+    );
+    if (!restarted || !mounted) return false;
+
+    _engine.reset();
+    _engine.markBoardLifeActiveAfterServerRestart();
+
     setState(() {
-      restarted = _engine.restart();
-      if (!restarted) return;
       _evolutionValue = null;
       _evolutionCreatureName = null;
       _firstSwapIndex = null;
@@ -377,13 +382,65 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _toolMode = null;
       _pressedToolMode = null;
     });
-    if (!restarted) return false;
-    PlayerProgressService.instance.clearGameSession();
-    unawaited(_ensureGameSession());
+
     _engine.startGameTimer();
     _startUiRefreshTimer();
     _focusNode.requestFocus();
     return true;
+  }
+
+  Future<void> _showResetMenu() async {
+    if (!mounted ||
+        _completionAnimationPlaying ||
+        _gameOverDialogShowing ||
+        _chapterCompleteShowing) {
+      return;
+    }
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: const Text('回首頁'),
+              onTap: () => Navigator.of(context).pop('home'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.refresh),
+              title: const Text('重玩'),
+              onTap: () => Navigator.of(context).pop('restart'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.play_arrow),
+              title: const Text('繼續'),
+              onTap: () => Navigator.of(context).pop('continue'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || action == null || action == 'continue') {
+      return;
+    }
+
+    if (action == 'home') {
+      // Keep the active game session so Home -> chapter re-entry resumes it.
+      _engine.pauseGameTimer();
+      _stopUiRefreshTimer();
+      Navigator.of(context).pop();
+      return;
+    }
+
+    if (action == 'restart') {
+      final restarted = await _reset();
+      if (restarted && mounted) {
+        unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
+      }
+    }
   }
 
   Future<void> _startTool(String mode) async {
@@ -546,7 +603,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!mounted) return;
     _gameOverDialogShowing = false;
     if (shouldRestart == true) {
-      if (_reset()) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
+      final restarted = await _reset();
+      if (restarted && mounted) {
+        unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
+      }
     } else {
       PlayerProgressService.instance.clearGameSession();
       Navigator.of(context).pop();
@@ -810,7 +870,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                           Text('${l10n.life} ${_engine.lives}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium),
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium),
-                            IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _reset(); }, tooltip: 'Restart', visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20)),
+                            IconButton(
+                              onPressed: _completionAnimationPlaying ? null : () {
+                                unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+                                _showResetMenu();
+                              },
+                              tooltip: 'Reset',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                              icon: const Icon(Icons.refresh, size: 20),
+                            ),
                           ]),
                         ],
                       ),
