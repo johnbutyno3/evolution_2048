@@ -213,14 +213,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _handleDragStart(DragStartDetails details) {
     if (_gameOverDialogShowing || _chapterCompleteShowing ||
-        _completionAnimationPlaying || _toolMode != null) return;
+        _completionAnimationPlaying || _toolMode != null) {
+      return;
+    }
     _dragStart = details.localPosition;
     _swipeHandled = false;
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {
     if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null ||
-        _swipeHandled || _dragStart == null) return;
+        _swipeHandled || _dragStart == null) {
+      return;
+    }
     final delta = details.localPosition - _dragStart!;
     if (delta.distance < _swipeThreshold) return;
     final direction = delta.dx.abs() > delta.dy.abs()
@@ -237,7 +241,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _move(String direction) {
     if (_gameOverDialogShowing || _chapterCompleteShowing ||
-        _completionAnimationPlaying || _toolMode != null) return;
+        _completionAnimationPlaying || _toolMode != null) {
+      return;
+    }
     bool changed;
     switch (direction) {
       case 'up': changed = _engine.moveUp(); break;
@@ -447,7 +453,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!await _ensureGameSession()) return;
     if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete ||
         _gameOverDialogShowing || _chapterCompleteShowing ||
-        _completionAnimationPlaying) return;
+        _completionAnimationPlaying) {
+      return;
+    }
     final toolType = switch (mode) {
       'revive' => GameToolType.revive,
       'rewind' => GameToolType.timeRewind,
