@@ -116,6 +116,44 @@ class PlayerProgressService {
     return false;
   }
 
+  /// Re-enters the server-owned unfinished session.
+  ///
+  /// Re-entry is a billable game entry under the Life rules, but it must
+  /// preserve the same server session/board. The server performs the Life
+  /// deduction atomically with session validation so a failed resume cannot
+  /// consume a Life.
+  Future<bool> resumeGameSession(int chapterIndex) async {
+    final user = _auth.currentUser;
+    if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
+
+    try {
+      final result = await _functions.httpsCallable('resumeGameSession').call({
+        'chapterIndex': chapterIndex,
+      });
+      final data = result.data;
+      if (data is Map && data['sessionId'] is String) {
+        _activeGameSessionId = data['sessionId'] as String;
+        final returnedChapter = data['chapterIndex'];
+        _activeGameChapterIndex = returnedChapter is num
+            ? returnedChapter.toInt().clamp(0, 5)
+            : chapterIndex;
+        await LifeManager.refreshFromServer();
+        return true;
+      }
+    } on FirebaseFunctionsException catch (error) {
+      // A failed resume must never silently become a new game attempt.
+      // Keep the authoritative server error visible for diagnosis.
+      // ignore: avoid_print
+      print(
+        'resumeGameSession failed: code=' + error.code + ', '
+        'message=' + (error.message ?? 'null') + ', '
+        'details=' + (error.details?.toString() ?? 'null'),
+      );
+      await refresh();
+    }
+    return false;
+  }
+
   Future<bool> restartGameSession(int chapterIndex) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
