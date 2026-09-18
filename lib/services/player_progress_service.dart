@@ -125,7 +125,6 @@ class PlayerProgressService {
         // bridge so the new board can be marked active without consuming Life
         // a second time on the client.
         await LifeManager.refresh();
-        LifeManager.acknowledgeServerConsumedLife();
         return true;
       }
     } on FirebaseFunctionsException {
