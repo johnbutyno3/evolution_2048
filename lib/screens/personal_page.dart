@@ -346,7 +346,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           TextField(
             controller: _nameController,
             maxLength: 30,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: _p(context, 'Player Name', '玩家名稱'),
               border: OutlineInputBorder(),
             ),
