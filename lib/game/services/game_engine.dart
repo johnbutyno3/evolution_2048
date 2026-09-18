@@ -1092,10 +1092,10 @@ class GameEngine {
     if (highestValue >= targetValue) {
       chapterComplete = true;
 
-      // Completing a chapter is not death.
-      // Refund the life consumed by this board.
-      refundLifeForChapterComplete();
-
+      // Chapter completion and its Life refund are finalized atomically by
+      // the server completeChapter call. Do not refund here, because this
+      // client-side milestone can be reached more than once before the
+      // server accepts the completion.
       switch (_chapter) {
         case GameChapter.ocean:
           hasReached4096 = true;
