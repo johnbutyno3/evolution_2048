@@ -147,7 +147,7 @@ class PlayerProgressService {
       print(
         'resumeGameSession failed: code=${error.code}, '
         'message=${error.message}, '
-        'details=${error.details?.toString()},
+        'details=${error.details?.toString()},',
       );
       await refresh();
     }
@@ -200,7 +200,7 @@ class PlayerProgressService {
       print(
         'exitUnfinishedGameSession failed: code=${error.code}, '
         'message=${error.message}, '
-        'details=${error.details?.toString()},
+        'details=${error.details?.toString()},',
       );
       await refresh();
     }
