@@ -146,6 +146,9 @@ class PlayerProgressService {
   }
 
   Future<void> abandonGameSession() async {
+    // Reconcile first so Game Over -> Home cannot use a stale/null local
+    // session id while the server still owns the active attempt.
+    await refresh();
     final sessionId = _activeGameSessionId;
     if (sessionId == null) return;
 
@@ -153,10 +156,17 @@ class PlayerProgressService {
       await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': sessionId,
       });
-    } on FirebaseFunctionsException {
-      // Server remains authoritative.
+    } on FirebaseFunctionsException catch (error) {
+      // Keep the server error visible during development.
+      // ignore: avoid_print
+      print(
+        'abandonGameSession failed: code=' + error.code +
+        ', message=' + (error.message ?? '') +
+        ', details=' + (error.details?.toString() ?? 'null'),
+      );
     } finally {
-      clearGameSession();
+      // Wait for the authoritative server state before leaving the page.
+      await refresh();
     }
   }
 
