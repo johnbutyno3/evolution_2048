@@ -379,7 +379,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.workspace_premium_outlined),
-              title: const Text(_p(context, 'Membership', '會員資格')),
+              title: Text(_p(context, 'Membership', '會員資格')),
               subtitle: Text(
                 membership == 'golden'
                     ? 'Golden Member'
@@ -509,7 +509,7 @@ class EvolutionProgressPage extends StatelessWidget {
     final chapterComplete = save?['chapterComplete'] == true;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(_p(context, 'Evolution Progress', '進化進度'))),
+      appBar: AppBar(title: Text(_p(context, 'Evolution Progress', '進化進度'))),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: chapters.length,
