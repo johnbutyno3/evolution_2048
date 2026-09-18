@@ -894,6 +894,76 @@ exports.startGameSession = onCall(async (request) => {
   };
 });
 
+exports.resumeGameSession = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'resume_game_session');
+
+  const chapterIndex = request.data?.chapterIndex;
+  if (!Number.isInteger(chapterIndex) ||
+      chapterIndex < 0 ||
+      chapterIndex > MAX_CHAPTER_INDEX) {
+    throw new HttpsError('invalid-argument', 'Invalid chapter index.');
+  }
+
+  const uid = request.auth.uid;
+  const progressRef = db.collection('users').doc(uid)
+    .collection('progress').doc('game');
+  const membershipDocRef = membershipRef(uid);
+  let sessionId;
+
+  await db.runTransaction(async (transaction) => {
+    const progressSnapshot = await transaction.get(progressRef);
+    const membershipSnapshot = await transaction.get(membershipDocRef);
+
+    const current = progressSnapshot.data() || {};
+    sessionId = current.activeGameSessionId;
+    const activeChapter = current.activeGameChapterIndex;
+
+    if (typeof sessionId !== 'string' || sessionId.length === 0 ||
+        activeChapter !== chapterIndex) {
+      throw new HttpsError(
+        'failed-precondition',
+        'No matching unfinished game session is available to resume.',
+      );
+    }
+
+    const sessionRef = gameSessionRef(uid, sessionId);
+    const sessionSnapshot = await transaction.get(sessionRef);
+    if (!sessionSnapshot.exists ||
+        sessionSnapshot.data()?.status !== 'active') {
+      throw new HttpsError(
+        'failed-precondition',
+        'The unfinished game session is no longer active.',
+      );
+    }
+
+    const expiresAt = sessionSnapshot.data()?.expiresAt;
+    if (!expiresAt ||
+        typeof expiresAt.toMillis !== 'function' ||
+        expiresAt.toMillis() <= Date.now()) {
+      throw new HttpsError(
+        'deadline-exceeded',
+        'Game session has expired.',
+      );
+    }
+
+    // Every game entry, including resume after an unfinished exit, consumes
+    // exactly one Life. The deduction is atomic with resume validation.
+    await consumeLifeInTransaction(
+      transaction,
+      uid,
+      membershipSnapshot,
+    );
+  });
+
+  return {
+    sessionId,
+    chapterIndex,
+  };
+});
+
 exports.restartGameSession = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
