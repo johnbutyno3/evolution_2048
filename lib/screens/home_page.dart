@@ -8,6 +8,7 @@ import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 import '../services/player_profile_service.dart';
+import '../services/developer_service.dart';
 import '../services/player_progress_service.dart';
 import 'personal_page.dart';
 
@@ -278,11 +279,15 @@ class _HomePageState extends State<HomePage> {
                         _TopButton(
                           icon: Icons.developer_mode,
                           label: 'Developer',
-                          onPressed: () {
-                            showDialog(
+                          onPressed: () async {
+                            await showDialog(
                               context: context,
                               builder: (_) => const _DeveloperDialog(),
                             );
+                            await _progress.refresh();
+                            await LifeManager.refreshFromServer();
+                            await GoldManager.refresh();
+                            if (mounted) setState(() {});
                           },
                         ),
                     ],
@@ -428,6 +433,7 @@ class _TopButton extends StatelessWidget {
 
 class _DeveloperDialog extends StatefulWidget {
   const _DeveloperDialog();
+
   @override
   State<_DeveloperDialog> createState() => _DeveloperDialogState();
 }
@@ -435,6 +441,23 @@ class _DeveloperDialog extends StatefulWidget {
 class _DeveloperDialogState extends State<_DeveloperDialog> {
   bool get _allTools => SaveManager.developerAllTools;
   bool get _unlimitedTools => SaveManager.developerUnlimitedTools;
+
+  Future<void> _run(Future<void> Function() action, String success) async {
+    try {
+      await action();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(success)));
+      setState(() {});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('DEV operation failed: $error')),
+      );
+    }
+  }
+
   Future<void> _setAllTools(bool v) async {
     await SaveManager.setDeveloperAllTools(v);
     if (mounted) setState(() {});
@@ -445,42 +468,108 @@ class _DeveloperDialogState extends State<_DeveloperDialog> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _restoreLives() async {
-    await LifeManager.restoreFiveLivesForDeveloper();
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Lives restored to 5')));
-      setState(() {});
-    }
-  }
-
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: const Text('Developer Mode'),
     content: SizedBox(
-      width: 380,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.favorite),
-            title: const Text('Restore 5 Lives'),
-            onTap: _restoreLives,
-          ),
-          SwitchListTile(
-            title: const Text('Unlock All Tools'),
-            subtitle: const Text('Testing only'),
-            value: _allTools,
-            onChanged: _setAllTools,
-          ),
-          SwitchListTile(
-            title: const Text('Unlimited Tools'),
-            subtitle: const Text('Testing only'),
-            value: _unlimitedTools,
-            onChanged: _setUnlimitedTools,
-          ),
-        ],
+      width: 420,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.favorite),
+              title: const Text('Restore 5 Lives'),
+              onTap: () => _run(
+                DeveloperService.restoreLives,
+                'Lives restored to 5',
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.monetization_on),
+              title: const Text('Grant 10,000 Gold'),
+              onTap: () => _run(
+                () async {
+                  await DeveloperService.grantGold(10000);
+                },
+                '10,000 Gold granted',
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.build),
+              title: const Text('Grant 20 of All Tools'),
+              onTap: () => _run(
+                () async {
+                  await DeveloperService.grantTools(20);
+                },
+                '20 uses granted for every tool',
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.lock_open),
+              title: const Text('Unlock All Chapters'),
+              onTap: () => _run(
+                () async {
+                  await DeveloperService.setUnlockedChapters(5);
+                },
+                'All chapters unlocked',
+              ),
+            ),
+            const Divider(),
+            const ListTile(
+              leading: Icon(Icons.workspace_premium),
+              title: Text('Test Membership'),
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton(
+                  onPressed: () => _run(
+                    () => DeveloperService.setMembership('general'),
+                    'Membership set to General',
+                  ),
+                  child: const Text('General'),
+                ),
+                OutlinedButton(
+                  onPressed: () => _run(
+                    () => DeveloperService.setMembership('premium'),
+                    'Membership set to Premium',
+                  ),
+                  child: const Text('Premium'),
+                ),
+                OutlinedButton(
+                  onPressed: () => _run(
+                    () => DeveloperService.setMembership('golden'),
+                    'Membership set to Golden',
+                  ),
+                  child: const Text('Golden'),
+                ),
+              ],
+            ),
+            const Divider(),
+            SwitchListTile(
+              title: const Text('Unlock All Tools'),
+              subtitle: const Text('Local gameplay test override'),
+              value: _allTools,
+              onChanged: _setAllTools,
+            ),
+            SwitchListTile(
+              title: const Text('Unlimited Tools'),
+              subtitle: const Text('Local gameplay test override'),
+              value: _unlimitedTools,
+              onChanged: _setUnlimitedTools,
+            ),
+            ListTile(
+              leading: const Icon(Icons.restart_alt),
+              title: const Text('Reset Test Progress'),
+              subtitle: const Text('Reset chapter unlock and active session'),
+              onTap: () => _run(
+                DeveloperService.resetProgress,
+                'Test progress reset',
+              ),
+            ),
+          ],
+        ),
       ),
     ),
     actions: [
@@ -491,5 +580,3 @@ class _DeveloperDialogState extends State<_DeveloperDialog> {
     ],
   );
 }
-
-
