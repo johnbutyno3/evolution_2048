@@ -297,6 +297,41 @@ class SaveManager {
     _cachedSave = root;
     await _preferences!.setString(_saveKey, jsonEncode(root));
   }
+  static Future<void> clearChapter(String chapter) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    final root = _cachedSave;
+    if (root == null) return;
+
+    final chapters = root['chapters'];
+    if (chapters is! Map || !chapters.containsKey(chapter)) return;
+
+    final updatedChapters = <String, dynamic>{};
+    for (final entry in chapters.entries) {
+      if (entry.key.toString() == chapter) continue;
+      if (entry.value is Map) {
+        updatedChapters[entry.key.toString()] = Map<String, dynamic>.from(
+          (entry.value as Map).map(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        );
+      }
+    }
+
+    final updatedRoot = Map<String, dynamic>.from(root);
+    updatedRoot['chapters'] = updatedChapters;
+
+    if (updatedRoot['lastChapter'] == chapter) {
+      if (updatedChapters.isEmpty) {
+        updatedRoot.remove('lastChapter');
+      } else {
+        updatedRoot['lastChapter'] = updatedChapters.keys.last;
+      }
+    }
+
+    _cachedSave = updatedRoot;
+    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+  }
+
   static Future<void> clear() async {
     _preferences ??= await SharedPreferences.getInstance();
     _cachedSave = null;
