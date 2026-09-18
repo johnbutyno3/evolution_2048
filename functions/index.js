@@ -1781,7 +1781,7 @@ exports.developerResetProgress = onCall(async (request) => {
   const progressSnapshot = await progressRef.get();
   const activeSessionId = progressSnapshot.data()?.activeGameSessionId;
 
-  if (typeof activeSessionId === 'string' && activeSessionId.isNotEmpty) {
+  if (typeof activeSessionId === 'string' && activeSessionId.length > 0) {
     await gameSessionRef(request.auth.uid, activeSessionId).delete();
   }
 
