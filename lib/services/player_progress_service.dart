@@ -146,7 +146,7 @@ class PlayerProgressService {
       // ignore: avoid_print
       print(
         'resumeGameSession failed: code=${error.code}, '
-        'message=${error.message ?? 'null'}, '
+        'message=${error.message ?? "null"}, '
         'details=${error.details?.toString() ?? 'null}',
       );
       await refresh();
