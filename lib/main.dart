@@ -1,6 +1,7 @@
 ﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
@@ -26,6 +27,21 @@ Future<void> main() async {
   // its first state event before deciding whether to show login or HomePage.
   // Otherwise a valid signed-in account can look signed out on a cold start.
   await FirebaseAuth.instance.authStateChanges().first;
+
+  // Development builds automatically restore the dedicated developer
+  // Firebase session, so repeated test launches do not require manual login.
+  if (kDebugMode && FirebaseAuth.instance.currentUser == null) {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: 'dev@rebirth2048.local',
+        password: 'Rebirth2048Dev!',
+      );
+      await SaveManager.setDeveloperMode(true);
+    } on FirebaseAuthException {
+      // Fall back to the normal login/register screen if the developer
+      // account is unavailable in the current Firebase project.
+    }
+  }
 
   await SaveManager.initialize();
 
