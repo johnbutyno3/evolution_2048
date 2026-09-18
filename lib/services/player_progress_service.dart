@@ -102,7 +102,15 @@ class PlayerProgressService {
             : chapterIndex;
         return true;
       }
-    } on FirebaseFunctionsException {
+    } on FirebaseFunctionsException catch (error) {
+      // Keep the authoritative server error visible in browser/dev logs.
+      // Callable errors include the server code/message/details, which is
+      // essential for distinguishing Life exhaustion from session failures.
+      // ignore: avoid_print
+      print(
+        'startGameSession failed: code=${error.code}, '
+        'message=${error.message}, details=${error.details}',
+      );
       if (replaceActiveSession) clearGameSession();
     }
     return false;
@@ -120,14 +128,18 @@ class PlayerProgressService {
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
         _activeGameChapterIndex = chapterIndex;
-        // restartGameSession consumes the Life atomically on the server.
-        // Refresh the presentation cache, then arm the synchronous engine
-        // bridge so the new board can be marked active without consuming Life
-        // a second time on the client.
-        await LifeManager.refresh();
+        await LifeManager.refreshFromServer();
         return true;
       }
-    } on FirebaseFunctionsException {
+    } on FirebaseFunctionsException catch (error) {
+      // Callable errors preserve the server-side reason. Log it instead of
+      // swallowing it so a failed restart can be diagnosed from the browser
+      // console without guessing which precondition failed.
+      // ignore: avoid_print
+      print(
+        'restartGameSession failed: code=${error.code}, '
+        'message=${error.message}, details=${error.details}',
+      );
       await refresh();
     }
     return false;
@@ -185,4 +197,3 @@ class PlayerProgressService {
     return false;
   }
 }
-
