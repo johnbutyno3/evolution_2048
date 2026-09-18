@@ -145,9 +145,9 @@ class PlayerProgressService {
       // Keep the authoritative server error visible for diagnosis.
       // ignore: avoid_print
       print(
-        'resumeGameSession failed: code=' + error.code + ', '
-        'message=' + (error.message ?? 'null') + ', '
-        'details=' + (error.details?.toString() ?? 'null'),
+        'resumeGameSession failed: code=${error.code}, '
+        'message=${error.message ?? 'null'}, '
+        'details=${error.details?.toString() ?? 'null}',
       );
       await refresh();
     }
@@ -198,9 +198,9 @@ class PlayerProgressService {
     } on FirebaseFunctionsException catch (error) {
       // ignore: avoid_print
       print(
-        'exitUnfinishedGameSession failed: code=' + error.code + ', '
-        'message=' + (error.message ?? 'null') + ', '
-        'details=' + (error.details?.toString() ?? 'null'),
+        'exitUnfinishedGameSession failed: code=${error.code}, '
+        'message=${error.message ?? 'null'}, '
+        'details=${error.details?.toString() ?? 'null}',
       );
       await refresh();
     }
