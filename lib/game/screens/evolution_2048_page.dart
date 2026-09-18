@@ -191,11 +191,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
 
-        // The server already owns the unfinished attempt. This can happen
-        // when the local board cache was lost or was not written yet. Mark
-        // the engine as belonging to that server-owned attempt without
-        // consuming another Life.
+        // Re-entering an unfinished game is still a new game entry under
+        // the project Life rules. The server therefore charges exactly one
+        // Life while preserving the same active session/board.
+        final resumed = await progress.resumeGameSession(
+          _chapterNumber - 1,
+        );
+        if (!resumed || !mounted) return false;
+
         _engine.markBoardLifeActiveAfterServerRestart();
+        await LifeManager.refreshFromServer();
+        _engine.updateLifeFromRealTime();
         return true;
       }
 
