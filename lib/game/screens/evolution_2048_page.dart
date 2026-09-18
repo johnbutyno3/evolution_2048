@@ -8,6 +8,7 @@ import '../models/creature.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
+import '../services/life_manager.dart';
 import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
@@ -211,6 +212,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       _engine.reset();
       _engine.markBoardLifeActiveAfterServerRestart();
+
+      // Synchronize the client cache with the Life consumed by the server.
+      await LifeManager.refreshFromServer();
+      _engine.updateLifeFromRealTime();
+      await _engine.toolManager.refreshServerState();
       return true;
     } finally {
       _gameSessionStarting = false;
@@ -423,6 +429,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       _engine.reset();
       _engine.markBoardLifeActiveAfterServerRestart();
+
+      // The server has consumed the Life atomically. Refresh the client
+      // cache before the page starts so stale local state cannot overwrite
+      // the server-confirmed Life count.
+      await LifeManager.refreshFromServer();
+      _engine.updateLifeFromRealTime();
+      await _engine.toolManager.refreshServerState();
 
       setState(() {
         _evolutionValue = null;
