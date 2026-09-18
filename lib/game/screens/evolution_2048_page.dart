@@ -146,19 +146,25 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<void> _initializeGameplaySession() async {
     if (!mounted) return;
 
-    if (_engine.gameOver || _engine.chapterComplete) {
-      _resumeGameplay();
+    // Reconcile the server session before deciding whether this is a new
+    // attempt. A stale local Game Over/Complete state must never cause a
+    // fresh Life-consuming session to be created automatically.
+    final ready = await _ensureGameSession();
+    if (!mounted) return;
+
+    if (!ready) {
       if (_engine.gameOver && !_engine.chapterComplete) {
         await _showGameOver();
       }
       return;
     }
 
-    final ready = await _ensureGameSession();
-    if (!mounted || !ready) return;
-
     _resumeGameplay();
     _focusNode.requestFocus();
+
+    if (_engine.gameOver && !_engine.chapterComplete) {
+      await _showGameOver();
+    }
   }
 
   Future<bool> _ensureGameSession() async {
@@ -181,12 +187,24 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
+
+        // The server already owns the unfinished attempt. This can happen
+        // when the local board cache was lost or was not written yet. Mark
+        // the engine as belonging to that server-owned attempt without
+        // consuming another Life.
+        _engine.markBoardLifeActiveAfterServerRestart();
         return true;
       }
 
-      // No server-owned unfinished session exists. This is a genuinely new
-      // attempt, so the server consumes Life and the engine must discard any
-      // stale local board before it is resumed.
+      // A Game Over or completed board has no active server session. Do not
+      // silently turn page re-entry into a new Life-consuming attempt.
+      if (_engine.gameOver || _engine.chapterComplete) {
+        return false;
+      }
+
+      // No server-owned unfinished session exists and the local board is
+      // playable. This is a genuinely new attempt, so the server consumes
+      // Life before the engine starts the new board.
       final started = await progress.restartGameSession(_chapterNumber - 1);
       if (!started || !mounted) return false;
 
