@@ -10,6 +10,13 @@ class DeveloperService {
   static final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
+  static Future<void> setLives(int lives) async {
+    await _functions
+        .httpsCallable('developerSetLives')
+        .call(<String, dynamic>{'lives': lives});
+    await LifeManager.refreshFromServer();
+  }
+
   static Future<void> restoreLives() async {
     await LifeManager.restoreFiveLivesForDeveloper();
   }
