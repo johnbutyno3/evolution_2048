@@ -1,7 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const crypto = require('crypto');
 const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
@@ -15,6 +15,7 @@ Object.assign(exports, require('./profile'));
 
 const MAX_CHAPTER_INDEX = 5;
 const GAME_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const NORMAL_CAP = 5;
 
 // Each chapter adds one evolution stage.
 const STAGE_COUNTS = [12, 13, 14, 15, 16, 17];
