@@ -25,6 +25,20 @@ class PersonalPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.person_outline),
+              ),
+              title: const Text('Player Basic Information'),
+              subtitle: const Text('Avatar, Player Name, Player ID and account information'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PlayerInfoPage()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           _SectionCard(
             icon: Icons.menu_book_outlined,
             title: 'Creature Collection',
@@ -533,12 +547,12 @@ class _CollectionPageState extends State<CollectionPage> {
   final Map<String, Set<int>> _discovered = {};
 
   static const List<String> _chapterKeys = [
-    'chapter1Ocean',
-    'chapter2Land',
-    'chapter3Sky',
-    'chapter4History',
-    'chapter5Tech',
-    'chapter6Universe',
+    'ocean',
+    'land',
+    'sky',
+    'history',
+    'technology',
+    'space',
   ];
 
   static const List<String> _chapterNames = [
