@@ -478,6 +478,32 @@ class _DeveloperDialogState extends State<_DeveloperDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.favorite_border),
+              title: const Text('Set Lives for Test'),
+              subtitle: const Text('Set server Life to 0, 1, 2, or 5'),
+              onTap: () async {
+                final value = await showDialog<int>(
+                  context: context,
+                  builder: (dialogContext) => SimpleDialog(
+                    title: const Text('Set Lives'),
+                    children: [0, 1, 2, 5]
+                        .map(
+                          (lives) => SimpleDialogOption(
+                            onPressed: () => Navigator.pop(dialogContext, lives),
+                            child: Text('$lives Life'),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                );
+                if (value == null || !mounted) return;
+                await _run(
+                  () => DeveloperService.setLives(value),
+                  'Lives set to $value',
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.favorite),
               title: const Text('Restore 5 Lives'),
               onTap: () => _run(
