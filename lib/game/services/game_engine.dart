@@ -870,6 +870,13 @@ class GameEngine {
     _saveLocal();
   }
 
+  /// Marks a board as backed by the server-authoritative restart that
+  /// has already consumed the player's life. This never deducts a second life.
+  void markBoardLifeActiveAfterServerRestart() {
+    _boardLifeActive = true;
+    _saveLocal();
+  }
+
   /// Explicit restart requested by the player.
   ///
   /// The restart itself consumes one life. This is intentionally separate
