@@ -160,9 +160,9 @@ class PlayerProgressService {
       // Keep the server error visible during development.
       // ignore: avoid_print
       print(
-        'abandonGameSession failed: code=' + error.code +
-        ', message=' + (error.message ?? '') +
-        ', details=' + (error.details?.toString() ?? 'null'),
+        'abandonGameSession failed: code=${error.code}, '
+        'message=${error.message}, '
+        'details=${error.details?.toString() ?? 'null'}',
       );
     } finally {
       // Wait for the authoritative server state before leaving the page.
