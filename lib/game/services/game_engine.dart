@@ -39,8 +39,10 @@ class GameEngine {
     // Restore life state from the persistent save.
     _restoreLifeStateFromSave(saved ?? <String, dynamic>{});
 
-    // A genuinely new board consumes exactly one life.
-    // Restored boards keep their existing board life.
+    // Life consumption is server-authoritative. The gameplay page starts a
+    // server session before allowing a new attempt, then marks this board as
+    // already paid for by that server-side consumption. The engine constructor
+    // must never mutate or consume Life synchronously.
     final hasSavedBoard =
         saved != null &&
         _shouldRestoreSavedChapter(saved) &&
@@ -50,7 +52,6 @@ class GameEngine {
 
     if (!hasSavedBoard) {
       _boardLifeActive = false;
-      consumeLifeForGameEntry();
     }
 
     // A restored active game continues counting only when the page
@@ -806,7 +807,9 @@ class GameEngine {
       );
     }
 
-    score = _previousScore;
+    // Undo restores the previous board, but using Undo itself costs score.
+    // The score gained by the reverted move is the penalty amount.
+    score = max(0, _previousScore - max(0, score - _previousScore));
 
     hasReached2048 = _previousHasReached2048;
     hasReached4096 = _previousHasReached4096;
