@@ -702,10 +702,11 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
   });
 });
 
-async function consumeLifeInTransaction(transaction, uid) {
+async function consumeLifeInTransaction(transaction, uid, membershipSnapshot = null) {
   const lifeRef = db.collection('users').doc(uid).collection('life').doc('current');
-  const membershipSnapshot = await transaction.get(membershipRef(uid));
-  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const resolvedMembershipSnapshot = membershipSnapshot ??
+    await transaction.get(membershipRef(uid));
+  const membership = resolveMembership(resolvedMembershipSnapshot.data() || {});
   const lifeSnapshot = await transaction.get(lifeRef);
   const data = lifeSnapshot.data() || {};
   let lives = Number.isSafeInteger(data.lives) && data.lives >= 0
@@ -815,7 +816,7 @@ exports.startGameSession = onCall(async (request) => {
 
     // Starting a genuinely new game attempt consumes exactly one Life.
     // Keep the Life write in the same transaction as session creation.
-    await consumeLifeInTransaction(transaction, uid);
+    await consumeLifeInTransaction(transaction, uid, membershipSnapshot);
 
     const tools = toolsSnapshot.data() || {};
     const claimedRaw = Array.isArray(tools.chapterRewardsClaimed)
