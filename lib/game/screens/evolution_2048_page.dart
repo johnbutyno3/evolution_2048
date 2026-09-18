@@ -702,11 +702,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         stage >= 10 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0,
       GameChapter.land =>
         stage >= 12 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0,
-      // C3 currently has 14 stages. The specified fourth switch point is
-      // stage 15, so it remains unreachable until the chapter specification
-      // is explicitly changed.
+      // C3 Sky: background switch stages are 1, 5, 11, 13.
       GameChapter.sky =>
-        stage >= 15 ? 3 : stage >= 13 ? 2 : stage >= 5 ? 1 : 0,
+        stage >= 13 ? 3 : stage >= 11 ? 2 : stage >= 5 ? 1 : 0,
       GameChapter.history =>
         stage >= 14 ? 3 : stage >= 12 ? 2 : stage >= 7 ? 1 : 0,
       GameChapter.tech =>
