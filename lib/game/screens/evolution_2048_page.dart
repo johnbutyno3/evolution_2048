@@ -48,6 +48,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
   bool _gameSessionStarting = false;
+  bool _restartInProgress = false;
 
   static const double _swipeThreshold = 30;
 
@@ -409,30 +410,37 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<bool> _reset() async {
-    if (!mounted || _completionAnimationPlaying) return false;
+    if (!mounted || _completionAnimationPlaying || _restartInProgress) {
+      return false;
+    }
 
-    final restarted = await PlayerProgressService.instance.restartGameSession(
-      _chapterNumber - 1,
-    );
-    if (!restarted || !mounted) return false;
+    _restartInProgress = true;
+    try {
+      final restarted = await PlayerProgressService.instance.restartGameSession(
+        _chapterNumber - 1,
+      );
+      if (!restarted || !mounted) return false;
 
-    _engine.reset();
-    _engine.markBoardLifeActiveAfterServerRestart();
+      _engine.reset();
+      _engine.markBoardLifeActiveAfterServerRestart();
 
-    setState(() {
-      _evolutionValue = null;
-      _evolutionCreatureName = null;
-      _firstSwapIndex = null;
-      _dragStart = null;
-      _swipeHandled = false;
-      _toolMode = null;
-      _pressedToolMode = null;
-    });
+      setState(() {
+        _evolutionValue = null;
+        _evolutionCreatureName = null;
+        _firstSwapIndex = null;
+        _dragStart = null;
+        _swipeHandled = false;
+        _toolMode = null;
+        _pressedToolMode = null;
+      });
 
-    _engine.startGameTimer();
-    _startUiRefreshTimer();
-    _focusNode.requestFocus();
-    return true;
+      _engine.startGameTimer();
+      _startUiRefreshTimer();
+      _focusNode.requestFocus();
+      return true;
+    } finally {
+      _restartInProgress = false;
+    }
   }
 
   Future<void> _showResetMenu() async {
