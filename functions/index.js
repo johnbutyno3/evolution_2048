@@ -1081,6 +1081,7 @@ exports.abandonGameSession = onCall(async (request) => {
   await enforceSensitiveOperation(request.auth.uid, 'abandon_game_session');
 
   const sessionId = request.data?.sessionId;
+  const unfinishedExit = request.data?.unfinishedExit === true;
   if (typeof sessionId !== 'string' || sessionId.length < 16 || sessionId.length > 128) {
     throw new HttpsError('invalid-argument', 'Invalid game session.');
   }
@@ -1089,20 +1090,83 @@ exports.abandonGameSession = onCall(async (request) => {
   const sessionRef = gameSessionRef(uid, sessionId);
   const progressRef = db.collection('users').doc(uid)
     .collection('progress').doc('game');
+  const lifeRef = db.collection('users').doc(uid)
+    .collection('life').doc('current');
+  const membershipDocRef = membershipRef(uid);
 
   await db.runTransaction(async (transaction) => {
     const sessionSnapshot = await transaction.get(sessionRef);
     const progressSnapshot = await transaction.get(progressRef);
+    const membershipSnapshot = await transaction.get(membershipDocRef);
+    const lifeSnapshot = unfinishedExit ? await transaction.get(lifeRef) : null;
     if (!sessionSnapshot.exists) return;
 
     const session = sessionSnapshot.data() || {};
-    if (session.status === 'active') {
-      transaction.update(sessionRef, {
-        status: 'abandoned',
-        abandonedAt: FieldValue.serverTimestamp(),
-        abandonedReason: 'game_over_or_exit',
-      });
+    if (session.status !== 'active') return;
+
+    if (unfinishedExit) {
+      // An unfinished exit refunds the Life consumed when this attempt
+      // started, but deliberately keeps the server session ACTIVE so the
+      // next entry can resume the same board and consume exactly one Life.
+      const membership = resolveMembership(membershipSnapshot.data() || {});
+      if (membership.infiniteLives) {
+        transaction.set(lifeRef, {
+          lives: NORMAL_CAP,
+          regenStartAt: null,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      } else {
+        const life = lifeSnapshot?.data() || {};
+        const currentLives = Number.isSafeInteger(life.lives)
+          ? Math.max(0, Math.min(NORMAL_CAP, life.lives))
+          : NORMAL_CAP;
+        const currentRegenStart = life.regenStartAt?.toMillis?.() ?? null;
+        const nowMillis = Date.now();
+        const intervalMillis = membership.type === 'premium'
+          ? 30 * 60 * 1000
+          : 60 * 60 * 1000;
+        let refundedLives = currentLives;
+        let regenStartMillis = currentRegenStart;
+
+        if (refundedLives < NORMAL_CAP) {
+          const start = regenStartMillis ?? nowMillis;
+          const elapsed = nowMillis - start;
+          if (elapsed >= intervalMillis) {
+            const recovered = Math.floor(elapsed / intervalMillis);
+            refundedLives = Math.min(NORMAL_CAP, refundedLives + recovered);
+            regenStartMillis = refundedLives >= NORMAL_CAP
+              ? null
+              : start + recovered * intervalMillis;
+          } else {
+            regenStartMillis = start;
+          }
+        }
+
+        refundedLives = Math.min(NORMAL_CAP, refundedLives + 1);
+        if (refundedLives >= NORMAL_CAP) regenStartMillis = null;
+
+        transaction.set(lifeRef, {
+          lives: refundedLives,
+          regenStartAt: regenStartMillis == null
+            ? null
+            : Timestamp.fromMillis(regenStartMillis),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+
+      transaction.set(sessionRef, {
+        lastExitedAt: FieldValue.serverTimestamp(),
+        lastExitReason: 'unfinished_exit',
+      }, { merge: true });
+      return;
     }
+
+    // Game Over / explicit termination: no Life refund.
+    transaction.update(sessionRef, {
+      status: 'abandoned',
+      abandonedAt: FieldValue.serverTimestamp(),
+      abandonedReason: 'game_over',
+    });
 
     if (progressSnapshot.exists &&
         progressSnapshot.data()?.activeGameSessionId === sessionId) {
@@ -1114,7 +1178,7 @@ exports.abandonGameSession = onCall(async (request) => {
     }
   });
 
-  return { ok: true };
+  return { ok: true, unfinishedExit };
 });
 
 exports.completeChapter = onCall(async (request) => {
