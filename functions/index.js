@@ -813,6 +813,10 @@ exports.startGameSession = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
     }
 
+    // Starting a genuinely new game attempt consumes exactly one Life.
+    // Keep the Life write in the same transaction as session creation.
+    await consumeLifeInTransaction(transaction, uid);
+
     const tools = toolsSnapshot.data() || {};
     const claimedRaw = Array.isArray(tools.chapterRewardsClaimed)
       ? tools.chapterRewardsClaimed
