@@ -207,7 +207,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // No server-owned unfinished session exists and the local board is
       // playable. This is a genuinely new attempt, so the server consumes
       // Life before the engine starts the new board.
-      final started = await progress.restartGameSession(_chapterNumber - 1);
+      //
+      // IMPORTANT: first entry is a start, not a restart. Restart is reserved
+      // for an explicit player request after an existing attempt.
+      final started = await progress.startGameSession(_chapterNumber - 1);
       if (!started || !mounted) return false;
 
       _engine.reset();
