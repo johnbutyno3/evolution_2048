@@ -99,18 +99,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     )..addStatusListener(_handleCompletionAnimationStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _focusNode.requestFocus();
-      _resumeGameplay();
-      if (!_engine.gameOver && !_engine.chapterComplete) {
-        unawaited(_ensureGameSession());
-      }
+      unawaited(_initializeGameplaySession());
       unawaited(_engine.refreshToolProgress().then((_) {
         if (mounted) setState(() {});
       }));
       AudioManager.instance.initialize().then((_) {
         if (mounted) AudioManager.instance.playChapterMusic(_engine.chapter);
       });
-      if (_engine.gameOver && !_engine.chapterComplete) _showGameOver();
     });
   }
 
@@ -148,27 +143,54 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (mounted) setState(() {});
   }
 
+  Future<void> _initializeGameplaySession() async {
+    if (!mounted) return;
+
+    if (_engine.gameOver || _engine.chapterComplete) {
+      _resumeGameplay();
+      if (_engine.gameOver && !_engine.chapterComplete) {
+        await _showGameOver();
+      }
+      return;
+    }
+
+    final ready = await _ensureGameSession();
+    if (!mounted || !ready) return;
+
+    _resumeGameplay();
+    _focusNode.requestFocus();
+  }
+
   Future<bool> _ensureGameSession() async {
     if (_gameSessionStarting) {
       while (_gameSessionStarting) {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
-      final activeChapter = PlayerProgressService.instance.activeGameChapterIndex;
+      final activeChapter =
+          PlayerProgressService.instance.activeGameChapterIndex;
       return PlayerProgressService.instance.activeGameSessionId != null &&
           activeChapter == _chapterNumber - 1;
     }
+
     _gameSessionStarting = true;
     try {
       final progress = PlayerProgressService.instance;
       await progress.refresh();
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
+
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
         return true;
       }
+
+      // No server-owned unfinished session exists. This is a genuinely new
+      // attempt, so the server consumes Life and the engine must discard any
+      // stale local board before it is resumed.
       final started = await progress.restartGameSession(_chapterNumber - 1);
-      if (!started) return false;
+      if (!started || !mounted) return false;
+
+      _engine.reset();
       _engine.markBoardLifeActiveAfterServerRestart();
       return true;
     } finally {
@@ -668,10 +690,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (_chapterCompleteShowing || !mounted) return;
     _chapterCompleteShowing = true;
     _engine.stopGameTimer();
-    if (!await _ensureGameSession()) {
+
+    // Chapter completion must finalize the already-active server session.
+    // Never create a new Life-consuming session merely because completion
+    // is being displayed.
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+    if (progress.activeGameSessionId == null ||
+        progress.activeGameChapterIndex != _chapterNumber - 1) {
       _chapterCompleteShowing = false;
       return;
     }
+
     final completedChapter = _engine.chapter;
     final saveData = _engine.createSaveData();
     final replayLog = saveData['replayLog'];
@@ -724,11 +754,28 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
   }
 
-  void _startChapter(GameChapter chapter, {bool forceNewBoard = false}) {
+  Future<void> _startChapter(
+    GameChapter chapter, {
+    bool forceNewBoard = false,
+  }) async {
     if (!mounted) return;
-    PlayerProgressService.instance.clearGameSession();
+
+    // Next Chapter is always a new Life-consuming attempt. Acquire the
+    // server session before constructing the new engine so the board,
+    // Life state and active session cannot get out of sync.
+    final started = await PlayerProgressService.instance.restartGameSession(
+      chapter.index,
+    );
+    if (!started || !mounted) return;
+
+    final newEngine = GameEngine(
+      chapter: chapter,
+      forceNewBoard: forceNewBoard,
+    );
+    newEngine.markBoardLifeActiveAfterServerRestart();
+
     setState(() {
-      _engine = GameEngine(chapter: chapter, forceNewBoard: forceNewBoard);
+      _engine = newEngine;
       _toolMode = null;
       _firstSwapIndex = null;
       _dragStart = null;
@@ -736,11 +783,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _evolutionValue = null;
       _evolutionCreatureName = null;
     });
+
     _engine.updateLifeFromRealTime();
     _engine.startGameTimer();
     _startUiRefreshTimer();
-    unawaited(_ensureGameSession());
-    AudioManager.instance.playChapterMusic(chapter);
+    await AudioManager.instance.playChapterMusic(chapter);
+    if (!mounted) return;
     _focusNode.requestFocus();
   }
 
