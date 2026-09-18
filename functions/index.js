@@ -1175,7 +1175,9 @@ exports.completeChapter = onCall(async (request) => {
 
     // Chapter completion is not Game Over. Refund the Life consumed for
     // this board in the same transaction that closes the session, preventing
-    // duplicate completion/refund races.
+    // duplicate completion/refund races. First apply the same elapsed-time
+    // regeneration rules used by the normal Life engine, then add the
+    // completion refund.
     const membershipData = membershipSnapshot.data() || {};
     const membershipType = MEMBERSHIP_TYPES.has(membershipData.type)
       ? membershipData.type
@@ -1186,26 +1188,51 @@ exports.completeChapter = onCall(async (request) => {
         (typeof membershipExpiresAt.toMillis === 'function' &&
           membershipExpiresAt.toMillis() > Date.now()));
     const lifeData = lifeSnapshot.data() || {};
-    const currentLives = Number.isSafeInteger(lifeData.lives)
+    let refundedLives = Number.isSafeInteger(lifeData.lives)
       ? Math.max(0, lifeData.lives)
       : NORMAL_CAP;
+    let refundedRegenStartMillis =
+      lifeData.regenStartAt?.toMillis?.() ?? null;
+    const refundNowMillis = Date.now();
 
     if (membershipActive && membershipType === 'golden') {
-      transaction.set(lifeRef, {
-        lives: NORMAL_CAP,
-        regenStartAt: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      refundedLives = NORMAL_CAP;
+      refundedRegenStartMillis = null;
     } else {
-      const nextLives = Math.min(NORMAL_CAP, currentLives + 1);
-      transaction.set(lifeRef, {
-        lives: nextLives,
-        regenStartAt: nextLives >= NORMAL_CAP
-          ? null
-          : (lifeData.regenStartAt ?? Timestamp.now()),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      const intervalMillis = membershipType === 'premium'
+        ? 30 * 60 * 1000
+        : 60 * 60 * 1000;
+
+      if (refundedLives < NORMAL_CAP) {
+        const start = refundedRegenStartMillis ?? refundNowMillis;
+        const elapsed = refundNowMillis - start;
+        if (elapsed >= intervalMillis) {
+          const recovered = Math.floor(elapsed / intervalMillis);
+          refundedLives = Math.min(
+            NORMAL_CAP,
+            refundedLives + recovered,
+          );
+          refundedRegenStartMillis = refundedLives >= NORMAL_CAP
+            ? null
+            : start + recovered * intervalMillis;
+        } else {
+          refundedRegenStartMillis = start;
+        }
+      }
+
+      refundedLives = Math.min(NORMAL_CAP, refundedLives + 1);
+      if (refundedLives >= NORMAL_CAP) {
+        refundedRegenStartMillis = null;
+      }
     }
+
+    transaction.set(lifeRef, {
+      lives: refundedLives,
+      regenStartAt: refundedRegenStartMillis == null
+        ? null
+        : Timestamp.fromMillis(refundedRegenStartMillis),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
 
     transaction.set(progressRef, {
       unlockedChapterIndex,
