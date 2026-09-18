@@ -245,6 +245,40 @@ exports.refundLife = onCall(async (request) => {
   });
 });
 
+
+exports.developerSetLives = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const uid = request.auth.uid;
+  const userRef = db.collection('users').doc(uid);
+  const ref = lifeRef(uid);
+
+  return db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    if (userSnapshot.data()?.isAdmin !== true) {
+      throw new HttpsError('permission-denied', 'Developer access is required.');
+    }
+
+    const lives = request.data?.lives;
+    if (!Number.isInteger(lives) || lives < 0 || lives > NORMAL_CAP) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Developer lives must be an integer from 0 to 5.',
+      );
+    }
+
+    transaction.set(ref, {
+      lives,
+      regenStartAt: lives >= NORMAL_CAP ? null : Timestamp.fromMillis(Date.now()),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { lives, infiniteLives: false };
+  });
+});
+
 exports.restoreFiveLivesForDeveloper = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
