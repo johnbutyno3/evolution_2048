@@ -183,6 +183,29 @@ class PlayerProgressService {
     return false;
   }
 
+  Future<void> exitUnfinishedGameSession() async {
+    await refresh();
+    final sessionId = _activeGameSessionId;
+    if (sessionId == null) return;
+
+    try {
+      await _functions.httpsCallable('abandonGameSession').call({
+        'sessionId': sessionId,
+        'unfinishedExit': true,
+      });
+      await refresh();
+      await LifeManager.refreshFromServer();
+    } on FirebaseFunctionsException catch (error) {
+      // ignore: avoid_print
+      print(
+        'exitUnfinishedGameSession failed: code=' + error.code + ', '
+        'message=' + (error.message ?? 'null') + ', '
+        'details=' + (error.details?.toString() ?? 'null'),
+      );
+      await refresh();
+    }
+  }
+
   Future<void> abandonGameSession() async {
     // Reconcile first so Game Over -> Home cannot use a stale/null local
     // session id while the server still owns the active attempt.
