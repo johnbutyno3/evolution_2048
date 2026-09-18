@@ -121,7 +121,10 @@ class PlayerProgressService {
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
         _activeGameChapterIndex = chapterIndex;
-        LifeManager.acknowledgeServerConsumedLife();
+        // restartGameSession consumes the Life atomically on the server.
+        // Refresh the presentation cache instead of using the old synchronous
+        // consumption bridge, which could leave the client life count stale.
+        await LifeManager.refresh();
         return true;
       }
     } on FirebaseFunctionsException {
@@ -183,9 +186,3 @@ class PlayerProgressService {
   }
 }
 
-extension ServerRestartGameEngineBridge on GameEngine {
-  void markBoardLifeActiveAfterServerRestart() {
-    if (!consumeLifeForGameEntry()) return;
-    startGameTimer();
-  }
-}
