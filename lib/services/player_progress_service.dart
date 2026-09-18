@@ -121,9 +121,11 @@ class PlayerProgressService {
         _activeGameSessionId = data['sessionId'] as String;
         _activeGameChapterIndex = chapterIndex;
         // restartGameSession consumes the Life atomically on the server.
-        // Refresh the presentation cache instead of using the old synchronous
-        // consumption bridge, which could leave the client life count stale.
+        // Refresh the presentation cache, then arm the synchronous engine
+        // bridge so the new board can be marked active without consuming Life
+        // a second time on the client.
         await LifeManager.refresh();
+        LifeManager.acknowledgeServerConsumedLife();
         return true;
       }
     } on FirebaseFunctionsException {
