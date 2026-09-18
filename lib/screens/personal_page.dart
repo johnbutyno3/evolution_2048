@@ -12,6 +12,9 @@ import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 import 'login_register_page.dart';
 import 'shop_page.dart';
+import 'feedback_page.dart';
+
+String _p(BuildContext context, String en, String zh) => Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 
 class PersonalPage extends StatelessWidget {
   const PersonalPage({super.key});
@@ -21,7 +24,7 @@ class PersonalPage extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Personal')),
+      appBar: AppBar(title: Text(_p(context, 'Personal', '個人資訊'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -30,8 +33,8 @@ class PersonalPage extends StatelessWidget {
               leading: const CircleAvatar(
                 child: Icon(Icons.person_outline),
               ),
-              title: const Text('Player Basic Information'),
-              subtitle: const Text('Avatar, Player Name, Player ID and account information'),
+              title: Text(_p(context, 'Player Basic Information', '玩家基本資料')),
+              subtitle: Text(_p(context, 'Avatar, Player Name, Player ID and account information', '頭像、玩家名稱、玩家 ID 與帳號資訊')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const PlayerInfoPage()),
@@ -41,41 +44,57 @@ class PersonalPage extends StatelessWidget {
           const SizedBox(height: 8),
           _SectionCard(
             icon: Icons.menu_book_outlined,
-            title: 'Creature Collection',
-            subtitle: 'Discovered life forms',
+            title: _p(context, 'Creature Collection', '生物圖鑑'),
+            subtitle: _p(context, 'Discovered life forms', '已發現的生命形態'),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const CollectionPage())),
           ),
           _SectionCard(
             icon: Icons.settings_outlined,
-            title: 'Settings',
-            subtitle: 'Music, sound effects, vibration and language',
+            title: _p(context, 'Settings', '設定'),
+            subtitle: _p(context, 'Music, sound effects, vibration and language', '音樂、音效、震動與語言'),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const SettingsPage())),
           ),
           _SectionCard(
             icon: Icons.help_outline,
-            title: 'Game Guide',
-            subtitle: 'Rules and how to play',
+            title: _p(context, 'Game Guide', '遊戲說明'),
+            subtitle: _p(context, 'Rules and how to play', '遊戲規則與玩法'),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const GameGuidePage())),
           ),
           _SectionCard(
             icon: Icons.info_outline,
-            title: 'Version Info',
-            subtitle: 'App and game version',
+            title: _p(context, 'Version Info', '版本資訊'),
+            subtitle: _p(context, 'App and game version', 'APP 與遊戲版本'),
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const VersionInfoPage())),
+          ),
+          _SectionCard(
+            icon: Icons.feedback_outlined,
+            title: _p(context, 'Messages / Feedback', '留言 / 意見回饋'),
+            subtitle: _p(context, 'Send questions, suggestions or bug reports', '傳送問題、建議或錯誤回報'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const FeedbackPage()),
+            ),
+          ),
+          _SectionCard(
+            icon: Icons.info_outline,
+            title: _p(context, 'About Game', '關於遊戲'),
+            subtitle: _p(context, 'Creator, music, assets and third-party services', '製作者、音樂、素材與第三方服務資訊'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AboutGamePage()),
+            ),
           ),
           const SizedBox(height: 12),
           if (user != null)
             ListTile(
               leading: const Icon(Icons.logout),
-              title: const Text('Log Out'),
+              title: Text(_p(context, 'Log Out', '登出')),
               onTap: () => _logout(context),
             ),
         ],
@@ -88,7 +107,7 @@ class PersonalPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Log Out'),
+          title: Text(_p(context, 'Log Out', '登出')),
           content: const Text(
             'Are you sure you want to log out of your account?',
           ),
@@ -328,7 +347,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
             controller: _nameController,
             maxLength: 30,
             decoration: const InputDecoration(
-              labelText: 'Player Name',
+              labelText: _p(context, 'Player Name', '玩家名稱'),
               border: OutlineInputBorder(),
             ),
           ),
@@ -337,7 +356,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
             alignment: Alignment.centerRight,
             child: FilledButton(
               onPressed: _saveName,
-              child: const Text('Save'),
+              child: Text(_p(context, 'Save', '儲存')),
             ),
           ),
 
@@ -346,7 +365,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.badge_outlined),
-              title: const Text('Player ID'),
+              title: Text(_p(context, 'Player ID', '玩家 ID')),
               subtitle: Text(
                 _loading
                     ? 'Loading...'
@@ -908,7 +927,7 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         children: [
           SwitchListTile(
-            title: const Text('Background Music'),
+            title: Text(_p(context, 'Background Music', '背景音樂')),
             value: _audio.musicEnabled,
             onChanged: (value) async {
               await _audio.setMusicEnabled(value);
@@ -916,7 +935,7 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            title: const Text('Music Volume'),
+            title: Text(_p(context, 'Music Volume', '音樂音量')),
             subtitle: Slider(
               value: _audio.musicVolume,
               onChanged: (value) async {
@@ -926,7 +945,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           SwitchListTile(
-            title: const Text('Sound Effects'),
+            title: Text(_p(context, 'Sound Effects', '音效')),
             value: _audio.sfxEnabled,
             onChanged: (value) async {
               await _audio.setSfxEnabled(value);
@@ -934,7 +953,7 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            title: const Text('Sound Effects Volume'),
+            title: Text(_p(context, 'Sound Effects Volume', '音效音量')),
             subtitle: Slider(
               value: _audio.sfxVolume,
               onChanged: (value) async {
@@ -949,7 +968,7 @@ class _SettingsPageState extends State<SettingsPage> {
             onChanged: null,
           ),
           ListTile(
-            title: const Text('Language'),
+            title: Text(_p(context, 'Language', '語言')),
             trailing: DropdownButton<String>(
               value: SaveManager.localeCode,
               underline: const SizedBox.shrink(),
@@ -981,7 +1000,7 @@ class GameGuidePage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: const [
           Text(
-            'How to Play',
+            _p(context, 'How to Play', '遊戲玩法'),
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 12),
@@ -990,14 +1009,14 @@ class GameGuidePage extends StatelessWidget {
           ),
           SizedBox(height: 24),
           Text(
-            'Six Chapters',
+            _p(context, 'Six Chapters', '六大章節'),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
           Text('Ocean → Land → Sky → History → Technology → Space'),
           SizedBox(height: 24),
           Text(
-            'Resources',
+            _p(context, 'Resources', '資源'),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
@@ -1016,7 +1035,7 @@ class VersionInfoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Version Info')),
+      appBar: AppBar(title: Text(_p(context, 'Version Info', '版本資訊'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: const [
@@ -1060,6 +1079,40 @@ class _SectionCard extends StatelessWidget {
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+
+class AboutGamePage extends StatelessWidget {
+  const AboutGamePage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final zh = Localizations.localeOf(context).languageCode == 'zh';
+    return Scaffold(
+      appBar: AppBar(title: Text(zh ? '關於遊戲' : 'About Game')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('Rebirth 2048', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 18),
+          Text(zh ? '製作資訊' : 'Creator', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(zh ? '遊戲製作者：Rebirth 2048 開發團隊' : 'Game creator: Rebirth 2048 development team'),
+          const SizedBox(height: 18),
+          Text(zh ? '音樂與音效來源' : 'Music & Sound Sources', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(zh ? '音樂與音效資產及其來源，依專案 assets/audio/music.txt 與正式授權紀錄確認。' : 'Music and sound assets and their sources are documented in the project audio source record and final attribution list.'),
+          const SizedBox(height: 18),
+          Text(zh ? '美術與第三方服務' : 'Artwork & Third-party Services', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(zh ? '美術素材、Firebase、Flutter 及其他第三方套件的授權與來源，將以正式發行版本的授權清單為準。' : 'Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.'),
+          const SizedBox(height: 18),
+          Text(zh ? '版本' : 'Version', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          const Text('Development Build'),
+        ],
       ),
     );
   }
