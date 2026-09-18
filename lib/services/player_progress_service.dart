@@ -146,7 +146,7 @@ class PlayerProgressService {
       // ignore: avoid_print
       print(
         'resumeGameSession failed: code=${error.code}, '
-        'message=${error.message ?? "null"}, '
+        'message=${error.message}, '
         'details=${error.details?.toString() ?? 'null}',
       );
       await refresh();
@@ -199,7 +199,7 @@ class PlayerProgressService {
       // ignore: avoid_print
       print(
         'exitUnfinishedGameSession failed: code=${error.code}, '
-        'message=${error.message ?? "null"}, '
+        'message=${error.message}, '
         'details=${error.details?.toString() ?? 'null}',
       );
       await refresh();
@@ -232,7 +232,7 @@ class PlayerProgressService {
       print(
         'abandonGameSession failed: code=${error.code}, '
         'message=${error.message}, '
-        'details=${error.details?.toString() ?? "null"}',
+        'details=${error.details?.toString()}',
       );
     }
   }
