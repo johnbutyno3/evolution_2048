@@ -956,6 +956,14 @@ exports.resumeGameSession = onCall(async (request) => {
       uid,
       membershipSnapshot,
     );
+
+    // A new entry starts a new Life billing cycle for this same resumable
+    // session. Clear the previous unfinished-exit refund marker so the next
+    // unfinished exit can refund exactly once.
+    transaction.set(sessionRef, {
+      unfinishedExitRefundedAt: null,
+      lastResumedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
   });
 
   return {
@@ -1105,9 +1113,12 @@ exports.abandonGameSession = onCall(async (request) => {
     if (session.status !== 'active') return;
 
     if (unfinishedExit) {
-      // An unfinished exit refunds the Life consumed when this attempt
-      // started, but deliberately keeps the server session ACTIVE so the
-      // next entry can resume the same board and consume exactly one Life.
+      // An unfinished exit refunds the Life consumed for this entry, but
+      // deliberately keeps the server session ACTIVE so the next entry can
+      // resume the same board and consume exactly one Life. The marker makes
+      // repeated exit requests idempotent until the next real re-entry.
+      if (session.unfinishedExitRefundedAt) return;
+
       const membership = resolveMembership(membershipSnapshot.data() || {});
       if (membership.infiniteLives) {
         transaction.set(lifeRef, {
@@ -1155,6 +1166,7 @@ exports.abandonGameSession = onCall(async (request) => {
       }
 
       transaction.set(sessionRef, {
+        unfinishedExitRefundedAt: FieldValue.serverTimestamp(),
         lastExitedAt: FieldValue.serverTimestamp(),
         lastExitReason: 'unfinished_exit',
       }, { merge: true });
