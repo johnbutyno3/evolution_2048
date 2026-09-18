@@ -9,6 +9,7 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
 import '../services/life_manager.dart';
+import '../services/save_manager.dart';
 import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
@@ -692,6 +693,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // after the server has marked the session ended, otherwise the active
       // session could be restored and keep the chapter lock alive.
       await PlayerProgressService.instance.abandonGameSession();
+      if (!mounted) return;
+
+      // Game Over is a finished attempt, not a resumable local board.
+      // Remove only this chapter's local board so re-entry creates a fresh
+      // server session and consumes the next Life.
+      await SaveManager.clearChapter(_engine.chapter.name);
       if (!mounted) return;
       Navigator.of(context).pop();
     }
