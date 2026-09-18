@@ -1239,6 +1239,8 @@ exports.completeChapter = onCall(async (request) => {
       unlockedChapterIndex,
       highestValue: currentHighest,
       score: currentScore,
+      activeGameSessionId: FieldValue.delete(),
+      activeGameChapterIndex: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
