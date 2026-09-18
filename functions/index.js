@@ -1644,3 +1644,153 @@ exports.completeChapter = onCall(async (request) => {
     };
   });
 });
+
+
+async function requireDeveloper(uid) {
+  const snapshot = await db.collection('users').doc(uid).get();
+  if (snapshot.data()?.isAdmin !== true) {
+    throw new HttpsError('permission-denied', 'Developer access is required.');
+  }
+}
+
+exports.developerGrantGold = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await requireDeveloper(request.auth.uid);
+
+  const amount = request.data?.amount;
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 1000000000) {
+    throw new HttpsError('invalid-argument', 'Invalid developer Gold amount.');
+  }
+
+  const walletRef = goldWalletRef(request.auth.uid);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(walletRef);
+    const balance = snapshot.data()?.balance ?? 0;
+    const lifetimeSpent = snapshot.data()?.lifetimeSpent ?? 0;
+    if (!Number.isSafeInteger(balance) || balance < 0 ||
+        balance > MAX_SAFE_INTEGER - amount) {
+      throw new HttpsError('failed-precondition', 'Gold wallet is invalid.');
+    }
+
+    transaction.set(walletRef, {
+      balance: balance + amount,
+      lifetimeSpent,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { balance: balance + amount };
+  });
+});
+
+exports.developerGrantTools = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await requireDeveloper(request.auth.uid);
+
+  const amount = request.data?.amount;
+  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > 1000000) {
+    throw new HttpsError('invalid-argument', 'Invalid developer tool amount.');
+  }
+
+  const toolsRef = toolInventoryRef(request.auth.uid);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(toolsRef);
+    const inventory = snapshot.data() || {};
+    const next = {};
+    for (const type of TOOL_TYPES) {
+      const current = Number.isSafeInteger(inventory[type]) && inventory[type] >= 0
+        ? inventory[type]
+        : 0;
+      next[type] = Math.min(1000000, current + amount);
+    }
+
+    transaction.set(toolsRef, {
+      ...next,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { inventory: next };
+  });
+});
+
+exports.developerSetMembership = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await requireDeveloper(request.auth.uid);
+
+  const type = request.data?.type;
+  if (!['general', 'premium', 'golden'].includes(type)) {
+    throw new HttpsError('invalid-argument', 'Invalid developer membership.');
+  }
+
+  const ref = membershipRef(request.auth.uid);
+  if (type === 'general') {
+    await ref.set({
+      type: null,
+      expiresAt: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { type: 'general', active: false };
+  }
+
+  const expiresAt = new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000);
+  await ref.set({
+    type,
+    expiresAt,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { type, active: true, expiresAt: expiresAt.toISOString() };
+});
+
+exports.developerSetProgress = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await requireDeveloper(request.auth.uid);
+
+  const unlockedChapterIndex = request.data?.unlockedChapterIndex;
+  if (!Number.isInteger(unlockedChapterIndex) ||
+      unlockedChapterIndex < 0 || unlockedChapterIndex > MAX_CHAPTER_INDEX) {
+    throw new HttpsError('invalid-argument', 'Invalid developer chapter index.');
+  }
+
+  const progressRef = db.collection('users').doc(request.auth.uid)
+    .collection('progress').doc('game');
+
+  await progressRef.set({
+    unlockedChapterIndex,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { unlockedChapterIndex };
+});
+
+exports.developerResetProgress = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await requireDeveloper(request.auth.uid);
+
+  const progressRef = db.collection('users').doc(request.auth.uid)
+    .collection('progress').doc('game');
+  const progressSnapshot = await progressRef.get();
+  const activeSessionId = progressSnapshot.data()?.activeGameSessionId;
+
+  if (typeof activeSessionId === 'string' && activeSessionId.isNotEmpty) {
+    await gameSessionRef(request.auth.uid, activeSessionId).delete();
+  }
+
+  await progressRef.set({
+    unlockedChapterIndex: 0,
+    activeGameSessionId: FieldValue.delete(),
+    activeGameChapterIndex: FieldValue.delete(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { unlockedChapterIndex: 0, activeGameSessionId: null };
+});
