@@ -66,6 +66,87 @@ exports.getToolInventory = onCall(async (request) => {
   });
 });
 
+exports.purchaseTool = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase_tool');
+
+  const type = request.data?.toolType;
+  const amount = request.data?.amount;
+  validateToolType(type);
+  validateToolAmount(amount);
+  const membershipSnapshot = await membershipRef(request.auth.uid).get();
+  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const membershipType = membership.type;
+  const membershipActive = membership.active;
+
+  // FREE members may purchase only the single-unit package.
+  // Premium and Golden members may purchase all supported quantities.
+  if (!membershipActive && amount !== 1) {
+    throw new HttpsError(
+      'failed-precondition',
+      'FREE members can only purchase one tool at a time.',
+    );
+  }
+
+  if (membershipActive &&
+      membershipType === 'golden' &&
+      type === 'timeRewind') {
+    throw new HttpsError(
+      'failed-precondition',
+      'GOLDEN members have unlimited UNDO and do not need to purchase it.',
+    );
+  }
+
+  const configSnapshot = await db.collection('shop_config').doc('global').get();
+  const configuredPrice = configSnapshot.data()?.[toolPriceKey(type, amount)];
+  const fallbackPrice = DEFAULT_TOOL_PRICES[toolPriceKey(type, amount)];
+  const price = Number.isSafeInteger(configuredPrice)
+    ? configuredPrice
+    : fallbackPrice;
+  if (!Number.isSafeInteger(price) || price <= 0) {
+    throw new HttpsError('failed-precondition', 'Tool price is unavailable.');
+  }
+
+  const walletRef = goldWalletRef(request.auth.uid);
+  const toolsRef = toolInventoryRef(request.auth.uid);
+  return db.runTransaction(async (transaction) => {
+    const walletSnapshot = await transaction.get(walletRef);
+    const toolsSnapshot = await transaction.get(toolsRef);
+    const balance = walletSnapshot.data()?.balance ?? 0;
+    const inventory = toolsSnapshot.data() || {};
+    const currentUses = inventory[type] ?? 0;
+
+    if (!Number.isSafeInteger(balance) || balance < price ||
+        !Number.isSafeInteger(currentUses) || currentUses < 0 ||
+        currentUses > MAX_SAFE_INTEGER - amount) {
+      if (balance < price) {
+        await recordSecurityEvent({
+          uid: request.auth.uid,
+          action: 'purchase_tool',
+          reason: 'insufficient_gold',
+          details: { toolType: type, amount, price },
+        });
+      }
+      throw new HttpsError('failed-precondition', 'Tool purchase is unavailable.');
+    }
+
+    transaction.set(walletRef, {
+      balance: balance - price,
+      lifetimeSpent: (walletSnapshot.data()?.lifetimeSpent ?? 0) + price,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(toolsRef, {
+      [type]: currentUses + amount,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { balance: balance - price, toolType: type, uses: currentUses + amount };
+  });
+});
+
+
 exports.useTool = onCall(async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Authentication is required.');
   const uid = request.auth.uid;
