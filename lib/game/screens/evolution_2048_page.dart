@@ -13,6 +13,7 @@ import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
 import '../../services/player_progress_service.dart';
+import '../services/life_manager.dart';
 import '../../l10n/app_localizations.dart';
 
 class Evolution2048Page extends StatefulWidget {
@@ -928,7 +929,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                   const SizedBox(height: 1),
                   Text(selected ? 'CANCEL' : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 1),
-                  Text(state == null ? '?' : '${state.usesRemaining}', style: const TextStyle(fontSize: 8)),
+                  Text(state == null ? '?' : (LifeManager.isGoldenMember && type == GameToolType.timeRewind ? '∞' : '${state.usesRemaining}'), style: const TextStyle(fontSize: 8)),
                 ],
               ),
               if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)),
