@@ -713,9 +713,8 @@ class GameEngine {
     int targetRow,
     int targetColumn,
   ) async {
-    if ((
-            _chapter != GameChapter.history &&
-            _chapter != GameChapter.tech) ||
+    if (!ToolManager.allToolsEnabledForTest &&
+        (_chapter != GameChapter.history && _chapter != GameChapter.tech) ||
         chapterComplete) {
       return false;
     }
