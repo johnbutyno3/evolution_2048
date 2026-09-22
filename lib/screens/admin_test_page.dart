@@ -16,6 +16,9 @@ class _AdminTestPageState extends State<AdminTestPage> {
   String _mode = 'general';
   String? _expiresAt;
   String _message = '';
+  int? _lives;
+  bool? _infiniteLives;
+  String? _lifeMode;
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
   String get _uid => _auth.currentUser?.uid ?? '';
@@ -43,6 +46,15 @@ class _AdminTestPageState extends State<AdminTestPage> {
         _expiresAt = d['expiresAt'] as String?;
         _gold.text = ((d['goldBalance'] as num?)?.toInt() ?? 0).toString();
         _loading = false;
+      });
+      final lifeResult = await _functions.httpsCallable('getLifeState').call();
+      final life = Map<String, dynamic>.from(lifeResult.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _lives = (life['lives'] as num?)?.toInt();
+        _infiniteLives = life['infiniteLives'] == true;
+        _lifeMode = life['lifeMode'] as String?;
+      });
       });
     } catch (e) {
       if (!mounted) return;
@@ -136,6 +148,17 @@ class _AdminTestPageState extends State<AdminTestPage> {
           Card(child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Life', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Lives: ${_infiniteLives == true ? '∞' : (_lives?.toString() ?? '--')}'),
+              Text('Infinite Lives: ${_infiniteLives ?? false}'),
+              Text('Life Mode: ${_lifeMode ?? '--'}'),
+            ]),
+          )),
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Gold Balance', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
@@ -167,7 +190,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
   }
 
   Widget _button(String mode, String label) => OutlinedButton(
-    onPressed: _busy || _mode == mode ? null : () => _membership(mode),
+    onPressed: _busy ? null : () => _membership(mode),
     child: Text(label),
   );
 }
