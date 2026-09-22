@@ -557,7 +557,11 @@ class GameEngine {
   }
 
   Future<void> refreshToolProgress() async {
+    final hadAllToolsEnabled = ToolManager.allToolsEnabledForTest;
     await ToolManager.refreshInventory();
+    if (hadAllToolsEnabled != ToolManager.allToolsEnabledForTest) {
+      _initializeTools();
+    }
     _toolManager.refreshFromSavedProgress();
   }
 
