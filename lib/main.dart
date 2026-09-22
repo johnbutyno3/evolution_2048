@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'game/services/gold_manager.dart';
 import 'game/services/life_manager.dart';
+import 'game/services/save_manager.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/login_register_page.dart';
 import 'screens/onboarding_page.dart';
