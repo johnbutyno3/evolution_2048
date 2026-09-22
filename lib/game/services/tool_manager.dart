@@ -2,6 +2,7 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'life_manager.dart';
+import '../../services/player_progress_service.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -17,6 +18,9 @@ class ToolManager {
     region: 'us-central1',
   );
   static final Map<GameToolType, int> _serverUses = {};
+  static bool _allToolsEnabledForTest = false;
+
+  static bool get allToolsEnabledForTest => _allToolsEnabledForTest;
 
   final Map<GameToolType, int> _uses = <GameToolType, int>{};
   final List<ToolState> _tools = <ToolState>[];
@@ -78,7 +82,11 @@ class ToolManager {
   static Future<void> refreshInventory() async {
     try {
       final result = await _functions.httpsCallable('getToolInventory').call();
-      final inventory = result.data is Map ? result.data['inventory'] : null;
+      final data = result.data is Map
+          ? Map<String, dynamic>.from(result.data as Map)
+          : <String, dynamic>{};
+      _allToolsEnabledForTest = data['allToolsEnabledForTest'] == true;
+      final inventory = data['inventory'];
       if (inventory is! Map) return;
       for (final entry in inventory.entries) {
         final type = GameToolType.values.where(
@@ -114,9 +122,12 @@ class ToolManager {
       if (tool != null) tool.usesRemaining = _unlimitedUses;
       return true;
     }
+    final sessionId = PlayerProgressService.instance.activeGameSessionId;
+    if (sessionId == null || sessionId.isEmpty) return false;
     try {
       final result = await _functions.httpsCallable('useTool').call({
         'toolType': type.name,
+        'sessionId': sessionId,
       });
       final uses = result.data is Map ? result.data['uses'] : null;
       if (uses is! num) return false;
@@ -159,6 +170,7 @@ class ToolManager {
   }
 
   static List<GameToolType> toolsForChapter(GameChapter chapter) {
+    if (_allToolsEnabledForTest) return List<GameToolType>.from(GameToolType.values);
     return switch (chapter) {
       GameChapter.ocean => [GameToolType.timeRewind],
       GameChapter.land => [GameToolType.timeRewind, GameToolType.revive],
