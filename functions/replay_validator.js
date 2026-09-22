@@ -41,7 +41,8 @@ function targetForChapter(chapterIndex) {
   return 2 ** (chapterIndex + 12);
 }
 
-function allowedToolsForChapter(chapterIndex) {
+function allowedToolsForChapter(chapterIndex, allToolsEnabledForTest = false) {
+  if (allToolsEnabledForTest) return [...TOOL_TYPES];
   return [
     ['timeRewind'],
     ['timeRewind', 'revive'],
@@ -51,7 +52,6 @@ function allowedToolsForChapter(chapterIndex) {
     ['timeRewind'],
   ][chapterIndex];
 }
-
 function validateInitialTiles(initialTiles, target) {
   if (!Array.isArray(initialTiles) || initialTiles.length !== BOARD_CELLS) {
     fail('Initial board must contain exactly 16 cells.');
