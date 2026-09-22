@@ -19,6 +19,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
   int? _lives;
   bool? _infiniteLives;
   String? _lifeMode;
+  bool _allToolsEnabledForTest = false;
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
   String get _uid => _auth.currentUser?.uid ?? '';
@@ -45,6 +46,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
         _mode = d['membershipMode'] as String? ?? 'general';
         _expiresAt = d['expiresAt'] as String?;
         _gold.text = ((d['goldBalance'] as num?)?.toInt() ?? 0).toString();
+        _allToolsEnabledForTest = d['allToolsEnabledForTest'] == true;
         _loading = false;
       });
       final lifeResult = await _functions.httpsCallable('getLifeState').call();
@@ -95,6 +97,30 @@ class _AdminTestPageState extends State<AdminTestPage> {
         'uid': _uid, 'balance': value,
       });
       if (mounted) setState(() => _message = 'Gold balance set to $value.');
+    } catch (e) {
+      if (mounted) setState(() => _message = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+
+  Future<void> _setAllToolsEnabled(bool enabled) async {
+    if (_uid.isEmpty) return;
+    setState(() { _busy = true; _message = ''; });
+    try {
+      final r = await _functions.httpsCallable('adminSetAllToolsEnabled').call({
+        'uid': _uid,
+        'enabled': enabled,
+      });
+      final d = Map<String, dynamic>.from(r.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _allToolsEnabledForTest = d['allToolsEnabledForTest'] == true;
+        _message = enabled
+            ? 'Test mode: all tools are enabled in every chapter.'
+            : 'Test mode: chapter tool restrictions restored.';
+      });
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
     } finally {
@@ -171,6 +197,27 @@ class _AdminTestPageState extends State<AdminTestPage> {
                 onPressed: _busy ? null : _setGold,
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Set Gold'),
+              ),
+            ]),
+          )),
+
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Tool Test Mode', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                _allToolsEnabledForTest
+                    ? 'All four tools are unlocked in every chapter.'
+                    : 'Normal chapter tool restrictions are active.',
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Enable all tools in every chapter'),
+                value: _allToolsEnabledForTest,
+                onChanged: _busy ? null : _setAllToolsEnabled,
               ),
             ]),
           )),
