@@ -17,6 +17,7 @@ class LifeManager {
   static int _lifeCount = normalCap;
   static bool _infiniteLives = false;
   static String _membership = 'general';
+  static String _lifeMode = 'normal';
   static int? _nextLifeAtMillis;
   static bool _initialized = false;
 
@@ -40,10 +41,15 @@ class LifeManager {
     final lives = data['lives'];
     final infiniteLives = data['infiniteLives'] == true;
     final membership = data['membership'];
+    final lifeMode = data['lifeMode'];
     final nextLifeAtMillis = data['nextLifeAtMillis'];
 
     if (lives is! int || lives < -1) {
       throw StateError('Invalid server life state.');
+    }
+
+    if (lifeMode != 'normal' && lifeMode != 'golden') {
+      throw StateError('Invalid server life mode.');
     }
 
     if (membership != 'general' &&
@@ -59,12 +65,15 @@ class LifeManager {
     _lifeCount = lives;
     _infiniteLives = infiniteLives;
     _membership = membership as String;
+    _lifeMode = lifeMode as String;
     _nextLifeAtMillis = nextLifeAtMillis as int?;
   }
 
   static bool get isInitialized => _initialized;
 
-  static bool get isGoldenMember => _infiniteLives;
+  static bool get isGoldenMember => _lifeMode == 'golden';
+
+  static String get lifeMode => _lifeMode;
 
   static int get lifeCount => _infiniteLives ? -1 : _lifeCount;
 
@@ -118,16 +127,6 @@ class LifeManager {
 
   static Future<void> refundChapterCompletionLife() async {
     final result = await _functions.httpsCallable('refundLife').call();
-    _applyServerState(Map<String, dynamic>.from(result.data as Map));
-    _initialized = true;
-  }
-
-  /// Developer-only test helper. The actual refill is performed by the
-  /// server-authoritative callable; this method never changes life locally.
-  static Future<void> restoreFiveLivesForDeveloper() async {
-    final result = await _functions
-        .httpsCallable('restoreFiveLivesForDeveloper')
-        .call();
     _applyServerState(Map<String, dynamic>.from(result.data as Map));
     _initialized = true;
   }
