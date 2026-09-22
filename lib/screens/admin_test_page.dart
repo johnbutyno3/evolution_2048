@@ -55,7 +55,6 @@ class _AdminTestPageState extends State<AdminTestPage> {
         _infiniteLives = life['infiniteLives'] == true;
         _lifeMode = life['lifeMode'] as String?;
       });
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() { _loading = false; _message = e.toString(); });
@@ -81,6 +80,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+    if (mounted) await _load();
   }
 
   Future<void> _setGold() async {
