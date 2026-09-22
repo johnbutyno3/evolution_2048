@@ -5,7 +5,6 @@ const toolInventoryDefaults = require('./tool_inventory_defaults');
 
 Object.assign(functions, gameSession, life, toolInventoryDefaults);
 const adminTest = require('./admin_test');
-const bootstrapTestAccount = require('./bootstrap_test_account');
-Object.assign(functions, adminTest, bootstrapTestAccount);
+Object.assign(functions, adminTest);
 
 module.exports = functions;
