@@ -88,7 +88,7 @@ class GameEngine {
   /// startup fallback before Firebase state is available.
   int get lives => LifeManager.isInitialized ? LifeManager.lifeCount : _lives;
 
-  bool get hasLife => lives > 0;
+  bool get hasLife => LifeManager.isGoldenMember || lives > 0;
 
   int? get nextLifeAtMillis => _nextLifeAtMillis;
 
@@ -139,6 +139,10 @@ class GameEngine {
   /// Restart is a new game, so this is a separate life deduction from
   /// the Game Over that caused the restart screen.
   bool deductLifeForRestart() {
+    if (LifeManager.isGoldenMember) {
+      return true;
+    }
+
     if (_lives <= 0) {
       return false;
     }
@@ -151,6 +155,12 @@ class GameEngine {
   /// Consume one life when a gameplay page is entered.
   bool consumeLifeForGameEntry() {
     if (_boardLifeActive) {
+      return true;
+    }
+
+    if (LifeManager.isGoldenMember) {
+      _boardLifeActive = true;
+      _saveLocal();
       return true;
     }
 
