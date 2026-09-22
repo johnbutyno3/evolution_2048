@@ -155,6 +155,19 @@ exports.restartGameSession = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
     }
 
+    if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
+      const oldSessionRef = gameSessionRef(uid, oldSessionId);
+      const oldSessionSnapshot = await transaction.get(oldSessionRef);
+      if (oldSessionSnapshot.exists &&
+          oldSessionSnapshot.data()?.status === 'active' &&
+          oldSessionChapter !== chapterIndex) {
+        throw new HttpsError(
+          'failed-precondition',
+          'An unfinished game session exists in another chapter.',
+        );
+      }
+    }
+
     const membershipState = resolveMembership(membershipSnapshot.data() || {});
     let lives = normalizeLives(lifeSnapshot.data()?.lives);
     let regenStartMillis = normalizeRegenStart(lifeSnapshot.data()?.regenStartAt);
