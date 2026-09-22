@@ -80,6 +80,7 @@ function responseState({ lives, regenStartMillis, membership }) {
     return {
       lives: -1,
       infiniteLives: true,
+      lifeMode: 'golden',
       membership: membership.type,
       nextLifeAtMillis: null,
     };
@@ -89,6 +90,7 @@ function responseState({ lives, regenStartMillis, membership }) {
     return {
       lives,
       infiniteLives: false,
+      lifeMode: 'normal',
       membership: membership.type ?? 'general',
       nextLifeAtMillis: null,
     };
