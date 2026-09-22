@@ -893,7 +893,7 @@ class GameEngine {
   bool restart() {
     updateLifeFromRealTime();
 
-    if (_lives <= 0) {
+    if (!LifeManager.isGoldenMember && _lives <= 0) {
       return false;
     }
 
