@@ -13,6 +13,7 @@ setGlobalOptions({ region: 'us-central1' });
 const db = getFirestore();
 Object.assign(exports, require('./profile'));
 Object.assign(exports, require('./life'));
+Object.assign(exports, require('./admin_test'));
 
 const MAX_CHAPTER_INDEX = 5;
 const GAME_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
