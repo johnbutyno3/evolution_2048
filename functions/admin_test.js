@@ -132,17 +132,39 @@ exports.adminSetGoldBalance = onCall(async (request) => {
   };
 });
 
+
+exports.adminSetAllToolsEnabled = onCall(async (request) => {
+  const adminUid = await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+  const enabled = request.data?.enabled === true;
+
+  await db.collection('users').doc(uid).set({
+    allToolsEnabledForTest: enabled,
+    updatedAt: FieldValue.serverTimestamp(),
+    lastAdminAdjustmentBy: adminUid,
+    lastAdminAdjustmentAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return {
+    ok: true,
+    uid,
+    allToolsEnabledForTest: enabled,
+    changedBy: adminUid,
+  };
+});
+
 exports.adminGetTestAccountState = onCall(async (request) => {
   await requireAdmin(request);
   const uid = validateTargetUid(request.data?.uid);
 
-  const [membershipSnapshot, goldSnapshot] = await Promise.all([
+  const [membershipSnapshot, goldSnapshot, userSnapshot] = await Promise.all([
     membershipRef(uid).get(),
     goldWalletRef(uid).get(),
   ]);
 
   const membership = membershipSnapshot.data() || {};
   const gold = goldSnapshot.data() || {};
+  const user = userSnapshot.data() || {};
 
   let mode = 'general';
   if (membership.type === 'premium' || membership.type === 'golden') {
@@ -159,5 +181,6 @@ exports.adminGetTestAccountState = onCall(async (request) => {
     membershipMode: mode,
     expiresAt: membership.expiresAt?.toDate?.()?.toISOString?.() ?? null,
     goldBalance: Number.isSafeInteger(gold.balance) ? gold.balance : 0,
+    allToolsEnabledForTest: user.allToolsEnabledForTest === true,
   };
 });
