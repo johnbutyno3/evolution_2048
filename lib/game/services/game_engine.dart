@@ -28,7 +28,8 @@ class GameEngine {
         saved != null &&
         (saved['gameOver'] == true || saved['chapterComplete'] == true);
 
-    if (saved != null &&
+    if (!forceNewBoard &&
+        saved != null &&
         _shouldRestoreSavedChapter(saved) &&
         !savedBoardEnded) {
       restoreFromSaveData(saved);
@@ -44,6 +45,7 @@ class GameEngine {
     // already paid for by that server-side consumption. The engine constructor
     // must never mutate or consume Life synchronously.
     final hasSavedBoard =
+        !forceNewBoard &&
         saved != null &&
         _shouldRestoreSavedChapter(saved) &&
         !savedBoardEnded &&
