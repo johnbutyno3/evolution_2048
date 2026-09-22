@@ -599,6 +599,41 @@ exports.startGameSession = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
     }
 
+    // An unfinished active session owns the player's current game. A new
+    // start may never replace it, because that would allow leaving one
+    // chapter and starting another without properly resolving the old game.
+    const existingSessionId = current.activeGameSessionId;
+    if (typeof existingSessionId === 'string' && existingSessionId.length > 0) {
+      const existingSessionRef = gameSessionRef(uid, existingSessionId);
+      const existingSessionSnapshot = await transaction.get(existingSessionRef);
+      if (existingSessionSnapshot.exists &&
+          existingSessionSnapshot.data()?.status === 'active') {
+        await recordSecurityEvent({
+          uid,
+          action: 'start_game_session',
+          severity: 'high',
+          reason: 'unfinished_active_session_exists',
+          details: {
+            chapterIndex,
+            activeGameChapterIndex: current.activeGameChapterIndex,
+            activeGameSessionId: existingSessionId,
+          },
+        });
+        throw new HttpsError(
+          'failed-precondition',
+          'An unfinished game session already exists.',
+        );
+      }
+
+      // Repair a stale progress pointer only when the referenced session is
+      // no longer active. This cannot discard a playable unfinished game.
+      transaction.set(progressRef, {
+        activeGameSessionId: FieldValue.delete(),
+        activeGameChapterIndex: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
     // Starting a genuinely new game attempt consumes exactly one Life.
     // Keep the Life write in the same transaction as session creation.
     await consumeLifeInTransaction(transaction, uid, membershipSnapshot);
