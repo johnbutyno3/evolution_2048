@@ -634,6 +634,20 @@ exports.startGameSession = onCall(async (request) => {
         );
       }
 
+    }
+
+    // Starting a genuinely new game attempt consumes exactly one Life.
+    // This read/write must happen before any transaction write, because
+    // Firestore transactions require all reads to precede writes.
+    await consumeLifeInTransaction(transaction, uid, membershipSnapshot);
+
+    if (typeof existingSessionId === 'string' && existingSessionId.length > 0) {
+      const existingSessionRef = gameSessionRef(uid, existingSessionId);
+      const existingSessionSnapshot = await transaction.get(existingSessionRef);
+      const existingSessionActive =
+        existingSessionSnapshot.exists &&
+        existingSessionSnapshot.data()?.status === 'active';
+
       if (existingSessionActive && replaceActiveSession) {
         transaction.update(existingSessionRef, {
           status: 'replaced',
@@ -650,10 +664,6 @@ exports.startGameSession = onCall(async (request) => {
         }, { merge: true });
       }
     }
-
-    // Starting a genuinely new game attempt consumes exactly one Life.
-    // Keep the Life write in the same transaction as session creation.
-    await consumeLifeInTransaction(transaction, uid, membershipSnapshot);
 
     const tools = toolsSnapshot.data() || {};
     const claimedRaw = Array.isArray(tools.chapterRewardsClaimed)
