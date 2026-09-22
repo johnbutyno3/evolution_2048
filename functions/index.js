@@ -1112,6 +1112,9 @@ exports.completeChapter = onCall(async (request) => {
     );
   }
 
+  const userSnapshot = await db.collection('users').doc(uid).get();
+  const allToolsEnabledForTest = userSnapshot.data()?.allToolsEnabledForTest === true;
+
   let replayResult;
 
   try {
@@ -1119,7 +1122,10 @@ exports.completeChapter = onCall(async (request) => {
       replayLog,
       chapterIndex,
       targetValue: session.targetValue,
-      allowedTools: allowedToolsForChapter(chapterIndex),
+      allowedTools: allowedToolsForChapter(
+        chapterIndex,
+        allToolsEnabledForTest,
+      ),
     });
   } catch (error) {
     await recordSecurityEvent({
