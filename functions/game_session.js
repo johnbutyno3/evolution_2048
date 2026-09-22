@@ -155,6 +155,9 @@ exports.restartGameSession = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
     }
 
+    const oldSessionId = currentProgress.activeGameSessionId;
+    const oldSessionChapter = currentProgress.activeGameChapterIndex;
+
     if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
       const oldSessionRef = gameSessionRef(uid, oldSessionId);
       const oldSessionSnapshot = await transaction.get(oldSessionRef);
@@ -195,9 +198,6 @@ exports.restartGameSession = onCall(async (request) => {
     const nextRegenStart = nextLives < NORMAL_CAP
       ? (regenStartMillis ?? nowMillis)
       : null;
-
-    const oldSessionId = currentProgress.activeGameSessionId;
-    const oldSessionChapter = currentProgress.activeGameChapterIndex;
 
     if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
       const oldSessionRef = gameSessionRef(uid, oldSessionId);
