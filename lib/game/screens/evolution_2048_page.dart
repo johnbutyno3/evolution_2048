@@ -425,11 +425,19 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       );
       if (!restarted || !mounted) return false;
 
-      _engine.reset();
-      _engine.markBoardLifeActiveAfterServerRestart();
-      _engine.updateLifeFromRealTime();
+      // A server restart creates a new game session. Replace the engine
+      // instance as well, so no cached board/replay state from the abandoned
+      // session can be restored by the old engine.
+      _engine.stopGameTimer();
+      final newEngine = GameEngine(
+        chapter: _engine.chapter,
+        forceNewBoard: true,
+      );
+      newEngine.markBoardLifeActiveAfterServerRestart();
+      newEngine.updateLifeFromRealTime();
 
       setState(() {
+        _engine = newEngine;
         _evolutionValue = null;
         _evolutionCreatureName = null;
         _firstSwapIndex = null;
