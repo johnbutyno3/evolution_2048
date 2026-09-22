@@ -75,7 +75,11 @@ class ToolManager {
   /// Refreshes the authoritative tool inventory and applies it to the
   /// currently displayed tool states before gameplay actions are enabled.
   Future<void> refreshServerState() async {
+    final hadAllToolsEnabled = _allToolsEnabledForTest;
     await refreshInventory();
+    if (hadAllToolsEnabled != _allToolsEnabledForTest) {
+      _initialize();
+    }
     refreshFromSavedProgress();
   }
 
