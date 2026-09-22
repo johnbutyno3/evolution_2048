@@ -1031,7 +1031,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('${l10n.life} ${_engine.lives}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium),
+                          Text('${l10n.life} ${_engine.lives < 0 ? '∞' : _engine.lives}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium),
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium),
                             IconButton(
