@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../game/services/life_manager.dart';
+import '../game/services/save_manager.dart';
 
 /// Server-authoritative account progression.
 class PlayerProgressService {
@@ -14,6 +15,14 @@ class PlayerProgressService {
 
   static const String _progressCollection = 'progress';
   static const String _progressDocument = 'game';
+  static const List<String> _chapterNames = <String>[
+    'ocean',
+    'land',
+    'sky',
+    'history',
+    'tech',
+    'universe',
+  ];
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -119,13 +128,25 @@ class PlayerProgressService {
 
   /// Re-enters the server-owned unfinished session.
   ///
-  /// Re-entry is a billable game entry under the Life rules, but it must
-  /// preserve the same server session/board. The server performs the Life
-  /// deduction atomically with session validation so a failed resume cannot
-  /// consume a Life.
+  /// A normal unfinished exit keeps a local board snapshot. Game Over -> Back
+  /// clears that chapter snapshot. If the server still exposes an ended/stale
+  /// active session while no playable local board remains, this is a fresh
+  /// game entry and must use startGameSession instead of resume.
   Future<bool> resumeGameSession(int chapterIndex) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
+
+    final chapterName = _chapterNames[chapterIndex];
+    final saved = SaveManager.loadCached(chapter: chapterName);
+    final hasPlayableLocalBoard = saved != null &&
+        saved['gameOver'] != true &&
+        saved['chapterComplete'] != true &&
+        saved['tiles'] is List &&
+        (saved['tiles'] as List).length == 16;
+
+    if (!hasPlayableLocalBoard) {
+      return startGameSession(chapterIndex);
+    }
 
     try {
       final result = await _functions.httpsCallable('resumeGameSession').call({
@@ -208,8 +229,6 @@ class PlayerProgressService {
   }
 
   Future<void> abandonGameSession() async {
-    // Reconcile first so Game Over -> Home cannot use a stale/null local
-    // session id while the server still owns the active attempt.
     await refresh();
     final sessionId = _activeGameSessionId;
     if (sessionId == null) return;
@@ -219,10 +238,6 @@ class PlayerProgressService {
         'sessionId': sessionId,
       });
 
-      // The callable succeeded, so the server has ended this session.
-      // Clear the local cache immediately and then verify against the
-      // server. This avoids a stale Firestore cache making the next entry
-      // look like an unfinished game.
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
       await refresh();
@@ -233,7 +248,7 @@ class PlayerProgressService {
       print(
         'abandonGameSession failed: code=${error.code}, '
         'message=${error.message}, '
-        'details=${error.details?.toString()}',
+        'details=${error.details}',
       );
     }
   }
