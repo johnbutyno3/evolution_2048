@@ -13,6 +13,7 @@ import '../game/services/save_manager.dart';
 import 'login_register_page.dart';
 import 'shop_page.dart';
 import 'feedback_page.dart';
+import 'admin_test_page.dart';
 
 String _p(BuildContext context, String en, String zh) => Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
 
@@ -81,6 +82,24 @@ class PersonalPage extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const FeedbackPage()),
             ),
+          ),
+          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            future: user == null
+                ? null
+                : FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+            builder: (context, snapshot) {
+              if (snapshot.data?.data()?['isAdmin'] != true) {
+                return const SizedBox.shrink();
+              }
+              return _SectionCard(
+                icon: Icons.admin_panel_settings_outlined,
+                title: _p(context, 'Test Controls', '測試控制'),
+                subtitle: _p(context, 'Membership modes and Gold balance', '會員模式與金幣測試控制'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AdminTestPage()),
+                ),
+              );
+            },
           ),
           _SectionCard(
             icon: Icons.info_outline,
