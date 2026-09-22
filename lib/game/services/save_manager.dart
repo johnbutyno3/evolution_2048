@@ -12,14 +12,6 @@ class SaveManager {
   static const String _playerIdKey = 'rebirth_2048_player_id_v1';
   static const String _avatarIndexKey = 'rebirth_2048_avatar_index_v1';
   static const String _localeKey = 'rebirth_2048_locale_v1';
-  static const String _developerModeKey = 'rebirth_2048_developer_mode_v1';
-  static const String _developerAllChaptersKey =
-      'rebirth_2048_developer_all_chapters_v1';
-  static const String _developerAllToolsKey =
-      'rebirth_2048_developer_all_tools_v1';
-  static const String _developerUnlimitedToolsKey =
-      'rebirth_2048_developer_unlimited_tools_v1';
-
   static SharedPreferences? _preferences;
   static final ValueNotifier<String> localeCodeNotifier = ValueNotifier('en');
 
@@ -75,68 +67,6 @@ class SaveManager {
   static Future<void> saveAvatarIndex(int index) async {
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.setInt(_avatarIndexKey, index.clamp(0, 53));
-  }
-
-  // Developer overrides are intentionally available only in debug/profile
-  // development builds. Release builds can never enable them from local
-  // preferences, even if a previous debug build left the flags behind.
-  static bool get developerMode {
-    if (!kDebugMode) return false;
-    return _preferences?.getBool(_developerModeKey) ?? false;
-  }
-
-  static Future<void> setDeveloperMode(bool enabled) async {
-    if (!kDebugMode) return;
-
-    _preferences ??= await SharedPreferences.getInstance();
-
-    await _preferences!.setBool(_developerModeKey, enabled);
-
-    if (enabled) {
-      await _preferences!.setBool(_developerAllChaptersKey, true);
-      await _preferences!.setBool(_developerAllToolsKey, true);
-      await _preferences!.setBool(_developerUnlimitedToolsKey, true);
-    } else {
-      await _preferences!.setBool(_developerAllChaptersKey, false);
-      await _preferences!.setBool(_developerAllToolsKey, false);
-      await _preferences!.setBool(_developerUnlimitedToolsKey, false);
-    }
-  }
-
-  static bool get developerAllChapters {
-    if (!kDebugMode) return false;
-    return developerMode &&
-        (_preferences?.getBool(_developerAllChaptersKey) ?? false);
-  }
-
-  static Future<void> setDeveloperAllChapters(bool enabled) async {
-    if (!kDebugMode) return;
-    _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setBool(_developerAllChaptersKey, enabled);
-  }
-
-  static bool get developerAllTools {
-    if (!kDebugMode) return false;
-    return developerMode &&
-        (_preferences?.getBool(_developerAllToolsKey) ?? false);
-  }
-
-  static Future<void> setDeveloperAllTools(bool enabled) async {
-    if (!kDebugMode) return;
-    _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setBool(_developerAllToolsKey, enabled);
-  }
-
-  static bool get developerUnlimitedTools {
-    if (!kDebugMode) return false;
-    return developerMode &&
-        (_preferences?.getBool(_developerUnlimitedToolsKey) ?? false);
-  }
-
-  static Future<void> setDeveloperUnlimitedTools(bool enabled) async {
-    if (!kDebugMode) return;
-    _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setBool(_developerUnlimitedToolsKey, enabled);
   }
 
   static bool get hasProfile {
@@ -272,31 +202,6 @@ class SaveManager {
     await _preferences!.setString(_saveKey, jsonEncode(root));
   }
 
-  /// Persists developer-only global tool progress in the local save root.
-  ///
-  /// Production tool inventory remains server-authoritative. This helper is
-  /// intentionally used only by ToolManager when developer mode is enabled.
-  static Future<void> saveToolProgress({
-    required Map<String, int> toolUses,
-    required List<String> rewardsClaimed,
-  }) async {
-    if (!kDebugMode) return;
-    if (!developerMode) return;
-
-    _preferences ??= await SharedPreferences.getInstance();
-
-    final root = _cachedSave == null
-        ? <String, dynamic>{}
-        : Map<String, dynamic>.from(_cachedSave!);
-
-    root['version'] = 1;
-    root['savedAt'] = DateTime.now().millisecondsSinceEpoch;
-    root['toolUses'] = <String, int>{...toolUses};
-    root['toolRewardsClaimed'] = List<String>.from(rewardsClaimed);
-
-    _cachedSave = root;
-    await _preferences!.setString(_saveKey, jsonEncode(root));
-  }
   static Future<void> clearChapter(String chapter) async {
     _preferences ??= await SharedPreferences.getInstance();
     final root = _cachedSave;
