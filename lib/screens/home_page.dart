@@ -140,6 +140,10 @@ class _HomePageState extends State<HomePage> {
       context,
     ).push(MaterialPageRoute(builder: (_) => const PersonalPage()));
     await PlayerProfileService.ensureProfile();
+    try {
+      await LifeManager.refreshFromServer();
+      await GoldManager.initialize();
+    } catch (_) {}
     if (mounted) setState(() {});
   }
 
