@@ -52,7 +52,10 @@ exports.getToolInventory = onCall(async (request) => {
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const inventory = await ensureInitialUndo(transaction, uid, snapshot);
+    const userSnapshot = await transaction.get(db.collection('users').doc(uid));
+    const allToolsEnabledForTest = userSnapshot.data()?.allToolsEnabledForTest === true;
     return {
+      allToolsEnabledForTest,
       inventory: Object.fromEntries(
         TOOL_TYPES.map((type) => [
           type,
@@ -94,8 +97,13 @@ exports.useTool = onCall(async (request) => {
     }
 
     const chapterIndex = sessionData.chapterIndex;
+    const userSnapshot = await transaction.get(db.collection('users').doc(uid));
+    const allToolsEnabledForTest = userSnapshot.data()?.allToolsEnabledForTest === true;
+    const allowedTools = allToolsEnabledForTest
+      ? TOOL_TYPES
+      : allowedToolsForChapter(chapterIndex);
     if (!Number.isInteger(chapterIndex) || chapterIndex < 0 || chapterIndex > MAX_CHAPTER_INDEX ||
-        !allowedToolsForChapter(chapterIndex).includes(type)) {
+        !allowedTools.includes(type)) {
       throw new HttpsError('failed-precondition', 'Tool is not available in this chapter.');
     }
 
