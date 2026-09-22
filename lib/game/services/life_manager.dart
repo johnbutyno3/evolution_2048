@@ -31,6 +31,14 @@ class LifeManager {
     await refreshFromServer();
   }
 
+  /// Applies an authoritative life payload returned by a game-session
+  /// mutation. This avoids replacing a freshly consumed balance with a stale
+  /// background read that started before the session mutation completed.
+  static void applyServerState(Map<String, dynamic> data) {
+    _applyServerState(data);
+    _initialized = true;
+  }
+
   static Future<void> refreshFromServer() async {
     final result = await _functions.httpsCallable('getLifeState').call();
     _applyServerState(Map<String, dynamic>.from(result.data as Map));
