@@ -675,7 +675,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       builder: (context) => AlertDialog(
         title: const Text('Game Over'),
         content: Text('Score: ${_engine.score}\nHighest: ${_engine.highestValue}'),
-        actions: [],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Home'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Restart'),
+          ),
+        ],
 
       ),
     );
