@@ -28,5 +28,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check JavaScript syntax
+        run: |
+          for file in *.js; do
+            node --check "$file"
+          done
+
       - name: Run Functions tests
         run: npm test
