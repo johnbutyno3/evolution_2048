@@ -601,10 +601,13 @@ exports.startGameSession = onCall(async (request) => {
 
     const replaceActiveSession = request.data?.replaceActiveSession === true;
     const existingSessionId = current.activeGameSessionId;
+    let existingSessionRef = null;
+    let existingSessionSnapshot = null;
+    let existingSessionActive = false;
     if (typeof existingSessionId === 'string' && existingSessionId.length > 0) {
-      const existingSessionRef = gameSessionRef(uid, existingSessionId);
-      const existingSessionSnapshot = await transaction.get(existingSessionRef);
-      const existingSessionActive =
+      existingSessionRef = gameSessionRef(uid, existingSessionId);
+      existingSessionSnapshot = await transaction.get(existingSessionRef);
+      existingSessionActive =
         existingSessionSnapshot.exists &&
         existingSessionSnapshot.data()?.status === 'active';
 
@@ -642,12 +645,6 @@ exports.startGameSession = onCall(async (request) => {
     await consumeLifeInTransaction(transaction, uid, membershipSnapshot);
 
     if (typeof existingSessionId === 'string' && existingSessionId.length > 0) {
-      const existingSessionRef = gameSessionRef(uid, existingSessionId);
-      const existingSessionSnapshot = await transaction.get(existingSessionRef);
-      const existingSessionActive =
-        existingSessionSnapshot.exists &&
-        existingSessionSnapshot.data()?.status === 'active';
-
       if (existingSessionActive && replaceActiveSession) {
         transaction.update(existingSessionRef, {
           status: 'replaced',
