@@ -160,6 +160,7 @@ exports.adminGetTestAccountState = onCall(async (request) => {
   const [membershipSnapshot, goldSnapshot, userSnapshot] = await Promise.all([
     membershipRef(uid).get(),
     goldWalletRef(uid).get(),
+    db.collection('users').doc(uid).get(),
   ]);
 
   const membership = membershipSnapshot.data() || {};
