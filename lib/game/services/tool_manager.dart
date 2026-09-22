@@ -112,6 +112,27 @@ class ToolManager {
     }
   }
 
+  Future<bool> useServer(GameToolType type) async {
+    if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
+      final tool = getTool(type);
+      if (tool != null) tool.usesRemaining = _unlimitedUses;
+      return true;
+    }
+    try {
+      final result = await _functions.httpsCallable('useTool').call({
+        'toolType': type.name,
+      });
+      final uses = result.data is Map ? result.data['uses'] : null;
+      if (uses is! num) return false;
+      _serverUses[type] = uses.toInt();
+      final tool = getTool(type);
+      if (tool != null) tool.usesRemaining = uses.toInt();
+      return true;
+    } on FirebaseFunctionsException {
+      return false;
+    }
+  }
+
   /// Returns the globally saved inventory for a tool.
   ///
   /// Tool inventory is cumulative across chapters, so this can be used by
