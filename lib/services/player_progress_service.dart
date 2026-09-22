@@ -100,6 +100,7 @@ class PlayerProgressService {
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
             : chapterIndex;
+        await LifeManager.refreshFromServer();
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
