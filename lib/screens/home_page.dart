@@ -1,6 +1,4 @@
 ﻿import 'dart:async';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../game/screens/evolution_2048_page.dart';
@@ -120,20 +118,7 @@ class _HomePageState extends State<HomePage> {
     unawaited(_load());
   }
 
-  Future<void> _runPrimaryAdminBootstrap() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user?.email?.toLowerCase() != 'johnbutyno3@gmail.com') return;
-    try {
-      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('bootstrapPrimaryTestAccount');
-      await callable.call();
-    } catch (_) {
-      // One-time maintenance call; normal Home loading must not be blocked.
-    }
-  }
-
   Future<void> _load() async {
-    await _runPrimaryAdminBootstrap();
     try {
       await PlayerProfileService.ensureProfile();
     } catch (_) {}
