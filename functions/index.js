@@ -506,7 +506,13 @@ async function consumeLifeInTransaction(transaction, uid, membershipSnapshot = n
       regenStartAt: null,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    return;
+    return {
+      lives: -1,
+      infiniteLives: true,
+      membership: membership.type,
+      lifeMode: 'golden',
+      nextLifeAtMillis: null,
+    };
   }
 
   const intervalMillis = membership.type === 'premium'
@@ -543,6 +549,16 @@ async function consumeLifeInTransaction(transaction, uid, membershipSnapshot = n
       : Timestamp.fromMillis(regenStartMillis),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
+
+  return {
+    lives,
+    infiniteLives: false,
+    membership: membership.type ?? 'general',
+    lifeMode: 'normal',
+    nextLifeAtMillis: regenStartMillis == null
+      ? null
+      : regenStartMillis + intervalMillis,
+  };
 }
 
 exports.startGameSession = onCall(async (request) => {
@@ -578,7 +594,7 @@ exports.startGameSession = onCall(async (request) => {
   const expiresAt = new Date(startedAt.getTime() + GAME_SESSION_TTL_MS);
   const sessionRef = gameSessionRef(uid, sessionId);
 
-  await db.runTransaction(async (transaction) => {
+  const transactionLifeState = await db.runTransaction(async (transaction) => {
     const progressSnapshot = await transaction.get(progressRef);
     const toolsSnapshot = await transaction.get(toolsRef);
     const membershipSnapshot = await transaction.get(membershipDocRef);
@@ -731,6 +747,8 @@ exports.startGameSession = onCall(async (request) => {
       activeGameChapterIndex: chapterIndex,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    return consumedLifeState;
   });
 
   return {
@@ -738,7 +756,7 @@ exports.startGameSession = onCall(async (request) => {
     chapterIndex,
     targetValue: TARGETS[chapterIndex],
     expiresAt: expiresAt.toISOString(),
-    life: consumedLifeState,
+    life: transactionLifeState,
   };
 });
 
@@ -812,12 +830,14 @@ exports.resumeGameSession = onCall(async (request) => {
       unfinishedExitRefundedAt: null,
       lastResumedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    return consumedLifeState;
   });
 
   return {
     sessionId,
     chapterIndex,
-    life: consumedLifeState,
+    life: transactionLifeState,
   };
 });
 
