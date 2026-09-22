@@ -27,6 +27,24 @@ const PURCHASE_PROVIDERS = new Set(['google_play', 'apple']);
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
 const TOOL_TYPES = new Set(['revive', 'timeRewind', 'positionSwap', 'duplicate']);
 const TOOL_AMOUNTS = new Set([1, 5, 20, 50]);
+const DEFAULT_TOOL_PRICES = {
+  undo1Price: 50,
+  undo5Price: 225,
+  undo20Price: 700,
+  undo50Price: 1500,
+  remove1Price: 100,
+  remove5Price: 450,
+  remove20Price: 1400,
+  remove50Price: 3000,
+  swap1Price: 200,
+  swap5Price: 900,
+  swap20Price: 2800,
+  swap50Price: 6000,
+  duplicate1Price: 500,
+  duplicate5Price: 2250,
+  duplicate20Price: 7000,
+  duplicate50Price: 15000,
+};
 const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
 
 function recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {
@@ -173,7 +191,11 @@ exports.purchaseTool = onCall(async (request) => {
   }
 
   const configSnapshot = await db.collection('shop_config').doc('global').get();
-  const price = configSnapshot.data()?.[toolPriceKey(type, amount)];
+  const configuredPrice = configSnapshot.data()?.[toolPriceKey(type, amount)];
+  const fallbackPrice = DEFAULT_TOOL_PRICES[toolPriceKey(type, amount)];
+  const price = Number.isSafeInteger(configuredPrice)
+    ? configuredPrice
+    : fallbackPrice;
   if (!Number.isSafeInteger(price) || price <= 0) {
     throw new HttpsError('failed-precondition', 'Tool price is unavailable.');
   }
