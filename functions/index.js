@@ -121,9 +121,13 @@ exports.getToolInventory = onCall(async (request) => {
   }
 
   const ref = toolInventoryRef(request.auth.uid);
-  const snapshot = await ref.get();
+  const [snapshot, userSnapshot] = await Promise.all([
+    ref.get(),
+    db.collection('users').doc(request.auth.uid).get(),
+  ]);
   const inventory = snapshot.data() || {};
   return {
+    allToolsEnabledForTest: userSnapshot.data()?.allToolsEnabledForTest === true,
     inventory: Object.fromEntries(
       [...TOOL_TYPES].map((type) => [
         type,
@@ -280,7 +284,11 @@ exports.useTool = onCall(async (request) => {
       throw new HttpsError('failed-precondition', 'Game session chapter is invalid.');
     }
 
-    const allowedTools = allowedToolsForChapter(chapterIndex);
+    const userSnapshot = await transaction.get(db.collection('users').doc(uid));
+    const allToolsEnabledForTest = userSnapshot.data()?.allToolsEnabledForTest === true;
+    const allowedTools = allToolsEnabledForTest
+      ? [...TOOL_TYPES]
+      : allowedToolsForChapter(chapterIndex);
     if (!allowedTools.includes(type)) {
       await recordSecurityEvent({
         uid,
