@@ -62,7 +62,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
       setState(() {
         _mode = mode;
         _expiresAt = d['expiresAt'] as String?;
-        _message = 'Membership switched to ' + mode + '.';
+        _message = 'Membership switched to $mode.';
       });
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
@@ -82,7 +82,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
       await _functions.httpsCallable('adminSetGoldBalance').call({
         'uid': _uid, 'balance': value,
       });
-      if (mounted) setState(() => _message = 'Gold balance set to ' + value.toString() + '.');
+      if (mounted) setState(() => _message = 'Gold balance set to $value.');
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
     } finally {
@@ -122,8 +122,8 @@ class _AdminTestPageState extends State<AdminTestPage> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Membership', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text('Current: ' + _label(_mode)),
-              if (_expiresAt != null) Text('Expires: ' + _expiresAt!),
+              Text('Current: ${_label(_mode)}'),
+              if (_expiresAt != null) Text('Expires: $_expiresAt'),
               const SizedBox(height: 12),
               Wrap(spacing: 8, children: [
                 _button('general', 'General'),
