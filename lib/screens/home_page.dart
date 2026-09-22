@@ -253,6 +253,17 @@ class _HomePageState extends State<HomePage> {
                               fontSize: 12,
                             ),
                           ),
+                          const SizedBox(height: 2),
+                          Text(
+                            LifeManager.isGoldenMember
+                                ? 'Life: ∞'
+                                : 'Life: ${LifeManager.lifeCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           InkWell(
                             onTap: () {
                               Navigator.of(context).pushNamed('/shop');

@@ -1039,7 +1039,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Widget build(BuildContext context) {
     final background = _backgroundForHighest(_engine.highestValue);
     final l10n = AppLocalizations.of(context)!;
-    final lifeRemaining = _engine.lifeRegenerationRemaining;
+    final lifeCount = LifeManager.lifeCount;
+    final lifeRemaining = LifeManager.regenerationRemaining;
     final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
     return PopScope<void>(
       canPop: _allowSystemPop,
@@ -1075,7 +1076,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('${l10n.life} ${_engine.lives < 0 ? '∞' : _engine.lives}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium),
+                          Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium),
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium),
                             IconButton(
