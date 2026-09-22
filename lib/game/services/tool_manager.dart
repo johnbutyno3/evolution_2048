@@ -1,6 +1,7 @@
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'life_manager.dart';
 import '../../services/player_progress_service.dart';
 
 class ToolManager {
@@ -14,6 +15,7 @@ class ToolManager {
 
   static const String _saveKey = 'toolUses';
   static const String _claimedKey = 'toolRewardsClaimed';
+  static const int _unlimitedUses = 999999;
   static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
     region: 'us-central1',
   );
@@ -66,7 +68,7 @@ class ToolManager {
   void refreshFromSavedProgress() {
     _uses.clear();
     for (final tool in _tools) {
-      tool.usesRemaining = _serverUses[tool.tool.type] ?? 0;
+      tool.usesRemaining = savedUsesFor(tool.tool.type);
     }
   }
 
@@ -78,7 +80,6 @@ class ToolManager {
   }
 
   static Future<void> refreshInventory() async {
-    if (SaveManager.developerMode) return;
     try {
       final result = await _functions.httpsCallable('getToolInventory').call();
       final inventory = result.data is Map ? result.data['inventory'] : null;
@@ -97,7 +98,6 @@ class ToolManager {
   }
 
   static Future<bool> purchase(GameToolType type, int amount) async {
-    if (SaveManager.developerMode) return false;
     try {
       final result = await _functions.httpsCallable('purchaseTool').call({
         'toolType': type.name,
@@ -117,6 +117,9 @@ class ToolManager {
   /// Tool inventory is cumulative across chapters, so this can be used by
   /// profile/shop UI even when the tool is not currently unlocked.
   static int savedUsesFor(GameToolType type) {
+    if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
+      return _unlimitedUses;
+    }
     return _serverUses[type] ?? 0;
   }
 
@@ -128,15 +131,14 @@ class ToolManager {
 
   void reset() {
     for (final tool in _tools) {
-      tool.usesRemaining = _serverUses[tool.tool.type] ?? 0;
+      tool.usesRemaining = savedUsesFor(tool.tool.type);
     }
   }
 
   void grantNextChapterReward() {
     for (final type in _nextChapterToolTypes) {
-      _uses[type] = (_uses[type] ?? 0) + 1;
+      _uses[type] = (_serverUses[type] ?? 0) + 1;
     }
-    _persistProgress();
   }
 
   static List<GameToolType> toolsForChapter(GameChapter chapter) {
@@ -179,5 +181,4 @@ class ToolManager {
     };
   }
 
-  void _persistProgress() {}
 }
