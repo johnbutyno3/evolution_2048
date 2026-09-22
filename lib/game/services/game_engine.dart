@@ -83,9 +83,12 @@ class GameEngine {
   /// Prevents the same Game Over from deducting life more than once.
   bool _boardLifeActive = false;
 
-  int get lives => _lives;
+  /// Always expose the server-authoritative life balance after LifeManager
+  /// has completed its first server refresh. The local value is only a
+  /// startup fallback before Firebase state is available.
+  int get lives => LifeManager.isInitialized ? LifeManager.lifeCount : _lives;
 
-  bool get hasLife => _lives > 0;
+  bool get hasLife => lives > 0;
 
   int? get nextLifeAtMillis => _nextLifeAtMillis;
 
