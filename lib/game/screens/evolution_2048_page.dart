@@ -190,15 +190,41 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
 
-        // Re-entering an unfinished game is a new billable entry while
-        // preserving the same server-owned board/session.
-        final resumed = await progress.resumeGameSession(
-          _chapterNumber - 1,
+        // Every actual entry into the game must charge exactly one Life.
+        // Resume only when this device still has the playable local board.
+        // If the server has an orphaned session but this device has no board,
+        // start a fresh session and atomically replace the orphaned session.
+        final saved = SaveManager.loadCached(
+          chapter: _engine.chapter.name,
         );
-        if (!resumed || !mounted) return false;
+        final hasPlayableLocalBoard = saved != null &&
+            saved['gameOver'] != true &&
+            saved['chapterComplete'] != true &&
+            saved['tiles'] is List &&
+            (saved['tiles'] as List).length == 16;
+
+        final entered = hasPlayableLocalBoard
+            ? await progress.resumeGameSession(_chapterNumber - 1)
+            : await progress.startGameSession(
+                _chapterNumber - 1,
+                replaceActiveSession: true,
+              );
+        if (!entered || !mounted) return false;
+
+        if (!hasPlayableLocalBoard) {
+          // The new server session owns a new board; do not restore the
+          // orphaned cached session into this engine.
+          _engine.stopGameTimer();
+          _engine = GameEngine(
+            chapter: _engine.chapter,
+            forceNewBoard: true,
+          );
+          _engine.reset();
+        }
 
         _engine.markBoardLifeActiveAfterServerRestart();
         _engine.updateLifeFromRealTime();
+        unawaited(_engine.toolManager.refreshServerState());
         return true;
       }
 
