@@ -151,9 +151,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<void> _initializeGameplaySession() async {
     if (!mounted) return;
 
-    // Reconcile the server session before deciding whether this is a new
-    // attempt. A stale local Game Over/Complete state must never cause a
-    // fresh Life-consuming session to be created automatically.
     final ready = await _ensureGameSession();
     if (!mounted) return;
 
@@ -193,42 +190,31 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
 
-        // Re-entering an unfinished game is still a new game entry under
-        // the project Life rules. The server therefore charges exactly one
-        // Life while preserving the same active session/board.
+        // Re-entering an unfinished game is a new billable entry while
+        // preserving the same server-owned board/session.
         final resumed = await progress.resumeGameSession(
           _chapterNumber - 1,
         );
         if (!resumed || !mounted) return false;
 
         _engine.markBoardLifeActiveAfterServerRestart();
-        await LifeManager.refreshFromServer();
         _engine.updateLifeFromRealTime();
         return true;
       }
 
-      // A Game Over or completed board has no active server session. Do not
-      // silently turn page re-entry into a new Life-consuming attempt.
       if (_engine.gameOver || _engine.chapterComplete) {
         return false;
       }
 
-      // No server-owned unfinished session exists and the local board is
-      // playable. This is a genuinely new attempt, so the server consumes
-      // Life before the engine starts the new board.
-      //
-      // IMPORTANT: first entry is a start, not a restart. Restart is reserved
-      // for an explicit player request after an existing attempt.
       final started = await progress.startGameSession(_chapterNumber - 1);
       if (!started || !mounted) return false;
 
       _engine.reset();
       _engine.markBoardLifeActiveAfterServerRestart();
-
-      // Synchronize the client cache with the Life consumed by the server.
-      await LifeManager.refreshFromServer();
       _engine.updateLifeFromRealTime();
-      await _engine.toolManager.refreshServerState();
+      // Tool inventory is authoritative but must not delay creation of the
+      // new board. Refresh it in the background after the session is active.
+      unawaited(_engine.toolManager.refreshServerState());
       return true;
     } finally {
       _gameSessionStarting = false;
@@ -441,13 +427,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       _engine.reset();
       _engine.markBoardLifeActiveAfterServerRestart();
-
-      // The server has consumed the Life atomically. Refresh the client
-      // cache before the page starts so stale local state cannot overwrite
-      // the server-confirmed Life count.
-      await LifeManager.refreshFromServer();
       _engine.updateLifeFromRealTime();
-      await _engine.toolManager.refreshServerState();
 
       setState(() {
         _evolutionValue = null;
@@ -462,6 +442,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _engine.startGameTimer();
       _startUiRefreshTimer();
       _focusNode.requestFocus();
+      // Inventory refresh is intentionally background work; it must not hold
+      // the new board hostage after the server has confirmed the restart.
+      unawaited(_engine.toolManager.refreshServerState());
       return true;
     } finally {
       _restartInProgress = false;
@@ -471,10 +454,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<void> _handleSystemBack() async {
     if (_handlingSystemBack || !mounted) return;
 
-    // System/Android Back must follow the same unfinished-exit rule as the
-    // in-game Home action. Do not let Navigator pop first, otherwise the
-    // server never receives the refund request and the next entry resumes
-    // without consuming the required Life.
     if (_engine.gameOver || _engine.chapterComplete) {
       _allowSystemPop = true;
       if (mounted) Navigator.of(context).pop();
@@ -533,9 +512,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     if (action == 'home') {
-      // Unfinished exit refunds the Life consumed for this attempt. The
-      // server keeps the same session active so the next chapter entry
-      // resumes this exact board and consumes one Life again.
       await PlayerProgressService.instance.exitUnfinishedGameSession();
       if (!mounted) return;
       _engine.pauseGameTimer();
@@ -557,7 +533,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _startTool(String mode) async {
-    if (!await _ensureGameSession()) return;
+    // Tool selection must never call resumeGameSession. A tool press is an
+    // action inside the current game, not a new game entry, so it must not
+    // consume another Life or wait for session re-entry.
+    if (PlayerProgressService.instance.activeGameSessionId == null) return;
     if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete ||
         _gameOverDialogShowing || _chapterCompleteShowing ||
         _completionAnimationPlaying) {
@@ -727,15 +706,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
       }
     } else {
-      // Game Over ends the active server session. Clear local state only
-      // after the server has marked the session ended, otherwise the active
-      // session could be restored and keep the chapter lock alive.
       await PlayerProgressService.instance.abandonGameSession();
       if (!mounted) return;
 
-      // Game Over is a finished attempt, not a resumable local board.
-      // Remove only this chapter's local board so re-entry creates a fresh
-      // server session and consumes the next Life.
       await SaveManager.clearChapter(_engine.chapter.name);
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -752,8 +725,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       GameChapter.universe => _universeBackgrounds,
     };
 
-    // Background changes are defined by chapter stage, not by one shared
-    // highest-value threshold. Stage 1 is value 2, stage 2 is value 4, etc.
     final stage = highestValue > 0
         ? (highestValue.bitLength - 1)
         : 1;
@@ -763,7 +734,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         stage >= 10 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0,
       GameChapter.land =>
         stage >= 12 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0,
-      // C3 Sky: background switch stages are 1, 5, 11, 13.
       GameChapter.sky =>
         stage >= 13 ? 3 : stage >= 11 ? 2 : stage >= 5 ? 1 : 0,
       GameChapter.history =>
@@ -806,9 +776,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _chapterCompleteShowing = true;
     _engine.stopGameTimer();
 
-    // Chapter completion must finalize the already-active server session.
-    // Never create a new Life-consuming session merely because completion
-    // is being displayed.
     final progress = PlayerProgressService.instance;
     await progress.refresh();
     if (progress.activeGameSessionId == null ||
@@ -875,9 +842,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }) async {
     if (!mounted) return;
 
-    // Next Chapter is always a new Life-consuming attempt. Acquire the
-    // server session before constructing the new engine so the board,
-    // Life state and active session cannot get out of sync.
     final started = await PlayerProgressService.instance.restartGameSession(
       chapter.index,
     );
@@ -902,6 +866,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _engine.updateLifeFromRealTime();
     _engine.startGameTimer();
     _startUiRefreshTimer();
+    unawaited(_engine.toolManager.refreshServerState());
     await AudioManager.instance.playChapterMusic(chapter);
     if (!mounted) return;
     _focusNode.requestFocus();
