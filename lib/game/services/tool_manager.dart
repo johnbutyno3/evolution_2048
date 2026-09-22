@@ -2,7 +2,6 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'life_manager.dart';
-import '../../services/player_progress_service.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -13,8 +12,6 @@ class ToolManager {
 
   final GameChapter chapter;
 
-  static const String _saveKey = 'toolUses';
-  static const String _claimedKey = 'toolRewardsClaimed';
   static const int _unlimitedUses = 999999;
   static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
     region: 'us-central1',
@@ -22,7 +19,6 @@ class ToolManager {
   static final Map<GameToolType, int> _serverUses = {};
 
   final Map<GameToolType, int> _uses = <GameToolType, int>{};
-  final Set<String> _rewardsClaimed = <String>{};
   final List<ToolState> _tools = <ToolState>[];
 
   List<ToolState> get tools => List.unmodifiable(_tools);
