@@ -145,7 +145,14 @@ class PlayerProgressService {
         (saved['tiles'] as List).length == 16;
 
     if (!hasPlayableLocalBoard) {
-      return startGameSession(chapterIndex);
+      // The server may still own an unfinished session even when the local
+      // board cache is missing. In that case this is a fresh entry, not a
+      // resumable board: replace the orphaned same-chapter session atomically
+      // and charge exactly one Life for the new game.
+      return startGameSession(
+        chapterIndex,
+        replaceActiveSession: true,
+      );
     }
 
     try {
