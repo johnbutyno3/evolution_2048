@@ -642,7 +642,11 @@ exports.startGameSession = onCall(async (request) => {
     // Starting a genuinely new game attempt consumes exactly one Life.
     // This read/write must happen before any transaction write, because
     // Firestore transactions require all reads to precede writes.
-    await consumeLifeInTransaction(transaction, uid, membershipSnapshot);
+    const consumedLifeState = await consumeLifeInTransaction(
+      transaction,
+      uid,
+      membershipSnapshot,
+    );
 
     if (typeof existingSessionId === 'string' && existingSessionId.length > 0) {
       if (existingSessionActive && replaceActiveSession) {
@@ -734,6 +738,7 @@ exports.startGameSession = onCall(async (request) => {
     chapterIndex,
     targetValue: TARGETS[chapterIndex],
     expiresAt: expiresAt.toISOString(),
+    life: consumedLifeState,
   };
 });
 
@@ -794,7 +799,7 @@ exports.resumeGameSession = onCall(async (request) => {
 
     // Every game entry, including resume after an unfinished exit, consumes
     // exactly one Life. The deduction is atomic with resume validation.
-    await consumeLifeInTransaction(
+    const consumedLifeState = await consumeLifeInTransaction(
       transaction,
       uid,
       membershipSnapshot,
@@ -812,6 +817,7 @@ exports.resumeGameSession = onCall(async (request) => {
   return {
     sessionId,
     chapterIndex,
+    life: consumedLifeState,
   };
 });
 
