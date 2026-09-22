@@ -51,9 +51,9 @@ exports.getToolInventory = onCall(async (request) => {
   const ref = inventoryRef(uid);
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
-    const inventory = await ensureInitialUndo(transaction, uid, snapshot);
     const userSnapshot = await transaction.get(db.collection('users').doc(uid));
     const allToolsEnabledForTest = userSnapshot.data()?.allToolsEnabledForTest === true;
+    const inventory = await ensureInitialUndo(transaction, uid, snapshot);
     return {
       allToolsEnabledForTest,
       inventory: Object.fromEntries(
