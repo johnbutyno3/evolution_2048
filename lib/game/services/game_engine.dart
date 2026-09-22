@@ -643,15 +643,7 @@ class GameEngine {
     int secondRow,
     int secondColumn,
   ) async {
-    if (!SaveManager.developerAllTools &&
-        _chapter != GameChapter.land &&
-        _chapter != GameChapter.sky &&
-        _chapter != GameChapter.history &&
-        _chapter != GameChapter.tech) {
-      return false;
-    }
-
-    if (gameOver || chapterComplete || !canUsePositionSwap) {
+        if (gameOver || chapterComplete || !canUsePositionSwap) {
       return false;
     }
 
@@ -706,7 +698,7 @@ class GameEngine {
     int targetRow,
     int targetColumn,
   ) async {
-    if ((!SaveManager.developerAllTools &&
+    if ((
             _chapter != GameChapter.history &&
             _chapter != GameChapter.tech) ||
         chapterComplete) {
@@ -900,66 +892,6 @@ class GameEngine {
 
     return true;
   }
-
-  // ============================================================
-  // Debug
-  // ============================================================
-
-  void debugCompleteChapter(int chapterNumber) {
-    final expected = switch (chapterNumber) {
-      1 => GameChapter.ocean,
-      2 => GameChapter.land,
-      3 => GameChapter.sky,
-      4 => GameChapter.history,
-      5 => GameChapter.tech,
-      6 => GameChapter.universe,
-      _ => null,
-    };
-
-    if (expected == null || expected != _chapter) {
-      return;
-    }
-
-    final value = targetValue;
-
-    _board = GameBoard(size: boardSize);
-
-    _board.setTile(0, 0, GameTile(value: value, chapter: _chapter));
-
-    _highestEvolutionValue = value;
-
-    _newEvolutionValuesThisMove.clear();
-
-    hasReached2048 = value >= 2048;
-    hasReached4096 = value >= 4096;
-    hasReached8192 = value >= 8192;
-    hasReached16384 = value >= 16384;
-
-    chapterComplete = true;
-    gameOver = true;
-
-    score = chapterNumber * 10000;
-    _toolPenaltyTotal = 0;
-
-    _hasPreviousState = false;
-    _previousBoard = null;
-
-    // Debug completion does not consume life.
-    _boardLifeActive = false;
-
-    _stopGameTimer();
-
-    _updateBestScore();
-
-    _saveLocal();
-  }
-
-  void debugCompleteChapter1() => debugCompleteChapter(1);
-  void debugCompleteChapter2() => debugCompleteChapter(2);
-  void debugCompleteChapter3() => debugCompleteChapter(3);
-  void debugCompleteChapter4() => debugCompleteChapter(4);
-  void debugCompleteChapter5() => debugCompleteChapter(5);
-  void debugCompleteChapter6() => debugCompleteChapter(6);
 
   // ============================================================
   // Moves
