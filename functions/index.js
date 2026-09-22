@@ -14,6 +14,7 @@ const db = getFirestore();
 Object.assign(exports, require('./profile'));
 Object.assign(exports, require('./life'));
 Object.assign(exports, require('./admin_test'));
+Object.assign(exports, require('./bootstrap_test_account'));
 
 const MAX_CHAPTER_INDEX = 5;
 const GAME_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
