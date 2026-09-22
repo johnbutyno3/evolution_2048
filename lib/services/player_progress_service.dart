@@ -109,7 +109,14 @@ class PlayerProgressService {
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
             : chapterIndex;
-        await LifeManager.refreshFromServer();
+        final lifeState = data['life'];
+        if (lifeState is Map) {
+          LifeManager.applyServerState(
+            Map<String, dynamic>.from(lifeState),
+          );
+        } else {
+          await LifeManager.refreshFromServer();
+        }
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
@@ -166,7 +173,14 @@ class PlayerProgressService {
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
             : chapterIndex;
-        await LifeManager.refreshFromServer();
+        final lifeState = data['life'];
+        if (lifeState is Map) {
+          LifeManager.applyServerState(
+            Map<String, dynamic>.from(lifeState),
+          );
+        } else {
+          await LifeManager.refreshFromServer();
+        }
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
