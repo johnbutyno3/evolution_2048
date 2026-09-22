@@ -246,28 +246,106 @@ exports.abandonGameSession = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Invalid game session.');
   }
 
+  const unfinishedExit = request.data?.unfinishedExit === true;
   const uid = request.auth.uid;
   const sessionRef = gameSessionRef(uid, sessionId);
   const progress = progressRef(uid);
+  const life = lifeRef(uid);
+  const membership = membershipRef(uid);
+
+  let finalStatus = 'ended';
 
   await db.runTransaction(async (transaction) => {
+    // All transaction reads must happen before any writes.
     const sessionSnapshot = await transaction.get(sessionRef);
     const progressSnapshot = await transaction.get(progress);
+    const membershipSnapshot = unfinishedExit
+      ? await transaction.get(membership)
+      : null;
+    const lifeSnapshot = unfinishedExit
+      ? await transaction.get(life)
+      : null;
 
     if (!sessionSnapshot.exists) {
       return;
     }
 
     const session = sessionSnapshot.data() || {};
-    if (session.status === 'active') {
-      transaction.update(sessionRef, {
-        status: 'ended',
-        endedAt: FieldValue.serverTimestamp(),
-        endReason: 'game_over',
-      });
+    const current = progressSnapshot.data() || {};
+
+    if (session.status !== 'active') {
+      finalStatus = session.status || 'ended';
+      return;
     }
 
-    const current = progressSnapshot.data() || {};
+    if (unfinishedExit) {
+      // Leaving an unfinished game is not Game Over. Refund exactly the Life
+      // consumed for this entry and keep the same server-owned session active.
+      // resumeGameSession clears this marker before each new billable entry,
+      // so each unfinished entry can receive exactly one refund.
+      if (current.activeGameSessionId !== sessionId) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Game session is not the current active game.',
+        );
+      }
+
+      if (session.unfinishedExitRefundedAt == null) {
+        const membershipState = resolveMembership(
+          membershipSnapshot?.data() || {},
+        );
+        let lives = normalizeLives(lifeSnapshot?.data()?.lives);
+        let regenStartMillis = normalizeRegenStart(
+          lifeSnapshot?.data()?.regenStartAt,
+        );
+        const nowMillis = Date.now();
+
+        if (membershipState.infiniteLives) {
+          lives = NORMAL_CAP;
+          regenStartMillis = null;
+        } else {
+          const regenerated = regenerate({
+            lives,
+            regenStartMillis,
+            nowMillis,
+            interval: intervalMs(membershipState),
+          });
+          lives = regenerated.lives;
+          regenStartMillis = regenerated.regenStartMillis;
+
+          lives = Math.min(NORMAL_CAP, lives + 1);
+          if (lives >= NORMAL_CAP) {
+            regenStartMillis = null;
+          } else if (regenStartMillis == null) {
+            regenStartMillis = nowMillis;
+          }
+        }
+
+        transaction.set(life, {
+          lives,
+          regenStartAt: regenStartMillis == null
+            ? null
+            : Timestamp.fromMillis(regenStartMillis),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        transaction.set(sessionRef, {
+          unfinishedExitRefundedAt: FieldValue.serverTimestamp(),
+          lastUnfinishedExitAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+
+      finalStatus = 'active';
+      return;
+    }
+
+    // Normal abandonment is Game Over: no Life refund.
+    transaction.update(sessionRef, {
+      status: 'ended',
+      endedAt: FieldValue.serverTimestamp(),
+      endReason: 'game_over',
+    });
+
     if (current.activeGameSessionId === sessionId) {
       transaction.set(progress, {
         activeGameSessionId: FieldValue.delete(),
@@ -277,5 +355,5 @@ exports.abandonGameSession = onCall(async (request) => {
     }
   });
 
-  return { sessionId, status: 'ended' };
+  return { sessionId, status: finalStatus };
 });
