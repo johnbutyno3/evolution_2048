@@ -1,12 +1,10 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'home_page.dart';
 import '../game/services/audio_manager.dart';
-import '../game/services/save_manager.dart';
 import '../l10n/app_localizations.dart';
 
 class LoginRegisterPage extends StatefulWidget {
@@ -24,9 +22,6 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   bool _isRegister = false;
   bool _loading = false;
   bool _obscurePassword = true;
-
-  static const String _developerEmail = 'dev@rebirth2048.local';
-  static const String _developerPassword = 'Rebirth2048Dev!';
 
   @override
   void dispose() {
@@ -49,15 +44,6 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      if (kDebugMode &&
-          email == _developerEmail &&
-          password == _developerPassword) {
-        await SaveManager.setDeveloperMode(true);
-        if (mounted) _goToGame();
-        return;
-      }
-
-      await SaveManager.setDeveloperMode(false);
       if (_isRegister) {
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: email,
