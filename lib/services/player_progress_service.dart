@@ -209,7 +209,26 @@ class PlayerProgressService {
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
         _activeGameChapterIndex = chapterIndex;
-        await LifeManager.refreshFromServer();
+
+        // restartGameSession already returns the life state from the same
+        // Firestore transaction that consumed the Life. Apply that exact
+        // state instead of issuing a second read that can race with the
+        // transaction and restore a stale balance in the UI.
+        final lifeState = <String, dynamic>{
+          'lives': data['lives'],
+          'infiniteLives': data['infiniteLives'],
+          'membership': data['membership'],
+          'lifeMode': data['lifeMode'],
+          'nextLifeAtMillis': data['nextLifeAtMillis'],
+        };
+        if (lifeState['lives'] is int &&
+            lifeState['infiniteLives'] is bool &&
+            lifeState['membership'] is String &&
+            lifeState['lifeMode'] is String) {
+          LifeManager.applyServerState(lifeState);
+        } else {
+          await LifeManager.refreshFromServer();
+        }
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
