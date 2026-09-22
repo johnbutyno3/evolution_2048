@@ -952,6 +952,46 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     );
   }
 
+  Widget _buildSessionTransitionOverlay() {
+    final isRestarting = _restartInProgress;
+    return Positioned.fill(
+      child: AbsorbPointer(
+        absorbing: true,
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.62),
+          alignment: Alignment.center,
+          child: Card(
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 34,
+                    height: 34,
+                    child: CircularProgressIndicator(strokeWidth: 3),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    isRestarting ? '正在重新開始遊戲…' : '正在建立遊戲…',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '正在同步遊戲資料，請稍候。',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEvolutionNotice() {
     final value = _evolutionValue ?? _engine.highestEvolutionValue;
     final name = _evolutionCreatureName ?? _creatureNameForValue(value);
@@ -1062,6 +1102,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                                 },
                               ),
                               _buildCompletionAnimation(),
+                              if (_gameSessionStarting || _restartInProgress) _buildSessionTransitionOverlay(),
                             ],
                           ),
                         ),
