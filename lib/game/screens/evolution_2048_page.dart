@@ -676,22 +676,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       builder: (context) => AlertDialog(
         title: const Text('Game Over'),
         content: Text('Score: ${_engine.score}\nHighest: ${_engine.highestValue}'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
-              Navigator.of(context).pop(false);
-            },
-            child: const Text('Back'),
-          ),
-          TextButton(
-            onPressed: () {
-              unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
-              Navigator.of(context).pop(true);
-            },
-            child: const Text('Restart'),
-          ),
-        ],
+        actions: [],
+
       ),
     );
     if (!mounted) return;
@@ -755,12 +741,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     GameChapter.tech => 'Technology Chapter',
     GameChapter.universe => 'Universe Chapter',
   };
-
-  void _debugCompleteChapter() {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
-    setState(() => _engine.debugCompleteChapter(_chapterNumber));
-    _showChapterComplete();
-  }
 
   int get _chapterNumber => switch (_engine.chapter) {
     GameChapter.ocean => 1,
