@@ -1008,7 +1008,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         appBar: AppBar(
         title: Text(_chapterTitle),
         actions: [
-          IconButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _debugCompleteChapter(); }, tooltip: 'Test Chapter Complete', icon: const Icon(Icons.bug_report)),
         ],
       ),
       body: SafeArea(
