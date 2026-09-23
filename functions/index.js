@@ -733,12 +733,10 @@ exports.resumeGameSession = onCall(async (request) => {
   const uid = request.auth.uid;
   const progressRef = db.collection('users').doc(uid)
     .collection('progress').doc('game');
-  const membershipDocRef = membershipRef(uid);
   let sessionId;
 
-  const transactionLifeState = await db.runTransaction(async (transaction) => {
+  const transactionResult = await db.runTransaction(async (transaction) => {
     const progressSnapshot = await transaction.get(progressRef);
-    const membershipSnapshot = await transaction.get(membershipDocRef);
 
     const current = progressSnapshot.data() || {};
     sessionId = current.activeGameSessionId;
