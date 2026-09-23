@@ -142,4 +142,5 @@
   "membership": "會員資格",
   "evolutionProgress": "進化進度",
   "chapterLabel": "第 {number} 章 · {name}"
+  ,"profileSetupFailed": "建立玩家資料失敗，請再試一次。"
 }
