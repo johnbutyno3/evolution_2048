@@ -98,7 +98,6 @@ class LifeManager {
     try {
       final result = await _functions.httpsCallable('consumeLife').call();
       _applyServerState(Map<String, dynamic>.from(result.data as Map));
-      _initialized = true;
       _engineLifeConsumptionPending = true;
       return true;
     } on FirebaseFunctionsException catch (error) {
@@ -129,6 +128,5 @@ class LifeManager {
   static Future<void> refundChapterCompletionLife() async {
     final result = await _functions.httpsCallable('refundLife').call();
     _applyServerState(Map<String, dynamic>.from(result.data as Map));
-    _initialized = true;
   }
 }
