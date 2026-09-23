@@ -63,16 +63,6 @@ class ToolManager {
     }
   }
 
-  /// Refreshes the authoritative inventory and applies it to displayed tools.
-  Future<void> refreshServerState() async {
-    final hadAllToolsEnabled = _allToolsEnabledForTest;
-    await refreshInventory();
-    if (hadAllToolsEnabled != _allToolsEnabledForTest) {
-      _initialize();
-    }
-    refreshFromSavedProgress();
-  }
-
   static Future<void> refreshInventory() async {
     try {
       final result = await _functions.httpsCallable('getToolInventory').call();
