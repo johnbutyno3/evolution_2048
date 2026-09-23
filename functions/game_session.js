@@ -45,6 +45,48 @@ function toolInventoryRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('tools');
 }
 
+
+async function refundLifeInTransaction(transaction, uid, membershipSnapshot = null) {
+  const resolvedMembershipSnapshot = membershipSnapshot ??
+    await transaction.get(membershipRef(uid));
+  const membership = resolveMembership(resolvedMembershipSnapshot.data() || {});
+  const life = lifeRef(uid);
+  const lifeSnapshot = await transaction.get(life);
+  const data = lifeSnapshot.data() || {};
+  let lives = normalizeLives(data.lives);
+  let regenStartMillis = normalizeRegenStart(data.regenStartAt);
+  const nowMillis = Date.now();
+
+  if (membership.infiniteLives) {
+    transaction.set(life, {
+      lives: NORMAL_CAP,
+      regenStartAt: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return lifeResponse(-1, null, membership);
+  }
+
+  const regenerated = regenerate({
+    lives,
+    regenStartMillis,
+    nowMillis,
+    interval: intervalMs(membership),
+  });
+  lives = Math.min(NORMAL_CAP, regenerated.lives + 1);
+  regenStartMillis = regenerated.regenStartMillis;
+  if (lives >= NORMAL_CAP) regenStartMillis = null;
+
+  transaction.set(life, {
+    lives,
+    regenStartAt: regenStartMillis == null
+      ? null
+      : Timestamp.fromMillis(regenStartMillis),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return lifeResponse(lives, regenStartMillis, membership);
+}
+
 exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
@@ -308,6 +350,7 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
       // performed from this same snapshot so it cannot be detached from the
       // session that is actually being settled.
       const refs = [sessionRef, progress];
+      if (unfinishedExit) refs.push(membership, lifeRef(uid));
       if (replayLog != null) refs.push(membership);
       if (replayLog != null) refs.push(userRef, toolInventoryRef(uid));
       const snapshots = await transaction.getAll(...refs);
@@ -477,19 +520,33 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
           );
         }
 
-        // Leaving Home is a pause/resume flow, not a new game attempt.
-        // The Life consumed when this session started remains owned by the
-        // active board until Game Over, Restart, or Chapter Completion.
-        // Refunding here would let a player leave, re-enter, and later receive
-        // a second completion refund for the same Life.
-        transaction.set(sessionRef, {
+        // Returning to Home refunds the Life consumed for this session.
+        // The session is ended so the next explicit game entry creates a new
+        // session and consumes exactly one Life again. The local board remains
+        // available and is rebound to the new session by the Flutter client.
+        const membershipSnapshotForRefund = snapshotMap.get(membership.path);
+        const refundedLife = await refundLifeInTransaction(
+          transaction,
+          uid,
+          membershipSnapshotForRefund,
+        );
+
+        transaction.update(sessionRef, {
+          status: 'ended',
+          endedAt: FieldValue.serverTimestamp(),
+          endReason: 'unfinished_exit',
           lastUnfinishedExitAt: FieldValue.serverTimestamp(),
+        });
+        transaction.set(progress, {
+          activeGameSessionId: FieldValue.delete(),
+          activeGameChapterIndex: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        finalStatus = 'active';
+        finalStatus = 'ended';
         return {
-          status: 'active',
-          life: null,
+          status: 'ended',
+          life: refundedLife,
         };
       }
 
