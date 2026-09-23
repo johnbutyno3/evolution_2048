@@ -69,7 +69,6 @@ exports.restartGameSession = onCall(async (request) => {
 
   const replayLog = request.data?.replayLog ?? null;
   let replayResult = null;
-  let settledChapterProgress = null;
   if (replayLog != null) {
     const requestedSessionId = request.data?.sessionId;
     let oldSessionId = typeof requestedSessionId === 'string' &&
