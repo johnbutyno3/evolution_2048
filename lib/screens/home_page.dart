@@ -6,6 +6,7 @@ import '../game/models/game_tile.dart';
 import '../game/services/audio_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
+import '../game/services/tool_manager.dart';
 import '../game/services/save_manager.dart';
 import '../services/player_profile_service.dart';
 import '../services/player_progress_service.dart';
@@ -124,12 +125,12 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {}
 
     try {
-      await LifeManager.initialize();
-      await GoldManager.initialize();
-    } catch (_) {}
-
-    try {
-      await _progress.refresh();
+      await Future.wait([
+        LifeManager.initialize(),
+        GoldManager.initialize(),
+        ToolManager.refreshInventory(),
+        _progress.refresh(),
+      ]);
     } catch (_) {}
 
     if (mounted) setState(() => _loading = false);
