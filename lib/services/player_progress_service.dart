@@ -216,12 +216,12 @@ class PlayerProgressService {
         'message=${error.message}, '
         'details=${error.details?.toString()},',
       );
-      await refresh();
 
       final isExpiredSession =
           error.code == 'deadline-exceeded' &&
           (error.message ?? '').toLowerCase().contains('expired');
       if (isExpiredSession) {
+        await refresh();
         return startGameSession(
           chapterIndex,
           replaceActiveSession: true,
