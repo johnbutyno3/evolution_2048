@@ -256,13 +256,23 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       await ToolManager.refreshInventory();
       if (!mounted) return false;
 
-      // The server has just consumed the Life for this new board.
-      // Build a fresh engine that owns that Life instead of calling reset()
-      // on the pre-session engine, because reset() clears boardLifeActive.
+      // The server has just consumed the Life for this explicit game entry.
+      // If this entry follows a normal unfinished exit, the cached board is
+      // rebound to the new session and should continue from where the player
+      // left. A genuinely new game has no playable cached board.
+      final saved = SaveManager.loadCached(
+        chapter: _engine.chapter.name,
+      );
+      final hasPlayableLocalBoard = saved != null &&
+          saved['gameSessionId'] == progress.activeGameSessionId &&
+          saved['gameOver'] != true &&
+          saved['chapterComplete'] != true &&
+          saved['tiles'] is List &&
+          (saved['tiles'] as List).length == 16;
       _engine.stopGameTimer();
       _engine = GameEngine(
         chapter: _engine.chapter,
-        forceNewBoard: true,
+        forceNewBoard: !hasPlayableLocalBoard,
         boardLifeActive: true,
       );
       // Tool inventory is authoritative but must not delay creation of the
