@@ -142,6 +142,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileNameRequired => 'Please enter a player name.';
 
   @override
+  String get profileSetupFailed => 'Unable to set up your profile.';
+
+  @override
   String get profileNameTooLong =>
       'Player name must be 30 characters or fewer.';
 
