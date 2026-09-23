@@ -356,6 +356,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Player name must be 30 characters or fewer.'**
   String get profileNameTooLong;
+  String get profileSetupFailed;
 
   /// No description provided for @profileContinue.
   ///
@@ -593,6 +594,8 @@ abstract class AppLocalizations {
   String stageLabel(int stage);
   String discoveredCount(int discovered, int total);
   String chapterLabel(int number, String name);
+
+}
 
 class _AppLocalizationsDelegate
     extends LocalizationsDelegate<AppLocalizations> {
