@@ -2,6 +2,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const crypto = require('crypto');
 const { enforceSensitiveOperation } = require('./security_enforcement');
+const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
 
 const db = getFirestore();
@@ -32,6 +33,10 @@ function progressRef(uid) {
 
 function gameSessionRef(uid, sessionId) {
   return db.collection('users').doc(uid).collection('game_sessions').doc(sessionId);
+}
+
+function toolInventoryRef(uid) {
+  return db.collection('users').doc(uid).collection('wallet').doc('tools');
 }
 
 function resolveMembership(data) {
@@ -260,10 +265,49 @@ exports.abandonGameSession = onCall(async (request) => {
   }
 
   const unfinishedExit = request.data?.unfinishedExit === true;
+  const replayLog = request.data?.replayLog ?? null;
   const uid = request.auth.uid;
   const sessionRef = gameSessionRef(uid, sessionId);
   const progress = progressRef(uid);
   const life = lifeRef(uid);
+  let replayResult = null;
+  if (replayLog != null) {
+    const precheckSnapshot = await sessionRef.get();
+    if (precheckSnapshot.exists && precheckSnapshot.data()?.status === 'active') {
+      const precheckSession = precheckSnapshot.data() || {};
+      const userSnapshot = await db.collection('users').doc(uid).get();
+      const allToolsEnabledForTest =
+        userSnapshot.data()?.allToolsEnabledForTest === true;
+      try {
+        replayResult = replayGame({
+          replayLog,
+          chapterIndex: precheckSession.chapterIndex,
+          targetValue: precheckSession.targetValue,
+          allowedTools: allowedToolsForChapter(
+            precheckSession.chapterIndex,
+            allToolsEnabledForTest,
+          ),
+          requireCompletion: false,
+        });
+      } catch (error) {
+        await recordSecurityEvent({
+          uid,
+          action: 'abandon_game_session',
+          severity: 'CRITICAL',
+          reason: 'invalid_replay',
+          details: {
+            sessionId,
+            error: error?.message || 'Replay validation failed.',
+          },
+        });
+        throw new HttpsError(
+          'permission-denied',
+          'Account security validation failed.',
+        );
+      }
+    }
+  }
+
   const membership = membershipRef(uid);
 
   let finalStatus = 'ended';
@@ -278,6 +322,9 @@ exports.abandonGameSession = onCall(async (request) => {
     const lifeSnapshot = unfinishedExit
       ? await transaction.get(life)
       : null;
+    const toolsSnapshot = replayResult
+      ? await transaction.get(toolInventoryRef(uid))
+      : null;
 
     if (!sessionSnapshot.exists) {
       return;
@@ -290,6 +337,92 @@ exports.abandonGameSession = onCall(async (request) => {
       finalStatus = session.status || 'ended';
       return;
     }
+
+    if (replayResult != null) {
+      const previousUsage = session.toolUsage &&
+          typeof session.toolUsage === 'object'
+        ? session.toolUsage
+        : {};
+      const inventory = toolsSnapshot?.data() || {};
+      const membershipState = resolveMembership(
+        membershipSnapshot?.data() || {},
+      );
+      const toolUpdates = {};
+
+      for (const toolType of Object.keys(replayResult.toolUsage)) {
+        const totalUses = replayResult.toolUsage[toolType] ?? 0;
+        const settledUses = previousUsage[toolType] ?? 0;
+
+        if (!Number.isSafeInteger(totalUses) ||
+            totalUses < 0 ||
+            !Number.isSafeInteger(settledUses) ||
+            settledUses < 0 ||
+            totalUses < settledUses) {
+          await recordSecurityEvent({
+            uid,
+            action: 'abandon_game_session',
+            severity: 'CRITICAL',
+            reason: 'tool_usage_tampering_detected',
+            details: { sessionId, toolType, totalUses, settledUses },
+          });
+          throw new HttpsError(
+            'permission-denied',
+            'Account security validation failed.',
+          );
+        }
+
+        const delta = totalUses - settledUses;
+        const goldenUnlimitedUndo =
+          membershipState.active &&
+          membershipState.type === 'golden' &&
+          toolType === 'timeRewind';
+
+        if (delta === 0 || goldenUnlimitedUndo) continue;
+
+        const currentUses = inventory[toolType] ?? 0;
+        if (!Number.isSafeInteger(currentUses) ||
+            currentUses < delta) {
+          await recordSecurityEvent({
+            uid,
+            action: 'abandon_game_session',
+            severity: 'CRITICAL',
+            reason: 'tool_inventory_overuse_detected',
+            details: {
+              sessionId,
+              toolType,
+              delta,
+              currentUses,
+            },
+          });
+          throw new HttpsError(
+            'permission-denied',
+            'Account security validation failed.',
+          );
+        }
+
+        toolUpdates[toolType] = currentUses - delta;
+      }
+
+      if (Object.keys(toolUpdates).length > 0) {
+        transaction.set(
+          toolInventoryRef(uid),
+          {
+            ...toolUpdates,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+
+      transaction.set(sessionRef, {
+        toolUsage: replayResult.toolUsage,
+        replayEventCount: replayResult.eventCount,
+        toolPenaltyTotal: replayResult.toolPenaltyTotal,
+        toolsLastSettledAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+
 
     if (unfinishedExit) {
       // Leaving an unfinished game is not Game Over. Refund exactly the Life
