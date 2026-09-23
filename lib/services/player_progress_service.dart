@@ -265,11 +265,18 @@ class PlayerProgressService {
     if (sessionId == null) return;
 
     try {
-      await _functions.httpsCallable('abandonGameSession').call({
+      final result = await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': sessionId,
         'unfinishedExit': true,
         if (replayLog != null) 'replayLog': replayLog,
       });
+      final data = result.data;
+      final lifeState = data is Map ? data['life'] : null;
+      if (lifeState is Map) {
+        LifeManager.applyServerState(
+          Map<String, dynamic>.from(lifeState),
+        );
+      }
     } on FirebaseFunctionsException catch (error) {
       // ignore: avoid_print
       print(
