@@ -142,4 +142,5 @@
   "membership": "Membership",
   "evolutionProgress": "Evolution Progress",
   "chapterLabel": "Chapter {number} · {name}"
+  ,"profileSetupFailed": "Unable to set up your profile."
 }
