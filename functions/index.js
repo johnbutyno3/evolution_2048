@@ -600,87 +600,6 @@ exports.startGameSession = onCall(async (request) => {
     const toolsSnapshot = await transaction.get(toolsRef);
     const membershipSnapshot = await transaction.get(membershipDocRef);
 
-    const replayToolUsage = replayResult.toolUsage &&
-        typeof replayResult.toolUsage === 'object'
-      ? replayResult.toolUsage
-      : {};
-    const sessionToolUsage = currentSession.toolUsage &&
-        typeof currentSession.toolUsage === 'object'
-      ? currentSession.toolUsage
-      : {};
-    const inventory = toolsSnapshot.data() || {};
-    const membership = resolveMembership(membershipSnapshot.data() || {});
-    const toolUpdates = {};
-
-    for (const toolType of TOOL_TYPES) {
-      const totalUses = replayToolUsage[toolType] ?? 0;
-      const settledUses = sessionToolUsage[toolType] ?? 0;
-
-      if (!Number.isSafeInteger(totalUses) ||
-          totalUses < 0 ||
-          !Number.isSafeInteger(settledUses) ||
-          settledUses < 0 ||
-          totalUses < settledUses) {
-        await recordSecurityEvent({
-          uid,
-          action: 'complete_chapter',
-          severity: 'CRITICAL',
-          reason: 'tool_usage_tampering_detected',
-          details: { sessionId, chapterIndex, toolType, totalUses, settledUses },
-        });
-        throw new HttpsError(
-          'permission-denied',
-          'Account security validation failed.',
-        );
-      }
-
-      const delta = totalUses - settledUses;
-      const goldenUnlimitedUndo =
-        membership.active &&
-        membership.type === 'golden' &&
-        toolType === 'timeRewind';
-
-      if (delta === 0 || goldenUnlimitedUndo) continue;
-
-      const currentUses = inventory[toolType] ?? 0;
-      if (!Number.isSafeInteger(currentUses) ||
-          currentUses < delta) {
-        await recordSecurityEvent({
-          uid,
-          action: 'complete_chapter',
-          severity: 'CRITICAL',
-          reason: 'tool_inventory_overuse_detected',
-          details: {
-            sessionId,
-            chapterIndex,
-            toolType,
-            delta,
-            currentUses,
-          },
-        });
-        throw new HttpsError(
-          'permission-denied',
-          'Account security validation failed.',
-        );
-      }
-
-      toolUpdates[toolType] = currentUses - delta;
-    }
-
-    if (Object.keys(toolUpdates).length > 0) {
-      transaction.set(toolsRef, {
-        ...toolUpdates,
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    }
-
-    transaction.set(sessionRef, {
-      toolUsage: replayToolUsage,
-      replayEventCount: replayResult.eventCount,
-      toolPenaltyTotal: replayResult.toolPenaltyTotal,
-      toolsLastSettledAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-
     const current = progressSnapshot.data() || {};
     const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
       ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
@@ -1095,6 +1014,83 @@ exports.completeChapter = onCall(async (request) => {
   }
 
 
+
+  const replayToolUsage = replayResult.toolUsage &&
+      typeof replayResult.toolUsage === 'object'
+    ? replayResult.toolUsage
+    : {};
+
+  const sessionToolUsage = session.toolUsage &&
+      typeof session.toolUsage === 'object'
+    ? session.toolUsage
+    : {};
+
+  const inventory = toolsSnapshot.data() || {};
+  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const toolUpdates = {};
+  for (const toolType of TOOL_TYPES) {
+    const replayUses = replayToolUsage[toolType] ?? 0;
+
+    if (!Number.isSafeInteger(replayUses) || replayUses < 0) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'CRITICAL',
+        reason: 'tool_usage_invalid',
+        details: { sessionId, chapterIndex, toolType, replayUses },
+      });
+      throw new HttpsError(
+        'permission-denied',
+        'Account security validation failed.',
+      );
+    }
+
+    const goldenUnlimitedUndo =
+      membership.active &&
+      membership.type === 'golden' &&
+      toolType === 'timeRewind';
+
+    if (goldenUnlimitedUndo || replayUses === 0) continue;
+
+    const currentUses = inventory[toolType] ?? 0;
+    if (!Number.isSafeInteger(currentUses) ||
+        currentUses < 0 ||
+        replayUses > currentUses) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'CRITICAL',
+        reason: 'tool_inventory_overuse_detected',
+        details: {
+          sessionId,
+          chapterIndex,
+          toolType,
+          replayUses,
+          currentUses,
+        },
+      });
+      throw new HttpsError(
+        'permission-denied',
+        'Account security validation failed.',
+      );
+    }
+
+    toolUpdates[toolType] = currentUses - replayUses;
+  }
+
+  if (Object.keys(toolUpdates).length > 0) {
+    transaction.set(toolsRef, {
+      ...toolUpdates,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+
+  transaction.set(sessionRef, {
+    toolUsage: replayToolUsage,
+    replayEventCount: replayResult.eventCount,
+    toolPenaltyTotal: replayResult.toolPenaltyTotal,
+    toolsLastSettledAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
 
   const highestValue = replayResult.highestValue;
   const score = replayResult.score;
