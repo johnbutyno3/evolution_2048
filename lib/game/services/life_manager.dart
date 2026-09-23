@@ -20,12 +20,6 @@ class LifeManager {
   static String _lifeMode = 'normal';
   static int? _nextLifeAtMillis;
 
-  // Compatibility bridge for the existing synchronous GameEngine API.
-  // The actual life mutation is still performed by the server. A successful
-  // consumeLife() reserves one server-confirmed consumption for the engine
-  // call that immediately follows it, preventing a second server deduction.
-  static bool _engineLifeConsumptionPending = false;
-
   static Future<void> initialize() async {
     await refreshFromServer();
   }
@@ -98,7 +92,6 @@ class LifeManager {
     try {
       final result = await _functions.httpsCallable('consumeLife').call();
       _applyServerState(Map<String, dynamic>.from(result.data as Map));
-      _engineLifeConsumptionPending = true;
       return true;
     } on FirebaseFunctionsException catch (error) {
       if (error.code == 'failed-precondition' &&
@@ -108,21 +101,6 @@ class LifeManager {
       }
       rethrow;
     }
-  }
-
-  /// Marks a server-confirmed Life consumption for the existing synchronous
-  /// GameEngine bridge. This does not mutate server state.
-  static void acknowledgeServerConsumedLife() {
-    _engineLifeConsumptionPending = true;
-  }
-
-  static bool consumeLifeNow() {
-    if (!_engineLifeConsumptionPending) {
-      return false;
-    }
-
-    _engineLifeConsumptionPending = false;
-    return true;
   }
 
   static Future<void> refundChapterCompletionLife() async {
