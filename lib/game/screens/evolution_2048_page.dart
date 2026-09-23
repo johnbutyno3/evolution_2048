@@ -139,7 +139,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   void _resumeGameplay() {
-    _engine.updateLifeFromRealTime();
     if (!_engine.gameOver && !_engine.chapterComplete) _engine.startGameTimer();
     _startUiRefreshTimer();
     if (mounted) setState(() {});
@@ -225,7 +224,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         }
 
         _engine.markBoardLifeActiveAfterServerRestart();
-        _engine.updateLifeFromRealTime();
         return true;
       }
 
@@ -238,7 +236,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       _engine.reset();
       _engine.markBoardLifeActiveAfterServerRestart();
-      _engine.updateLifeFromRealTime();
       // Tool inventory is authoritative but must not delay creation of the
       // new board. Refresh it in the background after the session is active.
       return true;
@@ -247,7 +244,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _startUiRefreshTimer() {
     _uiRefreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-      _engine.updateLifeFromRealTime();
       if (mounted) setState(() {});
     });
   }
@@ -918,8 +914,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _evolutionValue = null;
       _evolutionCreatureName = null;
     });
-
-    _engine.updateLifeFromRealTime();
     _engine.startGameTimer();
     _startUiRefreshTimer();
     // restartGameSession already returns the authoritative Life state, and
