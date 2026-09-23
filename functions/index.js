@@ -735,7 +735,7 @@ exports.resumeGameSession = onCall(async (request) => {
     .collection('progress').doc('game');
   let sessionId;
 
-  const transactionResult = await db.runTransaction(async (transaction) => {
+  await db.runTransaction(async (transaction) => {
     const progressSnapshot = await transaction.get(progressRef);
 
     const current = progressSnapshot.data() || {};
