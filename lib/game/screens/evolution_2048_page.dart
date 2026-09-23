@@ -192,25 +192,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
 
-        // Every actual entry into the game must charge exactly one Life.
-        // Resume only when this device still has the playable local board.
-        // If the server has an orphaned session but this device has no board,
-        // start a fresh session and atomically replace the orphaned session.
-        final saved = SaveManager.loadCached(
-          chapter: _engine.chapter.name,
-        );
-        final hasPlayableLocalBoard = saved != null &&
-            saved['gameOver'] != true &&
-            saved['chapterComplete'] != true &&
-            saved['tiles'] is List &&
-            (saved['tiles'] as List).length == 16;
-
-        final entered = hasPlayableLocalBoard
-            ? await progress.resumeGameSession(_chapterNumber - 1)
-            : await progress.startGameSession(
-                _chapterNumber - 1,
-                replaceActiveSession: true,
-              );
+        // Session ownership is resolved in PlayerProgressService.
+        // It compares the server session with the local save binding:
+        // matching session -> resume without another Life;
+        // missing/mismatched board -> replace the orphaned session and charge
+        // exactly one Life for the new game.
+        final entered =
+            await progress.resumeGameSession(_chapterNumber - 1);
         if (!entered || !mounted) return false;
 
         // Load the server-authoritative tool inventory before constructing the
