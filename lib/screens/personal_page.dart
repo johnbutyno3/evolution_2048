@@ -1,5 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -252,34 +251,10 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
     try {
       await PlayerProfileService.ensureProfile();
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
 
-      final data = snapshot.data();
-
-      final firebaseAvatarIndex = data?['avatarIndex'];
-      if (firebaseAvatarIndex is num) {
-        _avatarIndex = firebaseAvatarIndex.toInt().clamp(0, 53);
-        await SaveManager.saveAvatarIndex(_avatarIndex);
-      }
-
-      final firebaseName = data?['playerName'];
-
-      if (firebaseName is String &&
-          firebaseName.trim().isNotEmpty &&
-          firebaseName.trim().toUpperCase() != 'PLAYER') {
-        final cleanName = firebaseName.trim();
-        _nameController.text = cleanName;
-        await SaveManager.saveProfile(name: cleanName);
-      }
-
-      final firebasePlayerId = data?['playerId'];
-      if (firebasePlayerId is String && firebasePlayerId.isNotEmpty) {
-        _playerId = firebasePlayerId;
-        await SaveManager.savePlayerId(firebasePlayerId);
-      }
+      _avatarIndex = SaveManager.avatarIndex;
+      _nameController.text = SaveManager.profileName ?? '';
+      _playerId = SaveManager.playerId ?? '';
 
       if (!context.mounted) return;
 
