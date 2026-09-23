@@ -299,6 +299,9 @@ class GameEngine {
     _saveQueue = _saveQueue.then((_) => SaveManager.save(snapshot));
   }
 
+  /// Wait until all queued local snapshots have been persisted.
+  Future<void> flushLocalSave() => _saveQueue;
+
   bool _shouldRestoreSavedChapter(Map<String, dynamic> data) {
     final savedChapter = data['chapter'];
     if (savedChapter is! String) return false;
