@@ -2,7 +2,6 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'life_manager.dart';
-import '../../services/player_progress_service.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -120,41 +119,22 @@ class ToolManager {
     }
   }
 
-  /// Reserves a tool use locally so gameplay can respond immediately.
+  /// Consumes a tool locally.
   ///
-  /// The Firebase mutation runs in the background. If the server rejects it,
-  /// the local reservation is rolled back. This keeps network latency out of
-  /// the interactive game path while preserving server-authoritative inventory.
-  Future<void> useOptimistic(GameToolType type) async {
+  /// Gameplay never waits for Firebase for an individual tool use. The local
+  /// replay log is the authoritative input for the eventual server validation
+  /// when the game session ends.
+  bool consumeLocal(GameToolType type) {
     final tool = getTool(type);
-    if (tool == null || !tool.canUse) return;
+    if (tool == null || !tool.canUse) return false;
 
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
       tool.usesRemaining = _unlimitedUses;
-      return;
+      return true;
     }
 
-    final sessionId = PlayerProgressService.instance.activeGameSessionId;
-    if (sessionId == null || sessionId.isEmpty) return;
-
-    final previousUses = tool.usesRemaining;
-    tool.usesRemaining = previousUses - 1;
-
-    try {
-      final result = await _functions.httpsCallable('useTool').call({
-        'toolType': type.name,
-        'sessionId': sessionId,
-      });
-      final uses = result.data is Map ? result.data['uses'] : null;
-      if (uses is! num) {
-        tool.usesRemaining = previousUses;
-        return;
-      }
-      _serverUses[type] = uses.toInt();
-      tool.usesRemaining = uses.toInt();
-    } on FirebaseFunctionsException {
-      tool.usesRemaining = previousUses;
-    }
+    tool.usesRemaining -= 1;
+    return true;
   }
 
   /// Returns the globally saved inventory for a tool.
