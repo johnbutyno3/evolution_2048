@@ -275,7 +275,7 @@ function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requir
         if (previous === null) fail('UNDO requires a previous successful move.');
         const revertedScore = Math.max(0, score - previous.score);
         board.splice(0, board.length, ...previous.board);
-        score = previous.score;
+        score = Math.max(0, previous.score - revertedScore);
         penalty += revertedScore;
         previous = null;
         toolUsage.timeRewind += 1;
