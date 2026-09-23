@@ -526,7 +526,6 @@ abstract class AppLocalizations {
   String get gameTime;
   String get playerId;
   String get membership;
-  String get evolutionProgress;
   String get personalTitle;
   String get playerBasicInfo;
   String get playerBasicInfoSubtitle;
@@ -559,9 +558,7 @@ abstract class AppLocalizations {
   String get playerNameUpdateFailed;
   String get playerNameUpdateError;
   String get undiscovered;
-  String get stageLabel;
-  String get discoveredCount;
-  String get gold;
+    String get gold;
   String get goldBalance;
   String get lifetimeSpent;
   String get goldAmount;
