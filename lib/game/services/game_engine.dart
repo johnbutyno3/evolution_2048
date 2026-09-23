@@ -358,6 +358,9 @@ class GameEngine {
     score = _readInt(data['score']);
     bestScore = _readInt(data['bestScore']);
     _toolPenaltyTotal = _readInt(data['toolPenaltyTotal']);
+    if (data['boardLifeActive'] is bool) {
+      _boardLifeActive = data['boardLifeActive'] as bool;
+    }
 
     hasReached2048 = data['hasReached2048'] == true;
     hasReached4096 = data['hasReached4096'] == true;
