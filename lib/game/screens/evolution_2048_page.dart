@@ -510,6 +510,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     if (!restarted) {
       newEngine.stopGameTimer();
+      // The replacement engine autosaves immediately. If the server restart
+      // fails, restore the previous board snapshot so local state cannot be
+      // left on the uncharged replacement board.
+      await SaveManager.save(oldEngine.createSaveData());
       oldEngine.startGameTimer();
       setState(() {
         _engine = oldEngine;
