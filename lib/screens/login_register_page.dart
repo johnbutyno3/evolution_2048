@@ -94,7 +94,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       } else {
         await FirebaseAuth.instance.signInWithProvider(provider);
       }
-      if (mounted) _goToGame();
+      if (mounted) await _continueAfterAuth();
     } on FirebaseAuthException catch (error) {
       if (mounted &&
           error.code != 'popup-closed-by-user' &&
