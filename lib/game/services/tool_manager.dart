@@ -2,6 +2,7 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'life_manager.dart';
+import 'gold_manager.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -94,6 +95,9 @@ class ToolManager {
       final uses = result.data is Map ? result.data['uses'] : null;
       if (uses is! num) return false;
       _serverUses[type] = uses.toInt();
+      if (result.data is Map) {
+        GoldManager.applyServerState(Map<String, dynamic>.from(result.data as Map));
+      }
       return true;
     } on FirebaseFunctionsException {
       return false;
