@@ -533,7 +533,6 @@ class _CollectionPageState extends State<CollectionPage> {
 
   String _chapterName(BuildContext context, int index) {
     final l10n = AppLocalizations.of(context)!;
-    const prefix = 'Chapter';
     final names = [
       l10n.chapterOcean,
       l10n.chapterLand,
@@ -542,7 +541,7 @@ class _CollectionPageState extends State<CollectionPage> {
       l10n.chapterTechnology,
       l10n.chapterSpace,
     ];
-    return '$prefix ${index + 1} · ${names[index]}';
+    return l10n.chapterLabel(index + 1, names[index]);
   }
 
   String _chapterShortName(BuildContext context, int index) {
