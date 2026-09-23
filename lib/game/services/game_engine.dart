@@ -16,8 +16,10 @@ class GameEngine {
     Random? random,
     GameChapter chapter = GameChapter.ocean,
     bool forceNewBoard = false,
+    bool boardLifeActive = false,
   }) : _random = random ?? Random(),
        _chapter = chapter {
+    _boardLifeActive = boardLifeActive;
     _autoSaveEnabled = false;
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
