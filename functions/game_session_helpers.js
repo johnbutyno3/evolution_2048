@@ -69,6 +69,7 @@ function lifeResponse(lives, regenStartMillis, membership) {
       lives: -1,
       infiniteLives: true,
       membership: membership.type,
+      lifeMode: 'golden',
       nextLifeAtMillis: null,
     };
   }
@@ -78,6 +79,7 @@ function lifeResponse(lives, regenStartMillis, membership) {
       lives,
       infiniteLives: false,
       membership: membership.type ?? 'general',
+      lifeMode: 'normal',
       nextLifeAtMillis: null,
     };
   }
@@ -86,6 +88,7 @@ function lifeResponse(lives, regenStartMillis, membership) {
     lives,
     infiniteLives: false,
     membership: membership.type ?? 'general',
+    lifeMode: 'normal',
     nextLifeAtMillis: regenStartMillis + intervalMs(membership),
   };
 }
