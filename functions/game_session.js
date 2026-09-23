@@ -46,12 +46,14 @@ function toolInventoryRef(uid) {
 }
 
 
-async function refundLifeInTransaction(transaction, uid, membershipSnapshot = null) {
-  const resolvedMembershipSnapshot = membershipSnapshot ??
-    await transaction.get(membershipRef(uid));
-  const membership = resolveMembership(resolvedMembershipSnapshot.data() || {});
+async function refundLifeInTransaction(
+  transaction,
+  uid,
+  membershipSnapshot,
+  lifeSnapshot,
+) {
+  const membership = resolveMembership(membershipSnapshot?.data() || {});
   const life = lifeRef(uid);
-  const lifeSnapshot = await transaction.get(life);
   const data = lifeSnapshot.data() || {};
   let lives = normalizeLives(data.lives);
   let regenStartMillis = normalizeRegenStart(data.regenStartAt);
@@ -350,8 +352,8 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
       // performed from this same snapshot so it cannot be detached from the
       // session that is actually being settled.
       const refs = [sessionRef, progress];
-      if (unfinishedExit) refs.push(membership, lifeRef(uid));
-      if (replayLog != null) refs.push(membership);
+      if (unfinishedExit || replayLog != null) refs.push(membership);
+      if (unfinishedExit) refs.push(lifeRef(uid));
       if (replayLog != null) refs.push(userRef, toolInventoryRef(uid));
       const snapshots = await transaction.getAll(...refs);
       const snapshotMap = new Map(
@@ -525,10 +527,12 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
         // session and consumes exactly one Life again. The local board remains
         // available and is rebound to the new session by the Flutter client.
         const membershipSnapshotForRefund = snapshotMap.get(membership.path);
+        const lifeSnapshotForRefund = snapshotMap.get(lifeRef(uid).path);
         const refundedLife = await refundLifeInTransaction(
           transaction,
           uid,
           membershipSnapshotForRefund,
+          lifeSnapshotForRefund,
         );
 
         transaction.update(sessionRef, {
