@@ -177,12 +177,13 @@ class _HomePageState extends State<HomePage> {
       _homeAvatarAssets.length - 1,
     );
     final avatarAsset = _homeAvatarAssets[avatarIndex];
-    final playerName = SaveManager.profileName ?? 'Player';
-    final playerId = SaveManager.playerId ?? 'Not available';
+    final l = AppLocalizations.of(context)!;
+    final playerName = SaveManager.profileName ?? l.notAvailable;
+    final playerId = SaveManager.playerId ?? l.notAvailable;
     final membership = switch (LifeManager.membership) {
-      'premium' => 'Premium',
-      'golden' => 'Golden',
-      _ => 'General',
+      'premium' => l.premiumMember,
+      'golden' => l.goldenMember,
+      _ => l.generalMember,
     };
     return Scaffold(
       body: Stack(
@@ -256,8 +257,8 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 2),
                           Text(
                             LifeManager.isGoldenMember
-                                ? 'Life: ∞'
-                                : 'Life: ${LifeManager.lifeCount}',
+                                ? '${l.life}: ∞'
+                                : '${l.life}: ${LifeManager.lifeCount}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -271,7 +272,7 @@ class _HomePageState extends State<HomePage> {
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 2),
                               child: Text(
-                                'Gold: ${GoldManager.balance}',
+                                '${l.gold}: ${GoldManager.balance}',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
@@ -284,7 +285,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       _TopButton(
                         icon: Icons.storefront_outlined,
-                        label: 'Shop',
+                        label: l.shop,
                         onPressed: () {
                           Navigator.of(context).pushNamed('/shop');
                         },
@@ -432,8 +433,7 @@ class _ChapterCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    AppLocalizations.of(context)!.stage + ': $stage / ' +
-                        AppLocalizations.of(context)!.score + ': $score',
+                    '$stage / $score',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
