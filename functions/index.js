@@ -37,7 +37,7 @@ const PURCHASE_PROVIDERS = new Set(['google_play', 'apple']);
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
 const TOOL_TYPES = new Set(['revive', 'timeRewind', 'positionSwap', 'duplicate']);
 const TOOL_AMOUNTS = new Set([1, 5, 20, 50]);
-const DEFAULT_TOOL_PRICES = {const DEFAULT_TOOL_PRICES = {
+const DEFAULT_TOOL_PRICES = {
   undo1Price: 50,
   undo5Price: 225,
   undo20Price: 700,
@@ -79,32 +79,6 @@ function toolInventoryRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('tools');
 }
 
-function membershipRef(uid) {
-  return db.collection('users').doc(uid).collection('membership').doc('current');
-}
-
-function resolveMembership(data) {
-  const type = MEMBERSHIP_TYPES.has(data?.type) ? data.type : null;
-  const expiresAt = data?.expiresAt ?? null;
-
-  let active = false;
-
-  if (type !== null) {
-    if (expiresAt === null) {
-      active = true;
-    } else if (typeof expiresAt.toMillis === 'function') {
-      active = expiresAt.toMillis() > Date.now();
-    }
-  }
-
-  return {
-    active,
-    type: active ? type : null,
-    expiresAt: active ? expiresAt : null,
-    infiniteLives: active && type === 'golden',
-    noAds: active,
-  };
-}
 function chapterRewardTools(chapterIndex) {
   return [
     ['timeRewind'],
