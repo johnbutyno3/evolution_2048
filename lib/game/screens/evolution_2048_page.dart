@@ -14,6 +14,7 @@ import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
 import '../../services/player_progress_service.dart';
 import '../services/life_manager.dart';
+import '../services/tool_manager.dart';
 import '../../l10n/app_localizations.dart';
 
 class Evolution2048Page extends StatefulWidget {
@@ -212,6 +213,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
               );
         if (!entered || !mounted) return false;
 
+        // Load the server-authoritative tool inventory before constructing the
+        // engine so the board's ToolManager reflects the current account.
+        await ToolManager.refreshInventory();
+        if (!mounted) return false;
+
         if (hasPlayableLocalBoard) {
           // Resuming an unfinished server session means this restored board
           // already owns the Life that was charged when the session began.
@@ -243,6 +249,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       final started = await progress.startGameSession(_chapterNumber - 1);
       if (!started || !mounted) return false;
+
+      // Load the server-authoritative tool inventory before constructing the
+      // new engine so tool buttons are immediately usable.
+      await ToolManager.refreshInventory();
+      if (!mounted) return false;
 
       // The server has just consumed the Life for this new board.
       // Build a fresh engine that owns that Life instead of calling reset()
@@ -963,6 +974,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       chapter.index,
     );
     if (!started || !mounted) return;
+
+    await ToolManager.refreshInventory();
+    if (!mounted) return;
 
     final newEngine = GameEngine(
       chapter: chapter,
