@@ -1252,9 +1252,7 @@ exports.completeChapter = onCall(async (request) => {
       refundedLives = NORMAL_CAP;
       refundedRegenStartMillis = null;
     } else {
-      const intervalMillis = membershipType === 'premium'
-        ? 30 * 60 * 1000
-        : 40 * 60 * 1000;
+      const intervalMillis = intervalMs({ type: membershipType });
 
       if (refundedLives < NORMAL_CAP) {
         const start = refundedRegenStartMillis ?? refundNowMillis;
