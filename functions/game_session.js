@@ -312,7 +312,7 @@ exports.abandonGameSession = onCall(async (request) => {
 
   let finalStatus = 'ended';
 
-  await db.runTransaction(async (transaction) => {
+  const transactionResult = await db.runTransaction(async (transaction) => {
     // All transaction reads must happen before any writes.
     const sessionSnapshot = await transaction.get(sessionRef);
     const progressSnapshot = await transaction.get(progress);
@@ -327,7 +327,7 @@ exports.abandonGameSession = onCall(async (request) => {
       : null;
 
     if (!sessionSnapshot.exists) {
-      return;
+      return { status: 'ended', life: null };
     }
 
     const session = sessionSnapshot.data() || {};
@@ -335,7 +335,7 @@ exports.abandonGameSession = onCall(async (request) => {
 
     if (session.status !== 'active') {
       finalStatus = session.status || 'ended';
-      return;
+      return { status: finalStatus, life: null };
     }
 
     if (replayResult != null) {
@@ -482,7 +482,10 @@ exports.abandonGameSession = onCall(async (request) => {
       }
 
       finalStatus = 'active';
-      return;
+      return {
+        status: 'active',
+        life: lifeResponse(lives, regenStartMillis, membershipState),
+      };
     }
 
     // Normal abandonment is Game Over: no Life refund.
@@ -499,7 +502,13 @@ exports.abandonGameSession = onCall(async (request) => {
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
     }
+
+    return { status: 'ended', life: null };
   });
 
-  return { sessionId, status: finalStatus };
+  return {
+    sessionId,
+    status: finalStatus,
+    life: transactionResult?.life ?? null,
+  };
 });
