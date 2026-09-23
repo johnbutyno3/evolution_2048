@@ -132,46 +132,6 @@ class GameEngine {
     return true;
   }
 
-  /// Deduct one life when the player explicitly chooses Restart.
-  ///
-  /// Restart is a new game, so this is a separate life deduction from
-  /// the Game Over that caused the restart screen.
-  bool deductLifeForRestart() {
-    if (LifeManager.isGoldenMember) {
-      return true;
-    }
-
-    if (_lives <= 0) {
-      return false;
-    }
-
-    _deductLife();
-
-    return true;
-  }
-
-  /// Consume one life when a gameplay page is entered.
-  bool consumeLifeForGameEntry() {
-    if (_boardLifeActive) {
-      return true;
-    }
-
-    if (LifeManager.isGoldenMember) {
-      _boardLifeActive = true;
-      _saveLocal();
-      return true;
-    }
-
-    if (_lives <= 0) {
-      return false;
-    }
-
-    _deductLife();
-    _boardLifeActive = true;
-    _saveLocal();
-    return true;
-  }
-
   /// Refund the life consumed by this board when the chapter is completed.
   /// Completing a chapter is not a death.
   bool refundLifeForChapterComplete() {
@@ -187,13 +147,6 @@ class GameEngine {
 
     _saveLocal();
     return true;
-  }
-
-  void _deductLife() {
-    if (!LifeManager.consumeLifeNow()) return;
-
-    _lives = LifeManager.lifeCount;
-    _nextLifeAtMillis = LifeManager.nextLifeAtMillis;
   }
 
   void _restoreLifeStateFromSave(Map<String, dynamic> data) {
@@ -816,27 +769,6 @@ class GameEngine {
   void markBoardLifeActiveAfterServerRestart() {
     _boardLifeActive = true;
     _saveLocal();
-  }
-
-  /// Explicit restart requested by the player.
-  ///
-  /// The restart itself consumes one life. This is intentionally separate
-  /// from reset(), because reset() is also used during engine construction
-  /// and other internal flows.
-  bool restart() {
-    updateLifeFromRealTime();
-
-    if (!LifeManager.isGoldenMember && _lives <= 0) {
-      return false;
-    }
-
-    deductLifeForRestart();
-
-    reset();
-
-    _saveLocal();
-
-    return true;
   }
 
   // ============================================================
