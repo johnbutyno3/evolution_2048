@@ -105,9 +105,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(_initializeGameplaySession());
-      unawaited(_engine.refreshToolProgress().then((_) {
-        if (mounted) setState(() {});
-      }));
       AudioManager.instance.initialize().then((_) {
         if (mounted) AudioManager.instance.playChapterMusic(_engine.chapter);
       });
@@ -496,7 +493,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     _handlingSystemBack = true;
     try {
-      await PlayerProgressService.instance.exitUnfinishedGameSession();
+      final saveData = _engine.createSaveData();
+      final replayLog = saveData['replayLog'];
+      await PlayerProgressService.instance.exitUnfinishedGameSession(
+        replayLog: replayLog is Map
+            ? Map<String, dynamic>.from(replayLog)
+            : null,
+      );
       if (!mounted) return;
       _engine.pauseGameTimer();
       _stopUiRefreshTimer();
@@ -594,7 +597,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) {
         if (!mounted) return;
-        unawaited(_engine.refreshToolProgress());
         setState(() {});
       });
       return;
@@ -735,7 +737,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
       }
     } else {
-      await PlayerProgressService.instance.abandonGameSession();
+      final saveData = _engine.createSaveData();
+      final replayLog = saveData['replayLog'];
+      await PlayerProgressService.instance.abandonGameSession(
+        replayLog: replayLog is Map
+            ? Map<String, dynamic>.from(replayLog)
+            : null,
+      );
       if (!mounted) return;
 
       await SaveManager.clearChapter(_engine.chapter.name);
@@ -800,7 +808,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _engine.stopGameTimer();
 
     final progress = PlayerProgressService.instance;
-    await progress.refresh();
     if (progress.activeGameSessionId == null ||
         progress.activeGameChapterIndex != _chapterNumber - 1) {
       _chapterCompleteShowing = false;
