@@ -285,14 +285,15 @@ class PlayerProgressService {
   }
 
   Future<void> exitUnfinishedGameSession({
+    String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
-    final sessionId = _activeGameSessionId;
-    if (sessionId == null) return;
+    final settledSessionId = sessionId ?? _activeGameSessionId;
+    if (settledSessionId == null) return;
 
     try {
       final result = await _functions.httpsCallable('abandonGameSession').call({
-        'sessionId': sessionId,
+        'sessionId': settledSessionId,
         'unfinishedExit': true,
         if (replayLog != null) 'replayLog': replayLog,
       });
@@ -315,20 +316,23 @@ class PlayerProgressService {
   }
 
   Future<void> abandonGameSession({
+    String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
-    final sessionId = _activeGameSessionId;
-    if (sessionId == null) return;
+    final settledSessionId = sessionId ?? _activeGameSessionId;
+    if (settledSessionId == null) return;
 
     try {
       final result =
           await _functions.httpsCallable('abandonGameSession').call({
-        'sessionId': sessionId,
+        'sessionId': settledSessionId,
         if (replayLog != null) 'replayLog': replayLog,
       });
 
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
+      if (_activeGameSessionId == settledSessionId) {
+        _activeGameSessionId = null;
+        _activeGameChapterIndex = null;
+      }
 
       final data = result.data;
       final chapterProgress = data is Map ? data['chapterProgress'] : null;
