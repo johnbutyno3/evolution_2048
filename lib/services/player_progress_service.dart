@@ -184,8 +184,11 @@ class PlayerProgressService {
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
-      // A failed resume must never silently become a new game attempt.
-      // Keep the authoritative server error visible for diagnosis.
+      // An expired server session cannot be resumed. At that point the local
+      // board is stale relative to the server, so this entry must become a
+      // fresh game and consume exactly one Life through startGameSession.
+      // Do not apply this fallback to other resume failures: a normal
+      // unfinished session must never be silently replaced.
       // ignore: avoid_print
       print(
         'resumeGameSession failed: code=${error.code}, '
@@ -193,6 +196,16 @@ class PlayerProgressService {
         'details=${error.details?.toString()},',
       );
       await refresh();
+
+      final isExpiredSession =
+          error.code == 'deadline-exceeded' &&
+          (error.message ?? '').toLowerCase().contains('expired');
+      if (isExpiredSession) {
+        return startGameSession(
+          chapterIndex,
+          replaceActiveSession: true,
+        );
+      }
     }
     return false;
   }
