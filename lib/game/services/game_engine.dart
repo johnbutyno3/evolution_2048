@@ -572,7 +572,7 @@ class GameEngine {
   // Tools
   // ============================================================
 
-  bool useRevive(int row, int column) async {
+  bool useRevive(int row, int column) {
     if (gameOver || chapterComplete || !canUseRevive) return false;
     if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
       return false;
@@ -604,7 +604,7 @@ class GameEngine {
     return true;
   }
 
-  bool useTimeRewind() async {
+  bool useTimeRewind() {
     if (gameOver || chapterComplete || !canUseTimeRewind) return false;
     if (_previousBoard == null) return false;
     if (!_toolManager.consumeLocal(GameToolType.timeRewind)) return false;
@@ -627,7 +627,7 @@ class GameEngine {
     int firstColumn,
     int secondRow,
     int secondColumn,
-  ) async {
+  ) {
     if (gameOver || chapterComplete || !canUsePositionSwap) return false;
 
     if (firstRow < 0 ||
@@ -668,7 +668,7 @@ class GameEngine {
     int sourceColumn,
     int targetRow,
     int targetColumn,
-  ) async {
+  ) {
     final duplicateAllowed = ToolManager.allToolsEnabledForTest ||
         _chapter == GameChapter.history ||
         _chapter == GameChapter.tech;
