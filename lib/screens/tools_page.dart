@@ -22,9 +22,12 @@ class _ToolsPageState extends State<ToolsPage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    await LifeManager.initialize();
-    await ToolManager.refreshInventory();
-    return ShopConfigService.load();
+    final results = await Future.wait([
+      LifeManager.initialize(),
+      ToolManager.refreshInventory(),
+      ShopConfigService.load(),
+    ]);
+    return results[2] as Map<String, dynamic>;
   }
 
   Future<void> _buy({
