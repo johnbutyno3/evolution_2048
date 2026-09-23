@@ -586,11 +586,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
         unawaited(SaveManager.clearChapter(chapter));
       } else {
-        unawaited(
-          PlayerProgressService.instance.exitUnfinishedGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
+        // Wait for refund + active-session clearing before Home can refresh.
+        await PlayerProgressService.instance.exitUnfinishedGameSession(
+          sessionId: sessionId,
+          replayLog: replay,
         );
       }
     }
@@ -647,11 +646,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _engine.pauseGameTimer();
       _stopUiRefreshTimer();
       if (sessionId != null) {
-        unawaited(
-          PlayerProgressService.instance.exitUnfinishedGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
+        // Wait for refund + active-session clearing before Home can refresh.
+        await PlayerProgressService.instance.exitUnfinishedGameSession(
+          sessionId: sessionId,
+          replayLog: replay,
         );
       }
       if (mounted) Navigator.of(context).pop();
