@@ -429,7 +429,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get membership => "會員資格";
 
-  @override
   String get evolutionProgress => "進化進度";
   @override
   String chapterLabel(int number, String name) => '第 ' + number.toString() + ' 章 · ' + name + '';
