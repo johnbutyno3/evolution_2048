@@ -606,7 +606,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         await _showToolUnavailable('UNDO');
         return;
       }
-      if (await _engine.useTimeRewind()) setState(() {});
+      if (_engine.useTimeRewind()) setState(() {});
       _focusNode.requestFocus();
       return;
     }
@@ -660,7 +660,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }
       final first = _firstSwapIndex!;
       if (first == index || tile != null) return;
-      final changed = await _engine.useDuplicate(first ~/ 4, first % 4, row, column);
+      final changed = _engine.useDuplicate(first ~/ 4, first % 4, row, column);
       if (changed) {
         setState(() {
           _toolMode = null;
@@ -672,7 +672,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
     if (tile == null) return;
     if (mode == 'revive') {
-      if (await _engine.useRevive(row, column)) {
+      if (_engine.useRevive(row, column)) {
         setState(() {
           _toolMode = null;
           _firstSwapIndex = null;
@@ -688,7 +688,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }
       final first = _firstSwapIndex!;
       if (first == index) return;
-      final changed = await _engine.usePositionSwap(first ~/ 4, first % 4, row, column);
+      final changed = _engine.usePositionSwap(first ~/ 4, first % 4, row, column);
       if (changed) {
         setState(() {
           _toolMode = null;
