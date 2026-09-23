@@ -201,6 +201,19 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             await progress.resumeGameSession(_chapterNumber - 1);
         if (!entered || !mounted) return false;
 
+        // The service has already decided whether this was a resume or a
+        // fresh replacement. This local check is only for choosing whether
+        // to restore the matching cached board into the new engine.
+        final saved = SaveManager.loadCached(
+          chapter: _engine.chapter.name,
+        );
+        final hasPlayableLocalBoard = saved != null &&
+            saved['gameSessionId'] == progress.activeGameSessionId &&
+            saved['gameOver'] != true &&
+            saved['chapterComplete'] != true &&
+            saved['tiles'] is List &&
+            (saved['tiles'] as List).length == 16;
+
         // Load the server-authoritative tool inventory before constructing the
         // engine so the board's ToolManager reflects the current account.
         await ToolManager.refreshInventory();
