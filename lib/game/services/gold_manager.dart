@@ -18,6 +18,17 @@ class GoldManager {
   static int get balance => _cachedBalance ?? 0;
   static int get lifetimeSpent => _cachedLifetimeSpent ?? 0;
 
+  static void applyServerState(Map<String, dynamic> data) {
+    final balance = data['balance'];
+    if (balance is num && balance.toInt() >= 0) {
+      _cachedBalance = balance.toInt();
+    }
+    final spent = data['lifetimeSpent'];
+    if (spent is num && spent.toInt() >= 0) {
+      _cachedLifetimeSpent = spent.toInt();
+    }
+  }
+
   static Future<int?> refresh() async {
     try {
       final callable = _functions.httpsCallable('getGoldBalance');
