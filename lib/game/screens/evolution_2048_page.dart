@@ -49,7 +49,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   int? _evolutionValue;
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
-  bool _gameSessionStarting = false;
+  Future<bool>? _gameSessionFuture;
   bool _restartInProgress = false;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
@@ -166,18 +166,21 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
   }
 
-  Future<bool> _ensureGameSession() async {
-    if (_gameSessionStarting) {
-      while (_gameSessionStarting) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-      }
-      final activeChapter =
-          PlayerProgressService.instance.activeGameChapterIndex;
-      return PlayerProgressService.instance.activeGameSessionId != null &&
-          activeChapter == _chapterNumber - 1;
-    }
+  Future<bool> _ensureGameSession() {
+    final existing = _gameSessionFuture;
+    if (existing != null) return existing;
 
-    _gameSessionStarting = true;
+    final future = _createGameSession();
+    _gameSessionFuture = future;
+    future.whenComplete(() {
+      if (identical(_gameSessionFuture, future)) {
+        _gameSessionFuture = null;
+      }
+    });
+    return future;
+  }
+
+  Future<bool> _createGameSession() async {
     try {
       final progress = PlayerProgressService.instance;
       // Home already loads authoritative progress. Only fetch here when this
@@ -239,8 +242,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // Tool inventory is authoritative but must not delay creation of the
       // new board. Refresh it in the background after the session is active.
       return true;
-    } finally {
-      _gameSessionStarting = false;
     }
   }
 
@@ -1158,7 +1159,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                                 },
                               ),
                               _buildCompletionAnimation(),
-                              if (_gameSessionStarting || _restartInProgress) _buildSessionTransitionOverlay(),
+                              if (_gameSessionFuture != null || _restartInProgress) _buildSessionTransitionOverlay(),
                             ],
                           ),
                         ),
