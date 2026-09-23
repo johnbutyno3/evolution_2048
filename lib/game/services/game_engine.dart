@@ -594,9 +594,15 @@ class GameEngine {
 
     if (tile == null) return false;
 
-    if (!await _toolManager.useServer(GameToolType.revive)) {
-      return false;
-    }
+    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
+    final previousScore = score;
+    final previousPenalty = _toolPenaltyTotal;
+    final previousReached2048 = hasReached2048;
+    final previousReached4096 = hasReached4096;
+    final previousReached8192 = hasReached8192;
+    final previousReached16384 = hasReached16384;
+    final previousGameOver = gameOver;
+    final previousChapterComplete = chapterComplete;
 
     _board.setTile(row, column, null);
 
@@ -621,6 +627,24 @@ class GameEngine {
     );
 
     _saveLocal();
+    unawaited(_toolManager.useOptimistic(
+      GameToolType.revive,
+      onRejected: () {
+        _restoreToolSnapshot(
+          previousTiles,
+          previousScore,
+          previousPenalty,
+          previousReached2048,
+          previousReached4096,
+          previousReached8192,
+          previousReached16384,
+          previousGameOver,
+          previousChapterComplete,
+        );
+        _replayRecorder.removeLastEvent();
+        _saveLocal();
+      },
+    ));
 
     return true;
   }
@@ -634,9 +658,15 @@ class GameEngine {
       return false;
     }
 
-    if (!await _toolManager.useServer(GameToolType.timeRewind)) {
-      return false;
-    }
+    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
+    final previousScore = score;
+    final previousPenalty = _toolPenaltyTotal;
+    final previousReached2048 = hasReached2048;
+    final previousReached4096 = hasReached4096;
+    final previousReached8192 = hasReached8192;
+    final previousReached16384 = hasReached16384;
+    final previousGameOver = gameOver;
+    final previousChapterComplete = chapterComplete;
 
     final revertedScore = max(0, score - _previousScore);
 
@@ -652,6 +682,24 @@ class GameEngine {
     _replayRecorder.recordTimeRewind();
 
     _saveLocal();
+    unawaited(_toolManager.useOptimistic(
+      GameToolType.timeRewind,
+      onRejected: () {
+        _restoreToolSnapshot(
+          previousTiles,
+          previousScore,
+          previousPenalty,
+          previousReached2048,
+          previousReached4096,
+          previousReached8192,
+          previousReached16384,
+          previousGameOver,
+          previousChapterComplete,
+        );
+        _replayRecorder.removeLastEvent();
+        _saveLocal();
+      },
+    ));
 
     return true;
   }
@@ -688,9 +736,15 @@ class GameEngine {
       return false;
     }
 
-    if (!await _toolManager.useServer(GameToolType.positionSwap)) {
-      return false;
-    }
+    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
+    final previousScore = score;
+    final previousPenalty = _toolPenaltyTotal;
+    final previousReached2048 = hasReached2048;
+    final previousReached4096 = hasReached4096;
+    final previousReached8192 = hasReached8192;
+    final previousReached16384 = hasReached16384;
+    final previousGameOver = gameOver;
+    final previousChapterComplete = chapterComplete;
 
     _board.setTile(firstRow, firstColumn, second);
     _board.setTile(secondRow, secondColumn, first);
@@ -707,6 +761,24 @@ class GameEngine {
     );
 
     _saveLocal();
+    unawaited(_toolManager.useOptimistic(
+      GameToolType.positionSwap,
+      onRejected: () {
+        _restoreToolSnapshot(
+          previousTiles,
+          previousScore,
+          previousPenalty,
+          previousReached2048,
+          previousReached4096,
+          previousReached8192,
+          previousReached16384,
+          previousGameOver,
+          previousChapterComplete,
+        );
+        _replayRecorder.removeLastEvent();
+        _saveLocal();
+      },
+    ));
 
     return true;
   }
@@ -748,9 +820,15 @@ class GameEngine {
     if (source == null) return false;
     if (target != null) return false;
 
-    if (!await _toolManager.useServer(GameToolType.duplicate)) {
-      return false;
-    }
+    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
+    final previousScore = score;
+    final previousPenalty = _toolPenaltyTotal;
+    final previousReached2048 = hasReached2048;
+    final previousReached4096 = hasReached4096;
+    final previousReached8192 = hasReached8192;
+    final previousReached16384 = hasReached16384;
+    final previousGameOver = gameOver;
+    final previousChapterComplete = chapterComplete;
 
     _board.setTile(
       targetRow,
@@ -772,8 +850,58 @@ class GameEngine {
     );
 
     _saveLocal();
+    unawaited(_toolManager.useOptimistic(
+      GameToolType.duplicate,
+      onRejected: () {
+        _restoreToolSnapshot(
+          previousTiles,
+          previousScore,
+          previousPenalty,
+          previousReached2048,
+          previousReached4096,
+          previousReached8192,
+          previousReached16384,
+          previousGameOver,
+          previousChapterComplete,
+        );
+        _replayRecorder.removeLastEvent();
+        _saveLocal();
+      },
+    ));
 
     return true;
+  }
+
+  void _restoreToolSnapshot(
+    List<int?> tiles,
+    int previousScore,
+    int previousPenalty,
+    bool reached2048,
+    bool reached4096,
+    bool reached8192,
+    bool reached16384,
+    bool previousGameOver,
+    bool previousChapterComplete,
+  ) {
+    _board = GameBoard(size: boardSize);
+    for (var index = 0; index < tiles.length; index++) {
+      final value = tiles[index];
+      if (value == null) continue;
+      _board.setTile(
+        index ~/ boardSize,
+        index % boardSize,
+        GameTile(value: value, chapter: _chapter),
+      );
+    }
+    score = previousScore;
+    _toolPenaltyTotal = previousPenalty;
+    hasReached2048 = reached2048;
+    hasReached4096 = reached4096;
+    hasReached8192 = reached8192;
+    hasReached16384 = reached16384;
+    gameOver = previousGameOver;
+    chapterComplete = previousChapterComplete;
+    _updateBestScore();
   }
 
   bool useHistoryRestore(int row, int column) => false;
