@@ -19,11 +19,11 @@ class GameEngine {
     bool boardLifeActive = false,
   }) : _random = random ?? Random(),
        _chapter = chapter {
-    _boardLifeActive = boardLifeActive;
     _autoSaveEnabled = false;
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
     reset();
+    _boardLifeActive = boardLifeActive;
 
     final saved = SaveManager.loadCached(chapter: _chapter.name);
     final savedBoardEnded =
@@ -681,13 +681,6 @@ class GameEngine {
 
     _replayRecorder.start(_board);
 
-    _saveLocal();
-  }
-
-  /// Marks a board as backed by the server-authoritative restart that
-  /// has already consumed the player's life. This never deducts a second life.
-  void markBoardLifeActiveAfterServerRestart() {
-    _boardLifeActive = true;
     _saveLocal();
   }
 
