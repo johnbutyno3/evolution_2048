@@ -20,7 +20,6 @@ class _GoldPageState extends State<GoldPage> {
   }
 
   Future<Map<String, dynamic>> _load() async {
-    await GoldManager.initialize();
     return ShopConfigService.load();
   }
 
