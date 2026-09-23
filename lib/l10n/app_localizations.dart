@@ -259,6 +259,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Score'**
   String get score;
+  String get stage;
 
   /// No description provided for @best.
   ///
