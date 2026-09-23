@@ -219,6 +219,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           _engine = GameEngine(
             chapter: _engine.chapter,
             forceNewBoard: true,
+            boardLifeActive: true,
           );
           _engine.reset();
         }
@@ -902,8 +903,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final newEngine = GameEngine(
       chapter: chapter,
       forceNewBoard: forceNewBoard,
+      boardLifeActive: true,
     );
-    newEngine.markBoardLifeActiveAfterServerRestart();
 
     setState(() {
       _engine = newEngine;
