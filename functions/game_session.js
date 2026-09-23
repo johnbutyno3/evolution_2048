@@ -296,7 +296,6 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
   const uid = request.auth.uid;
   const sessionRef = gameSessionRef(uid, sessionId);
   const progress = progressRef(uid);
-  const life = lifeRef(uid);
   const membership = membershipRef(uid);
   const userRef = db.collection('users').doc(uid);
 
@@ -309,8 +308,7 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
       // performed from this same snapshot so it cannot be detached from the
       // session that is actually being settled.
       const refs = [sessionRef, progress];
-      if (unfinishedExit || replayLog != null) refs.push(membership);
-      if (unfinishedExit) refs.push(life);
+      if (replayLog != null) refs.push(membership);
       if (replayLog != null) refs.push(userRef, toolInventoryRef(uid));
       const snapshots = await transaction.getAll(...refs);
       const snapshotMap = new Map(
@@ -319,10 +317,9 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
 
       const sessionSnapshot = snapshotMap.get(sessionRef.path);
       const progressSnapshot = snapshotMap.get(progress.path);
-      const membershipSnapshot = (unfinishedExit || replayLog != null)
+      const membershipSnapshot = replayLog != null
         ? snapshotMap.get(membership.path)
         : null;
-      const lifeSnapshot = unfinishedExit ? snapshotMap.get(life.path) : null;
 
       if (!sessionSnapshot.exists) {
         return { status: 'ended', life: null };
