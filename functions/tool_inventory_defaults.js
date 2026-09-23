@@ -2,7 +2,6 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { enforceSensitiveOperation } = require('./security_enforcement');
 const { recordSecurityEvent } = require('./security_audit');
-const { allowedToolsForChapter } = require('./replay_validator');
 
 const db = getFirestore();
 const TOOL_TYPES = ['revive', 'timeRewind', 'positionSwap', 'duplicate'];
@@ -12,9 +11,6 @@ function inventoryRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('tools');
 }
 
-function sessionRef(uid, sessionId) {
-  return db.collection('users').doc(uid).collection('game_sessions').doc(sessionId);
-}
 
 function membershipRef(uid) {
   return db.collection('users').doc(uid).collection('membership').doc('current');
