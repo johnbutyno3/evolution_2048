@@ -1293,5 +1293,3 @@ exports.completeChapter = onCall(async (request) => {
 // Export the current server-authoritative restart/abandon session callables.
 Object.assign(exports, require('./game_session'));
 
-// Export the server-authoritative life state callables used by LifeManager.
-Object.assign(exports, require('./life'));
