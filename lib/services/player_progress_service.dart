@@ -167,6 +167,7 @@ class PlayerProgressService {
     final chapterName = _chapterNames[chapterIndex];
     final saved = SaveManager.loadCached(chapter: chapterName);
     final hasPlayableLocalBoard = saved != null &&
+        saved['gameSessionId'] == _activeGameSessionId &&
         saved['gameOver'] != true &&
         saved['chapterComplete'] != true &&
         saved['tiles'] is List &&
