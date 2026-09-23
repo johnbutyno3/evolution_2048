@@ -90,6 +90,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get score => '分數';
 
   @override
+  String get stage => '階數';
+
+  @override
   String get best => '最高分';
 
   @override
@@ -214,10 +217,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get life => '生命';
 
   @override
-  String get playerInfo => 'Player Info';
+  String get playerInfo => '玩家資訊';
 
   @override
-  String get shop => 'Shop';
+  String get shop => '商城';
 
   @override
   String get gameTime => '遊戲時間';
