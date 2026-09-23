@@ -67,10 +67,52 @@ exports.restartGameSession = onCall(async (request) => {
   const life = lifeRef(uid);
   const membership = membershipRef(uid);
 
+  const replayLog = request.data?.replayLog ?? null;
+  let replayResult = null;
+  if (replayLog != null) {
+    const oldSessionIdSnapshot = await progress.get();
+    const oldSessionId = oldSessionIdSnapshot.data()?.activeGameSessionId;
+    if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
+      const oldSessionSnapshot = await gameSessionRef(uid, oldSessionId).get();
+      if (oldSessionSnapshot.exists && oldSessionSnapshot.data()?.status === 'active') {
+        const oldSession = oldSessionSnapshot.data() || {};
+        const userSnapshot = await db.collection('users').doc(uid).get();
+        const allToolsEnabledForTest = userSnapshot.data()?.allToolsEnabledForTest === true;
+        try {
+          replayResult = replayGame({
+            replayLog,
+            chapterIndex: oldSession.chapterIndex,
+            targetValue: oldSession.targetValue,
+            allowedTools: allowedToolsForChapter(
+              oldSession.chapterIndex,
+              allToolsEnabledForTest,
+            ),
+            requireCompletion: false,
+          });
+        } catch (error) {
+          await recordSecurityEvent({
+            uid,
+            action: 'restart_game_session',
+            severity: 'CRITICAL',
+            reason: 'forged_replay_detected',
+            details: {
+              sessionId: oldSessionId,
+              error: error?.message || 'Replay validation failed.',
+            },
+          });
+          throw new HttpsError('permission-denied', 'Account security validation failed.');
+        }
+      }
+    }
+  }
+
   return db.runTransaction(async (transaction) => {
     const progressSnapshot = await transaction.get(progress);
     const membershipSnapshot = await transaction.get(membership);
     const lifeSnapshot = await transaction.get(life);
+    const toolsSnapshot = replayResult
+      ? await transaction.get(toolInventoryRef(uid))
+      : null;
 
     const currentProgress = progressSnapshot.data() || {};
     const currentUnlocked = Number.isInteger(currentProgress.unlockedChapterIndex)
@@ -120,6 +162,58 @@ exports.restartGameSession = onCall(async (request) => {
 
     if (!membershipState.infiniteLives && lives <= 0) {
       throw new HttpsError('failed-precondition', 'No lives available.');
+    }
+
+    if (replayResult != null && oldSessionSnapshot?.exists &&
+        oldSessionSnapshot.data()?.status === 'active') {
+      const previousUsage = oldSessionSnapshot.data()?.toolUsage &&
+          typeof oldSessionSnapshot.data()?.toolUsage === 'object'
+        ? oldSessionSnapshot.data().toolUsage
+        : {};
+      const inventory = toolsSnapshot?.data() || {};
+      const toolUpdates = {};
+
+      for (const toolType of Object.keys(replayResult.toolUsage)) {
+        const totalUses = replayResult.toolUsage[toolType] ?? 0;
+        const settledUses = previousUsage[toolType] ?? 0;
+        if (!Number.isSafeInteger(totalUses) || totalUses < 0 ||
+            !Number.isSafeInteger(settledUses) || settledUses < 0 ||
+            totalUses < settledUses) {
+          await recordSecurityEvent({
+            uid,
+            action: 'restart_game_session',
+            severity: 'CRITICAL',
+            reason: 'tool_usage_tampering_detected',
+            details: { sessionId: oldSessionId, toolType, totalUses, settledUses },
+          });
+          throw new HttpsError('permission-denied', 'Account security validation failed.');
+        }
+        const delta = totalUses - settledUses;
+        const goldenUnlimitedUndo = membershipState.active &&
+            membershipState.type === 'golden' && toolType === 'timeRewind';
+        if (delta === 0 || goldenUnlimitedUndo) continue;
+        const currentUses = inventory[toolType] ?? 0;
+        if (!Number.isSafeInteger(currentUses) || currentUses < delta) {
+          await recordSecurityEvent({
+            uid,
+            action: 'restart_game_session',
+            severity: 'CRITICAL',
+            reason: 'tool_inventory_overuse_detected',
+            details: { sessionId: oldSessionId, toolType, delta, currentUses },
+          });
+          throw new HttpsError('permission-denied', 'Account security validation failed.');
+        }
+        toolUpdates[toolType] = currentUses - delta;
+      }
+
+      if (Object.keys(toolUpdates).length > 0) {
+        transaction.set(toolInventoryRef(uid), toolUpdates, { merge: true });
+      }
+      transaction.update(oldSessionRef, {
+        toolUsage: replayResult.toolUsage,
+        finalScore: replayResult.score,
+        finalHighestValue: replayResult.highestValue,
+      });
     }
 
     const nextLives = membershipState.infiniteLives ? lives : lives - 1;
