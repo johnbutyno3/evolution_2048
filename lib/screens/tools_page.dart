@@ -155,7 +155,7 @@ class _ToolsPageState extends State<ToolsPage> {
                         amount: amounts[i],
                       ),
                       child: Text(
-                        '${amounts[i]} · ${ShopConfigService.price(config, '${key}${amounts[i]}Price')} Gold',
+                        '${amounts[i]} · ${ShopConfigService.price(config, '$key${amounts[i]}Price')} Gold',
                       ),
                     ),
                 ],
