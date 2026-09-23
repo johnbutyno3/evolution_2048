@@ -242,7 +242,7 @@ class PlayerProgressService {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
         if (_activeGameSessionId != null) 'sessionId': _activeGameSessionId,
-        if (replayLog != null) 'replayLog': replayLog,
+        'replayLog': ?replayLog,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
@@ -295,7 +295,7 @@ class PlayerProgressService {
       final result = await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': settledSessionId,
         'unfinishedExit': true,
-        if (replayLog != null) 'replayLog': replayLog,
+        'replayLog': ?replayLog,
       });
       final data = result.data;
       final lifeState = data is Map ? data['life'] : null;
@@ -326,7 +326,7 @@ class PlayerProgressService {
       final result =
           await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': settledSessionId,
-        if (replayLog != null) 'replayLog': replayLog,
+        'replayLog': ?replayLog,
       });
 
       if (_activeGameSessionId == settledSessionId) {
