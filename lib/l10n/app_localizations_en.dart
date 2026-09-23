@@ -341,7 +341,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lifetimeSpent => "Lifetime Spent";
 
   @override
-  String get goldAmount => "{amount} Gold";
+  String goldAmount(int amount) => '$amount Gold';
 
   @override
   String get goldUsage => "Gold is used for lives and tool purchases.";
