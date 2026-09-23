@@ -106,23 +106,20 @@ exports.ensurePlayerProfile = onCall(async (request) => {
       avatarIndex = safeAvatarIndex(requestedAvatar);
     }
 
-    let nameInfo;
-    if (playerName.length === 0 || playerName.toLowerCase() === 'player') {
-      nameInfo = await generateUniqueName(transaction);
-      playerName = nameInfo.candidate;
-    } else {
+    let nameInfo = null;
+    if (playerName.length > 0 && playerName.toLowerCase() !== 'player') {
       const normalized = normalizeName(playerName);
       nameInfo = {
         candidate: playerName,
         normalized,
         ref: db.collection('player_names').doc(normalized),
       };
-    }
 
-    const existingName = await transaction.get(nameInfo.ref);
-    const existingNameUid = existingName.data()?.uid;
-    if (existingNameUid != null && existingNameUid !== uid) {
-      throw new HttpsError('already-exists', 'Player name is already in use.');
+      const existingName = await transaction.get(nameInfo.ref);
+      const existingNameUid = existingName.data()?.uid;
+      if (existingNameUid != null && existingNameUid !== uid) {
+        throw new HttpsError('already-exists', 'Player name is already in use.');
+      }
     }
 
     let idInfo;
@@ -143,11 +140,13 @@ exports.ensurePlayerProfile = onCall(async (request) => {
       idInfo = await generateUniquePlayerId(transaction);
     }
 
-    transaction.set(nameInfo.ref, {
-      uid,
-      playerName,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    if (nameInfo != null) {
+      transaction.set(nameInfo.ref, {
+        uid,
+        playerName,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
 
     transaction.set(idInfo.ref, {
       uid,
@@ -157,7 +156,9 @@ exports.ensurePlayerProfile = onCall(async (request) => {
 
     transaction.set(userRef, {
       playerName,
-      playerNameNormalized: nameInfo.normalized,
+      ...(nameInfo == null
+        ? {}
+        : { playerNameNormalized: nameInfo.normalized }),
       playerId,
       avatarIndex,
       updatedAt: FieldValue.serverTimestamp(),
