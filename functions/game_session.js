@@ -297,285 +297,279 @@ exports.abandonGameSession = onCall(async (request) => {
   const sessionRef = gameSessionRef(uid, sessionId);
   const progress = progressRef(uid);
   const life = lifeRef(uid);
-  let replayResult = null;
-  if (replayLog != null) {
-    const [precheckSnapshot, userSnapshot] = await Promise.all([
-      sessionRef.get(),
-      db.collection('users').doc(uid).get(),
-    ]);
-    if (precheckSnapshot.exists && precheckSnapshot.data()?.status === 'active') {
-      const precheckSession = precheckSnapshot.data() || {};
-      const allToolsEnabledForTest =
-        userSnapshot.data()?.allToolsEnabledForTest === true;
-      try {
-        replayResult = replayGame({
-          replayLog,
-          chapterIndex: precheckSession.chapterIndex,
-          targetValue: precheckSession.targetValue,
-          allowedTools: allowedToolsForChapter(
-            precheckSession.chapterIndex,
-            allToolsEnabledForTest,
-          ),
-          requireCompletion: false,
-        });
-      } catch (error) {
-        await recordSecurityEvent({
-          uid,
-          action: 'abandon_game_session',
-          severity: 'CRITICAL',
-          reason: 'forged_replay_detected',
-          details: {
-            sessionId,
-            error: error?.message || 'Replay validation failed.',
-          },
-        });
-        throw new HttpsError(
-          'permission-denied',
-          'Account security validation failed.',
-        );
-      }
-    }
-  }
-
   const membership = membershipRef(uid);
+  const userRef = db.collection('users').doc(uid);
 
   let finalStatus = 'ended';
   let settledChapterProgress = {};
 
-  const transactionResult = await db.runTransaction(async (transaction) => {
-    // All transaction reads must happen before any writes.
-    const baseRefs = [sessionRef, progress];
-    if (unfinishedExit) {
-      baseRefs.push(membership, life);
-    }
-    const baseSnapshots = await transaction.getAll(...baseRefs);
-    const sessionSnapshot = baseSnapshots[0];
-    const progressSnapshot = baseSnapshots[1];
-    const membershipSnapshot = unfinishedExit ? baseSnapshots[2] : null;
-    const lifeSnapshot = unfinishedExit ? baseSnapshots[3] : null;
-    const toolsSnapshot = replayResult
-      ? await transaction.get(toolInventoryRef(uid))
-      : null;
-
-    if (!sessionSnapshot.exists) {
-      return { status: 'ended', life: null };
-    }
-
-    const session = sessionSnapshot.data() || {};
-    const current = progressSnapshot.data() || {};
-
-    if (session.status !== 'active') {
-      finalStatus = session.status || 'ended';
-      return { status: finalStatus, life: null };
-    }
-
-    if (replayResult != null) {
-      const previousUsage = session.toolUsage &&
-          typeof session.toolUsage === 'object'
-        ? session.toolUsage
-        : {};
-      const inventory = toolsSnapshot?.data() || {};
-      const membershipState = resolveMembership(
-        membershipSnapshot?.data() || {},
+  try {
+    const transactionResult = await db.runTransaction(async (transaction) => {
+      // Read every document before any transaction write. Replay validation is
+      // performed from this same snapshot so it cannot be detached from the
+      // session that is actually being settled.
+      const refs = [sessionRef, progress];
+      if (unfinishedExit) refs.push(membership, life);
+      if (replayLog != null) refs.push(userRef, toolInventoryRef(uid));
+      const snapshots = await transaction.getAll(...refs);
+      const snapshotMap = new Map(
+        refs.map((ref, index) => [ref.path, snapshots[index]]),
       );
-      const toolUpdates = {};
 
-      for (const toolType of Object.keys(replayResult.toolUsage)) {
-        const totalUses = replayResult.toolUsage[toolType] ?? 0;
-        const settledUses = previousUsage[toolType] ?? 0;
+      const sessionSnapshot = snapshotMap.get(sessionRef.path);
+      const progressSnapshot = snapshotMap.get(progress.path);
+      const membershipSnapshot = unfinishedExit
+        ? snapshotMap.get(membership.path)
+        : null;
+      const lifeSnapshot = unfinishedExit ? snapshotMap.get(life.path) : null;
 
-        if (!Number.isSafeInteger(totalUses) ||
-            totalUses < 0 ||
-            !Number.isSafeInteger(settledUses) ||
-            settledUses < 0 ||
-            totalUses < settledUses) {
-          await recordSecurityEvent({
-            uid,
-            action: 'abandon_game_session',
-            severity: 'CRITICAL',
-            reason: 'tool_usage_tampering_detected',
-            details: { sessionId, toolType, totalUses, settledUses },
+      if (!sessionSnapshot.exists) {
+        return { status: 'ended', life: null };
+      }
+
+      const session = sessionSnapshot.data() || {};
+      const current = progressSnapshot.data() || {};
+
+      if (session.status !== 'active') {
+        finalStatus = session.status || 'ended';
+        return { status: finalStatus, life: null };
+      }
+
+      let replayResult = null;
+      if (replayLog != null) {
+        const allToolsEnabledForTest =
+          snapshotMap.get(userRef.path)?.data()?.allToolsEnabledForTest === true;
+        try {
+          replayResult = replayGame({
+            replayLog,
+            chapterIndex: session.chapterIndex,
+            targetValue: session.targetValue,
+            allowedTools: allowedToolsForChapter(
+              session.chapterIndex,
+              allToolsEnabledForTest,
+            ),
+            requireCompletion: false,
           });
-          throw new HttpsError(
-            'permission-denied',
-            'Account security validation failed.',
+        } catch (error) {
+          const securityError = new Error(
+            error?.message || 'Replay validation failed.',
           );
+          securityError.securityReason = 'forged_replay_detected';
+          securityError.securityDetails = {
+            sessionId,
+            error: securityError.message,
+          };
+          throw securityError;
         }
-
-        const delta = totalUses - settledUses;
-        const goldenUnlimitedUndo =
-          membershipState.active &&
-          membershipState.type === 'golden' &&
-          toolType === 'timeRewind';
-
-        if (delta === 0 || goldenUnlimitedUndo) continue;
-
-        const currentUses = inventory[toolType] ?? 0;
-        if (!Number.isSafeInteger(currentUses) ||
-            currentUses < delta) {
-          await recordSecurityEvent({
-            uid,
-            action: 'abandon_game_session',
-            severity: 'CRITICAL',
-            reason: 'tool_inventory_overuse_detected',
-            details: {
-              sessionId,
-              toolType,
-              delta,
-              currentUses,
-            },
-          });
-          throw new HttpsError(
-            'permission-denied',
-            'Account security validation failed.',
-          );
-        }
-
-        toolUpdates[toolType] = currentUses - delta;
       }
 
-      if (Object.keys(toolUpdates).length > 0) {
-        transaction.set(
-          toolInventoryRef(uid),
-          {
-            ...toolUpdates,
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true },
-        );
-      }
-
-      const chapterName = CHAPTER_NAMES[session.chapterIndex];
-      const existingChapterProgress =
-          current.chapterProgress &&
-          typeof current.chapterProgress === 'object'
-        ? current.chapterProgress
-        : {};
-      const existingChapter = existingChapterProgress[chapterName] || {};
-      const existingHighest = Number.isInteger(existingChapter.highestValue)
-        ? existingChapter.highestValue
-        : 0;
-      const existingScore = Number.isSafeInteger(existingChapter.score)
-        ? existingChapter.score
-        : 0;
-      const settledHighest = Math.max(existingHighest, replayResult.highestValue);
-      const settledScore = Math.max(existingScore, replayResult.score);
-      settledChapterProgress = {
-        [chapterName]: {
-          highestValue: settledHighest,
-          score: settledScore,
-        },
-      };
-      transaction.set(progress, {
-        chapterProgress: {
-          [chapterName]: {
-            highestValue: settledHighest,
-            score: settledScore,
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-        },
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-
-      transaction.set(sessionRef, {
-        toolUsage: replayResult.toolUsage,
-        replayEventCount: replayResult.eventCount,
-        toolPenaltyTotal: replayResult.toolPenaltyTotal,
-        toolsLastSettledAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    }
-
-
-
-    if (unfinishedExit) {
-      // Leaving an unfinished game is not Game Over. Refund exactly the Life
-      // consumed for this entry and keep the same server-owned session active.
-      // resumeGameSession clears this marker before each new billable entry,
-      // so each unfinished entry can receive exactly one refund.
-      if (current.activeGameSessionId !== sessionId) {
-        throw new HttpsError(
-          'failed-precondition',
-          'Game session is not the current active game.',
-        );
-      }
-
-      if (session.unfinishedExitRefundedAt == null) {
+      if (replayResult != null) {
+        const previousUsage = session.toolUsage &&
+            typeof session.toolUsage === 'object'
+          ? session.toolUsage
+          : {};
+        const inventory =
+            snapshotMap.get(toolInventoryRef(uid).path)?.data() || {};
         const membershipState = resolveMembership(
           membershipSnapshot?.data() || {},
         );
-        let lives = normalizeLives(lifeSnapshot?.data()?.lives);
-        let regenStartMillis = normalizeRegenStart(
-          lifeSnapshot?.data()?.regenStartAt,
-        );
-        const nowMillis = Date.now();
+        const toolUpdates = {};
 
-        if (membershipState.infiniteLives) {
-          lives = NORMAL_CAP;
-          regenStartMillis = null;
-        } else {
-          const regenerated = regenerate({
-            lives,
-            regenStartMillis,
-            nowMillis,
-            interval: intervalMs(membershipState),
-          });
-          lives = regenerated.lives;
-          regenStartMillis = regenerated.regenStartMillis;
+        for (const toolType of Object.keys(replayResult.toolUsage)) {
+          const totalUses = replayResult.toolUsage[toolType] ?? 0;
+          const settledUses = previousUsage[toolType] ?? 0;
 
-          lives = Math.min(NORMAL_CAP, lives + 1);
-          if (lives >= NORMAL_CAP) {
-            regenStartMillis = null;
-          } else if (regenStartMillis == null) {
-            regenStartMillis = nowMillis;
+          if (!Number.isSafeInteger(totalUses) ||
+              totalUses < 0 ||
+              !Number.isSafeInteger(settledUses) ||
+              settledUses < 0 ||
+              totalUses < settledUses) {
+            const securityError = new Error(
+              'Tool usage does not match the active session.',
+            );
+            securityError.securityReason = 'tool_usage_tampering_detected';
+            securityError.securityDetails = {
+              sessionId, toolType, totalUses, settledUses,
+            };
+            throw securityError;
           }
+
+          const delta = totalUses - settledUses;
+          const goldenUnlimitedUndo =
+              membershipState.active &&
+              membershipState.type === 'golden' &&
+              toolType === 'timeRewind';
+
+          if (delta === 0 || goldenUnlimitedUndo) continue;
+
+          const currentUses = inventory[toolType] ?? 0;
+          if (!Number.isSafeInteger(currentUses) || currentUses < delta) {
+            const securityError = new Error(
+              'Tool inventory usage exceeded.',
+            );
+            securityError.securityReason = 'tool_inventory_overuse_detected';
+            securityError.securityDetails = {
+              sessionId, toolType, delta, currentUses,
+            };
+            throw securityError;
+          }
+          toolUpdates[toolType] = currentUses - delta;
         }
 
-        transaction.set(life, {
-          lives,
-          regenStartAt: regenStartMillis == null
-            ? null
-            : Timestamp.fromMillis(regenStartMillis),
+        if (Object.keys(toolUpdates).length > 0) {
+          transaction.set(
+            toolInventoryRef(uid),
+            {
+              ...toolUpdates,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+        }
+
+        const chapterName = CHAPTER_NAMES[session.chapterIndex];
+        const existingChapterProgress =
+            current.chapterProgress &&
+            typeof current.chapterProgress === 'object'
+          ? current.chapterProgress
+          : {};
+        const existingChapter = existingChapterProgress[chapterName] || {};
+        const existingHighest = Number.isInteger(existingChapter.highestValue)
+          ? existingChapter.highestValue
+          : 0;
+        const existingScore = Number.isSafeInteger(existingChapter.score)
+          ? existingChapter.score
+          : 0;
+        const settledHighest = Math.max(
+          existingHighest,
+          replayResult.highestValue,
+        );
+        const settledScore = Math.max(existingScore, replayResult.score);
+
+        settledChapterProgress = {
+          [chapterName]: {
+            highestValue: settledHighest,
+            score: settledScore,
+          },
+        };
+        transaction.set(progress, {
+          chapterProgress: {
+            [chapterName]: {
+              highestValue: settledHighest,
+              score: settledScore,
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+          },
           updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
 
         transaction.set(sessionRef, {
-          unfinishedExitRefundedAt: FieldValue.serverTimestamp(),
-          lastUnfinishedExitAt: FieldValue.serverTimestamp(),
+          toolUsage: replayResult.toolUsage,
+          replayEventCount: replayResult.eventCount,
+          toolPenaltyTotal: replayResult.toolPenaltyTotal,
+          toolsLastSettledAt: FieldValue.serverTimestamp(),
         }, { merge: true });
-
-        finalStatus = 'active';
-        return {
-          status: 'active',
-          life: lifeResponse(lives, regenStartMillis, membershipState),
-        };
       }
 
-      finalStatus = 'active';
-      return { status: 'active', life: null };
-    }
+      if (unfinishedExit) {
+        if (current.activeGameSessionId !== sessionId) {
+          throw new HttpsError(
+            'failed-precondition',
+            'Game session is not the current active game.',
+          );
+        }
 
-    // Normal abandonment is Game Over: no Life refund.
-    transaction.update(sessionRef, {
-      status: 'ended',
-      endedAt: FieldValue.serverTimestamp(),
-      endReason: 'game_over',
+        if (session.unfinishedExitRefundedAt == null) {
+          const membershipState = resolveMembership(
+            membershipSnapshot?.data() || {},
+          );
+          let lives = normalizeLives(lifeSnapshot?.data()?.lives);
+          let regenStartMillis = normalizeRegenStart(
+            lifeSnapshot?.data()?.regenStartAt,
+          );
+          const nowMillis = Date.now();
+
+          if (membershipState.infiniteLives) {
+            lives = NORMAL_CAP;
+            regenStartMillis = null;
+          } else {
+            const regenerated = regenerate({
+              lives,
+              regenStartMillis,
+              nowMillis,
+              interval: intervalMs(membershipState),
+            });
+            lives = Math.min(NORMAL_CAP, regenerated.lives + 1);
+            regenStartMillis = regenerated.regenStartMillis;
+            if (lives >= NORMAL_CAP) {
+              regenStartMillis = null;
+            } else if (regenStartMillis == null) {
+              regenStartMillis = nowMillis;
+            }
+          }
+
+          transaction.set(life, {
+            lives,
+            regenStartAt: regenStartMillis == null
+              ? null
+              : Timestamp.fromMillis(regenStartMillis),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+
+          transaction.set(sessionRef, {
+            unfinishedExitRefundedAt: FieldValue.serverTimestamp(),
+            lastUnfinishedExitAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+
+          finalStatus = 'active';
+          return {
+            status: 'active',
+            life: lifeResponse(lives, regenStartMillis, membershipState),
+          };
+        }
+
+        finalStatus = 'active';
+        return { status: 'active', life: null };
+      }
+
+      transaction.update(sessionRef, {
+        status: 'ended',
+        endedAt: FieldValue.serverTimestamp(),
+        endReason: 'game_over',
+      });
+
+      if (current.activeGameSessionId === sessionId) {
+        transaction.set(progress, {
+          activeGameSessionId: FieldValue.delete(),
+          activeGameChapterIndex: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+
+      return { status: 'ended', life: null };
     });
 
-    if (current.activeGameSessionId === sessionId) {
-      transaction.set(progress, {
-        activeGameSessionId: FieldValue.delete(),
-        activeGameChapterIndex: FieldValue.delete(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+    return {
+      sessionId,
+      status: finalStatus,
+      life: transactionResult?.life ?? null,
+      chapterProgress: settledChapterProgress,
+    };
+  } catch (error) {
+    if (error?.securityReason) {
+      await recordSecurityEvent({
+        uid,
+        action: 'abandon_game_session',
+        severity: 'CRITICAL',
+        reason: error.securityReason,
+        details: error.securityDetails || {},
+      });
+      throw new HttpsError(
+        'permission-denied',
+        'Account security validation failed.',
+      );
     }
-
-    return { status: 'ended', life: null };
-  });
-
-  return {
-    sessionId,
-    status: finalStatus,
-    life: transactionResult?.life ?? null,
-    chapterProgress: settledChapterProgress,
-  };
+    throw error;
+  }
 });
+
