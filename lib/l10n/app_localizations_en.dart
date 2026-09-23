@@ -650,4 +650,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get evolutionProgress => "Evolution Progress";
+  @override
+  String chapterLabel(int number, String name) => 'Chapter ' + number.toString() + ' · ' + name + '';
+
 }
