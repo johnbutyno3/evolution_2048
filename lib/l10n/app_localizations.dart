@@ -524,6 +524,9 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Game Time'**
   String get gameTime;
+  String get playerId;
+  String get membership;
+  String get evolutionProgress;
   String get personalTitle;
   String get playerBasicInfo;
   String get playerBasicInfoSubtitle;
