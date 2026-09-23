@@ -121,11 +121,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _load() async {
     await Future.wait([
-      PlayerProfileService.ensureProfile().catchError((_) {}),
-      LifeManager.initialize().catchError((_) {}),
-      GoldManager.initialize().catchError((_) {}),
-      ToolManager.refreshInventory().catchError((_) {}),
-      _progress.refresh().catchError((_) {}),
+      PlayerProfileService.ensureProfile().catchError((_) => null),
+      LifeManager.initialize().catchError((_) => null),
+      GoldManager.initialize().catchError((_) => null),
+      ToolManager.refreshInventory().catchError((_) => null),
+      _progress.refresh().catchError((_) => null),
     ]);
     if (mounted) setState(() => _loading = false);
   }
