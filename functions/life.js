@@ -22,51 +22,57 @@ function membershipRef(uid) {
   return db.collection('users').doc(uid).collection('membership').doc('current');
 }
 
-async function loadAndRegenerate(transaction, uid, membership) {
-  const ref = lifeRef(uid);
-  const snapshot = await transaction.get(ref);
+async function readAndRegenerate(transaction, uid, membership) {
+  const snapshot = await transaction.get(lifeRef(uid));
   const data = snapshot.data() || {};
   const nowMillis = Date.now();
-  const currentLives = normalizeLives(data.lives);
-  const currentRegenStart = normalizeRegenStart(data.regenStartAt);
+  const lives = normalizeLives(data.lives);
+  const regenStartMillis = normalizeRegenStart(data.regenStartAt);
 
   if (membership.infiniteLives) {
-    transaction.set(ref, {
-      lives: NORMAL_CAP,
-      regenStartAt: null,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    return lifeResponse(NORMAL_CAP, null, membership);
+    return { lives: NORMAL_CAP, regenStartMillis: null, membership };
   }
 
   const regenerated = regenerate({
-    lives: currentLives,
-    regenStartMillis: currentRegenStart,
+    lives,
+    regenStartMillis,
     nowMillis,
     interval: intervalMs(membership),
   });
 
-  transaction.set(ref, {
+  return {
     lives: regenerated.lives,
-    regenStartAt: regenerated.regenStartMillis == null
+    regenStartMillis: regenerated.regenStartMillis,
+    membership,
+  };
+}
+
+function writeLifeState(transaction, uid, lives, regenStartMillis) {
+  transaction.set(lifeRef(uid), {
+    lives,
+    regenStartAt: regenStartMillis == null
       ? null
-      : Timestamp.fromMillis(regenerated.regenStartMillis),
+      : Timestamp.fromMillis(regenStartMillis),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
-
-  return lifeResponse(
-    regenerated.lives,
-    regenerated.regenStartMillis,
-    membership,
-  );
 }
 
 async function resolveServerState(transaction, uid) {
   const membershipSnapshot = await transaction.get(membershipRef(uid));
-  return loadAndRegenerate(
+  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const current = await readAndRegenerate(transaction, uid, membership);
+
+  writeLifeState(
     transaction,
     uid,
-    resolveMembership(membershipSnapshot.data() || {}),
+    current.lives,
+    current.regenStartMillis,
+  );
+
+  return lifeResponse(
+    current.lives,
+    current.regenStartMillis,
+    membership,
   );
 }
 
@@ -86,32 +92,27 @@ exports.consumeLife = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const ref = lifeRef(uid);
 
   return db.runTransaction(async (transaction) => {
     const membershipSnapshot = await transaction.get(membershipRef(uid));
     const membership = resolveMembership(membershipSnapshot.data() || {});
-    const current = await loadAndRegenerate(transaction, uid, membership);
+    const current = await readAndRegenerate(transaction, uid, membership);
 
-    if (membership.infiniteLives) return current;
+    if (membership.infiniteLives) {
+      writeLifeState(transaction, uid, NORMAL_CAP, null);
+      return lifeResponse(NORMAL_CAP, null, membership);
+    }
+
     if (current.lives <= 0) {
       throw new HttpsError('failed-precondition', 'No lives available.');
     }
 
     const nextLives = current.lives - 1;
     const regenStartMillis = nextLives < NORMAL_CAP
-      ? (current.nextLifeAtMillis == null
-          ? Date.now()
-          : current.nextLifeAtMillis - intervalMs(membership))
+      ? (current.regenStartMillis ?? Date.now())
       : null;
 
-    transaction.set(ref, {
-      lives: nextLives,
-      regenStartAt: regenStartMillis == null
-        ? null
-        : Timestamp.fromMillis(regenStartMillis),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    writeLifeState(transaction, uid, nextLives, regenStartMillis);
 
     return lifeResponse(nextLives, regenStartMillis, membership);
   });
@@ -123,29 +124,23 @@ exports.refundLife = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const ref = lifeRef(uid);
 
   return db.runTransaction(async (transaction) => {
     const membershipSnapshot = await transaction.get(membershipRef(uid));
     const membership = resolveMembership(membershipSnapshot.data() || {});
-    const current = await loadAndRegenerate(transaction, uid, membership);
+    const current = await readAndRegenerate(transaction, uid, membership);
 
-    if (membership.infiniteLives) return current;
+    if (membership.infiniteLives) {
+      writeLifeState(transaction, uid, NORMAL_CAP, null);
+      return lifeResponse(NORMAL_CAP, null, membership);
+    }
 
     const nextLives = Math.min(NORMAL_CAP, Math.max(0, current.lives + 1));
     const regenStartMillis = nextLives >= NORMAL_CAP
       ? null
-      : (current.nextLifeAtMillis == null
-          ? Date.now()
-          : current.nextLifeAtMillis - intervalMs(membership));
+      : (current.regenStartMillis ?? Date.now());
 
-    transaction.set(ref, {
-      lives: nextLives,
-      regenStartAt: regenStartMillis == null
-        ? null
-        : Timestamp.fromMillis(regenStartMillis),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    writeLifeState(transaction, uid, nextLives, regenStartMillis);
 
     return lifeResponse(nextLives, regenStartMillis, membership);
   });
