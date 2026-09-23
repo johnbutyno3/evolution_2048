@@ -241,7 +241,8 @@ class PlayerProgressService {
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
-      if (replayLog != null) 'replayLog': replayLog,
+        if (_activeGameSessionId != null) 'sessionId': _activeGameSessionId,
+        if (replayLog != null) 'replayLog': replayLog,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
