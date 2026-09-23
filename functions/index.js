@@ -772,29 +772,20 @@ exports.resumeGameSession = onCall(async (request) => {
       );
     }
 
-    // Every game entry, including resume after an unfinished exit, consumes
-    // exactly one Life. The deduction is atomic with resume validation.
-    const consumedLifeState = await consumeLifeInTransaction(
-      transaction,
-      uid,
-      membershipSnapshot,
-    );
-
-    // A new entry starts a new Life billing cycle for this same resumable
-    // session. Clear the previous unfinished-exit refund marker so the next
-    // unfinished exit can refund exactly once.
+    // Resume is a continuation of the same server-owned board. The Life was
+    // consumed when this session was originally created and remains owned by
+    // this active board until Game Over, Restart, or Chapter Completion.
     transaction.set(sessionRef, {
-      unfinishedExitRefundedAt: null,
       lastResumedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    return consumedLifeState;
+    return null;
   });
 
   return {
     sessionId,
     chapterIndex,
-    life: transactionLifeState,
+    life: null,
   };
 });
 
