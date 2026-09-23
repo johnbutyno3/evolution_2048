@@ -305,7 +305,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _move(String direction) {
     if (_gameOverDialogShowing || _chapterCompleteShowing ||
-        _completionAnimationPlaying || _toolMode != null) {
+        _completionAnimationPlaying || _toolMode != null ||
+        _restartInProgress) {
       return;
     }
     bool changed;
@@ -438,46 +439,67 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     _restartInProgress = true;
-    try {
-      final saveData = _engine.createSaveData();
-      final replayLog = saveData['replayLog'];
-      final restarted = await PlayerProgressService.instance.restartGameSession(
-        _chapterNumber - 1,
-        replayLog: replayLog is Map
-            ? Map<String, dynamic>.from(replayLog)
-            : null,
-      );
-      if (!restarted || !mounted) return false;
 
-      // A server restart creates a new game session. Replace the engine
-      // instance as well, so no cached board/replay state from the abandoned
-      // session can be restored by the old engine.
-      _engine.stopGameTimer();
-      final newEngine = GameEngine(
-        chapter: _engine.chapter,
-        forceNewBoard: true,
-        boardLifeActive: true,
-      );
+    // Build the replacement board immediately. The old implementation waited
+    // for the Firebase restart transaction before changing the UI, which made
+    // a restart visibly stall while the callable completed.
+    final oldEngine = _engine;
+    final saveData = oldEngine.createSaveData();
+    final replayLog = saveData['replayLog'];
+    final replay = replayLog is Map
+        ? Map<String, dynamic>.from(replayLog)
+        : null;
 
+    oldEngine.stopGameTimer();
+    final newEngine = GameEngine(
+      chapter: oldEngine.chapter,
+      forceNewBoard: true,
+      boardLifeActive: true,
+    );
 
+    setState(() {
+      _engine = newEngine;
+      _evolutionValue = null;
+      _evolutionCreatureName = null;
+      _firstSwapIndex = null;
+      _dragStart = null;
+      _swipeHandled = false;
+      _toolMode = null;
+      _pressedToolMode = null;
+    });
+
+    _engine.startGameTimer();
+    _startUiRefreshTimer();
+    _focusNode.requestFocus();
+
+    // Keep the new board non-interactive until the server has atomically
+    // created the new session and consumed the Life. This prevents a fast
+    // input during the network round trip from modifying a session that the
+    // server has not accepted yet.
+    final restarted =
+        await PlayerProgressService.instance.restartGameSession(
+      _chapterNumber - 1,
+      replayLog: replay,
+    );
+
+    if (!mounted) {
+      _restartInProgress = false;
+      return restarted;
+    }
+
+    if (!restarted) {
+      newEngine.stopGameTimer();
+      oldEngine.startGameTimer();
       setState(() {
-        _engine = newEngine;
-        _evolutionValue = null;
-        _evolutionCreatureName = null;
-        _firstSwapIndex = null;
-        _dragStart = null;
-        _swipeHandled = false;
-        _toolMode = null;
-        _pressedToolMode = null;
+        _engine = oldEngine;
       });
-
-      _engine.startGameTimer();
       _startUiRefreshTimer();
       _focusNode.requestFocus();
-      return true;
-    } finally {
-      _restartInProgress = false;
     }
+
+    _restartInProgress = false;
+    if (mounted) setState(() {});
+    return restarted;
   }
 
   Future<void> _handleSystemBack() async {
