@@ -19,7 +19,6 @@ class LifeManager {
   static String _membership = 'general';
   static String _lifeMode = 'normal';
   static int? _nextLifeAtMillis;
-  static bool _initialized = false;
 
   // Compatibility bridge for the existing synchronous GameEngine API.
   // The actual life mutation is still performed by the server. A successful
@@ -36,7 +35,6 @@ class LifeManager {
   /// background read that started before the session mutation completed.
   static void applyServerState(Map<String, dynamic> data) {
     _applyServerState(data);
-    _initialized = true;
   }
 
   static Future<void> refreshFromServer() async {
@@ -77,8 +75,6 @@ class LifeManager {
     _nextLifeAtMillis = nextLifeAtMillis as int?;
   }
 
-  static bool get isInitialized => _initialized;
-
   static bool get isGoldenMember => _lifeMode == 'golden';
 
   static String get lifeMode => _lifeMode;
@@ -98,8 +94,6 @@ class LifeManager {
         Duration(milliseconds: next - DateTime.now().millisecondsSinceEpoch);
     return remaining.isNegative ? Duration.zero : remaining;
   }
-
-  static const Duration regenerationInterval = Duration(hours: 1);
 
   static Future<bool> consumeLife() async {
     try {
@@ -137,9 +131,5 @@ class LifeManager {
     final result = await _functions.httpsCallable('refundLife').call();
     _applyServerState(Map<String, dynamic>.from(result.data as Map));
     _initialized = true;
-  }
-
-  static Future<void> refresh() async {
-    await refreshFromServer();
   }
 }
