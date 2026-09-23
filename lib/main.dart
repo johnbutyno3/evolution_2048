@@ -4,8 +4,6 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
-import 'game/services/gold_manager.dart';
-import 'game/services/life_manager.dart';
 import 'game/services/save_manager.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/login_register_page.dart';
@@ -29,13 +27,9 @@ Future<void> main() async {
 
   await SaveManager.initialize();
 
-  // Life and Gold are server-authoritative and require authentication.
-  // Do not call their protected functions before a signed-in user exists.
-  // After login, HomePage initializes them for the authenticated session.
-  if (FirebaseAuth.instance.currentUser != null) {
-    await LifeManager.initialize();
-    await GoldManager.initialize();
-  }
+  // HomePage initializes authenticated account state. Keep startup focused
+  // on Firebase/Auth restoration so the same life/gold reads are not made
+  // once here and again immediately by HomePage.
 
   runApp(const Rebirth2048App());
 }
