@@ -445,8 +445,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     _restartInProgress = true;
     try {
+      final saveData = _engine.createSaveData();
+      final replayLog = saveData['replayLog'];
       final restarted = await PlayerProgressService.instance.restartGameSession(
         _chapterNumber - 1,
+        replayLog: replayLog is Map
+            ? Map<String, dynamic>.from(replayLog)
+            : null,
       );
       if (!restarted || !mounted) return false;
 
