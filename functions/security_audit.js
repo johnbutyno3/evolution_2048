@@ -16,6 +16,11 @@ const RISK_RULES = [
       'reused transaction',
       'transaction_reuse_detected',
       'authoritative data modification',
+      'forged_replay_detected',
+      'tool_inventory_overuse_detected',
+      'tool_usage_tampering_detected',
+      'tool_usage_invalid',
+      'replay_target_mismatch',
     ],
   },
   {
