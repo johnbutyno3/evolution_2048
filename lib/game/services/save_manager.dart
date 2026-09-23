@@ -34,6 +34,46 @@ class SaveManager {
     );
   }
 
+  static Future<void> rebindCachedGameSession({
+    required String chapter,
+    required String? previousSessionId,
+    required String newSessionId,
+  }) async {
+    if (newSessionId.trim().isEmpty) return;
+    _preferences ??= await SharedPreferences.getInstance();
+    final root = _cachedSave;
+    if (root == null) return;
+    final chapters = root['chapters'];
+    if (chapters is! Map) return;
+    final chapterSave = chapters[chapter];
+    if (chapterSave is! Map) return;
+
+    final currentId = chapterSave['gameSessionId'];
+    if (previousSessionId != null && currentId != previousSessionId) return;
+    if (currentId is! String || currentId.isEmpty) return;
+
+    final updatedChapter = Map<String, dynamic>.from(
+      chapterSave.map((key, value) => MapEntry(key.toString(), value)),
+    );
+    updatedChapter['gameSessionId'] = newSessionId.trim();
+    final updatedChapters = <String, dynamic>{};
+    for (final entry in chapters.entries) {
+      final key = entry.key.toString();
+      updatedChapters[key] = entry.value is Map
+          ? Map<String, dynamic>.from(
+              (entry.value as Map).map(
+                (key, value) => MapEntry(key.toString(), value),
+              ),
+            )
+          : entry.value;
+    }
+    updatedChapters[chapter] = updatedChapter;
+    final updatedRoot = Map<String, dynamic>.from(root);
+    updatedRoot['chapters'] = updatedChapters;
+    _cachedSave = updatedRoot;
+    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+  }
+
   static Future<void> clearGameSessionId() async {
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.remove('rebirth_2048_game_session_id_v1');
