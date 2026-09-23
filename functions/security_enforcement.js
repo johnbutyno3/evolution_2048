@@ -12,7 +12,6 @@ const db = getFirestore();
 const RISK_LEVELS = new Set(['NORMAL', 'WARNING', 'ADMIN_ALERT', 'CRITICAL']);
 const SENSITIVE_OPERATIONS = new Set([
   'purchase_tool',
-  'use_tool',
   'spend_gold',
   'start_game_session',
   'resume_game_session',
