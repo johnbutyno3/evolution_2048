@@ -90,6 +90,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get score => 'Score';
 
   @override
+  String get stage => 'Stage';
+
+  @override
   String get best => 'Best';
 
   @override
