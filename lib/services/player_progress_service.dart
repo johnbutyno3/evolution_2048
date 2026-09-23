@@ -31,11 +31,16 @@ class PlayerProgressService {
   );
 
   int _unlockedChapterIndex = 0;
+  final Map<String, Map<String, int>> _chapterProgress = {};
   bool _loadedFromServer = false;
   String? _activeGameSessionId;
   int? _activeGameChapterIndex;
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
+  int chapterHighestValue(int chapterIndex) =>
+      _chapterProgress[_chapterNames[chapterIndex]]?['highestValue'] ?? 0;
+  int chapterScore(int chapterIndex) =>
+      _chapterProgress[_chapterNames[chapterIndex]]?['score'] ?? 0;
   bool get loadedFromServer => _loadedFromServer;
   String? get activeGameSessionId => _activeGameSessionId;
   int? get activeGameChapterIndex => _activeGameChapterIndex;
@@ -59,6 +64,7 @@ class PlayerProgressService {
       _loadedFromServer = false;
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
+      _chapterProgress.clear();
       return;
     }
 
@@ -73,6 +79,21 @@ class PlayerProgressService {
       final data = snapshot.data() ?? <String, dynamic>{};
       final value = data['unlockedChapterIndex'];
       _unlockedChapterIndex = value is num ? value.toInt().clamp(0, 5) : 0;
+
+      _chapterProgress.clear();
+      final chapterProgress = data['chapterProgress'];
+      if (chapterProgress is Map) {
+        for (final entry in chapterProgress.entries) {
+          final value = entry.value;
+          if (value is! Map) continue;
+          final highest = value['highestValue'];
+          final score = value['score'];
+          _chapterProgress[entry.key.toString()] = {
+            'highestValue': highest is num ? highest.toInt() : 0,
+            'score': score is num ? score.toInt() : 0,
+          };
+        }
+      }
 
       final sessionId = data['activeGameSessionId'];
       _activeGameSessionId = sessionId is String && sessionId.isNotEmpty
