@@ -345,9 +345,6 @@ class GameEngine {
       !chapterComplete &&
       _toolManager.canUse(GameToolType.duplicate);
 
-  bool get canUseHistoryRestore => false;
-  bool get hasPreviousState => _hasPreviousState;
-
   /// The highest stage the player has ever reached in this chapter.
   /// This is intentionally independent from the current board so Undo
   /// cannot make the evolution label move backwards.
@@ -708,8 +705,6 @@ class GameEngine {
     _saveLocal();
     return true;
   }
-
-  bool useHistoryRestore(int row, int column) => false;
 
   // ============================================================
   // Undo
