@@ -140,5 +140,6 @@
   "developmentBuild": "Development Build",
   "playerId": "Player ID",
   "membership": "Membership",
-  "evolutionProgress": "Evolution Progress"
+  "evolutionProgress": "Evolution Progress",
+  "chapterLabel": "Chapter {number} · {name}"
 }
