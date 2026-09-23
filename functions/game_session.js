@@ -80,10 +80,12 @@ exports.restartGameSession = onCall(async (request) => {
       oldSessionId = oldSessionIdSnapshot.data()?.activeGameSessionId;
     }
     if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
-      const oldSessionSnapshot = await gameSessionRef(uid, oldSessionId).get();
+      const [oldSessionSnapshot, userSnapshot] = await Promise.all([
+        gameSessionRef(uid, oldSessionId).get(),
+        db.collection('users').doc(uid).get(),
+      ]);
       if (oldSessionSnapshot.exists && oldSessionSnapshot.data()?.status === 'active') {
         const oldSession = oldSessionSnapshot.data() || {};
-        const userSnapshot = await db.collection('users').doc(uid).get();
         const allToolsEnabledForTest = userSnapshot.data()?.allToolsEnabledForTest === true;
         try {
           replayResult = replayGame({
@@ -292,10 +294,12 @@ exports.abandonGameSession = onCall(async (request) => {
   const life = lifeRef(uid);
   let replayResult = null;
   if (replayLog != null) {
-    const precheckSnapshot = await sessionRef.get();
+    const [precheckSnapshot, userSnapshot] = await Promise.all([
+      sessionRef.get(),
+      db.collection('users').doc(uid).get(),
+    ]);
     if (precheckSnapshot.exists && precheckSnapshot.data()?.status === 'active') {
       const precheckSession = precheckSnapshot.data() || {};
-      const userSnapshot = await db.collection('users').doc(uid).get();
       const allToolsEnabledForTest =
         userSnapshot.data()?.allToolsEnabledForTest === true;
       try {
