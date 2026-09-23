@@ -5,9 +5,7 @@ import 'life_manager.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
-    _loadSavedProgress();
     _initialize();
-    _claimNextChapterRewardIfNeeded();
   }
 
   final GameChapter chapter;
@@ -21,14 +19,11 @@ class ToolManager {
 
   static bool get allToolsEnabledForTest => _allToolsEnabledForTest;
 
-  final Map<GameToolType, int> _uses = <GameToolType, int>{};
   final List<ToolState> _tools = <ToolState>[];
 
   List<ToolState> get tools => List.unmodifiable(_tools);
   bool get hasTools => _tools.isNotEmpty;
   int get availableToolCount => _tools.where((tool) => tool.canUse).length;
-
-  void _loadSavedProgress() {}
 
   void _initialize() {
     _tools.clear();
@@ -43,8 +38,6 @@ class ToolManager {
       _tools.add(ToolState(tool: gameTool, uses: initialUses));
     }
   }
-
-  void _claimNextChapterRewardIfNeeded() {}
 
   GameTool _gameToolForType(GameToolType type) {
     return switch (type) {
@@ -65,14 +58,12 @@ class ToolManager {
   bool canUse(GameToolType type) => getTool(type)?.canUse ?? false;
 
   void refreshFromSavedProgress() {
-    _uses.clear();
     for (final tool in _tools) {
       tool.usesRemaining = savedUsesFor(tool.tool.type);
     }
   }
 
-  /// Refreshes the authoritative tool inventory and applies it to the
-  /// currently displayed tool states before gameplay actions are enabled.
+  /// Refreshes the authoritative inventory and applies it to displayed tools.
   Future<void> refreshServerState() async {
     final hadAllToolsEnabled = _allToolsEnabledForTest;
     await refreshInventory();
@@ -160,12 +151,6 @@ class ToolManager {
     }
   }
 
-  void grantNextChapterReward() {
-    for (final type in _nextChapterToolTypes) {
-      _uses[type] = (_serverUses[type] ?? 0) + 1;
-    }
-  }
-
   static List<GameToolType> toolsForChapter(GameChapter chapter) {
     if (_allToolsEnabledForTest) return List<GameToolType>.from(GameToolType.values);
     return switch (chapter) {
@@ -189,21 +174,6 @@ class ToolManager {
         GameToolType.duplicate,
       ],
       GameChapter.universe => [GameToolType.timeRewind],
-    };
-  }
-
-  List<GameToolType> get _nextChapterToolTypes {
-    if (chapter == GameChapter.universe) return const [];
-    return toolsForChapter(GameChapter.values[chapter.index + 1]);
-  }
-
-  Map<String, int> createSaveData() {
-    for (final type in GameToolType.values) {
-      final tool = getTool(type);
-      if (tool != null) _uses[type] = tool.usesRemaining;
-    }
-    return <String, int>{
-      for (final type in GameToolType.values) type.name: _uses[type] ?? 0,
     };
   }
 
