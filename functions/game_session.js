@@ -116,9 +116,8 @@ exports.restartGameSession = onCall(async (request) => {
   }
 
   return db.runTransaction(async (transaction) => {
-    const progressSnapshot = await transaction.get(progress);
-    const membershipSnapshot = await transaction.get(membership);
-    const lifeSnapshot = await transaction.get(life);
+    const [progressSnapshot, membershipSnapshot, lifeSnapshot] =
+      await transaction.getAll(progress, membership, life);
     const toolsSnapshot = replayResult
       ? await transaction.get(toolInventoryRef(uid))
       : null;
