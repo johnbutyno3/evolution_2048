@@ -140,7 +140,7 @@ class _HomePageState extends State<HomePage> {
   void _enter(BuildContext context, int index) {
     if (!_progress.isChapterUnlocked(index)) return;
     unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Evolution2048Page(
           initialChapter: switch (index) {
@@ -154,6 +154,16 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+
+    // The game settles Life and active-session state before returning Home.
+    // Refresh the authoritative server state so the Home header never keeps
+    // showing the pre-entry Life balance after a game session ends.
+    await Future.wait([
+      _progress.refresh().catchError((_) => null),
+      LifeManager.refreshFromServer().catchError((_) => null),
+      ToolManager.refreshInventory().catchError((_) => null),
+    ]);
+    if (mounted) setState(() {});
   }
 
   @override
