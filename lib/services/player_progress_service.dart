@@ -320,14 +320,32 @@ class PlayerProgressService {
     if (sessionId == null) return;
 
     try {
-      await _functions.httpsCallable('abandonGameSession').call({
+      final result =
+          await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': sessionId,
         if (replayLog != null) 'replayLog': replayLog,
       });
 
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
-      await refresh();
+
+      final data = result.data;
+      final chapterProgress = data is Map ? data['chapterProgress'] : null;
+      if (chapterProgress is Map) {
+        for (final entry in chapterProgress.entries) {
+          final value = entry.value;
+          if (value is! Map) continue;
+          final highest = value['highestValue'];
+          final score = value['score'];
+          if (highest is num && score is num) {
+            _chapterProgress[entry.key.toString()] = {
+              'highestValue': highest.toInt(),
+              'score': score.toInt(),
+            };
+          }
+        }
+        _loadedFromServer = true;
+      }
     } on FirebaseFunctionsException catch (error) {
       // Keep the server error visible during development. Do not clear the
       // local session when the server did not confirm abandonment.
