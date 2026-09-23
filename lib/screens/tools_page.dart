@@ -118,13 +118,6 @@ class _ToolsPageState extends State<ToolsPage> {
     final ownedLabel = isGoldenUndo ? '∞' : '$owned';
 
     final amounts = [1, 5, 20, 50];
-    final prices = [
-      ShopConfigService.price(config, '${key}1Price'),
-      ShopConfigService.price(config, '${key}5Price'),
-      ShopConfigService.price(config, '${key}20Price'),
-      ShopConfigService.price(config, '${key}50Price'),
-    ];
-
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       child: Padding(
@@ -163,7 +156,7 @@ class _ToolsPageState extends State<ToolsPage> {
                         amount: amounts[i],
                       ),
                       child: Text(
-                        '${amounts[i]} · ${prices[i]} Gold',
+                        '${amounts[i]} · ${ShopConfigService.price(config, '${key}${amounts[i]}Price')} Gold',
                       ),
                     ),
                 ],
