@@ -223,7 +223,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
         _engine.markBoardLifeActiveAfterServerRestart();
         _engine.updateLifeFromRealTime();
-        unawaited(_engine.toolManager.refreshServerState());
         return true;
       }
 
@@ -239,7 +238,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _engine.updateLifeFromRealTime();
       // Tool inventory is authoritative but must not delay creation of the
       // new board. Refresh it in the background after the session is active.
-      unawaited(_engine.toolManager.refreshServerState());
       return true;
     } finally {
       _gameSessionStarting = false;
