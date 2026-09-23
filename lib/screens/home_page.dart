@@ -134,11 +134,11 @@ class _HomePageState extends State<HomePage> {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const PersonalPage()));
-    await PlayerProfileService.ensureProfile();
-    try {
-      await LifeManager.refreshFromServer();
-      await GoldManager.initialize();
-    } catch (_) {}
+    await Future.wait([
+      PlayerProfileService.ensureProfile().catchError((_) {}),
+      LifeManager.refreshFromServer().catchError((_) {}),
+      GoldManager.initialize().catchError((_) {}),
+    ]);
     if (mounted) setState(() {});
   }
 
