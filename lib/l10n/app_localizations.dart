@@ -562,7 +562,7 @@ abstract class AppLocalizations {
   String get gold;
   String get goldBalance;
   String get lifetimeSpent;
-  String get goldAmount;
+  String goldAmount(int amount);
   String get goldUsage;
   String get backgroundMusic;
   String get musicVolume;
