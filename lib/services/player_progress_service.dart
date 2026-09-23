@@ -125,7 +125,8 @@ class PlayerProgressService {
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
-        final previousSessionId = _activeGameSessionId;
+        final previousSessionId =
+            _activeGameSessionId ?? SaveManager.gameSessionId;
         _activeGameSessionId = data['sessionId'] as String;
         await SaveManager.rebindCachedGameSession(
           chapter: _chapterNames[chapterIndex],
@@ -318,7 +319,8 @@ class PlayerProgressService {
         if (_activeGameSessionId == settledSessionId) {
           _activeGameSessionId = null;
           _activeGameChapterIndex = null;
-          await SaveManager.clearGameSessionId();
+          // Keep the local session binding until the next explicit game
+          // entry can rebind the preserved board to its new charged session.
         }
       }
     } on FirebaseFunctionsException catch (error) {
