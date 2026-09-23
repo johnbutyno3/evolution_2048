@@ -258,8 +258,9 @@ class PlayerProgressService {
     return false;
   }
 
-  Future<void> exitUnfinishedGameSession() async {
-    await refresh();
+  Future<void> exitUnfinishedGameSession({
+    Map<String, dynamic>? replayLog,
+  }) async {
     final sessionId = _activeGameSessionId;
     if (sessionId == null) return;
 
@@ -267,9 +268,8 @@ class PlayerProgressService {
       await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': sessionId,
         'unfinishedExit': true,
+        if (replayLog != null) 'replayLog': replayLog,
       });
-      await refresh();
-      await LifeManager.refreshFromServer();
     } on FirebaseFunctionsException catch (error) {
       // ignore: avoid_print
       print(
@@ -281,14 +281,16 @@ class PlayerProgressService {
     }
   }
 
-  Future<void> abandonGameSession() async {
-    await refresh();
+  Future<void> abandonGameSession({
+    Map<String, dynamic>? replayLog,
+  }) async {
     final sessionId = _activeGameSessionId;
     if (sessionId == null) return;
 
     try {
       await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': sessionId,
+        if (replayLog != null) 'replayLog': replayLog,
       });
 
       _activeGameSessionId = null;
@@ -334,7 +336,8 @@ class PlayerProgressService {
         _unlockedChapterIndex =
             (data['unlockedChapterIndex'] as num).toInt().clamp(0, 5);
         _loadedFromServer = true;
-        clearGameSession();
+        _activeGameSessionId = null;
+        _activeGameChapterIndex = null;
         return true;
       }
     } on FirebaseFunctionsException {
