@@ -1096,7 +1096,7 @@ exports.completeChapter = onCall(async (request) => {
       uid,
       action: 'complete_chapter',
       severity: 'high',
-      reason: 'invalid_replay',
+      reason: 'forged_replay_detected',
       details: {
         sessionId,
         chapterIndex,
