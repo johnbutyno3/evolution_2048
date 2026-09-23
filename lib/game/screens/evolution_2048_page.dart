@@ -212,7 +212,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
               );
         if (!entered || !mounted) return false;
 
-        if (!hasPlayableLocalBoard) {
+        if (hasPlayableLocalBoard) {
+          // Resuming an unfinished server session means this restored board
+          // already owns the Life that was charged when the session began.
+          // Recreate the engine with explicit Life ownership so Game Over
+          // handling and timer shutdown remain correct after resume.
+          final chapter = _engine.chapter;
+          _engine.stopGameTimer();
+          _engine = GameEngine(
+            chapter: chapter,
+            boardLifeActive: true,
+          );
+        } else {
           // The new server session owns a new board; do not restore the
           // orphaned cached session into this engine.
           _engine.stopGameTimer();
