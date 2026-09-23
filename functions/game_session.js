@@ -163,10 +163,12 @@ exports.restartGameSession = onCall(async (request) => {
 
     const oldSessionId = currentProgress.activeGameSessionId;
     const oldSessionChapter = currentProgress.activeGameChapterIndex;
+    let oldSessionRef = null;
+    let oldSessionSnapshot = null;
 
     if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
-      const oldSessionRef = gameSessionRef(uid, oldSessionId);
-      const oldSessionSnapshot = await transaction.get(oldSessionRef);
+      oldSessionRef = gameSessionRef(uid, oldSessionId);
+      oldSessionSnapshot = await transaction.get(oldSessionRef);
       if (oldSessionSnapshot.exists &&
           oldSessionSnapshot.data()?.status === 'active' &&
           oldSessionChapter !== chapterIndex) {
@@ -205,15 +207,11 @@ exports.restartGameSession = onCall(async (request) => {
       ? (regenStartMillis ?? nowMillis)
       : null;
 
-    if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
-      const oldSessionRef = gameSessionRef(uid, oldSessionId);
-      const oldSessionSnapshot = await transaction.get(oldSessionRef);
-      if (oldSessionSnapshot.exists && oldSessionSnapshot.data()?.status === 'active') {
-        transaction.update(oldSessionRef, {
-          status: 'replaced',
-          replacedAt: FieldValue.serverTimestamp(),
-        });
-      }
+    if (oldSessionSnapshot?.exists && oldSessionSnapshot.data()?.status === 'active') {
+      transaction.update(oldSessionRef, {
+        status: 'replaced',
+        replacedAt: FieldValue.serverTimestamp(),
+      });
     }
 
     transaction.set(life, {
