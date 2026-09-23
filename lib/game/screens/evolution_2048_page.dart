@@ -224,7 +224,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           _engine.reset();
         }
 
-        _engine.markBoardLifeActiveAfterServerRestart();
         return true;
       }
 
@@ -236,7 +235,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (!started || !mounted) return false;
 
       _engine.reset();
-      _engine.markBoardLifeActiveAfterServerRestart();
       // Tool inventory is authoritative but must not delay creation of the
       // new board. Refresh it in the background after the session is active.
       return true;
@@ -459,8 +457,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         chapter: _engine.chapter,
         forceNewBoard: true,
       );
-      newEngine.markBoardLifeActiveAfterServerRestart();
-      newEngine.updateLifeFromRealTime();
+
 
       setState(() {
         _engine = newEngine;
