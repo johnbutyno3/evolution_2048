@@ -45,7 +45,7 @@ function toolInventoryRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('tools');
 }
 
-exports.restartGameSession = onCall(async (request) => {
+exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
@@ -280,7 +280,7 @@ exports.restartGameSession = onCall(async (request) => {
   }
 });
 
-exports.abandonGameSession = onCall(async (request) => {
+exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
