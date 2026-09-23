@@ -490,8 +490,31 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (_handlingSystemBack || !mounted) return;
 
     if (_engine.gameOver || _engine.chapterComplete) {
-      _allowSystemPop = true;
-      if (mounted) Navigator.of(context).pop();
+      if (_engine.chapterComplete) {
+        _allowSystemPop = true;
+        if (mounted) Navigator.of(context).pop();
+        return;
+      }
+
+      _handlingSystemBack = true;
+      try {
+        final saveData = _engine.createSaveData();
+        final replayLog = saveData['replayLog'];
+        await PlayerProgressService.instance.abandonGameSession(
+          replayLog: replayLog is Map
+              ? Map<String, dynamic>.from(replayLog)
+              : null,
+        );
+        if (!mounted) return;
+        await SaveManager.clearChapter(_engine.chapter.name);
+        if (!mounted) return;
+        _engine.pauseGameTimer();
+        _stopUiRefreshTimer();
+        _allowSystemPop = true;
+        Navigator.of(context).pop();
+      } finally {
+        _handlingSystemBack = false;
+      }
       return;
     }
 
