@@ -595,6 +595,7 @@ abstract class AppLocalizations {
   String get developmentBuild;
   String stageLabel(int stage);
   String discoveredCount(int discovered, int total);
+  String chapterLabel(int number, String name);
   String get personalTitle;
   String get playerBasicInfo;
   String get playerBasicInfoSubtitle;
