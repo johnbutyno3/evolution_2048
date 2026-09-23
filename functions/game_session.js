@@ -480,57 +480,20 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
           );
         }
 
-        if (session.unfinishedExitRefundedAt == null) {
-          const membershipState = resolveMembership(
-            membershipSnapshot?.data() || {},
-          );
-          let lives = normalizeLives(lifeSnapshot?.data()?.lives);
-          let regenStartMillis = normalizeRegenStart(
-            lifeSnapshot?.data()?.regenStartAt,
-          );
-          const nowMillis = Date.now();
-
-          if (membershipState.infiniteLives) {
-            lives = NORMAL_CAP;
-            regenStartMillis = null;
-          } else {
-            const regenerated = regenerate({
-              lives,
-              regenStartMillis,
-              nowMillis,
-              interval: intervalMs(membershipState),
-            });
-            lives = Math.min(NORMAL_CAP, regenerated.lives + 1);
-            regenStartMillis = regenerated.regenStartMillis;
-            if (lives >= NORMAL_CAP) {
-              regenStartMillis = null;
-            } else if (regenStartMillis == null) {
-              regenStartMillis = nowMillis;
-            }
-          }
-
-          transaction.set(life, {
-            lives,
-            regenStartAt: regenStartMillis == null
-              ? null
-              : Timestamp.fromMillis(regenStartMillis),
-            updatedAt: FieldValue.serverTimestamp(),
-          }, { merge: true });
-
-          transaction.set(sessionRef, {
-            unfinishedExitRefundedAt: FieldValue.serverTimestamp(),
-            lastUnfinishedExitAt: FieldValue.serverTimestamp(),
-          }, { merge: true });
-
-          finalStatus = 'active';
-          return {
-            status: 'active',
-            life: lifeResponse(lives, regenStartMillis, membershipState),
-          };
-        }
+        // Leaving Home is a pause/resume flow, not a new game attempt.
+        // The Life consumed when this session started remains owned by the
+        // active board until Game Over, Restart, or Chapter Completion.
+        // Refunding here would let a player leave, re-enter, and later receive
+        // a second completion refund for the same Life.
+        transaction.set(sessionRef, {
+          lastUnfinishedExitAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
 
         finalStatus = 'active';
-        return { status: 'active', life: null };
+        return {
+          status: 'active',
+          life: null,
+        };
       }
 
       transaction.update(sessionRef, {
