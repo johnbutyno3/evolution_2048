@@ -47,7 +47,7 @@ class GameEngine {
         saved['tiles'] is List &&
         (saved['tiles'] as List).length == boardSize * boardSize;
 
-    if (!hasSavedBoard) {
+    if (!hasSavedBoard && !boardLifeActive) {
       _boardLifeActive = false;
     }
 
