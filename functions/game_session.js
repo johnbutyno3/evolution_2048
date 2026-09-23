@@ -479,13 +479,16 @@ exports.abandonGameSession = onCall(async (request) => {
           unfinishedExitRefundedAt: FieldValue.serverTimestamp(),
           lastUnfinishedExitAt: FieldValue.serverTimestamp(),
         }, { merge: true });
+
+        finalStatus = 'active';
+        return {
+          status: 'active',
+          life: lifeResponse(lives, regenStartMillis, membershipState),
+        };
       }
 
       finalStatus = 'active';
-      return {
-        status: 'active',
-        life: lifeResponse(lives, regenStartMillis, membershipState),
-      };
+      return { status: 'active', life: null };
     }
 
     // Normal abandonment is Game Over: no Life refund.
