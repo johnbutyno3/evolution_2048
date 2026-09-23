@@ -137,5 +137,8 @@
   "artworkServices": "Artwork & Third-party Services",
   "artworkServicesDescription": "Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.",
   "version": "Version",
-  "developmentBuild": "Development Build"
+  "developmentBuild": "Development Build",
+  "playerId": "Player ID",
+  "membership": "Membership",
+  "evolutionProgress": "Evolution Progress"
 }
