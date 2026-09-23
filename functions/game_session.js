@@ -78,14 +78,14 @@ exports.restartGameSession = onCall(async (request) => {
         ? gameSessionRef(uid, oldSessionId)
         : null;
 
-      const refs = [progress, membership, life];
+      const refs = [membership, life];
       if (oldSessionRef != null) refs.push(oldSessionRef);
       if (replayLog != null) {
         refs.push(userRef, toolInventoryRef(uid));
       }
       const snapshots = await transaction.getAll(...refs);
       const snapshotMap = new Map(refs.map((ref, index) => [ref.path, snapshots[index]]));
-      const progressState = snapshotMap.get(progress.path);
+      const progressState = progressSnapshot;
       const membershipSnapshot = snapshotMap.get(membership.path);
       const lifeSnapshot = snapshotMap.get(life.path);
       const oldSessionSnapshot = oldSessionRef == null
@@ -309,7 +309,8 @@ exports.abandonGameSession = onCall(async (request) => {
       // performed from this same snapshot so it cannot be detached from the
       // session that is actually being settled.
       const refs = [sessionRef, progress];
-      if (unfinishedExit) refs.push(membership, life);
+      if (unfinishedExit || replayLog != null) refs.push(membership);
+      if (unfinishedExit) refs.push(life);
       if (replayLog != null) refs.push(userRef, toolInventoryRef(uid));
       const snapshots = await transaction.getAll(...refs);
       const snapshotMap = new Map(
@@ -318,7 +319,7 @@ exports.abandonGameSession = onCall(async (request) => {
 
       const sessionSnapshot = snapshotMap.get(sessionRef.path);
       const progressSnapshot = snapshotMap.get(progress.path);
-      const membershipSnapshot = unfinishedExit
+      const membershipSnapshot = (unfinishedExit || replayLog != null)
         ? snapshotMap.get(membership.path)
         : null;
       const lifeSnapshot = unfinishedExit ? snapshotMap.get(life.path) : null;
