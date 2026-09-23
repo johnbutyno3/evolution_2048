@@ -37,13 +37,6 @@ class GameEngine {
 
     _autoSaveEnabled = true;
 
-    // Restore life state from the persistent save.
-    _restoreLifeStateFromSave(saved ?? <String, dynamic>{});
-
-    // Life consumption is server-authoritative. The gameplay page starts a
-    // server session before allowing a new attempt, then marks this board as
-    // already paid for by that server-side consumption. The engine constructor
-    // must never mutate or consume Life synchronously.
     final hasSavedBoard =
         !forceNewBoard &&
         saved != null &&
@@ -73,92 +66,20 @@ class GameEngine {
 
   static const int maxLives = LifeManager.normalCap;
 
-  int _lives = maxLives;
-
-  /// Unix timestamp in milliseconds for the next life regeneration.
-  int? _nextLifeAtMillis;
-
-  /// Prevents the same Game Over from deducting life more than once.
+  /// Tracks whether the current board already owns its server-paid Life.
   bool _boardLifeActive = false;
 
-  /// Always expose the server-authoritative life balance after LifeManager
-  /// has completed its first server refresh. The local value is only a
-  /// startup fallback before Firebase state is available.
   int get lives => LifeManager.lifeCount;
 
   bool get hasLife => LifeManager.isGoldenMember || lives > 0;
 
-  int? get nextLifeAtMillis => _nextLifeAtMillis;
-
-  Duration? get lifeRegenerationRemaining {
-    final next = _nextLifeAtMillis;
-    if (next == null || _lives >= maxLives) {
-      return null;
-    }
-
-    final remaining = DateTime.fromMillisecondsSinceEpoch(
-      next,
-    ).difference(DateTime.now());
-
-    if (remaining.isNegative || remaining == Duration.zero) {
-      return Duration.zero;
-    }
-
-    return remaining;
-  }
-
-  /// Recalculates life using real wall-clock time.
-  ///
-  /// This works even when the app has been completely closed.
-  void updateLifeFromRealTime() {
-    _lives = LifeManager.lifeCount;
-    _nextLifeAtMillis = LifeManager.nextLifeAtMillis;
-    _saveLocal();
-  }
-
-  /// Deduct one life for a real Game Over.
-  ///
-  /// This is intentionally separate from reset/restart so merely leaving
-  /// the app never deducts a life.
-  bool deductLifeForGameOver() {
-    if (!gameOver || chapterComplete || !_boardLifeActive) {
-      return false;
-    }
-
+  /// Marks the current board as finished after Game Over without mutating Life.
+  bool markGameOver() {
+    if (!gameOver || chapterComplete || !_boardLifeActive) return false;
     _boardLifeActive = false;
-
     _stopGameTimer();
     _saveLocal();
     return true;
-  }
-
-  /// Refund the life consumed by this board when the chapter is completed.
-  /// Completing a chapter is not a death.
-  bool refundLifeForChapterComplete() {
-    if (!chapterComplete || !_boardLifeActive) {
-      return false;
-    }
-
-    _boardLifeActive = false;
-
-    LifeManager.refundChapterCompletionLife();
-    _lives = LifeManager.lifeCount;
-    _nextLifeAtMillis = LifeManager.nextLifeAtMillis;
-
-    _saveLocal();
-    return true;
-  }
-
-  void _restoreLifeStateFromSave(Map<String, dynamic> data) {
-    // LifeManager is the single persistent source of truth. Ignore the
-    // duplicated legacy fields in gameplay saves so an old erroneous zero
-    // cannot overwrite the current life balance.
-    _lives = LifeManager.lifeCount;
-    _nextLifeAtMillis = LifeManager.nextLifeAtMillis;
-
-    _boardLifeActive = data['boardLifeActive'] == true;
-
-    updateLifeFromRealTime();
   }
 
   // ============================================================
@@ -359,8 +280,8 @@ class GameEngine {
       'chapterComplete': chapterComplete,
 
       // Life state.
-      'lives': _lives,
-      'nextLifeAtMillis': _nextLifeAtMillis,
+      'lives': LifeManager.lifeCount,
+      'nextLifeAtMillis': LifeManager.nextLifeAtMillis,
       'boardLifeActive': _boardLifeActive,
 
       // Active gameplay time.
@@ -803,7 +724,7 @@ class GameEngine {
       gameOver = _isGameOver();
 
       if (gameOver) {
-        deductLifeForGameOver();
+        markGameOver();
       }
 
       _saveLocal();
@@ -854,7 +775,7 @@ class GameEngine {
     gameOver = _isGameOver();
 
     if (gameOver) {
-      deductLifeForGameOver();
+      markGameOver();
     }
 
     _updateBestScore();
