@@ -71,8 +71,15 @@ exports.restartGameSession = onCall(async (request) => {
   let replayResult = null;
   let settledChapterProgress = null;
   if (replayLog != null) {
-    const oldSessionIdSnapshot = await progress.get();
-    const oldSessionId = oldSessionIdSnapshot.data()?.activeGameSessionId;
+    const requestedSessionId = request.data?.sessionId;
+    let oldSessionId = typeof requestedSessionId === 'string' &&
+        requestedSessionId.length > 0
+      ? requestedSessionId
+      : null;
+    if (oldSessionId == null) {
+      const oldSessionIdSnapshot = await progress.get();
+      oldSessionId = oldSessionIdSnapshot.data()?.activeGameSessionId;
+    }
     if (typeof oldSessionId === 'string' && oldSessionId.length > 0) {
       const oldSessionSnapshot = await gameSessionRef(uid, oldSessionId).get();
       if (oldSessionSnapshot.exists && oldSessionSnapshot.data()?.status === 'active') {
