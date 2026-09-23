@@ -359,15 +359,6 @@ class PlayerProgressService {
     }
   }
 
-  /// Clears the local cache, then immediately reconciles it with the server.
-  /// This prevents legacy callers that clear during page startup from erasing
-  /// a valid server-owned unfinished session and bypassing Life protection.
-  void clearGameSession() {
-    _activeGameSessionId = null;
-    _activeGameChapterIndex = null;
-    unawaited(refresh());
-  }
-
   Future<bool> completeChapter({
     required int chapterIndex,
     required Map<String, dynamic> replayLog,
