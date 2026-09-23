@@ -126,6 +126,10 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
+        await SaveManager.setGameSessionId(
+          _activeGameSessionId!,
+          chapter: _chapterNames[chapterIndex],
+        );
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
@@ -191,6 +195,10 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
+        await SaveManager.setGameSessionId(
+          _activeGameSessionId!,
+          chapter: chapterName,
+        );
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
@@ -248,6 +256,10 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         _activeGameSessionId = data['sessionId'] as String;
+        await SaveManager.setGameSessionId(
+          _activeGameSessionId!,
+          chapter: _chapterNames[chapterIndex],
+        );
         _activeGameChapterIndex = chapterIndex;
 
         // restartGameSession already returns the life state from the same
