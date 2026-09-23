@@ -116,6 +116,7 @@ exports.restartGameSession = onCall(async (request) => {
         );
       }
 
+      const membershipState = resolveMembership(membershipSnapshot.data() || {});
       let replayResult = null;
       if (replayLog != null && activeSessionIsValid) {
         const oldSession = oldSessionSnapshot.data() || {};
@@ -192,7 +193,6 @@ exports.restartGameSession = onCall(async (request) => {
         });
       }
 
-      const membershipState = resolveMembership(membershipSnapshot.data() || {});
       let lives = normalizeLives(lifeSnapshot.data()?.lives);
       let regenStartMillis = normalizeRegenStart(lifeSnapshot.data()?.regenStartAt);
       const nowMillis = Date.now();
