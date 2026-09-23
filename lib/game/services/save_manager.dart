@@ -17,6 +17,57 @@ class SaveManager {
 
   static Map<String, dynamic>? _cachedSave;
 
+  static String? get gameSessionId {
+    final value = _preferences?.getString('rebirth_2048_game_session_id_v1');
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  /// Binds the local chapter snapshot to the server-owned game session.
+  /// A local board may only be resumed when this ID matches the server ID.
+  static Future<void> setGameSessionId(
+    String sessionId, {
+    String? chapter,
+  }) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return;
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setString('rebirth_2048_game_session_id_v1', id);
+
+    final root = _cachedSave;
+    if (root == null || chapter == null || chapter.isEmpty) return;
+    final chapters = root['chapters'];
+    if (chapters is! Map) return;
+    final chapterSave = chapters[chapter];
+    if (chapterSave is! Map) return;
+
+    final updatedRoot = Map<String, dynamic>.from(root);
+    final updatedChapters = <String, dynamic>{};
+    for (final entry in chapters.entries) {
+      if (entry.value is Map) {
+        updatedChapters[entry.key.toString()] = Map<String, dynamic>.from(
+          (entry.value as Map).map(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        );
+      }
+    }
+    final updatedChapter = Map<String, dynamic>.from(
+      (updatedChapters[chapter] as Map).map(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
+    );
+    updatedChapter['gameSessionId'] = id;
+    updatedChapters[chapter] = updatedChapter;
+    updatedRoot['chapters'] = updatedChapters;
+    _cachedSave = updatedRoot;
+    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+  }
+
+  static Future<void> clearGameSessionId() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.remove('rebirth_2048_game_session_id_v1');
+  }
+
   static Future<void> initialize() async {
     _preferences ??= await SharedPreferences.getInstance();
 
@@ -171,6 +222,7 @@ class SaveManager {
       'version': 1,
       'savedAt': DateTime.now().millisecondsSinceEpoch,
       ...data,
+      if (gameSessionId != null) 'gameSessionId': gameSessionId,
     };
 
     if (!chapterPayload.containsKey('toolUses') && root['toolUses'] != null) {
