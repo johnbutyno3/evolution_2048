@@ -31,20 +31,30 @@ class ShopConfigService {
     'duplicate50Price': 15000,
   };
 
-  static Future<Map<String, dynamic>> load() async {
+  static Map<String, dynamic>? _cached;
+
+  static Future<Map<String, dynamic>> load({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cached != null) {
+      return Map<String, dynamic>.from(_cached!);
+    }
+
     try {
       final snapshot = await _db.collection('shop_config').doc('global').get();
       final remote = snapshot.data();
 
-      return {
+      final config = <String, dynamic>{
         ...defaults,
         ..._legacyPriceValues(remote),
         if (remote?['currency'] is String) 'currency': remote!['currency'],
         if (remote != null)
           'products': remote['products'] ?? <String, dynamic>{},
       };
+      _cached = config;
+      return Map<String, dynamic>.from(config);
     } catch (_) {
-      return Map<String, dynamic>.from(defaults);
+      final config = Map<String, dynamic>.from(defaults);
+      _cached ??= config;
+      return Map<String, dynamic>.from(_cached!);
     }
   }
 
