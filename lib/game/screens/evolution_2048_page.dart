@@ -234,6 +234,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final started = await progress.startGameSession(_chapterNumber - 1);
       if (!started || !mounted) return false;
 
+      // The server has just consumed the Life for this new board.
+      // Build a fresh engine that owns that Life instead of calling reset()
+      // on the pre-session engine, because reset() clears boardLifeActive.
+      _engine.stopGameTimer();
+      _engine = GameEngine(
+        chapter: _engine.chapter,
+        forceNewBoard: true,
+        boardLifeActive: true,
+      );
       _engine.reset();
       // Tool inventory is authoritative but must not delay creation of the
       // new board. Refresh it in the background after the session is active.
