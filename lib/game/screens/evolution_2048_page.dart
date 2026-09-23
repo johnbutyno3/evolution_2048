@@ -475,9 +475,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _engine.startGameTimer();
       _startUiRefreshTimer();
       _focusNode.requestFocus();
-      // Inventory refresh is intentionally background work; it must not hold
-      // the new board hostage after the server has confirmed the restart.
-      // Tool inventory is already cached for the active account.\n      // Session-boundary settlement is handled by the server.\n      // Do not add another network read to restart.\n      
       return true;
     } finally {
       _restartInProgress = false;
