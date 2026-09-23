@@ -73,10 +73,6 @@ class GameEngine {
 
   static const int maxLives = LifeManager.normalCap;
 
-  /// Kept as an engine-facing alias for the persistent life system.
-  static const Duration lifeRegenerationInterval =
-      LifeManager.regenerationInterval;
-
   int _lives = maxLives;
 
   /// Unix timestamp in milliseconds for the next life regeneration.
@@ -88,7 +84,7 @@ class GameEngine {
   /// Always expose the server-authoritative life balance after LifeManager
   /// has completed its first server refresh. The local value is only a
   /// startup fallback before Firebase state is available.
-  int get lives => LifeManager.isInitialized ? LifeManager.lifeCount : _lives;
+  int get lives => LifeManager.lifeCount;
 
   bool get hasLife => LifeManager.isGoldenMember || lives > 0;
 
