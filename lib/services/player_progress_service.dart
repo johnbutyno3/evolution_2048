@@ -231,7 +231,10 @@ class PlayerProgressService {
     return false;
   }
 
-  Future<bool> restartGameSession(int chapterIndex) async {
+  Future<bool> restartGameSession(
+    int chapterIndex, {
+    Map<String, dynamic>? replayLog,
+  }) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
