@@ -127,7 +127,7 @@ class PersonalPage extends StatelessWidget {
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(AppLocalizations.of(context)!.logOut),
-          content: const Text(
+          content: Text(
             AppLocalizations.of(context)!.logoutConfirm,
           ),
           actions: [
@@ -509,68 +509,6 @@ class _AvatarCircle extends StatelessWidget {
   }
 }
 
-class EvolutionProgressPage extends StatelessWidget {
-  const EvolutionProgressPage({super.key});
-
-  static const chapters = [
-    ('Ocean', 12),
-    ('Land', 13),
-    ('Sky', 14),
-    ('History', 15),
-    ('Technology', 16),
-    ('Space', 17),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final save = SaveManager.loadCached();
-    final currentChapterName = save?['chapter'] as String?;
-    final chapterComplete = save?['chapterComplete'] == true;
-
-    return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.evolutionProgress)),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: chapters.length,
-        itemBuilder: (_, index) {
-          final chapter = chapters[index];
-          final isCurrent = chapter.$1.toLowerCase() == currentChapterName;
-          final isCompleted = index < _chapterIndex(currentChapterName);
-
-          final status = isCompleted
-              ? 'Completed'
-              : isCurrent && chapterComplete
-              ? 'Chapter Complete'
-              : isCurrent
-              ? 'Current Chapter'
-              : 'Locked';
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            child: ListTile(
-              leading: CircleAvatar(child: Text('${index + 1}')),
-              title: Text(chapter.$1),
-              subtitle: Text('${chapter.$2} stages · $status'),
-              trailing: isCompleted
-                  ? const Icon(Icons.check_circle_outline)
-                  : isCurrent
-                  ? const Icon(Icons.play_arrow)
-                  : const Icon(Icons.lock_outline),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  int _chapterIndex(String? chapter) {
-    const names = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'];
-
-    final index = names.indexOf(chapter ?? '');
-    return index < 0 ? 0 : index;
-  }
-}
-
 class CollectionPage extends StatefulWidget {
   const CollectionPage({super.key});
 
@@ -593,23 +531,31 @@ class _CollectionPageState extends State<CollectionPage> {
     'space',
   ];
 
-  static const List<String> _chapterNames = [
-    'Chapter 1 · Ocean',
-    'Chapter 2 · Land',
-    'Chapter 3 · Sky',
-    'Chapter 4 · History',
-    'Chapter 5 · Technology',
-    'Chapter 6 · Space',
-  ];
+  String _chapterName(BuildContext context, int index) {
+    final l10n = AppLocalizations.of(context)!;
+    const prefix = 'Chapter';
+    final names = [
+      l10n.chapterOcean,
+      l10n.chapterLand,
+      l10n.chapterSky,
+      l10n.chapterHistory,
+      l10n.chapterTechnology,
+      l10n.chapterSpace,
+    ];
+    return '$prefix ${index + 1} · ${names[index]}';
+  }
 
-  static const List<String> _chapterShortNames = [
-    'Ocean',
-    'Land',
-    'Sky',
-    'History',
-    'Technology',
-    'Space',
-  ];
+  String _chapterShortName(BuildContext context, int index) {
+    final l10n = AppLocalizations.of(context)!;
+    return [
+      l10n.chapterOcean,
+      l10n.chapterLand,
+      l10n.chapterSky,
+      l10n.chapterHistory,
+      l10n.chapterTechnology,
+      l10n.chapterSpace,
+    ][index];
+  }
 
   @override
   void initState() {
@@ -695,7 +641,7 @@ class _CollectionPageState extends State<CollectionPage> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: _CollectionSummary(
-                        chapterName: _chapterNames[_selectedChapter],
+                        chapterName: _chapterName(context, _selectedChapter),
                         discovered: discovered.length,
                         total: creatures.length,
                       ),
@@ -707,12 +653,12 @@ class _CollectionPageState extends State<CollectionPage> {
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         scrollDirection: Axis.horizontal,
-                        itemCount: _chapterShortNames.length,
+                        itemCount: _chapterKeys.length,
                         itemBuilder: (context, index) {
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: ChoiceChip(
-                              label: Text(_chapterShortNames[index]),
+                              label: Text(_chapterShortName(context, index)),
                               selected: index == _selectedChapter,
                               onSelected: (_) {
                                 setState(() {
