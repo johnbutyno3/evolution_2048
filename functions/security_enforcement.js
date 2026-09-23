@@ -1,4 +1,5 @@
 const { initializeApp, getApps } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { HttpsError } = require('firebase-functions/v2/https');
 
@@ -102,6 +103,8 @@ async function applyCriticalRestriction(uid, reason) {
   if (typeof uid !== 'string' || uid.length === 0) {
     throw new Error('A valid uid is required.');
   }
+
+  await getAuth().updateUser(uid, { disabled: true });
 
   await enforcementRef(uid).set({
     status: 'locked',
