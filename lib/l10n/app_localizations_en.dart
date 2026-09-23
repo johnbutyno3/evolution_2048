@@ -642,4 +642,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get developmentBuild => "Development Build";
+  @override
+  String get playerId => "Player ID";
+
+  @override
+  String get membership => "Membership";
+
+  @override
+  String get evolutionProgress => "Evolution Progress";
 }
