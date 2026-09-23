@@ -121,6 +121,13 @@ class ReplayRecorder {
     _save();
   }
 
+  void removeLastEvent() {
+    final log = _log;
+    if (log == null || log.events.isEmpty) return;
+    log.events.removeLast();
+    _save();
+  }
+
   void _save() {
     final current = _log;
     if (current == null) return;
