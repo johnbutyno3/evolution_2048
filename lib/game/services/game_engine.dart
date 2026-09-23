@@ -582,37 +582,21 @@ class GameEngine {
   // ============================================================
 
   Future<bool> useRevive(int row, int column) async {
-    if (gameOver || chapterComplete || !canUseRevive) {
-      return false;
-    }
-
+    if (gameOver || chapterComplete || !canUseRevive) return false;
     if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
       return false;
     }
 
     final tile = _board.tileAt(row, column);
-
     if (tile == null) return false;
-
-    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
-    final previousScore = score;
-    final previousPenalty = _toolPenaltyTotal;
-    final previousReached2048 = hasReached2048;
-    final previousReached4096 = hasReached4096;
-    final previousReached8192 = hasReached8192;
-    final previousReached16384 = hasReached16384;
-    final previousGameOver = gameOver;
-    final previousChapterComplete = chapterComplete;
+    if (!_toolManager.consumeLocal(GameToolType.revive)) return false;
 
     _board.setTile(row, column, null);
-
     _deductToolScore(tile.value);
-
     _newEvolutionValuesThisMove.clear();
 
     int? spawnIndex;
     int? spawnValue;
-
     if (_board.tiles.every((tile) => tile == null)) {
       final spawn = _spawnTile();
       spawnIndex = spawn?.$1;
@@ -625,82 +609,25 @@ class GameEngine {
       spawnIndex: spawnIndex,
       spawnValue: spawnValue,
     );
-
     _saveLocal();
-    unawaited(_toolManager.useOptimistic(
-      GameToolType.revive,
-      onRejected: () {
-        _restoreToolSnapshot(
-          previousTiles,
-          previousScore,
-          previousPenalty,
-          previousReached2048,
-          previousReached4096,
-          previousReached8192,
-          previousReached16384,
-          previousGameOver,
-          previousChapterComplete,
-        );
-        _replayRecorder.removeLastEvent();
-        _saveLocal();
-      },
-    ));
-
     return true;
   }
 
   Future<bool> useTimeRewind() async {
-    if (gameOver || chapterComplete || !canUseTimeRewind) {
-      return false;
-    }
-
-    if (_previousBoard == null) {
-      return false;
-    }
-
-    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
-    final previousScore = score;
-    final previousPenalty = _toolPenaltyTotal;
-    final previousReached2048 = hasReached2048;
-    final previousReached4096 = hasReached4096;
-    final previousReached8192 = hasReached8192;
-    final previousReached16384 = hasReached16384;
-    final previousGameOver = gameOver;
-    final previousChapterComplete = chapterComplete;
+    if (gameOver || chapterComplete || !canUseTimeRewind) return false;
+    if (_previousBoard == null) return false;
+    if (!_toolManager.consumeLocal(GameToolType.timeRewind)) return false;
 
     final revertedScore = max(0, score - _previousScore);
-
     _restorePreviousState();
-
     _toolPenaltyTotal += revertedScore;
 
     _hasPreviousState = false;
     _previousBoard = null;
-
     _newEvolutionValuesThisMove.clear();
 
     _replayRecorder.recordTimeRewind();
-
     _saveLocal();
-    unawaited(_toolManager.useOptimistic(
-      GameToolType.timeRewind,
-      onRejected: () {
-        _restoreToolSnapshot(
-          previousTiles,
-          previousScore,
-          previousPenalty,
-          previousReached2048,
-          previousReached4096,
-          previousReached8192,
-          previousReached16384,
-          previousGameOver,
-          previousChapterComplete,
-        );
-        _replayRecorder.removeLastEvent();
-        _saveLocal();
-      },
-    ));
-
     return true;
   }
 
@@ -710,9 +637,7 @@ class GameEngine {
     int secondRow,
     int secondColumn,
   ) async {
-        if (gameOver || chapterComplete || !canUsePositionSwap) {
-      return false;
-    }
+    if (gameOver || chapterComplete || !canUsePositionSwap) return false;
 
     if (firstRow < 0 ||
         firstRow >= boardSize ||
@@ -725,32 +650,16 @@ class GameEngine {
       return false;
     }
 
-    if (firstRow == secondRow && firstColumn == secondColumn) {
-      return false;
-    }
+    if (firstRow == secondRow && firstColumn == secondColumn) return false;
 
     final first = _board.tileAt(firstRow, firstColumn);
     final second = _board.tileAt(secondRow, secondColumn);
-
-    if (first == null || second == null) {
-      return false;
-    }
-
-    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
-    final previousScore = score;
-    final previousPenalty = _toolPenaltyTotal;
-    final previousReached2048 = hasReached2048;
-    final previousReached4096 = hasReached4096;
-    final previousReached8192 = hasReached8192;
-    final previousReached16384 = hasReached16384;
-    final previousGameOver = gameOver;
-    final previousChapterComplete = chapterComplete;
+    if (first == null || second == null) return false;
+    if (!_toolManager.consumeLocal(GameToolType.positionSwap)) return false;
 
     _board.setTile(firstRow, firstColumn, second);
     _board.setTile(secondRow, secondColumn, first);
-
     _deductToolScore(first.value + second.value);
-
     _newEvolutionValuesThisMove.clear();
 
     _replayRecorder.recordPositionSwap(
@@ -759,27 +668,7 @@ class GameEngine {
       secondRow: secondRow,
       secondColumn: secondColumn,
     );
-
     _saveLocal();
-    unawaited(_toolManager.useOptimistic(
-      GameToolType.positionSwap,
-      onRejected: () {
-        _restoreToolSnapshot(
-          previousTiles,
-          previousScore,
-          previousPenalty,
-          previousReached2048,
-          previousReached4096,
-          previousReached8192,
-          previousReached16384,
-          previousGameOver,
-          previousChapterComplete,
-        );
-        _replayRecorder.removeLastEvent();
-        _saveLocal();
-      },
-    ));
-
     return true;
   }
 
@@ -789,13 +678,10 @@ class GameEngine {
     int targetRow,
     int targetColumn,
   ) async {
-    if (!ToolManager.allToolsEnabledForTest &&
-        (_chapter != GameChapter.history && _chapter != GameChapter.tech) ||
-        chapterComplete) {
-      return false;
-    }
-
-    if (gameOver || !canUseDuplicate) {
+    final duplicateAllowed = ToolManager.allToolsEnabledForTest ||
+        _chapter == GameChapter.history ||
+        _chapter == GameChapter.tech;
+    if (!duplicateAllowed || chapterComplete || gameOver || !canUseDuplicate) {
       return false;
     }
 
@@ -810,36 +696,20 @@ class GameEngine {
       return false;
     }
 
-    if (sourceRow == targetRow && sourceColumn == targetColumn) {
-      return false;
-    }
+    if (sourceRow == targetRow && sourceColumn == targetColumn) return false;
 
     final source = _board.tileAt(sourceRow, sourceColumn);
     final target = _board.tileAt(targetRow, targetColumn);
-
-    if (source == null) return false;
-    if (target != null) return false;
-
-    final previousTiles = _board.tiles.map((tile) => tile?.value).toList();
-    final previousScore = score;
-    final previousPenalty = _toolPenaltyTotal;
-    final previousReached2048 = hasReached2048;
-    final previousReached4096 = hasReached4096;
-    final previousReached8192 = hasReached8192;
-    final previousReached16384 = hasReached16384;
-    final previousGameOver = gameOver;
-    final previousChapterComplete = chapterComplete;
+    if (source == null || target != null) return false;
+    if (!_toolManager.consumeLocal(GameToolType.duplicate)) return false;
 
     _board.setTile(
       targetRow,
       targetColumn,
       GameTile(value: source.value, chapter: _chapter),
     );
-
     _deductToolScore(source.value);
-
     _newEvolutionValuesThisMove.clear();
-
     _recordHighestEvolutionValue(source.value);
 
     _replayRecorder.recordDuplicate(
@@ -848,60 +718,8 @@ class GameEngine {
       targetRow: targetRow,
       targetColumn: targetColumn,
     );
-
     _saveLocal();
-    unawaited(_toolManager.useOptimistic(
-      GameToolType.duplicate,
-      onRejected: () {
-        _restoreToolSnapshot(
-          previousTiles,
-          previousScore,
-          previousPenalty,
-          previousReached2048,
-          previousReached4096,
-          previousReached8192,
-          previousReached16384,
-          previousGameOver,
-          previousChapterComplete,
-        );
-        _replayRecorder.removeLastEvent();
-        _saveLocal();
-      },
-    ));
-
     return true;
-  }
-
-  void _restoreToolSnapshot(
-    List<int?> tiles,
-    int previousScore,
-    int previousPenalty,
-    bool reached2048,
-    bool reached4096,
-    bool reached8192,
-    bool reached16384,
-    bool previousGameOver,
-    bool previousChapterComplete,
-  ) {
-    _board = GameBoard(size: boardSize);
-    for (var index = 0; index < tiles.length; index++) {
-      final value = tiles[index];
-      if (value == null) continue;
-      _board.setTile(
-        index ~/ boardSize,
-        index % boardSize,
-        GameTile(value: value, chapter: _chapter),
-      );
-    }
-    score = previousScore;
-    _toolPenaltyTotal = previousPenalty;
-    hasReached2048 = reached2048;
-    hasReached4096 = reached4096;
-    hasReached8192 = reached8192;
-    hasReached16384 = reached16384;
-    gameOver = previousGameOver;
-    chapterComplete = previousChapterComplete;
-    _updateBestScore();
   }
 
   bool useHistoryRestore(int row, int column) => false;
