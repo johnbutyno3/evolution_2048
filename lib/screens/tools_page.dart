@@ -34,7 +34,6 @@ class _ToolsPageState extends State<ToolsPage> {
     required GameToolType type,
     required String name,
     required int amount,
-    required int price,
   }) async {
     if (!await ToolManager.purchase(type, amount)) {
       _message('Not enough Gold or purchase failed.');
@@ -162,7 +161,6 @@ class _ToolsPageState extends State<ToolsPage> {
                         type: type,
                         name: name,
                         amount: amounts[i],
-                        price: prices[i],
                       ),
                       child: Text(
                         '${amounts[i]} · ${prices[i]} Gold',
