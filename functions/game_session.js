@@ -338,14 +338,15 @@ exports.abandonGameSession = onCall(async (request) => {
 
   const transactionResult = await db.runTransaction(async (transaction) => {
     // All transaction reads must happen before any writes.
-    const sessionSnapshot = await transaction.get(sessionRef);
-    const progressSnapshot = await transaction.get(progress);
-    const membershipSnapshot = unfinishedExit
-      ? await transaction.get(membership)
-      : null;
-    const lifeSnapshot = unfinishedExit
-      ? await transaction.get(life)
-      : null;
+    const baseRefs = [sessionRef, progress];
+    if (unfinishedExit) {
+      baseRefs.push(membership, life);
+    }
+    const baseSnapshots = await transaction.getAll(...baseRefs);
+    const sessionSnapshot = baseSnapshots[0];
+    const progressSnapshot = baseSnapshots[1];
+    const membershipSnapshot = unfinishedExit ? baseSnapshots[2] : null;
+    const lifeSnapshot = unfinishedExit ? baseSnapshots[3] : null;
     const toolsSnapshot = replayResult
       ? await transaction.get(toolInventoryRef(uid))
       : null;
