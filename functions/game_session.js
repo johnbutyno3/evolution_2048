@@ -331,6 +331,7 @@ exports.abandonGameSession = onCall(async (request) => {
   const membership = membershipRef(uid);
 
   let finalStatus = 'ended';
+  let settledChapterProgress = {};
 
   const transactionResult = await db.runTransaction(async (transaction) => {
     // All transaction reads must happen before any writes.
