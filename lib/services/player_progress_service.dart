@@ -125,7 +125,13 @@ class PlayerProgressService {
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
+        final previousSessionId = _activeGameSessionId;
         _activeGameSessionId = data['sessionId'] as String;
+        await SaveManager.rebindCachedGameSession(
+          chapter: chapterName,
+          previousSessionId: previousSessionId,
+          newSessionId: _activeGameSessionId!,
+        );
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
@@ -307,6 +313,13 @@ class PlayerProgressService {
         LifeManager.applyServerState(
           Map<String, dynamic>.from(lifeState),
         );
+      }
+      if (data is Map && data['status'] == 'ended') {
+        if (_activeGameSessionId == settledSessionId) {
+          _activeGameSessionId = null;
+          _activeGameChapterIndex = null;
+          await SaveManager.clearGameSessionId();
+        }
       }
     } on FirebaseFunctionsException catch (error) {
       // ignore: avoid_print
