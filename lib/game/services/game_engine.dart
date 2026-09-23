@@ -78,7 +78,6 @@ class GameEngine {
     if (!gameOver || chapterComplete || !_boardLifeActive) return false;
     _boardLifeActive = false;
     _stopGameTimer();
-    _saveLocal();
     return true;
   }
 
