@@ -303,7 +303,7 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
   let settledChapterProgress = {};
 
   try {
-    const transactionResult = await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async (transaction) => {
       // Read every document before any transaction write. Replay validation is
       // performed from this same snapshot so it cannot be detached from the
       // session that is actually being settled.
@@ -513,7 +513,7 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
     return {
       sessionId,
       status: finalStatus,
-      life: transactionResult?.life ?? null,
+      life: null,
       chapterProgress: settledChapterProgress,
     };
   } catch (error) {
