@@ -149,7 +149,7 @@ class PlayerProgressService {
         'startGameSession failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
       );
-      if (replaceActiveSession) clearGameSession();
+      if (replaceActiveSession) await refresh();
     }
     return false;
   }
