@@ -1253,6 +1253,75 @@ exports.completeChapter = onCall(async (request) => {
       nextUnlocked,
     );
 
+    const previousToolUsage = currentSession.toolUsage &&
+        typeof currentSession.toolUsage === 'object'
+      ? currentSession.toolUsage
+      : {};
+    const toolInventory = toolsSnapshot.data() || {};
+    const toolUpdates = {};
+
+    for (const toolType of Object.keys(replayResult.toolUsage)) {
+      const totalUses = replayResult.toolUsage[toolType] ?? 0;
+      const settledUses = previousToolUsage[toolType] ?? 0;
+
+      if (!Number.isSafeInteger(totalUses) ||
+          totalUses < 0 ||
+          !Number.isSafeInteger(settledUses) ||
+          settledUses < 0 ||
+          totalUses < settledUses) {
+        await recordSecurityEvent({
+          uid,
+          action: 'complete_chapter',
+          severity: 'CRITICAL',
+          reason: 'tool_usage_tampering_detected',
+          details: { sessionId, chapterIndex, toolType, totalUses, settledUses },
+        });
+        throw new HttpsError(
+          'permission-denied',
+          'Account security validation failed.',
+        );
+      }
+
+      const delta = totalUses - settledUses;
+      const goldenUnlimitedUndo =
+        membershipSnapshot.data()?.type === 'golden' &&
+        toolType === 'timeRewind' &&
+        (membershipSnapshot.data()?.expiresAt == null ||
+          membershipSnapshot.data()?.expiresAt?.toMillis?.() > Date.now());
+
+      if (delta === 0 || goldenUnlimitedUndo) continue;
+
+      const currentUses = toolInventory[toolType] ?? 0;
+      if (!Number.isSafeInteger(currentUses) || currentUses < delta) {
+        await recordSecurityEvent({
+          uid,
+          action: 'complete_chapter',
+          severity: 'CRITICAL',
+          reason: 'tool_inventory_overuse_detected',
+          details: { sessionId, chapterIndex, toolType, delta, currentUses },
+        });
+        throw new HttpsError(
+          'permission-denied',
+          'Account security validation failed.',
+        );
+      }
+
+      toolUpdates[toolType] = currentUses - delta;
+    }
+
+    const chapterProgress = current.chapterProgress &&
+        typeof current.chapterProgress === 'object'
+      ? current.chapterProgress
+      : {};
+    const chapterName = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'][chapterIndex];
+    const existingChapterProgress = chapterProgress[chapterName] || {};
+    const existingChapterHighest = Number.isInteger(existingChapterProgress.highestValue)
+      ? existingChapterProgress.highestValue
+      : 0;
+    const existingChapterScore = Number.isSafeInteger(existingChapterProgress.score)
+      ? existingChapterProgress.score
+      : 0;
+
     // Chapter completion is not Game Over. Refund the Life consumed for
     // this board in the same transaction that closes the session, preventing
     // duplicate completion/refund races. First apply the same elapsed-time
@@ -1318,6 +1387,13 @@ exports.completeChapter = onCall(async (request) => {
       unlockedChapterIndex,
       highestValue: currentHighest,
       score: currentScore,
+      chapterProgress: {
+        [chapterName]: {
+          highestValue: Math.max(existingChapterHighest, highestValue),
+          score: Math.max(existingChapterScore, score),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+      },
       activeGameSessionId: FieldValue.delete(),
       activeGameChapterIndex: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
