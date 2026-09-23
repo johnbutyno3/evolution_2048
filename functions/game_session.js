@@ -294,7 +294,7 @@ exports.abandonGameSession = onCall(async (request) => {
           uid,
           action: 'abandon_game_session',
           severity: 'CRITICAL',
-          reason: 'invalid_replay',
+          reason: 'forged_replay_detected',
           details: {
             sessionId,
             error: error?.message || 'Replay validation failed.',
