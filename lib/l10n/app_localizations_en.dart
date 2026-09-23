@@ -427,7 +427,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get version => "Version";
 
-  @override
   String get developmentBuild => "Development Build";
   @override
   String get playerId => "Player ID";
