@@ -133,6 +133,243 @@ function toolPriceKey(type, amount) {
   return `${names[type]}${amount}Price`;
 }
 
+exports.getToolInventory = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const ref = toolInventoryRef(request.auth.uid);
+  const snapshot = await ref.get();
+  const inventory = snapshot.data() || {};
+  const allToolsEnabledForTest = (await db.collection('users').doc(request.auth.uid).get()).data()?.allToolsEnabledForTest === true;
+  return {
+    allToolsEnabledForTest,
+    inventory: Object.fromEntries(
+      [...TOOL_TYPES].map((type) => [
+        type,
+        Number.isSafeInteger(inventory[type]) && inventory[type] >= 0
+          ? inventory[type]
+          : 0,
+      ]),
+    ),
+  };
+});
+
+exports.purchaseTool = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  await enforceSensitiveOperation(request.auth.uid, 'purchase_tool');
+
+  const type = request.data?.toolType;
+  const amount = request.data?.amount;
+  validateToolType(type);
+  validateToolAmount(amount);
+  const membershipSnapshot = await membershipRef(request.auth.uid).get();
+  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const membershipType = membership.type;
+  const membershipActive = membership.active;
+
+  // FREE members may purchase only the single-unit package.
+  // Premium and Golden members may purchase all supported quantities.
+  if (!membershipActive && amount !== 1) {
+    throw new HttpsError(
+      'failed-precondition',
+      'FREE members can only purchase one tool at a time.',
+    );
+  }
+
+  if (membershipActive &&
+      membershipType === 'golden' &&
+      type === 'timeRewind') {
+    throw new HttpsError(
+      'failed-precondition',
+      'GOLDEN members have unlimited UNDO and do not need to purchase it.',
+    );
+  }
+
+  const configSnapshot = await db.collection('shop_config').doc('global').get();
+  const price = configSnapshot.data()?.[toolPriceKey(type, amount)];
+  if (!Number.isSafeInteger(price) || price <= 0) {
+    throw new HttpsError('failed-precondition', 'Tool price is unavailable.');
+  }
+
+  const walletRef = goldWalletRef(request.auth.uid);
+  const toolsRef = toolInventoryRef(request.auth.uid);
+  return db.runTransaction(async (transaction) => {
+    const walletSnapshot = await transaction.get(walletRef);
+    const toolsSnapshot = await transaction.get(toolsRef);
+    const balance = walletSnapshot.data()?.balance ?? 0;
+    const inventory = toolsSnapshot.data() || {};
+    const currentUses = inventory[type] ?? 0;
+
+    if (!Number.isSafeInteger(balance) || balance < price ||
+        !Number.isSafeInteger(currentUses) || currentUses < 0 ||
+        currentUses > MAX_SAFE_INTEGER - amount) {
+      if (balance < price) {
+        await recordSecurityEvent({
+          uid: request.auth.uid,
+          action: 'purchase_tool',
+          reason: 'insufficient_gold',
+          details: { toolType: type, amount, price },
+        });
+      }
+      throw new HttpsError('failed-precondition', 'Tool purchase is unavailable.');
+    }
+
+    transaction.set(walletRef, {
+      balance: balance - price,
+      lifetimeSpent: (walletSnapshot.data()?.lifetimeSpent ?? 0) + price,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(toolsRef, {
+      [type]: currentUses + amount,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { balance: balance - price, toolType: type, uses: currentUses + amount };
+  });
+});
+
+exports.useTool = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+
+  const type = request.data?.toolType;
+  const sessionId = request.data?.sessionId;
+
+  validateToolType(type);
+
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
+    throw new HttpsError('invalid-argument', 'A game session is required.');
+  }
+
+  const uid = request.auth.uid;
+  const sessionRef = gameSessionRef(uid, sessionId);
+  const inventoryRef = toolInventoryRef(uid);
+  const membershipDocRef = membershipRef(uid);
+
+  return db.runTransaction(async (transaction) => {
+    const sessionSnapshot = await transaction.get(sessionRef);
+    const inventorySnapshot = await transaction.get(inventoryRef);
+    const membershipSnapshot = await transaction.get(membershipDocRef);
+
+    if (!sessionSnapshot.exists) {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'game_session_not_found',
+        details: { sessionId, toolType: type },
+      });
+      throw new HttpsError('failed-precondition', 'Game session is invalid.');
+    }
+
+    const session = sessionSnapshot.data() || {};
+
+    if (session.status !== 'active') {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'game_session_not_active',
+        details: { sessionId, toolType: type, status: session.status },
+      });
+      throw new HttpsError('failed-precondition', 'Game session is not active.');
+    }
+
+    const expiresAt = session.expiresAt;
+    if (!expiresAt || typeof expiresAt.toMillis !== 'function' ||
+        expiresAt.toMillis() <= Date.now()) {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'game_session_expired',
+        details: { sessionId, toolType: type },
+      });
+      throw new HttpsError('failed-precondition', 'Game session has expired.');
+    }
+
+    const chapterIndex = session.chapterIndex;
+    if (!Number.isInteger(chapterIndex) ||
+        chapterIndex < 0 ||
+        chapterIndex > MAX_CHAPTER_INDEX) {
+      throw new HttpsError('failed-precondition', 'Game session chapter is invalid.');
+    }
+
+    const allowedTools = allowedToolsForChapter(chapterIndex);
+    if (!allowedTools.includes(type)) {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        severity: 'high',
+        reason: 'tool_not_allowed_for_chapter',
+        details: { sessionId, chapterIndex, toolType: type },
+      });
+      throw new HttpsError(
+        'failed-precondition',
+        'Tool is not available in this chapter.',
+      );
+    }
+
+    const inventory = inventorySnapshot.data() || {};
+    const membership = resolveMembership(membershipSnapshot.data() || {});
+    const membershipType = membership.type;
+    const membershipActive = membership.active;
+
+    const goldenUnlimitedUndo =
+      membershipActive &&
+      membershipType === 'golden' &&
+      type === 'timeRewind';
+
+    const currentUses = inventory[type] ?? 0;
+
+    if (!goldenUnlimitedUndo &&
+        (!Number.isSafeInteger(currentUses) || currentUses <= 0)) {
+      await recordSecurityEvent({
+        uid,
+        action: 'use_tool',
+        reason: 'tool_inventory_invalid_or_empty',
+        details: { sessionId, toolType: type, currentUses },
+      });
+      throw new HttpsError('failed-precondition', 'Tool is unavailable.');
+    }
+
+    const uses = goldenUnlimitedUndo ? currentUses : currentUses - 1;
+    const toolUsage = session.toolUsage &&
+        typeof session.toolUsage === 'object'
+      ? { ...session.toolUsage }
+      : {};
+
+    const previousUsage = toolUsage[type] ?? 0;
+    if (!Number.isSafeInteger(previousUsage) || previousUsage < 0) {
+      throw new HttpsError('failed-precondition', 'Game session tool usage is invalid.');
+    }
+
+    toolUsage[type] = previousUsage + 1;
+
+    if (!goldenUnlimitedUndo) {
+      transaction.set(inventoryRef, {
+        [type]: uses,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    transaction.set(sessionRef, {
+      toolUsage,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return {
+      toolType: type,
+      uses,
+      sessionId,
+    };
+  });
+});
 exports.getMembershipStatus = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
@@ -908,6 +1145,7 @@ exports.completeChapter = onCall(async (request) => {
     .doc(uid)
     .collection('membership')
     .doc('current');
+  const toolsRef = toolInventoryRef(uid);
 
   /*
    * Read the session before replay validation so the validator uses
@@ -1021,35 +1259,60 @@ exports.completeChapter = onCall(async (request) => {
     ? session.toolUsage
     : {};
 
+  const inventory = toolsSnapshot.data() || {};
+  const membership = resolveMembership(membershipSnapshot.data() || {});
+  const toolUpdates = {};
   for (const toolType of TOOL_TYPES) {
     const replayUses = replayToolUsage[toolType] ?? 0;
-    const sessionUses = sessionToolUsage[toolType] ?? 0;
 
-    if (!Number.isSafeInteger(replayUses) ||
-        replayUses < 0 ||
-        !Number.isSafeInteger(sessionUses) ||
-        sessionUses < 0 ||
-        replayUses !== sessionUses) {
+    if (!Number.isSafeInteger(replayUses) || replayUses < 0) {
       await recordSecurityEvent({
         uid,
         action: 'complete_chapter',
-        severity: 'high',
-        reason: 'replay_tool_usage_mismatch',
+        severity: 'CRITICAL',
+        reason: 'tool_usage_invalid',
+        details: { sessionId, chapterIndex, toolType, replayUses },
+      });
+      throw new HttpsError(
+        'permission-denied',
+        'Account security validation failed.',
+      );
+    }
+
+    const goldenUnlimitedUndo =
+      membership.active &&
+      membership.type === 'golden' &&
+      toolType === 'timeRewind';
+
+    if (goldenUnlimitedUndo || replayUses === 0) continue;
+
+    const currentUses = inventory[toolType] ?? 0;
+    if (!Number.isSafeInteger(currentUses) ||
+        currentUses < 0 ||
+        replayUses > currentUses) {
+      await recordSecurityEvent({
+        uid,
+        action: 'complete_chapter',
+        severity: 'CRITICAL',
+        reason: 'tool_inventory_overuse_detected',
         details: {
           sessionId,
           chapterIndex,
           toolType,
           replayUses,
-          sessionUses,
+          currentUses,
         },
       });
-
       throw new HttpsError(
-        'failed-precondition',
-        'Replay tool usage does not match the game session.',
+        'permission-denied',
+        'Account security validation failed.',
       );
     }
+
+    toolUpdates[toolType] = currentUses - replayUses;
   }
+
+
 
   const highestValue = replayResult.highestValue;
   const score = replayResult.score;
@@ -1084,6 +1347,7 @@ exports.completeChapter = onCall(async (request) => {
     const progressSnapshot = await transaction.get(progressRef);
     const lifeSnapshot = await transaction.get(lifeRef);
     const membershipSnapshot = await transaction.get(membershipRef);
+    const toolsSnapshot = await transaction.get(toolsRef);
 
     if (!currentSessionSnapshot.exists) {
       await recordSecurityEvent({
@@ -1280,6 +1544,13 @@ exports.completeChapter = onCall(async (request) => {
       activeGameChapterIndex: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    if (Object.keys(toolUpdates).length > 0) {
+      transaction.set(toolsRef, {
+        ...toolUpdates,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
 
     transaction.update(sessionRef, {
       status: 'completed',
