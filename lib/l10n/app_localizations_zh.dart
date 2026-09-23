@@ -339,7 +339,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lifetimeSpent => "累計消費";
 
   @override
-  String get goldAmount => "{amount} 金幣";
+  String goldAmount(int amount) => '$amount 金幣';
 
   @override
   String get goldUsage => "金幣可用於購買生命與道具。";
