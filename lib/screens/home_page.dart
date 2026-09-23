@@ -325,9 +325,17 @@ class _HomePageState extends State<HomePage> {
                               itemBuilder: (context, index) {
                                 final open = _progress.isChapterUnlocked(index);
 
+                                final highestValue = _progress.chapterHighestValue(index);
+                                final stage = highestValue > 0
+                                    ? _stageFromHighestValue(highestValue)
+                                    : 0;
+                                final score = _progress.chapterScore(index);
+
                                 return _ChapterCard(
                                   chapter: HomePage.chapters[index],
                                   unlocked: open,
+                                  stage: stage,
+                                  score: score,
                                   onTap: open
                                       ? () => _enter(context, index)
                                       : null,
@@ -359,6 +367,16 @@ String _localizedChapterTitle(BuildContext context, String key) {
   };
 }
 
+int _stageFromHighestValue(int value) {
+  var stage = 0;
+  var current = value;
+  while (current >= 2) {
+    current ~/= 2;
+    stage++;
+  }
+  return stage;
+}
+
 class ChapterInfo {
   final String titleKey, image;
   const ChapterInfo({required this.titleKey, required this.image});
@@ -367,10 +385,14 @@ class ChapterInfo {
 class _ChapterCard extends StatelessWidget {
   final ChapterInfo chapter;
   final bool unlocked;
+  final int stage;
+  final int score;
   final VoidCallback? onTap;
   const _ChapterCard({
     required this.chapter,
     required this.unlocked,
+    required this.stage,
+    required this.score,
     required this.onTap,
   });
   @override
@@ -396,14 +418,29 @@ class _ChapterCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               color: Colors.black.withValues(alpha: .55),
-              child: Text(
-                _localizedChapterTitle(context, chapter.titleKey),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _localizedChapterTitle(context, chapter.titleKey),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    AppLocalizations.of(context)!.stage + ': $stage / ' +
+                        AppLocalizations.of(context)!.score + ': $score',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
