@@ -42,6 +42,7 @@ function normalizeRiskLevel(value) {
 }
 
 function isRestrictionActive(data) {
+  if (data?.status === 'locked') return true;
   if (data?.status !== 'restricted') return false;
   const until = data.restrictedUntil;
   if (!until || typeof until.toMillis !== 'function') return true;
@@ -93,30 +94,25 @@ async function enforceSensitiveOperation(uid, operation) {
 }
 
 /**
- * Creates or updates the server-only enforcement state after a CRITICAL
- * security event. This function is intended to be called by trusted server
- * code only; Firestore rules must prevent clients from writing this document.
+ * Locks the account after a confirmed critical anti-cheat event. This function
+ * is intended to be called by trusted server code only; Firestore rules must
+ * prevent clients from writing this document.
  */
-async function applyCriticalRestriction(uid, reason, durationMs = 24 * 60 * 60 * 1000) {
+async function applyCriticalRestriction(uid, reason) {
   if (typeof uid !== 'string' || uid.length === 0) {
     throw new Error('A valid uid is required.');
   }
 
-  const safeDuration = Number.isFinite(durationMs) && durationMs > 0
-    ? Math.min(durationMs, 30 * 24 * 60 * 60 * 1000)
-    : 24 * 60 * 60 * 1000;
-
-  const restrictedUntil = new Date(Date.now() + safeDuration);
   await enforcementRef(uid).set({
-    status: 'restricted',
+    status: 'locked',
     reason: typeof reason === 'string' && reason.length > 0
       ? reason
       : 'critical_security_risk',
-    restrictedUntil,
+    lockedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 
-  return { status: 'restricted', restrictedUntil };
+  return { status: 'locked' };
 }
 
 module.exports = {
