@@ -645,4 +645,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get evolutionProgress => "進化進度";
+  @override
+  String chapterLabel(int number, String name) => '第 ' + number.toString() + ' 章 · ' + name + '';
+
 }
