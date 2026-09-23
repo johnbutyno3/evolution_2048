@@ -113,8 +113,6 @@ class GameEngine {
 
     _gameTimerStartedAt = DateTime.now();
     _gameTimerRunning = true;
-
-    _saveLocal();
   }
 
   /// Pause active gameplay time.
