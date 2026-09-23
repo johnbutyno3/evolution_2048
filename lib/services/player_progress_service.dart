@@ -333,6 +333,7 @@ class PlayerProgressService {
       if (_activeGameSessionId == settledSessionId) {
         _activeGameSessionId = null;
         _activeGameChapterIndex = null;
+        await SaveManager.clearGameSessionId();
       }
 
       final data = result.data;
@@ -385,6 +386,7 @@ class PlayerProgressService {
         _loadedFromServer = true;
         _activeGameSessionId = null;
         _activeGameChapterIndex = null;
+        await SaveManager.clearGameSessionId();
         return true;
       }
     } on FirebaseFunctionsException {
