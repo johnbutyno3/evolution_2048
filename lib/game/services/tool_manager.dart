@@ -120,27 +120,40 @@ class ToolManager {
     }
   }
 
-  Future<bool> useServer(GameToolType type) async {
+  /// Reserves a tool use locally so gameplay can respond immediately.
+  ///
+  /// The Firebase mutation runs in the background. If the server rejects it,
+  /// the local reservation is rolled back. This keeps network latency out of
+  /// the interactive game path while preserving server-authoritative inventory.
+  Future<void> useOptimistic(GameToolType type) async {
+    final tool = getTool(type);
+    if (tool == null || !tool.canUse) return;
+
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
-      final tool = getTool(type);
-      if (tool != null) tool.usesRemaining = _unlimitedUses;
-      return true;
+      tool.usesRemaining = _unlimitedUses;
+      return;
     }
+
     final sessionId = PlayerProgressService.instance.activeGameSessionId;
-    if (sessionId == null || sessionId.isEmpty) return false;
+    if (sessionId == null || sessionId.isEmpty) return;
+
+    final previousUses = tool.usesRemaining;
+    tool.usesRemaining = previousUses - 1;
+
     try {
       final result = await _functions.httpsCallable('useTool').call({
         'toolType': type.name,
         'sessionId': sessionId,
       });
       final uses = result.data is Map ? result.data['uses'] : null;
-      if (uses is! num) return false;
+      if (uses is! num) {
+        tool.usesRemaining = previousUses;
+        return;
+      }
       _serverUses[type] = uses.toInt();
-      final tool = getTool(type);
-      if (tool != null) tool.usesRemaining = uses.toInt();
-      return true;
+      tool.usesRemaining = uses.toInt();
     } on FirebaseFunctionsException {
-      return false;
+      tool.usesRemaining = previousUses;
     }
   }
 
