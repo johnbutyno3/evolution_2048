@@ -40,7 +40,6 @@ class LifeManager {
   static Future<void> refreshFromServer() async {
     final result = await _functions.httpsCallable('getLifeState').call();
     _applyServerState(Map<String, dynamic>.from(result.data as Map));
-    _initialized = true;
   }
 
   static void _applyServerState(Map<String, dynamic> data) {
