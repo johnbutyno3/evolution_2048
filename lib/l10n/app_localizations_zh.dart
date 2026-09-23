@@ -637,4 +637,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get developmentBuild => "開發版本";
+  @override
+  String get playerId => "玩家 ID";
+
+  @override
+  String get membership => "會員資格";
+
+  @override
+  String get evolutionProgress => "進化進度";
 }
