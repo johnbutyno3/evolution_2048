@@ -24,43 +24,14 @@ class SaveManager {
 
   /// Binds the local chapter snapshot to the server-owned game session.
   /// A local board may only be resumed when this ID matches the server ID.
-  static Future<void> setGameSessionId(
-    String sessionId, {
-    String? chapter,
-  }) async {
+  static Future<void> setGameSessionId(String sessionId) async {
     final id = sessionId.trim();
     if (id.isEmpty) return;
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setString('rebirth_2048_game_session_id_v1', id);
-
-    final root = _cachedSave;
-    if (root == null || chapter == null || chapter.isEmpty) return;
-    final chapters = root['chapters'];
-    if (chapters is! Map) return;
-    final chapterSave = chapters[chapter];
-    if (chapterSave is! Map) return;
-
-    final updatedRoot = Map<String, dynamic>.from(root);
-    final updatedChapters = <String, dynamic>{};
-    for (final entry in chapters.entries) {
-      if (entry.value is Map) {
-        updatedChapters[entry.key.toString()] = Map<String, dynamic>.from(
-          (entry.value as Map).map(
-            (key, value) => MapEntry(key.toString(), value),
-          ),
-        );
-      }
-    }
-    final updatedChapter = Map<String, dynamic>.from(
-      (updatedChapters[chapter] as Map).map(
-        (key, value) => MapEntry(key.toString(), value),
-      ),
+    await _preferences!.setString(
+      'rebirth_2048_game_session_id_v1',
+      id,
     );
-    updatedChapter['gameSessionId'] = id;
-    updatedChapters[chapter] = updatedChapter;
-    updatedRoot['chapters'] = updatedChapters;
-    _cachedSave = updatedRoot;
-    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
   }
 
   static Future<void> clearGameSessionId() async {
