@@ -238,6 +238,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // Tool inventory is authoritative but must not delay creation of the
       // new board. Refresh it in the background after the session is active.
       return true;
+    } catch (error) {
+      debugPrint('Failed to create game session: $error');
+      return false;
     }
   }
 
