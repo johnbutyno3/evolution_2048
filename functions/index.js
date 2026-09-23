@@ -1254,7 +1254,7 @@ exports.completeChapter = onCall(async (request) => {
     } else {
       const intervalMillis = membershipType === 'premium'
         ? 30 * 60 * 1000
-        : 60 * 60 * 1000;
+        : 40 * 60 * 1000;
 
       if (refundedLives < NORMAL_CAP) {
         const start = refundedRegenStartMillis ?? refundNowMillis;
