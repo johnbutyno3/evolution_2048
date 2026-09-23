@@ -95,8 +95,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   @override
   void initState() {
-    _engine = GameEngine(chapter: widget.initialChapter ?? GameChapter.ocean);
     super.initState();
+    _engine = GameEngine(chapter: widget.initialChapter ?? GameChapter.ocean);
     WidgetsBinding.instance.addObserver(this);
     _completionAnimationController = AnimationController(
       vsync: this,
@@ -456,6 +456,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
+        boardLifeActive: true,
       );
 
 
@@ -481,53 +482,51 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _handleSystemBack() async {
     if (_handlingSystemBack || !mounted) return;
+    _handlingSystemBack = true;
 
-    if (_engine.gameOver || _engine.chapterComplete) {
-      if (_engine.chapterComplete) {
-        _allowSystemPop = true;
-        if (mounted) Navigator.of(context).pop();
-        return;
-      }
+    final chapter = _engine.chapter.name;
+    final sessionId = PlayerProgressService.instance.activeGameSessionId;
+    final saveData = _engine.createSaveData();
+    final replayLog = saveData['replayLog'];
+    final replay = replayLog is Map
+        ? Map<String, dynamic>.from(replayLog)
+        : null;
+    final wasGameOver = _engine.gameOver;
+    final wasChapterComplete = _engine.chapterComplete;
 
-      _handlingSystemBack = true;
-      try {
-        final saveData = _engine.createSaveData();
-        final replayLog = saveData['replayLog'];
-        await PlayerProgressService.instance.abandonGameSession(
-          replayLog: replayLog is Map
-              ? Map<String, dynamic>.from(replayLog)
-              : null,
-        );
-        if (!mounted) return;
-        await SaveManager.clearChapter(_engine.chapter.name);
-        if (!mounted) return;
-        _engine.pauseGameTimer();
-        _stopUiRefreshTimer();
-        _allowSystemPop = true;
-        Navigator.of(context).pop();
-      } finally {
-        _handlingSystemBack = false;
-      }
+    _engine.pauseGameTimer();
+    _stopUiRefreshTimer();
+    _allowSystemPop = true;
+
+    if (wasChapterComplete) {
+      Navigator.of(context).pop();
+      _handlingSystemBack = false;
       return;
     }
 
-    _handlingSystemBack = true;
-    try {
-      final saveData = _engine.createSaveData();
-      final replayLog = saveData['replayLog'];
-      await PlayerProgressService.instance.exitUnfinishedGameSession(
-        replayLog: replayLog is Map
-            ? Map<String, dynamic>.from(replayLog)
-            : null,
-      );
-      if (!mounted) return;
-      _engine.pauseGameTimer();
-      _stopUiRefreshTimer();
-      _allowSystemPop = true;
-      Navigator.of(context).pop();
-    } finally {
-      _handlingSystemBack = false;
+    // Navigation must never wait for Firebase. The server settlement carries
+    // the captured session id so a fast re-entry cannot settle the new session.
+    if (sessionId != null) {
+      if (wasGameOver) {
+        unawaited(
+          PlayerProgressService.instance.abandonGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+        unawaited(SaveManager.clearChapter(chapter));
+      } else {
+        unawaited(
+          PlayerProgressService.instance.exitUnfinishedGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+      }
     }
+
+    Navigator.of(context).pop();
+    _handlingSystemBack = false;
   }
 
   Future<void> _showResetMenu() async {
@@ -569,11 +568,23 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     if (action == 'home') {
-      await PlayerProgressService.instance.exitUnfinishedGameSession();
-      if (!mounted) return;
+      final sessionId = PlayerProgressService.instance.activeGameSessionId;
+      final saveData = _engine.createSaveData();
+      final replayLog = saveData['replayLog'];
+      final replay = replayLog is Map
+          ? Map<String, dynamic>.from(replayLog)
+          : null;
       _engine.pauseGameTimer();
       _stopUiRefreshTimer();
-      Navigator.of(context).pop();
+      if (sessionId != null) {
+        unawaited(
+          PlayerProgressService.instance.exitUnfinishedGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+      }
+      if (mounted) Navigator.of(context).pop();
       return;
     }
 
@@ -757,18 +768,26 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
       }
     } else {
+      final sessionId = PlayerProgressService.instance.activeGameSessionId;
       final saveData = _engine.createSaveData();
       final replayLog = saveData['replayLog'];
-      await PlayerProgressService.instance.abandonGameSession(
-        replayLog: replayLog is Map
-            ? Map<String, dynamic>.from(replayLog)
-            : null,
-      );
-      if (!mounted) return;
+      final replay = replayLog is Map
+          ? Map<String, dynamic>.from(replayLog)
+          : null;
+      final chapter = _engine.chapter.name;
 
-      await SaveManager.clearChapter(_engine.chapter.name);
+      await SaveManager.clearChapter(chapter);
       if (!mounted) return;
       Navigator.of(context).pop();
+
+      if (sessionId != null) {
+        unawaited(
+          PlayerProgressService.instance.abandonGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+      }
     }
   }
 
@@ -1151,7 +1170,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                                 },
                               ),
                               _buildCompletionAnimation(),
-                              if (_gameSessionFuture != null || _restartInProgress) _buildSessionTransitionOverlay(),
+
                             ],
                           ),
                         ),
