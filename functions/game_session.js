@@ -14,6 +14,7 @@ const NORMAL_CAP = 5;
 const GENERAL_INTERVAL_MS = 60 * 60 * 1000;
 const PREMIUM_INTERVAL_MS = 30 * 60 * 1000;
 const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
+const CHAPTER_NAMES = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'];
 
 function recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {
   return recordAuditEvent(db, { uid, action, severity, reason, details });
@@ -413,6 +414,30 @@ exports.abandonGameSession = onCall(async (request) => {
           { merge: true },
         );
       }
+
+      const chapterName = CHAPTER_NAMES[session.chapterIndex];
+      const existingChapterProgress =
+          current.chapterProgress &&
+          typeof current.chapterProgress === 'object'
+        ? current.chapterProgress
+        : {};
+      const existingChapter = existingChapterProgress[chapterName] || {};
+      const existingHighest = Number.isInteger(existingChapter.highestValue)
+        ? existingChapter.highestValue
+        : 0;
+      const existingScore = Number.isSafeInteger(existingChapter.score)
+        ? existingChapter.score
+        : 0;
+      transaction.set(progress, {
+        chapterProgress: {
+          [chapterName]: {
+            highestValue: Math.max(existingHighest, replayResult.highestValue),
+            score: Math.max(existingScore, replayResult.score),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
 
       transaction.set(sessionRef, {
         toolUsage: replayResult.toolUsage,
