@@ -6,6 +6,16 @@ const crypto = require('crypto');
 const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
 const { enforceSensitiveOperation } = require('./security_enforcement');
+const {
+  NORMAL_CAP,
+  MEMBERSHIP_TYPES,
+  resolveMembership,
+  intervalMs,
+  normalizeLives,
+  normalizeRegenStart,
+  regenerate,
+  lifeResponse,
+} = require('./game_session_helpers');
 
 initializeApp();
 setGlobalOptions({ region: 'us-central1' });
@@ -18,7 +28,6 @@ Object.assign(exports, require('./tool_inventory_defaults'));
 
 const MAX_CHAPTER_INDEX = 5;
 const GAME_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
-const NORMAL_CAP = 5;
 
 // Each chapter adds one evolution stage.
 const STAGE_COUNTS = [12, 13, 14, 15, 16, 17];
@@ -28,7 +37,7 @@ const PURCHASE_PROVIDERS = new Set(['google_play', 'apple']);
 const MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER;
 const TOOL_TYPES = new Set(['revive', 'timeRewind', 'positionSwap', 'duplicate']);
 const TOOL_AMOUNTS = new Set([1, 5, 20, 50]);
-const DEFAULT_TOOL_PRICES = {
+const DEFAULT_TOOL_PRICES = {const DEFAULT_TOOL_PRICES = {
   undo1Price: 50,
   undo5Price: 225,
   undo20Price: 700,
@@ -46,8 +55,6 @@ const DEFAULT_TOOL_PRICES = {
   duplicate20Price: 7000,
   duplicate50Price: 15000,
 };
-const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
-
 function recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {
   return recordAuditEvent(db, {
     uid,
