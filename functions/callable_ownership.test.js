@@ -36,7 +36,6 @@ const requiredOwners = {
   refundLife: 'life.js',
   getToolInventory: 'tool_inventory_defaults.js',
   purchaseTool: 'tool_inventory_defaults.js',
-  useTool: 'tool_inventory_defaults.js',
   adminSetAllToolsEnabled: 'admin_test.js',
   adminGetTestAccountState: 'admin_test.js',
 };
