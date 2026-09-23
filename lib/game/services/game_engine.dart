@@ -572,7 +572,7 @@ class GameEngine {
   // Tools
   // ============================================================
 
-  Future<bool> useRevive(int row, int column) async {
+  bool useRevive(int row, int column) async {
     if (gameOver || chapterComplete || !canUseRevive) return false;
     if (row < 0 || row >= boardSize || column < 0 || column >= boardSize) {
       return false;
@@ -604,7 +604,7 @@ class GameEngine {
     return true;
   }
 
-  Future<bool> useTimeRewind() async {
+  bool useTimeRewind() async {
     if (gameOver || chapterComplete || !canUseTimeRewind) return false;
     if (_previousBoard == null) return false;
     if (!_toolManager.consumeLocal(GameToolType.timeRewind)) return false;
@@ -622,7 +622,7 @@ class GameEngine {
     return true;
   }
 
-  Future<bool> usePositionSwap(
+  bool usePositionSwap(
     int firstRow,
     int firstColumn,
     int secondRow,
@@ -663,7 +663,7 @@ class GameEngine {
     return true;
   }
 
-  Future<bool> useDuplicate(
+  bool useDuplicate(
     int sourceRow,
     int sourceColumn,
     int targetRow,
