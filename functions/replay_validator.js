@@ -172,7 +172,7 @@ function highestValue(board, current) {
   return Math.max(current, ...board.filter((value) => value !== null));
 }
 
-function replayGame({ replayLog, chapterIndex, targetValue, allowedTools }) {
+function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requireCompletion = true }) {
   validateChapter(chapterIndex);
   const target = targetValue ?? targetForChapter(chapterIndex);
   if (!Number.isInteger(target) || target !== targetForChapter(chapterIndex)) {
@@ -323,7 +323,7 @@ function replayGame({ replayLog, chapterIndex, targetValue, allowedTools }) {
     }
   }
 
-  if (!completed || !board.includes(target)) {
+  if (requireCompletion && (!completed || !board.includes(target))) {
     fail('Replay did not reach the chapter target.', { target, highest });
   }
 
