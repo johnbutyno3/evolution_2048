@@ -27,6 +27,7 @@
   "toolsDisabled": "道具禁用",
   "continueGame": "繼續",
   "score": "分數",
+  "stage": "階數",
   "best": "最高分",
   "onboarding01Title": "一個等待重生的世界",
   "onboarding01Description": "一個死寂的世界正在等待你的到來。恢復海洋、喚醒生命，展開進化之旅。",
@@ -68,5 +69,7 @@
   "authSkip": "跳過，直接進入遊戲",
   "authTooManyRequests": "請求次數過多，請稍後再試。",
   "life": "生命",
+  "playerInfo": "玩家資訊",
+  "shop": "商城",
   "gameTime": "遊戲時間"
 }
