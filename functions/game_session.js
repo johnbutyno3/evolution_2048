@@ -69,6 +69,7 @@ exports.restartGameSession = onCall(async (request) => {
 
   const replayLog = request.data?.replayLog ?? null;
   let replayResult = null;
+  let settledChapterProgress = null;
   if (replayLog != null) {
     const oldSessionIdSnapshot = await progress.get();
     const oldSessionId = oldSessionIdSnapshot.data()?.activeGameSessionId;
@@ -440,11 +441,19 @@ exports.abandonGameSession = onCall(async (request) => {
       const existingScore = Number.isSafeInteger(existingChapter.score)
         ? existingChapter.score
         : 0;
+      const settledHighest = Math.max(existingHighest, replayResult.highestValue);
+      const settledScore = Math.max(existingScore, replayResult.score);
+      settledChapterProgress = {
+        [chapterName]: {
+          highestValue: settledHighest,
+          score: settledScore,
+        },
+      };
       transaction.set(progress, {
         chapterProgress: {
           [chapterName]: {
-            highestValue: Math.max(existingHighest, replayResult.highestValue),
-            score: Math.max(existingScore, replayResult.score),
+            highestValue: settledHighest,
+            score: settledScore,
             updatedAt: FieldValue.serverTimestamp(),
           },
         },
@@ -550,5 +559,6 @@ exports.abandonGameSession = onCall(async (request) => {
     sessionId,
     status: finalStatus,
     life: transactionResult?.life ?? null,
+    chapterProgress: settledChapterProgress,
   };
 });
