@@ -135,7 +135,6 @@ class _HomePageState extends State<HomePage> {
       context,
     ).push(MaterialPageRoute(builder: (_) => const PersonalPage()));
     await Future.wait([
-      PlayerProfileService.ensureProfile().catchError((_) {}),
       LifeManager.refreshFromServer().catchError((_) {}),
       GoldManager.initialize().catchError((_) {}),
     ]);
