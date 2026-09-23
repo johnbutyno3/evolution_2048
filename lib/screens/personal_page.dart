@@ -1,4 +1,5 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -275,7 +276,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppLocalizations.of(context)!.playerNameEmpty)),
+        SnackBar(content: Text(AppLocalizations.of(context)!.playerNameEmpty)),
       );
       return;
     }
@@ -766,14 +767,13 @@ class _CreatureCollectionCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    AppLocalizations.of(context)!.undiscovered,
+                  Text(AppLocalizations.of(context)!.undiscovered,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    AppLocalizations.of(context)!.stageLabel(creature.stage),
+                    AppLocalizations.of(context)!.stageLabel(creature.stage.index + 1),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -803,8 +803,7 @@ class GoldPage extends StatelessWidget {
                     children: [
                       const Icon(Icons.monetization_on, size: 56),
                       const SizedBox(height: 12),
-                      const Text(
-                        AppLocalizations.of(context)!.goldBalance,
+                      Text(AppLocalizations.of(context)!.goldBalance,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -831,8 +830,7 @@ class GoldPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                AppLocalizations.of(context)!.goldUsage,
+              Text(AppLocalizations.of(context)!.goldUsage,
                 style: TextStyle(fontSize: 15),
               ),
             ],
@@ -901,7 +899,7 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
           ),
-          const SwitchListTile(
+          SwitchListTile(
             title: Text(AppLocalizations.of(context)!.vibration),
             value: true,
             onChanged: null,
