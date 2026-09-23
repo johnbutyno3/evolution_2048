@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'home_page.dart';
+import 'profile_setup_page.dart';
+import '../services/player_profile_service.dart';
 import '../game/services/audio_manager.dart';
 import '../l10n/app_localizations.dart';
 
@@ -31,11 +33,24 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     super.dispose();
   }
 
-  void _goToGame() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomePage()),
-      (route) => false,
-    );
+  Future<void> _continueAfterAuth() async {
+    try {
+      final playerName = await PlayerProfileService.ensureProfile();
+      if (!mounted) return;
+
+      final destination = playerName == null
+          ? const ProfileSetupPage()
+          : const HomePage();
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => destination),
+        (route) => false,
+      );
+    } on PlayerProfileException catch (error) {
+      if (mounted) _showError(error.message);
+    } catch (_) {
+      if (mounted) _showError(AppLocalizations.of(context)!.profileSetupFailed);
+    }
   }
 
   Future<void> _emailSubmit() async {
@@ -56,7 +71,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           password: password,
         );
       }
-      if (mounted) _goToGame();
+      if (mounted) await _continueAfterAuth();
     } on FirebaseAuthException catch (error) {
       if (mounted) {
         final l10n = AppLocalizations.of(context)!;
