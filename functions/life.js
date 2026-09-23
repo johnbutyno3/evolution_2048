@@ -1,12 +1,18 @@
+'use strict';
+
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const {
+  NORMAL_CAP,
+  resolveMembership,
+  intervalMs,
+  normalizeLives,
+  normalizeRegenStart,
+  regenerate,
+  lifeResponse,
+} = require('./game_session_helpers');
 
 const db = getFirestore();
-
-const NORMAL_CAP = 5;
-const GENERAL_INTERVAL_MS = 60 * 60 * 1000;
-const PREMIUM_INTERVAL_MS = 30 * 60 * 1000;
-const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
 
 function lifeRef(uid) {
   return db.collection('users').doc(uid).collection('life').doc('current');
@@ -14,94 +20,6 @@ function lifeRef(uid) {
 
 function membershipRef(uid) {
   return db.collection('users').doc(uid).collection('membership').doc('current');
-}
-
-function resolveMembership(data) {
-  const type = MEMBERSHIP_TYPES.has(data?.type) ? data.type : null;
-  const expiresAt = data?.expiresAt ?? null;
-  let active = false;
-
-  if (type !== null) {
-    if (expiresAt === null) {
-      active = true;
-    } else if (typeof expiresAt.toMillis === 'function') {
-      active = expiresAt.toMillis() > Date.now();
-    }
-  }
-
-  return {
-    active,
-    type: active ? type : null,
-    infiniteLives: active && type === 'golden',
-  };
-}
-
-function regenerationIntervalMs(membership) {
-  return membership.type === 'premium'
-    ? PREMIUM_INTERVAL_MS
-    : GENERAL_INTERVAL_MS;
-}
-
-function normalizeLives(value) {
-  return Number.isSafeInteger(value) && value >= 0 ? value : NORMAL_CAP;
-}
-
-function normalizeRegenStart(value) {
-  if (!value || typeof value.toMillis !== 'function') return null;
-  return value.toMillis();
-}
-
-function calculateRegeneration({ lives, regenStartMillis, nowMillis, intervalMs }) {
-  if (lives >= NORMAL_CAP) {
-    return { lives, regenStartMillis: null };
-  }
-
-  const start = regenStartMillis ?? nowMillis;
-  const elapsed = nowMillis - start;
-  if (elapsed < intervalMs) {
-    return { lives, regenStartMillis: start };
-  }
-
-  const recovered = Math.floor(elapsed / intervalMs);
-  const nextLives = Math.min(NORMAL_CAP, lives + recovered);
-
-  if (nextLives >= NORMAL_CAP) {
-    return { lives: NORMAL_CAP, regenStartMillis: null };
-  }
-
-  return {
-    lives: nextLives,
-    regenStartMillis: start + recovered * intervalMs,
-  };
-}
-
-function responseState({ lives, regenStartMillis, membership }) {
-  if (membership.infiniteLives) {
-    return {
-      lives: -1,
-      infiniteLives: true,
-      lifeMode: 'golden',
-      membership: membership.type,
-      nextLifeAtMillis: null,
-    };
-  }
-
-  if (lives >= NORMAL_CAP || regenStartMillis == null) {
-    return {
-      lives,
-      infiniteLives: false,
-      lifeMode: 'normal',
-      membership: membership.type ?? 'general',
-      nextLifeAtMillis: null,
-    };
-  }
-
-  return {
-    lives,
-    infiniteLives: false,
-    membership: membership.type ?? 'general',
-    nextLifeAtMillis: regenStartMillis + regenerationIntervalMs(membership),
-  };
 }
 
 async function loadAndRegenerate(transaction, uid, membership) {
@@ -118,18 +36,14 @@ async function loadAndRegenerate(transaction, uid, membership) {
       regenStartAt: null,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    return responseState({
-      lives: NORMAL_CAP,
-      regenStartMillis: null,
-      membership,
-    });
+    return lifeResponse(NORMAL_CAP, null, membership);
   }
 
-  const regenerated = calculateRegeneration({
+  const regenerated = regenerate({
     lives: currentLives,
     regenStartMillis: currentRegenStart,
     nowMillis,
-    intervalMs: regenerationIntervalMs(membership),
+    interval: intervalMs(membership),
   });
 
   transaction.set(ref, {
@@ -140,17 +54,20 @@ async function loadAndRegenerate(transaction, uid, membership) {
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 
-  return responseState({
-    lives: regenerated.lives,
-    regenStartMillis: regenerated.regenStartMillis,
+  return lifeResponse(
+    regenerated.lives,
+    regenerated.regenStartMillis,
     membership,
-  });
+  );
 }
 
 async function resolveServerState(transaction, uid) {
   const membershipSnapshot = await transaction.get(membershipRef(uid));
-  const membership = resolveMembership(membershipSnapshot.data() || {});
-  return loadAndRegenerate(transaction, uid, membership);
+  return loadAndRegenerate(
+    transaction,
+    uid,
+    resolveMembership(membershipSnapshot.data() || {}),
+  );
 }
 
 exports.getLifeState = onCall(async (request) => {
@@ -176,10 +93,7 @@ exports.consumeLife = onCall(async (request) => {
     const membership = resolveMembership(membershipSnapshot.data() || {});
     const current = await loadAndRegenerate(transaction, uid, membership);
 
-    if (membership.infiniteLives) {
-      return current;
-    }
-
+    if (membership.infiniteLives) return current;
     if (current.lives <= 0) {
       throw new HttpsError('failed-precondition', 'No lives available.');
     }
@@ -188,7 +102,7 @@ exports.consumeLife = onCall(async (request) => {
     const regenStartMillis = nextLives < NORMAL_CAP
       ? (current.nextLifeAtMillis == null
           ? Date.now()
-          : current.nextLifeAtMillis - regenerationIntervalMs(membership))
+          : current.nextLifeAtMillis - intervalMs(membership))
       : null;
 
     transaction.set(ref, {
@@ -199,11 +113,7 @@ exports.consumeLife = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    return responseState({
-      lives: nextLives,
-      regenStartMillis,
-      membership,
-    });
+    return lifeResponse(nextLives, regenStartMillis, membership);
   });
 });
 
@@ -220,16 +130,14 @@ exports.refundLife = onCall(async (request) => {
     const membership = resolveMembership(membershipSnapshot.data() || {});
     const current = await loadAndRegenerate(transaction, uid, membership);
 
-    if (membership.infiniteLives) {
-      return current;
-    }
+    if (membership.infiniteLives) return current;
 
     const nextLives = Math.min(NORMAL_CAP, Math.max(0, current.lives + 1));
     const regenStartMillis = nextLives >= NORMAL_CAP
       ? null
       : (current.nextLifeAtMillis == null
           ? Date.now()
-          : current.nextLifeAtMillis - regenerationIntervalMs(membership));
+          : current.nextLifeAtMillis - intervalMs(membership));
 
     transaction.set(ref, {
       lives: nextLives,
@@ -239,11 +147,6 @@ exports.refundLife = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
-    return responseState({
-      lives: nextLives,
-      regenStartMillis,
-      membership,
-    });
+    return lifeResponse(nextLives, regenStartMillis, membership);
   });
 });
-
