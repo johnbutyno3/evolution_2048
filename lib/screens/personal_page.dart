@@ -2,6 +2,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
 import '../services/player_profile_service.dart';
@@ -15,8 +17,6 @@ import 'shop_page.dart';
 import 'feedback_page.dart';
 import 'admin_test_page.dart';
 
-String _p(BuildContext context, String en, String zh) => Localizations.localeOf(context).languageCode == 'zh' ? zh : en;
-
 class PersonalPage extends StatelessWidget {
   const PersonalPage({super.key});
 
@@ -25,7 +25,7 @@ class PersonalPage extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_p(context, 'Personal', '個人資訊'))),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.personalTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -34,8 +34,8 @@ class PersonalPage extends StatelessWidget {
               leading: const CircleAvatar(
                 child: Icon(Icons.person_outline),
               ),
-              title: Text(_p(context, 'Player Basic Information', '玩家基本資料')),
-              subtitle: Text(_p(context, 'Avatar, Player Name, Player ID and account information', '頭像、玩家名稱、玩家 ID 與帳號資訊')),
+              title: Text(AppLocalizations.of(context)!.playerBasicInfo),
+              subtitle: Text(AppLocalizations.of(context)!.playerBasicInfoSubtitle),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const PlayerInfoPage()),
@@ -45,40 +45,40 @@ class PersonalPage extends StatelessWidget {
           const SizedBox(height: 8),
           _SectionCard(
             icon: Icons.menu_book_outlined,
-            title: _p(context, 'Creature Collection', '生物圖鑑'),
-            subtitle: _p(context, 'Discovered life forms', '已發現的生命形態'),
+            title: AppLocalizations.of(context)!.creatureCollection,
+            subtitle: AppLocalizations.of(context)!.creatureCollectionSubtitle,
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const CollectionPage())),
           ),
           _SectionCard(
             icon: Icons.settings_outlined,
-            title: _p(context, 'Settings', '設定'),
-            subtitle: _p(context, 'Music, sound effects, vibration and language', '音樂、音效、震動與語言'),
+            title: AppLocalizations.of(context)!.settings,
+            subtitle: AppLocalizations.of(context)!.settingsSubtitle,
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const SettingsPage())),
           ),
           _SectionCard(
             icon: Icons.help_outline,
-            title: _p(context, 'Game Guide', '遊戲說明'),
-            subtitle: _p(context, 'Rules and how to play', '遊戲規則與玩法'),
+            title: AppLocalizations.of(context)!.gameGuide,
+            subtitle: AppLocalizations.of(context)!.gameGuideSubtitle,
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const GameGuidePage())),
           ),
           _SectionCard(
             icon: Icons.info_outline,
-            title: _p(context, 'Version Info', '版本資訊'),
-            subtitle: _p(context, 'App and game version', 'APP 與遊戲版本'),
+            title: AppLocalizations.of(context)!.versionInfo,
+            subtitle: AppLocalizations.of(context)!.versionInfoSubtitle,
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const VersionInfoPage())),
           ),
           _SectionCard(
             icon: Icons.feedback_outlined,
-            title: _p(context, 'Messages / Feedback', '留言 / 意見回饋'),
-            subtitle: _p(context, 'Send questions, suggestions or bug reports', '傳送問題、建議或錯誤回報'),
+            title: AppLocalizations.of(context)!.messagesFeedback,
+            subtitle: AppLocalizations.of(context)!.messagesFeedbackSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const FeedbackPage()),
             ),
@@ -93,8 +93,8 @@ class PersonalPage extends StatelessWidget {
               }
               return _SectionCard(
                 icon: Icons.admin_panel_settings_outlined,
-                title: _p(context, 'Test Controls', '測試控制'),
-                subtitle: _p(context, 'Membership modes and Gold balance', '會員模式與金幣測試控制'),
+                title: AppLocalizations.of(context)!.testControls,
+                subtitle: AppLocalizations.of(context)!.testControlsSubtitle,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const AdminTestPage()),
                 ),
@@ -103,8 +103,8 @@ class PersonalPage extends StatelessWidget {
           ),
           _SectionCard(
             icon: Icons.info_outline,
-            title: _p(context, 'About Game', '關於遊戲'),
-            subtitle: _p(context, 'Creator, music, assets and third-party services', '製作者、音樂、素材與第三方服務資訊'),
+            title: AppLocalizations.of(context)!.aboutGame,
+            subtitle: AppLocalizations.of(context)!.aboutGameSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AboutGamePage()),
             ),
@@ -113,7 +113,7 @@ class PersonalPage extends StatelessWidget {
           if (user != null)
             ListTile(
               leading: const Icon(Icons.logout),
-              title: Text(_p(context, 'Log Out', '登出')),
+              title: Text(AppLocalizations.of(context)!.logOut),
               onTap: () => _logout(context),
             ),
         ],
@@ -126,14 +126,14 @@ class PersonalPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(_p(context, 'Log Out', '登出')),
+          title: Text(AppLocalizations.of(context)!.logOut),
           content: const Text(
-            'Are you sure you want to log out of your account?',
+            AppLocalizations.of(context)!.logoutConfirm,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
+              child: const Text(AppLocalizations.of(context)!.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -300,7 +300,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Player name cannot be empty.')),
+        const SnackBar(content: Text(AppLocalizations.of(context)!.playerNameEmpty)),
       );
       return;
     }
@@ -313,7 +313,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Player name updated.' : 'Unable to update player name.',
+            success ? AppLocalizations.of(context)!.playerNameUpdated : AppLocalizations.of(context)!.playerNameUpdateFailed,
           ),
         ),
       );
@@ -343,7 +343,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
     final membership = LifeManager.membership;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_p(context, 'Player Info', '玩家資料'))),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.playerInfo)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -351,7 +351,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           const SizedBox(height: 12),
           Center(
             child: Text(
-              _p(context, 'Choose your avatar', '選擇頭像'),
+              AppLocalizations.of(context)!.chooseAvatar,
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -366,7 +366,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
             controller: _nameController,
             maxLength: 30,
             decoration: InputDecoration(
-              labelText: _p(context, 'Player Name', '玩家名稱'),
+              labelText: AppLocalizations.of(context)!.profileNameLabel,
               border: OutlineInputBorder(),
             ),
           ),
@@ -375,7 +375,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
             alignment: Alignment.centerRight,
             child: FilledButton(
               onPressed: _saveName,
-              child: Text(_p(context, 'Save', '儲存')),
+              child: Text(AppLocalizations.of(context)!.save),
             ),
           ),
 
@@ -384,11 +384,11 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.badge_outlined),
-              title: Text(_p(context, 'Player ID', '玩家 ID')),
+              title: Text(AppLocalizations.of(context)!.playerId),
               subtitle: Text(
                 _loading
-                    ? 'Loading...'
-                    : (_playerId.isEmpty ? 'Not available' : _playerId),
+                    ? AppLocalizations.of(context)!.loading
+                    : (_playerId.isEmpty ? AppLocalizations.of(context)!.notAvailable : _playerId),
               ),
             ),
           ),
@@ -398,13 +398,13 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.workspace_premium_outlined),
-              title: Text(_p(context, 'Membership', '會員資格')),
+              title: Text(AppLocalizations.of(context)!.membership),
               subtitle: Text(
                 membership == 'golden'
-                    ? 'Golden Member'
+                    ? AppLocalizations.of(context)!.goldenMember
                     : membership == 'premium'
-                    ? 'Premium Member'
-                    : 'General Member',
+                    ? AppLocalizations.of(context)!.premiumMember
+                    : AppLocalizations.of(context)!.generalMember,
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
@@ -528,7 +528,7 @@ class EvolutionProgressPage extends StatelessWidget {
     final chapterComplete = save?['chapterComplete'] == true;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_p(context, 'Evolution Progress', '進化進度'))),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.evolutionProgress)),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: chapters.length,
@@ -683,7 +683,7 @@ class _CollectionPageState extends State<CollectionPage> {
     final discovered = _discovered[chapterKey] ?? <int>{};
 
     return Scaffold(
-      appBar: AppBar(title: Text(_p(context, 'Creature Collection', '生物圖鑑'))),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.creatureCollection)),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -775,7 +775,7 @@ class _CollectionSummary extends StatelessWidget {
           children: [
             Text(chapterName, style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
-            Text('$discovered / $total discovered'),
+            Text(AppLocalizations.of(context)!.discoveredCount(discovered, total)),
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -847,13 +847,13 @@ class _CreatureCollectionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Undiscovered',
+                    AppLocalizations.of(context)!.undiscovered,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Stage ${creature.stage}',
+                    AppLocalizations.of(context)!.stageLabel(creature.stage),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -872,7 +872,7 @@ class GoldPage extends StatelessWidget {
       future: GoldManager.initialize(),
       builder: (context, snapshot) {
         return Scaffold(
-          appBar: AppBar(title: const Text('Gold')),
+          appBar: AppBar(title: const Text(AppLocalizations.of(context)!.gold)),
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -884,7 +884,7 @@ class GoldPage extends StatelessWidget {
                       const Icon(Icons.monetization_on, size: 56),
                       const SizedBox(height: 12),
                       const Text(
-                        'Gold Balance',
+                        AppLocalizations.of(context)!.goldBalance,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -906,13 +906,13 @@ class GoldPage extends StatelessWidget {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.receipt_long_outlined),
-                  title: const Text('Lifetime Spent'),
+                  title: const Text(AppLocalizations.of(context)!.lifetimeSpent),
                   trailing: Text('${GoldManager.lifetimeSpent} Gold'),
                 ),
               ),
               const SizedBox(height: 20),
               const Text(
-                'Gold is used for lives and tool purchases.',
+                AppLocalizations.of(context)!.goldUsage,
                 style: TextStyle(fontSize: 15),
               ),
             ],
@@ -946,7 +946,7 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         children: [
           SwitchListTile(
-            title: Text(_p(context, 'Background Music', '背景音樂')),
+            title: Text(AppLocalizations.of(context)!.backgroundMusic),
             value: _audio.musicEnabled,
             onChanged: (value) async {
               await _audio.setMusicEnabled(value);
@@ -954,7 +954,7 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            title: Text(_p(context, 'Music Volume', '音樂音量')),
+            title: Text(AppLocalizations.of(context)!.musicVolume),
             subtitle: Slider(
               value: _audio.musicVolume,
               onChanged: (value) async {
@@ -964,7 +964,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           SwitchListTile(
-            title: Text(_p(context, 'Sound Effects', '音效')),
+            title: Text(AppLocalizations.of(context)!.soundEffects),
             value: _audio.sfxEnabled,
             onChanged: (value) async {
               await _audio.setSfxEnabled(value);
@@ -972,7 +972,7 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           ListTile(
-            title: Text(_p(context, 'Sound Effects Volume', '音效音量')),
+            title: Text(AppLocalizations.of(context)!.soundEffectsVolume),
             subtitle: Slider(
               value: _audio.sfxVolume,
               onChanged: (value) async {
@@ -982,18 +982,18 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SwitchListTile(
-            title: Text('Vibration'),
+            title: Text(AppLocalizations.of(context)!.vibration),
             value: true,
             onChanged: null,
           ),
           ListTile(
-            title: Text(_p(context, 'Language', '語言')),
+            title: Text(AppLocalizations.of(context)!.language),
             trailing: DropdownButton<String>(
               value: SaveManager.localeCode,
               underline: const SizedBox.shrink(),
               items: const [
-                DropdownMenuItem(value: 'en', child: Text('English')),
-                DropdownMenuItem(value: 'zh', child: Text('繁體中文')),
+                DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.english)),
+                DropdownMenuItem(value: 'zh', child: Text(AppLocalizations.of(context)!.traditionalChinese)),
               ],
               onChanged: (value) {
                 if (value != null) {
@@ -1014,33 +1014,33 @@ class GameGuidePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_p(context, 'Game Guide', '遊戲說明'))),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.gameGuide)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            _p(context, 'How to Play', '遊戲玩法'),
+            AppLocalizations.of(context)!.howToPlay,
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 12),
           Text(
-            'Use the 4×4 board to move and merge identical life forms into the next evolution stage.',
+            AppLocalizations.of(context)!.howToPlayDescription,
           ),
           SizedBox(height: 24),
           Text(
-            _p(context, 'Six Chapters', '六大章節'),
+            AppLocalizations.of(context)!.sixChapters,
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
-          Text('Ocean → Land → Sky → History → Technology → Space'),
+          Text(AppLocalizations.of(context)!.chapterSequence),
           SizedBox(height: 24),
           Text(
-            _p(context, 'Resources', '資源'),
+            AppLocalizations.of(context)!.resources,
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
           Text(
-            'Lives are used for gameplay attempts. Gold can be used to purchase additional lives and tools. Tool inventory is cumulative across chapters.',
+            AppLocalizations.of(context)!.resourcesDescription,
           ),
         ],
       ),
@@ -1054,19 +1054,19 @@ class VersionInfoPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_p(context, 'Version Info', '版本資訊'))),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.versionInfo)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          ListTile(title: Text(_p(context, 'App', 'APP')), subtitle: Text('Rebirth 2048')),
+          ListTile(title: Text(AppLocalizations.of(context)!.app), subtitle: Text(AppLocalizations.of(context)!.gameTitle)),
           ListTile(
-            title: Text(_p(context, 'Game Version', '遊戲版本')),
-            subtitle: Text(_p(context, 'Current development build', '目前開發版本')),
+            title: Text(AppLocalizations.of(context)!.gameVersion),
+            subtitle: Text(AppLocalizations.of(context)!.currentDevelopmentBuild),
           ),
           ListTile(
-            title: Text(_p(context, 'Build', '建置版本')),
+            title: Text(AppLocalizations.of(context)!.build),
             subtitle: Text(
-              _p(context, 'Read from the platform package in the release build.', '正式發行版將由平台套件讀取版本資訊。'),
+              AppLocalizations.of(context)!.buildDescription,
             ),
           ),
         ],
@@ -1130,7 +1130,7 @@ class AboutGamePage extends StatelessWidget {
           const SizedBox(height: 18),
           Text(zh ? '版本' : 'Version', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 6),
-          const Text('Development Build'),
+          const Text(AppLocalizations.of(context)!.developmentBuild),
         ],
       ),
     );
