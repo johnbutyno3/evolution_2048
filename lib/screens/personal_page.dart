@@ -133,11 +133,11 @@ class PersonalPage extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text(AppLocalizations.of(context)!.cancel),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Log Out'),
+              child: Text(AppLocalizations.of(context)!.logOut),
             ),
           ],
         );
@@ -327,7 +327,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update player name: $error')),
+        SnackBar(content: Text('${AppLocalizations.of(context)!.playerNameUpdateError} $error')),
       );
     }
   }
@@ -872,7 +872,7 @@ class GoldPage extends StatelessWidget {
       future: GoldManager.initialize(),
       builder: (context, snapshot) {
         return Scaffold(
-          appBar: AppBar(title: const Text(AppLocalizations.of(context)!.gold)),
+          appBar: AppBar(title: Text(AppLocalizations.of(context)!.gold)),
           body: ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -906,8 +906,8 @@ class GoldPage extends StatelessWidget {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.receipt_long_outlined),
-                  title: const Text(AppLocalizations.of(context)!.lifetimeSpent),
-                  trailing: Text('${GoldManager.lifetimeSpent} Gold'),
+                  title: Text(AppLocalizations.of(context)!.lifetimeSpent),
+                  trailing: Text(AppLocalizations.of(context)!.goldAmount(GoldManager.lifetimeSpent)),
                 ),
               ),
               const SizedBox(height: 20),
@@ -942,7 +942,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.settings)),
       body: ListView(
         children: [
           SwitchListTile(
@@ -1108,29 +1108,28 @@ class AboutGamePage extends StatelessWidget {
   const AboutGamePage({super.key});
   @override
   Widget build(BuildContext context) {
-    final zh = Localizations.localeOf(context).languageCode == 'zh';
     return Scaffold(
-      appBar: AppBar(title: Text(zh ? '關於遊戲' : 'About Game')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.aboutGame)),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Rebirth 2048', style: Theme.of(context).textTheme.headlineMedium),
+          Text(AppLocalizations.of(context)!.gameTitle, style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 18),
-          Text(zh ? '製作資訊' : 'Creator', style: Theme.of(context).textTheme.titleLarge),
+          Text(AppLocalizations.of(context)!.creator, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 6),
-          Text(zh ? '遊戲製作者：Rebirth 2048 開發團隊' : 'Game creator: Rebirth 2048 development team'),
+          Text(AppLocalizations.of(context)!.creatorName),
           const SizedBox(height: 18),
-          Text(zh ? '音樂與音效來源' : 'Music & Sound Sources', style: Theme.of(context).textTheme.titleLarge),
+          Text(AppLocalizations.of(context)!.musicSources, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 6),
-          Text(zh ? '音樂與音效資產及其來源，依專案 assets/audio/music.txt 與正式授權紀錄確認。' : 'Music and sound assets and their sources are documented in the project audio source record and final attribution list.'),
+          Text(AppLocalizations.of(context)!.musicSourcesDescription),
           const SizedBox(height: 18),
-          Text(zh ? '美術與第三方服務' : 'Artwork & Third-party Services', style: Theme.of(context).textTheme.titleLarge),
+          Text(AppLocalizations.of(context)!.artworkServices, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 6),
-          Text(zh ? '美術素材、Firebase、Flutter 及其他第三方套件的授權與來源，將以正式發行版本的授權清單為準。' : 'Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.'),
+          Text(AppLocalizations.of(context)!.artworkServicesDescription),
           const SizedBox(height: 18),
-          Text(zh ? '版本' : 'Version', style: Theme.of(context).textTheme.titleLarge),
+          Text(AppLocalizations.of(context)!.version, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 6),
-          const Text(AppLocalizations.of(context)!.developmentBuild),
+          Text(AppLocalizations.of(context)!.developmentBuild),
         ],
       ),
     );
