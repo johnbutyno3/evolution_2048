@@ -909,7 +909,7 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: DropdownButton<String>(
               value: SaveManager.localeCode,
               underline: const SizedBox.shrink(),
-              items: const [
+              items: [
                 DropdownMenuItem(value: 'en', child: Text(AppLocalizations.of(context)!.english)),
                 DropdownMenuItem(value: 'zh', child: Text(AppLocalizations.of(context)!.traditionalChinese)),
               ],
