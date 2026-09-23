@@ -140,5 +140,6 @@
   "developmentBuild": "開發版本",
   "playerId": "玩家 ID",
   "membership": "會員資格",
-  "evolutionProgress": "進化進度"
+  "evolutionProgress": "進化進度",
+  "chapterLabel": "第 {number} 章 · {name}"
 }
