@@ -180,7 +180,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _gameSessionStarting = true;
     try {
       final progress = PlayerProgressService.instance;
-      await progress.refresh();
+      // Home already loads authoritative progress. Only fetch here when this
+      // page was entered without a current server snapshot.
+      if (!progress.loadedFromServer) await progress.refresh();
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
 
