@@ -16,6 +16,7 @@ class SaveManager {
   static final ValueNotifier<String> localeCodeNotifier = ValueNotifier('en');
 
   static Map<String, dynamic>? _cachedSave;
+  static Future<void> _saveQueue = Future<void>.value();
 
   static String? get gameSessionId {
     final value = _preferences?.getString('rebirth_2048_game_session_id_v1');
@@ -222,7 +223,15 @@ class SaveManager {
     return Map<String, dynamic>.from(root);
   }
 
-  static Future<void> save(Map<String, dynamic> data) async {
+  static Future<void> save(Map<String, dynamic> data) {
+    // All snapshot writes share one queue. Without this, the old engine's
+    // queued autosave can finish after a restarted engine's save and put the
+    // old board back into SharedPreferences.
+    _saveQueue = _saveQueue.then((_) => _saveNow(data));
+    return _saveQueue;
+  }
+
+  static Future<void> _saveNow(Map<String, dynamic> data) async {
     _preferences ??= await SharedPreferences.getInstance();
 
     final chapter = data['chapter'];
