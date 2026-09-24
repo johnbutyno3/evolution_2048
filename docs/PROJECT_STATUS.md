@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 21:20（Asia/Taipei）
+最後更新：2026-09-24 21:45（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,14 +15,26 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch HEAD：`96014ed4d78fda4492919d04f02114359047138f`
+目前 branch 最新已提交修正：`bf723e0e6e5ddb9836612e332e2f55f2d0542d1f`
 
 近期重要提交：
 
+- `bf723e0e` — `fix: discard stale life reads after local mutation`
+- `ffa84f39` — `docs: add canonical project status`
 - `96014ed4` — `docs: record completion preflight change`
 - `7dbcea20` — `fix: restore gameplay page and preflight chapter completion`
 - `29fbb907` — `fix: start chapter completion verification with animation`
 - `ee493de7` — `docs: record life regeneration stale response fix`
+
+## 本輪新修正
+
+### Life reconcile stale-read 防護
+
+- `LifeManager.refreshFromServer()` 現在以 life-state generation 綁定每次 Firebase read。
+- 本機扣命、生命倒數補命、Firebase mutation 都會使舊 read 失效。
+- 舊的 `getLifeState` 回應若在本機生命狀態更新後才返回，直接捨棄，不再把新狀態覆蓋回舊值。
+- 生命倒數到期仍先本機立即增加生命，再背景向 Firebase 驗證。
+- 這一層直接針對先前觀察到的 `4 → 5 → 又回 4` 類型競態加強。
 
 ## 已完成／已提交修正
 
@@ -63,8 +75,10 @@
 
 ### 2. Life reconcile
 
-- 尚未完成完整 E2E 驗證，確認舊 Firebase response 不會造成 `3 → 4` 或 `5 → 4 → 5`。
-- 需要確認背景 reconcile 必須以目前 session / attempt 為條件。
+程式的 stale-response 防護已進一步完成，但仍未完成完整 E2E 實機確認：
+
+- `3 → 4` 或 `5 → 4 → 5` 不再由舊 Firebase read 覆蓋。
+- 背景 reconcile 必須始終對應目前 life-state generation。
 - 暫時性 Firebase 錯誤不可用舊 server state 覆蓋正確本機狀態。
 
 ### 3. TEST CONTROLS / Membership / Gold / Tools
@@ -108,7 +122,7 @@
 
 ## 文件狀態差異
 
-- `docs/PROJECT_STATUS.md`：本次建立，現在作為每日實際狀態摘要。
+- `docs/PROJECT_STATUS.md`：現在作為每日實際狀態摘要，已同步本輪 Life reconcile 修正。
 - `docs/GAME_RULES.md`：目前 GitHub branch 不存在；不可假裝存在，也不可自行創造規則取代既有規則來源。
 - 目前規則／進度的詳細歷史仍保留於 timestamped canonical progress 文件。
 - 不使用舊 `RELEASE_PREPARATION_TODO.md` 作主要進度來源。
