@@ -289,6 +289,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _startUiRefreshTimer() {
     _uiRefreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      LifeManager.tickRegeneration();
       if (mounted) setState(() {});
     });
   }
