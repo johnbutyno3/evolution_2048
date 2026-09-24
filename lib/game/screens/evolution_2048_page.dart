@@ -198,15 +198,43 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           return true;
         }
         final entered = await progress.resumeGameSession(_chapterNumber - 1);
-        if (!entered || !mounted || generation != _gameSessionGeneration) return false;
-        await ToolManager.refreshInventory();
+        if (entered) {
+          if (!mounted || generation != _gameSessionGeneration) return false;
+          await ToolManager.refreshInventory();
+          if (!mounted || generation != _gameSessionGeneration) return false;
+          _engine.stopGameTimer();
+          _engine = GameEngine(
+            chapter: _engine.chapter,
+            forceNewBoard: false,
+            boardLifeActive: true,
+          );
+          return true;
+        }
+
+        // The server session may have expired while the cached board still
+        // exists locally. Never replay that stale board into a new session.
+        // Create a fresh board and bind exactly that board to the replacement
+        // session.
         if (!mounted || generation != _gameSessionGeneration) return false;
-        _engine.stopGameTimer();
-        _engine = GameEngine(
+        final newEngine = GameEngine(
           chapter: _engine.chapter,
-          forceNewBoard: false,
+          forceNewBoard: true,
           boardLifeActive: true,
         );
+        final newSave = newEngine.createSaveData();
+        final newReplay = newSave['replayLog'];
+        final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
+            ? List<dynamic>.from(newReplay['initialTiles'] as List)
+            : const <dynamic>[];
+        final restarted = await progress.startGameSession(
+          _chapterNumber - 1,
+          replaceActiveSession: true,
+          initialTiles: initialTiles,
+        );
+        if (!restarted || !mounted || generation != _gameSessionGeneration) return false;
+        _engine.stopGameTimer();
+        _engine = newEngine;
+        unawaited(_refreshMountedToolInventory(generation));
         return true;
       }
       if (_engine.gameOver || _engine.chapterComplete) return false;
