@@ -139,6 +139,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _enter(BuildContext context, int index) async {
     if (!_progress.isChapterUnlocked(index)) return;
+    final unfinishedChapter = SaveManager.unfinishedChapter;
+    if (unfinishedChapter != null &&
+        unfinishedChapter != _chapterKey(index)) {
+      return;
+    }
     unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -165,6 +170,12 @@ class _HomePageState extends State<HomePage> {
     ]);
     if (mounted) setState(() {});
   }
+
+  String _chapterKey(int index) => HomePage.chapters[index].titleKey == 'technology'
+      ? 'tech'
+      : HomePage.chapters[index].titleKey == 'space'
+          ? 'universe'
+          : HomePage.chapters[index].titleKey;
 
   @override
   Widget build(BuildContext context) {
@@ -324,7 +335,11 @@ class _HomePageState extends State<HomePage> {
                                   ),
                               itemCount: HomePage.chapters.length,
                               itemBuilder: (context, index) {
-                                final open = _progress.isChapterUnlocked(index);
+                                final serverOpen = _progress.isChapterUnlocked(index);
+                                final unfinishedChapter = SaveManager.unfinishedChapter;
+                                final open = serverOpen &&
+                                    (unfinishedChapter == null ||
+                                        unfinishedChapter == _chapterKey(index));
 
                                 final highestValue = _progress.chapterHighestValue(index);
                                 final stage = highestValue > 0
@@ -340,6 +355,9 @@ class _HomePageState extends State<HomePage> {
                                   onTap: open
                                       ? () => _enter(context, index)
                                       : null,
+                                  hasUnfinishedOtherChapter: serverOpen &&
+                                      unfinishedChapter != null &&
+                                      unfinishedChapter != _chapterKey(index),
                                 );
                               },
                             );
@@ -389,12 +407,14 @@ class _ChapterCard extends StatelessWidget {
   final int stage;
   final int score;
   final VoidCallback? onTap;
+  final bool hasUnfinishedOtherChapter;
   const _ChapterCard({
     required this.chapter,
     required this.unlocked,
     required this.stage,
     required this.score,
     required this.onTap,
+    this.hasUnfinishedOtherChapter = false,
   });
   @override
   Widget build(BuildContext context) => Material(
@@ -409,8 +429,12 @@ class _ChapterCard extends StatelessWidget {
           Image.asset(chapter.image, fit: BoxFit.cover),
           if (!unlocked) Container(color: Colors.black.withValues(alpha: .60)),
           if (!unlocked)
-            const Center(
-              child: Icon(Icons.lock, color: Colors.white, size: 52),
+            Center(
+              child: Icon(
+                hasUnfinishedOtherChapter ? Icons.play_circle_outline : Icons.lock,
+                color: Colors.white,
+                size: 52,
+              ),
             ),
           Positioned(
             left: 0,
