@@ -48,11 +48,15 @@ async function readAndRegenerate(transaction, uid, membership) {
 
   const regeneratedAmount = Math.max(0, regenerated.lives - lives);
   if (regeneratedAmount > 0) {
+    // Firestore transactions may retry their callback. Use a deterministic
+    // event ID derived from the exact life transition so a retry cannot
+    // create duplicate regeneration events for the same committed change.
+    const eventId = `regen_${regenStartMillis ?? 'none'}_${lives}_${regenerated.lives}`;
     const eventRef = db
       .collection('users')
       .doc(uid)
       .collection('life_events')
-      .doc();
+      .doc(eventId);
     transaction.create(eventRef, {
       eventType: 'life_regeneration',
       amount: regeneratedAmount,
