@@ -359,6 +359,13 @@ class PlayerProgressService {
       if (!await pendingStart) return false;
     }
 
+    // Restart is a new game entry and must consume the Life locally first,
+    // exactly like normal startGameSession. The Firebase transaction remains
+    // authoritative and reconciles the final balance when it returns.
+    // This keeps Restart responsive and prevents network latency from making
+    // the player wait before the new board becomes playable.
+    if (!LifeManager.optimisticConsumeLife()) return false;
+
     final operationGeneration = ++_sessionOperationGeneration;
     final previousSessionId = _activeGameSessionId;
     try {
