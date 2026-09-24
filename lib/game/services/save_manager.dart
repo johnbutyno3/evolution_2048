@@ -100,7 +100,11 @@ class SaveManager {
 
   static Future<void> clearGameSessionId() async {
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.remove('rebirth_2048_game_session_id_v1');
+    _saveQueue = _saveQueue.then(
+      (_) => _preferences!.remove('rebirth_2048_game_session_id_v1'),
+      onError: (_, __) => _preferences!.remove('rebirth_2048_game_session_id_v1'),
+    );
+    await _saveQueue;
   }
 
   static Future<void> initialize() async {
@@ -324,6 +328,18 @@ class SaveManager {
 
   static Future<void> clearChapter(String chapter) async {
     _preferences ??= await SharedPreferences.getInstance();
+
+    // Clearing a finished/abandoned chapter must be serialized with pending
+    // engine autosaves. Otherwise an old queued snapshot can execute after
+    // this clear and resurrect the stale board in SharedPreferences.
+    _saveQueue = _saveQueue.then(
+      (_) => _clearChapterNow(chapter),
+      onError: (_, __) => _clearChapterNow(chapter),
+    );
+    await _saveQueue;
+  }
+
+  static Future<void> _clearChapterNow(String chapter) async {
     final root = _cachedSave;
     if (root == null) return;
 
