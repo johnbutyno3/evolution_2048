@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 22:15（Asia/Taipei）
+最後更新：2026-09-24 22:30（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -19,6 +19,8 @@
 
 近期重要提交：
 
+- `0a533be0` — `docs: record completion lost-response recovery`
+- `023d4cf5` — `fix: recover committed chapter completion`
 - `51fb8952` — `docs: record authoritative session pointer reconciliation`
 - `1df259ff` — `fix: reconcile local session pointer on refresh`
 - `c57bdf5f` — `docs: record start lost-response recovery`
@@ -150,6 +152,13 @@
 - Server 有 active session 且本機 ID 不同時，會同步本機 ID。
 - 修正 `abandonGameSession` / Game Over response 遺失後，舊 Session ID 殘留在本機的競態。
 - Session ID 寫入仍走 SaveManager queue，不改變 local-first 遊戲操作。
+
+## 本輪 Chapter Completion 修正
+
+- `completeChapter` 現在具備 transaction response 遺失後的 authoritative recovery。
+- 若 Server 已完成指定 Session、active session 已清除、章節最高值已達 target，Client 可確認 completion 已提交。
+- completion 同樣受 operation generation 保護。
+- 已補齊 Start / Restart / Completion 三條主要交易流程的 response-lost recovery。
 
 ## 下一個明確工作項目
 
