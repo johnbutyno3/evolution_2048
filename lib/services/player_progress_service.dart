@@ -241,6 +241,7 @@ class PlayerProgressService {
       );
     }
 
+    final operationGeneration = _sessionOperationGeneration;
     try {
       final result = await _functions.httpsCallable('resumeGameSession').call({
         'chapterIndex': chapterIndex,
