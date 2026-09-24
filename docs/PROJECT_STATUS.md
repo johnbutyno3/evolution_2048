@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 22:30（Asia/Taipei）
+最後更新：2026-09-24 23:00（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,7 +15,7 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch 最新已提交修正：`51fb89529dbc064930548b2ce52d7456aa908aa3`
+目前 branch 最新已提交修正：`67b504e4963b19fa04587feb993b8dd58df1ee99`
 
 近期重要提交：
 
@@ -159,6 +159,12 @@
 - 若 Server 已完成指定 Session、active session 已清除、章節最高值已達 target，Client 可確認 completion 已提交。
 - completion 同樣受 operation generation 保護。
 - 已補齊 Start / Restart / Completion 三條主要交易流程的 response-lost recovery。
+
+## 本輪新增工具同步修正
+
+- `127e7c72`：從商城返回遊戲後，重新讀取 authoritative tool inventory，並同步目前掛載中的 GameEngine ToolState。
+- 修正購買工具／Rewarded Tool 後 Server inventory 已更新、但當前遊戲畫面仍顯示舊數量的問題。
+- 不改變正式工具庫存規則，也不讓正常遊戲操作等待 Firebase。
 
 ## 下一個明確工作項目
 
