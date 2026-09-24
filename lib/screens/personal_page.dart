@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 
 import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
+import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
 
 import '../game/services/audio_manager.dart';
@@ -552,10 +553,27 @@ class _CollectionPageState extends State<CollectionPage> {
 
     final result = <String, Set<int>>{};
     try {
-      for (final chapterKey in _chapterKeys) {
-        result[chapterKey] = await CreatureCollectionService.loadDiscovered(
+      // The first creature is the chapter's starting creature. It becomes
+      // visible as soon as the player has actually entered/played that
+      // chapter, even though it is not an evolution merge and therefore is
+      // not recorded by discoverCreature.
+      await PlayerProgressService.instance.refresh();
+
+      for (var index = 0; index < _chapterKeys.length; index++) {
+        final chapterKey = _chapterKeys[index];
+        final discovered = await CreatureCollectionService.loadDiscovered(
           chapterKey,
         );
+
+        final hasPlayedChapter =
+            PlayerProgressService.instance.activeGameChapterIndex == index ||
+            PlayerProgressService.instance.chapterHighestValue(index) > 0;
+
+        if (hasPlayedChapter) {
+          discovered.add(2);
+        }
+
+        result[chapterKey] = discovered;
       }
     } catch (_) {
       result.clear();
