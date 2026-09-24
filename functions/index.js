@@ -65,6 +65,10 @@ function recordSecurityEvent({ uid, action, severity = 'warning', reason, detail
   });
 }
 
+function membershipRef(uid) {
+  return db.collection('users').doc(uid).collection('membership').doc('current');
+}
+
 function goldWalletRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('gold');
 }
