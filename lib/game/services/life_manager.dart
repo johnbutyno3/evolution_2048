@@ -50,6 +50,7 @@ class LifeManager {
         ? (_nextLifeAtMillis ??
             DateTime.now().millisecondsSinceEpoch + _regenIntervalMillis)
         : null;
+    _lifeStateGeneration++;
     return true;
   }
 
@@ -57,19 +58,20 @@ class LifeManager {
   /// regeneration refresh; only the dedicated regeneration refresh is allowed
   /// to use the optimistic-preservation rule.
   static Future<void> refreshFromServer({bool fromRegeneration = false}) async {
-    final requestGeneration = _lifeStateGeneration;
-    if (!fromRegeneration) {
-      _lifeStateGeneration++;
-    }
+    final requestGeneration = fromRegeneration
+        ? _lifeStateGeneration
+        : ++_lifeStateGeneration;
 
     final result = await _functions.httpsCallable('getLifeState').call();
     final data = Map<String, dynamic>.from(result.data as Map);
 
+    // Every read is tied to the life-state generation that existed when the
+    // request was issued. A local consume/regeneration or a newer server
+    // mutation that happened while this request was in flight makes this
+    // response stale. Never let that old response roll the UI backwards.
+    if (requestGeneration != _lifeStateGeneration) return;
+
     if (fromRegeneration) {
-      // A newer session/mutation response already arrived. Its state is more
-      // authoritative than this older regeneration read, so discard this
-      // response completely.
-      if (requestGeneration != _lifeStateGeneration) return;
       _applyServerState(data, preserveLocalRegeneration: true);
       return;
     }
@@ -158,6 +160,7 @@ class LifeManager {
           _nextLifeAtMillis! + recovered * _regenIntervalMillis;
     }
 
+    _lifeStateGeneration++;
     if (_regenerationSyncInFlight) return;
     _regenerationSyncInFlight = true;
     refreshFromServer(fromRegeneration: true).catchError((_) {
