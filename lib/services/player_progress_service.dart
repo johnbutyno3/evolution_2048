@@ -131,6 +131,7 @@ class PlayerProgressService {
   Future<bool> startGameSession(
     int chapterIndex, {
     bool replaceActiveSession = false,
+    required List<dynamic> initialTiles,
   }) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
@@ -145,6 +146,7 @@ class PlayerProgressService {
     final pending = _startGameSessionOnServer(
       chapterIndex,
       replaceActiveSession: replaceActiveSession,
+      initialTiles: initialTiles,
       operationGeneration: operationGeneration,
     );
     _pendingStartSession = pending;
@@ -160,6 +162,7 @@ class PlayerProgressService {
   Future<bool> _startGameSessionOnServer(
     int chapterIndex, {
     required bool replaceActiveSession,
+    required List<dynamic> initialTiles,
     required int operationGeneration,
   }) async {
     final previousSessionId = _activeGameSessionId ?? SaveManager.gameSessionId;
@@ -167,6 +170,7 @@ class PlayerProgressService {
       final result = await _functions.httpsCallable('startGameSession').call({
         'chapterIndex': chapterIndex,
         'replaceActiveSession': replaceActiveSession,
+        'initialTiles': initialTiles,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
@@ -276,6 +280,11 @@ class PlayerProgressService {
       return startGameSession(
         chapterIndex,
         replaceActiveSession: true,
+        initialTiles: List<dynamic>.from(
+          ((saved?['replayLog'] is Map)
+              ? (saved!['replayLog'] as Map)['initialTiles']
+              : null) as List? ?? const <dynamic>[],
+        ),
       );
     }
 
@@ -330,6 +339,7 @@ class PlayerProgressService {
   Future<bool> restartGameSession(
     int chapterIndex, {
     Map<String, dynamic>? replayLog,
+    required List<dynamic> initialTiles,
   }) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
@@ -352,6 +362,7 @@ class PlayerProgressService {
         'chapterIndex': chapterIndex,
         if (_activeGameSessionId != null) 'sessionId': _activeGameSessionId,
         'replayLog': ?replayLog,
+        'initialTiles': initialTiles,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
