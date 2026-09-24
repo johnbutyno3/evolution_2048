@@ -277,15 +277,7 @@ class PlayerProgressService {
         (saved['tiles'] as List).length == 16;
 
     if (!hasPlayableLocalBoard) {
-      return startGameSession(
-        chapterIndex,
-        replaceActiveSession: true,
-        initialTiles: List<dynamic>.from(
-          ((saved?['replayLog'] is Map)
-              ? (saved!['replayLog'] as Map)['initialTiles']
-              : null) as List? ?? const <dynamic>[],
-        ),
-      );
+      return false;
     }
 
     // Resume is a session-binding operation too. Give it a new generation
