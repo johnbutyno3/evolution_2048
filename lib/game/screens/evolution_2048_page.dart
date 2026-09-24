@@ -352,8 +352,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _move(String direction) {
     if (_gameOverDialogShowing || _chapterCompleteShowing ||
-        _completionAnimationPlaying || _toolMode != null ||
-        _restartInProgress) {
+        _completionAnimationPlaying || _toolMode != null) {
       return;
     }
     bool changed;
