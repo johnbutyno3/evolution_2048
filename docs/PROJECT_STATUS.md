@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 23:15（Asia/Taipei）
+最後更新：2026-09-24 08:15（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,7 +15,7 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch 最新已提交修正：`d2588f4d0a60262ff105d6ef5ecbf8f30a170c61`
+目前 branch 最新已提交修正：`9e337e79456c1d5ec9e81d4af24492bc417e30b0`
 
 近期重要提交：
 
@@ -171,6 +171,13 @@
 - `4b104705`：ToolManager 新增 account-scoped inventory cache 清除。
 - `380952f9`：登出前清除工具 cache，避免帳號 A 的工具數量短暫出現在帳號 B。
 - 新帳號仍以 Firebase authoritative inventory 重新同步。
+
+## 本輪新增 Life / Session 再檢查
+
+- 已重新確認過期 Session 的 Resume 路徑：可玩的 local board 才 Resume；無可玩 board 會走 replaceActiveSession 新局；expired Resume 會先 refresh authoritative state，再建立替代 Session。
+- `startGameSession` 的實際 Life 扣除仍由 Server transaction 完成；local-first 僅負責即時 UI，lost-response recovery 會重新確認 authoritative Session 與 Life。
+- `02643ab4`、`5a8862c3`：登出時同步清除 LifeManager 帳號快取，避免下一帳號短暫繼承前帳號 Life / membership 顯示。
+- `9e337e79`：本輪累積進度文件。
 
 ## 下一個明確工作項目
 
