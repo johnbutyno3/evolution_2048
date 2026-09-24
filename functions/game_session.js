@@ -74,6 +74,24 @@ async function refundLifeInTransaction(
     nowMillis,
     interval: intervalMs(membership),
   });
+
+  const regeneratedAmount = Math.max(0, regenerated.lives - lives);
+  if (regeneratedAmount > 0) {
+    // This function runs inside a Firestore transaction, so retries must not
+    // create duplicate life-regeneration audit events.
+    const eventId = `regen_${regenStartMillis ?? 'none'}_${lives}_${regenerated.lives}`;
+    transaction.create(
+      db.collection('users').doc(uid).collection('life_events').doc(eventId),
+      {
+        eventType: 'life_regeneration',
+        amount: regeneratedAmount,
+        beforeLives: lives,
+        afterLives: regenerated.lives,
+        createdAt: FieldValue.serverTimestamp(),
+      },
+    );
+  }
+
   lives = Math.min(NORMAL_CAP, regenerated.lives + 1);
   regenStartMillis = regenerated.regenStartMillis;
   if (lives >= NORMAL_CAP) regenStartMillis = null;
