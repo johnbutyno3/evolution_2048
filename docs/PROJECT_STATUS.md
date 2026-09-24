@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 21:45（Asia/Taipei）
+最後更新：2026-09-24 22:05（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,10 +15,12 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch 最新已提交修正：`bf723e0e6e5ddb9836612e332e2f55f2d0542d1f`
+目前 branch 最新已提交修正：`c57bdf5f4fc21f03d8b6c1e87d76223d983c2766`
 
 近期重要提交：
 
+- `c57bdf5f` — `docs: record start lost-response recovery`
+- `832226b8` — `fix: recover committed start after lost response`
 - `bf723e0e` — `fix: discard stale life reads after local mutation`
 - `ffa84f39` — `docs: add canonical project status`
 - `a91ecd4e` — `docs: record restart lost-response recovery`
@@ -119,9 +121,29 @@
 - C2 顯示 `1024/18616`。
 - Chapter complete transition 穩定快速顯示。
 
+## 本輪 Session 進一步檢查
+
+### Start response 遺失恢復
+
+- `startGameSession` 與 Restart 同樣存在「Server transaction 已提交、callable response 遺失」的競態。
+- 已於 `832226b8` 修正：錯誤後先重新讀取 authoritative active session。
+- 只有確認 active Session ID 從 Start 前狀態變成符合本次章節的新 Session，才視為 Start 已提交並保留本機新局。
+- 單純網路失敗且 Server 沒有新 Session 時，不會偽造成功。
+- `c57bdf5f` 已將此修正寫入 cumulative progress。
+
+### TEST CONTROLS 資料流檢查結果
+
+目前程式資料流已確認：
+
+- Membership：`adminSetMembershipMode` 寫入 `users/{uid}/membership/current`；`getLifeState` / Home 可重新讀取 authoritative membership。
+- Gold：`adminSetGoldBalance` 寫入 `users/{uid}/wallet/gold`；Admin Test Page 隨後呼叫 `getGoldBalance` 更新 `GoldManager`。
+- Tools：`adminSetAllToolsEnabled` 目前寫入的是 `users/{uid}.allToolsEnabledForTest`，用途是「解除章節工具種類限制」，**不是發放工具使用次數**。
+- `getToolInventory` 仍以 `wallet/tools` 為 authoritative inventory，C1 初始 UNDO 由 `ensureInitialUndo` 保證 +1。
+- 因此「Tools enabled 但 inventory 是 0」在目前語意下不是 Firebase 寫入失敗，而是 TEST toggle 與「工具數量發放」兩個概念不同。不能直接把 toggle 改成 999999，否則會破壞 server-authoritative inventory 與正式扣除規則。
+
 ## 下一個明確工作項目
 
-**先完成 Restart / Game Over → Restart 與 Life reconcile 的完整 runtime correctness，再處理 TEST CONTROLS authoritative membership / Gold / Tools 資料流。**
+**先完成 Restart / Game Over → Restart 與 Life reconcile 的完整 runtime correctness；之後若需要測試所有工具，另外建立明確的 TEST inventory grant，不把「all tools enabled」混成正式工具庫存。**
 
 執行順序不可跳過底層 Session / Life 驗證直接進行最後 E2E。
 
