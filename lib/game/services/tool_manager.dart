@@ -33,10 +33,12 @@ class ToolManager {
 
     for (final type in toolsForChapter(chapter)) {
       final gameTool = _gameToolForType(type);
-      final savedUses = _serverUses[type] ?? 0;
-      final initialUses = savedUses > 0
-          ? savedUses
-          : (chapter == GameChapter.ocean ? gameTool.maxUses : 0);
+      // Inventory is server-authoritative. Never synthesize a tool use
+      // from GameTool.maxUses here: a missing/failed inventory read must not
+      // silently grant a use. New accounts receive the initial C1 UNDO from
+      // the server inventory initializer, which is synchronized before any
+      // flow that requires authoritative tool state.
+      final initialUses = _serverUses[type] ?? 0;
 
       _tools.add(ToolState(tool: gameTool, uses: initialUses));
     }
