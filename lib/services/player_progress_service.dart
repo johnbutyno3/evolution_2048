@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
+import '../game/services/tool_manager.dart';
 
 /// Server-verified account progression with local-first gameplay entry.
 class PlayerProgressService {
@@ -448,6 +449,7 @@ class PlayerProgressService {
         _activeGameSessionId = null;
         _activeGameChapterIndex = null;
         await SaveManager.clearGameSessionId();
+        await ToolManager.refreshInventory();
         return true;
       }
     } on FirebaseFunctionsException {
