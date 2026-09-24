@@ -319,10 +319,9 @@ class PlayerProgressService {
           (error.message ?? '').toLowerCase().contains('expired');
       if (isExpiredSession) {
         await refresh();
-        return startGameSession(
-          chapterIndex,
-          replaceActiveSession: true,
-        );
+        // The previous session has expired. The caller must create a fresh
+        // board and provide its exact initialTiles for the replacement session.
+        return false;
       }
     }
     return false;
