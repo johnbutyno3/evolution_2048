@@ -121,6 +121,18 @@ class LifeManager {
         : nextLifeAtMillis as int?;
   }
 
+  /// Clears account-scoped local state before Firebase sign-out.
+  /// The next account must never inherit the previous account's Life display.
+  static void clearCachedState() {
+    _lifeStateGeneration++;
+    _lifeCount = normalCap;
+    _infiniteLives = false;
+    _membership = 'general';
+    _lifeMode = 'normal';
+    _nextLifeAtMillis = null;
+    _regenerationSyncInFlight = false;
+  }
+
   static bool get isGoldenMember => _lifeMode == 'golden';
 
   static String get lifeMode => _lifeMode;
