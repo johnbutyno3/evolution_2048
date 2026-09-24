@@ -303,6 +303,11 @@ class PlayerProgressService {
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
+        // A newer session operation may have superseded this restart while
+        // Firebase was processing it. Never let the stale response overwrite
+        // the newer client session binding.
+        if (operationGeneration != _sessionOperationGeneration) return false;
+
         _activeGameSessionId = data['sessionId'] as String;
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         _activeGameChapterIndex = chapterIndex;
