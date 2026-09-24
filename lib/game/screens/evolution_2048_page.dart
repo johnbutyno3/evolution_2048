@@ -875,16 +875,19 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       await SaveManager.clearChapter(chapter);
       if (!mounted) return;
-      Navigator.of(context).pop();
 
       if (sessionId != null) {
-        unawaited(
-          PlayerProgressService.instance.abandonGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
+        // Settle Game Over tool usage before returning to Home. Otherwise
+        // Home can refresh the inventory before abandonGameSession finishes
+        // and briefly show the pre-Game-Over balance.
+        await PlayerProgressService.instance.abandonGameSession(
+          sessionId: sessionId,
+          replayLog: replay,
         );
+        if (!mounted) return;
       }
+
+      Navigator.of(context).pop();
     }
   }
 
