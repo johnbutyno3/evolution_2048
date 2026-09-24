@@ -137,7 +137,7 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() {});
   }
 
-  void _enter(BuildContext context, int index) {
+  Future<void> _enter(BuildContext context, int index) async {
     if (!_progress.isChapterUnlocked(index)) return;
     unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
     await Navigator.of(context).push(
