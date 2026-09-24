@@ -383,6 +383,11 @@ class PlayerProgressService {
         if (operationGeneration != _sessionOperationGeneration) return false;
 
         _activeGameSessionId = data['sessionId'] as String;
+        await SaveManager.rebindCachedGameSession(
+          chapter: _chapterNames[chapterIndex],
+          previousSessionId: previousSessionId,
+          newSessionId: _activeGameSessionId!,
+        );
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         _activeGameChapterIndex = chapterIndex;
 
