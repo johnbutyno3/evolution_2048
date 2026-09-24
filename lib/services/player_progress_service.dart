@@ -322,6 +322,14 @@ class PlayerProgressService {
         } else {
           await LifeManager.refreshFromServer();
         }
+
+        // Restart creates a new GameEngine before this server call returns so
+        // the replacement board stays responsive. Reconcile the authoritative
+        // tool inventory now that the new session exists, then update the
+        // already-mounted engine's ToolState as well. Without this second
+        // step, the static inventory cache could be correct while the visible
+        // tool button kept the old 0-use state from engine construction.
+        await ToolManager.refreshInventory();
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
