@@ -524,11 +524,28 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // created the new session and consumed the Life. This prevents a fast
     // input during the network round trip from modifying a session that the
     // server has not accepted yet.
+    final previousSessionId =
+        PlayerProgressService.instance.activeGameSessionId;
     final restarted =
         await PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
       replayLog: replay,
     );
+
+    if (restarted) {
+      final newSessionId =
+          PlayerProgressService.instance.activeGameSessionId;
+      if (newSessionId != null) {
+        // The replacement board was created before Firebase returned the new
+        // session ID. Rebind that same local board atomically so the next
+        // resume cannot treat it as an orphaned old-session board.
+        await SaveManager.rebindCachedGameSession(
+          chapter: oldEngine.chapter.name,
+          previousSessionId: previousSessionId,
+          newSessionId: newSessionId,
+        );
+      }
+    }
 
     if (!mounted) {
       _restartInProgress = false;
