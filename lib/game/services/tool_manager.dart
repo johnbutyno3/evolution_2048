@@ -144,6 +144,14 @@ class ToolManager {
     if (!tool.canUse) return false;
 
     tool.usesRemaining -= 1;
+    // Keep the mounted/static snapshot aligned with the optimistic local
+    // consumption. Otherwise a later refreshFromSavedProgress() (for example
+    // after returning from Shop) could resurrect the just-used tool before
+    // the server settlement refresh arrives.
+    final cachedUses = _serverUses[type];
+    if (cachedUses != null && cachedUses > 0) {
+      _serverUses[type] = cachedUses - 1;
+    }
     return true;
   }
 
