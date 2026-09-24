@@ -307,7 +307,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (_gameOverDialogShowing || _chapterCompleteShowing ||
-        _completionAnimationPlaying || _toolMode != null) {
+        _completionAnimationPlaying || _toolMode != null ||
+        _restartInProgress) {
       return KeyEventResult.handled;
     }
     final direction = switch (event.logicalKey) {
