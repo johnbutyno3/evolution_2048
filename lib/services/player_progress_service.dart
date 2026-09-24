@@ -334,6 +334,17 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
+    // A local-first game entry may still be waiting for its Firebase
+    // start transaction when the player immediately presses Restart. Let that
+    // transaction settle before creating the replacement session; otherwise
+    // both server transactions can charge a Life and leave two competing
+    // sessions even though the client operation generation rejects the stale
+    // response.
+    final pendingStart = _pendingStartSession;
+    if (pendingStart != null) {
+      if (!await pendingStart) return false;
+    }
+
     final operationGeneration = ++_sessionOperationGeneration;
     final previousSessionId = _activeGameSessionId;
     try {
