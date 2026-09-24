@@ -275,11 +275,9 @@ function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requir
         if (previous === null) fail('UNDO requires a previous successful move.');
         const revertedScore = Math.max(0, score - previous.score);
         board.splice(0, board.length, ...previous.board);
-        // Rewind restores the exact score from before the reverted move.
-        // The previous implementation subtracted the move delta from
-        // previous.score a second time, causing the server replay score to
-        // diverge from the client after UNDO once score was already nonzero.
-        score = previous.score;
+        // Undo restores the previous board and applies the same score penalty
+        // as the client GameEngine: the reverted move's score gain is removed.
+        score = Math.max(0, previous.score - revertedScore);
         penalty += revertedScore;
         previous = null;
         toolUsage.timeRewind += 1;
