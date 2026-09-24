@@ -114,6 +114,16 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
   await enforceSensitiveOperation(request.auth.uid, 'restart_game_session');
 
   const chapterIndex = request.data?.chapterIndex;
+  const initialTiles = request.data?.initialTiles;
+  if (!Array.isArray(initialTiles) ||
+      initialTiles.length !== 16 ||
+      initialTiles.filter((value) => value !== null).length !== 2 ||
+      initialTiles.some((value) => value !== null && value !== 2 && value !== 4)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid two-tile initial board is required.',
+    );
+  }
   if (!Number.isInteger(chapterIndex) ||
       chapterIndex < 0 ||
       chapterIndex > MAX_CHAPTER_INDEX) {
