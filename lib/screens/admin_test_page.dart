@@ -173,6 +173,8 @@ class _AdminTestPageState extends State<AdminTestPage> {
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Membership', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Test membership is stored on the server until changed.', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 8),
               Text('Current: ${_label(_mode)}'),
               if (_expiresAt != null) Text('Expires: $_expiresAt'),
@@ -200,6 +202,8 @@ class _AdminTestPageState extends State<AdminTestPage> {
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Gold Balance', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Gold is independent from membership.', style: TextStyle(fontSize: 12)),
               const SizedBox(height: 8),
               TextField(
                 controller: _gold,
