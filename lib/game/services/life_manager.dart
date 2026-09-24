@@ -1,15 +1,15 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
-/// Server-authoritative life state for Evolution 2048.
+/// Local-first life presentation with server verification.
 ///
-/// The client keeps only a presentation cache. Life count, membership and
-/// regeneration timing are resolved by Firebase Functions and Firestore.
-/// The client never grants, consumes, refunds or otherwise mutates life state
-/// locally.
+/// Gameplay uses an optimistic local decrement so entering a game never waits
+/// for Firebase. Firebase remains authoritative and every successful session
+/// response reconciles the local state with the server state.
 class LifeManager {
   LifeManager._();
 
   static const int normalCap = 5;
+  static const int _regenIntervalMillis = 40 * 60 * 1000;
 
   static final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
@@ -24,11 +24,28 @@ class LifeManager {
     await refreshFromServer();
   }
 
-  /// Applies an authoritative life payload returned by a game-session
-  /// mutation. This avoids replacing a freshly consumed balance with a stale
-  /// background read that started before the session mutation completed.
+  /// Applies an authoritative life payload returned by a server mutation.
   static void applyServerState(Map<String, dynamic> data) {
     _applyServerState(data);
+  }
+
+  /// Immediately consumes one local Life for game entry.
+  ///
+  /// This is intentionally optimistic: the server transaction is still sent
+  /// by PlayerProgressService in the background. A known-empty local state is
+  /// rejected immediately; otherwise the server response is authoritative and
+  /// replaces this value.
+  static bool optimisticConsumeLife() {
+    if (_infiniteLives) return true;
+    if (_lifeCount <= 0) return false;
+
+    final nextLives = _lifeCount - 1;
+    _lifeCount = nextLives;
+    _nextLifeAtMillis = nextLives < normalCap
+        ? (_nextLifeAtMillis ??
+            DateTime.now().millisecondsSinceEpoch + _regenIntervalMillis)
+        : null;
+    return true;
   }
 
   static Future<void> refreshFromServer() async {
@@ -88,6 +105,8 @@ class LifeManager {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
+  /// Legacy explicit server consume API. Normal game entry now uses the
+  /// local-first session flow instead of waiting for this call.
   static Future<bool> consumeLife() async {
     try {
       final result = await _functions.httpsCallable('consumeLife').call();
