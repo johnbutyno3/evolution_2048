@@ -131,6 +131,7 @@ class PlayerProgressService {
   Future<bool> startGameSession(
     int chapterIndex, {
     bool replaceActiveSession = false,
+    bool retryAfterPendingFailure = false,
     required List<dynamic> initialTiles,
   }) async {
     final user = _auth.currentUser;
@@ -140,7 +141,11 @@ class PlayerProgressService {
     // verified must not create a second charged server session. The first
     // request already made the local game playable, so this duplicate call
     // can return immediately without waiting for Firebase.
-    if (_pendingStartSession != null) return true;
+    final pendingStart = _pendingStartSession;
+    if (pendingStart != null) {
+      final pendingResult = await pendingStart;
+      if (pendingResult || !retryAfterPendingFailure) return pendingResult;
+    }
 
     // Do not let a known-empty local/server snapshot start a game. For a
     // normal positive balance, decrement locally so board creation is not
@@ -528,6 +533,7 @@ class PlayerProgressService {
       final recovered = await startGameSession(
         chapterIndex,
         initialTiles: List<dynamic>.from(initialTiles),
+        retryAfterPendingFailure: true,
       );
       if (!recovered) return false;
     }
