@@ -54,9 +54,9 @@ class LifeManager {
     return true;
   }
 
-  /// Reads the authoritative state. A normal refresh invalidates any older
-  /// regeneration refresh; only the dedicated regeneration refresh is allowed
-  /// to use the optimistic-preservation rule.
+  /// Reads the authoritative state. Every request is tied to the generation
+  /// that existed when it started, so an older response can never overwrite a
+  /// newer local mutation or server mutation.
   static Future<void> refreshFromServer({bool fromRegeneration = false}) async {
     final requestGeneration = fromRegeneration
         ? _lifeStateGeneration
@@ -65,10 +65,6 @@ class LifeManager {
     final result = await _functions.httpsCallable('getLifeState').call();
     final data = Map<String, dynamic>.from(result.data as Map);
 
-    // Every read is tied to the life-state generation that existed when the
-    // request was issued. A local consume/regeneration or a newer server
-    // mutation that happened while this request was in flight makes this
-    // response stale. Never let that old response roll the UI backwards.
     if (requestGeneration != _lifeStateGeneration) return;
 
     if (fromRegeneration) {
@@ -160,12 +156,14 @@ class LifeManager {
           _nextLifeAtMillis! + recovered * _regenIntervalMillis;
     }
 
+    // This local mutation invalidates every older life read. Always issue the
+    // background verification, even if a previous regeneration request is
+    // still in flight; the older request will be discarded by generation.
     _lifeStateGeneration++;
-    if (_regenerationSyncInFlight) return;
     _regenerationSyncInFlight = true;
     refreshFromServer(fromRegeneration: true).catchError((_) {
       // Keep the optimistic local regeneration visible if Firebase is
-      // temporarily unavailable. A later tick/reload will retry.
+      // temporarily unavailable. A later refresh/re-entry will retry.
     }).whenComplete(() {
       _regenerationSyncInFlight = false;
     });
