@@ -130,6 +130,7 @@ class PlayerProgressService {
     if (!LifeManager.optimisticConsumeLife()) return false;
 
     final operationGeneration = ++_sessionOperationGeneration;
+    final previousSessionId = _activeGameSessionId ?? SaveManager.gameSessionId;
     final pending = _startGameSessionOnServer(
       chapterIndex,
       replaceActiveSession: replaceActiveSession,
@@ -150,6 +151,7 @@ class PlayerProgressService {
     required bool replaceActiveSession,
     required int operationGeneration,
   }) async {
+    final previousSessionId = _activeGameSessionId ?? SaveManager.gameSessionId;
     try {
       final result = await _functions.httpsCallable('startGameSession').call({
         'chapterIndex': chapterIndex,
@@ -191,8 +193,21 @@ class PlayerProgressService {
         'message=${error.message}, details=${error.details}',
       );
       if (operationGeneration == _sessionOperationGeneration) {
+        // The callable can time out after the transaction has already created
+        // the charged session. Refresh first so a lost response cannot make
+        // the local-first client believe that the new game never started.
+        await refresh();
+        if (operationGeneration != _sessionOperationGeneration) return false;
+        final serverSessionId = _activeGameSessionId;
+        final startCommitted =
+            serverSessionId != null &&
+            serverSessionId != previousSessionId &&
+            _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
-        if (replaceActiveSession) await refresh();
+        if (startCommitted) {
+          await SaveManager.setGameSessionId(serverSessionId);
+          return true;
+        }
       }
     } catch (error) {
       // A network/client failure must never become a permanent local grant.
@@ -200,7 +215,18 @@ class PlayerProgressService {
       print('startGameSession verification failed: $error');
       try {
         if (operationGeneration == _sessionOperationGeneration) {
+          await refresh();
+          if (operationGeneration != _sessionOperationGeneration) return false;
+          final serverSessionId = _activeGameSessionId;
+          final startCommitted =
+              serverSessionId != null &&
+              serverSessionId != previousSessionId &&
+              _activeGameChapterIndex == chapterIndex;
           await LifeManager.refreshFromServer();
+          if (startCommitted) {
+            await SaveManager.setGameSessionId(serverSessionId);
+            return true;
+          }
         }
       } catch (_) {
         // Keep the optimistic UI responsive; the next authoritative refresh
