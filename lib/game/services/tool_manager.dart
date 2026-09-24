@@ -131,12 +131,17 @@ class ToolManager {
   /// when the game session ends.
   bool consumeLocal(GameToolType type) {
     final tool = getTool(type);
-    if (tool == null || !tool.canUse) return false;
+    if (tool == null) return false;
 
+    // GOLDEN UNDO is unlimited even when the authoritative inventory has
+    // never contained a purchased UNDO. Check membership before the normal
+    // inventory gate so a stale/empty local inventory cannot block it.
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
       tool.usesRemaining = _unlimitedUses;
       return true;
     }
+
+    if (!tool.canUse) return false;
 
     tool.usesRemaining -= 1;
     return true;
