@@ -188,21 +188,32 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return true;
       }
       if (_engine.gameOver || _engine.chapterComplete) return false;
+      // startGameSession() consumes the Life locally and starts the
+      // Firebase transaction in the background. Do not await the network
+      // transaction here: the new board must become playable immediately.
       final started = await progress.startGameSession(_chapterNumber - 1);
       if (!started || !mounted || generation != _gameSessionGeneration) return false;
-      await ToolManager.refreshInventory();
-      if (!mounted || generation != _gameSessionGeneration) return false;
       _engine.stopGameTimer();
       _engine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
         boardLifeActive: true,
       );
+      // Tool inventory is authoritative but must not delay game entry. Refresh
+      // it in the background and update the already-mounted engine when ready.
+      unawaited(_refreshMountedToolInventory(generation));
       return true;
     } catch (error) {
       debugPrint('Failed to create game session: $error');
       return false;
     }
+  }
+
+  Future<void> _refreshMountedToolInventory(int generation) async {
+    await ToolManager.refreshInventory();
+    if (!mounted || generation != _gameSessionGeneration) return;
+    _engine.toolManager.refreshFromSavedProgress();
+    setState(() {});
   }
 
   void _startUiRefreshTimer() {
