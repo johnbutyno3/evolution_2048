@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import '../game/services/gold_manager.dart';
+import '../game/services/life_manager.dart';
+import '../game/services/tool_manager.dart';
 
 class AdminTestPage extends StatefulWidget {
   const AdminTestPage({super.key});
@@ -77,6 +80,11 @@ class _AdminTestPageState extends State<AdminTestPage> {
         _expiresAt = d['expiresAt'] as String?;
         _message = 'Membership switched to $mode.';
       });
+      // Keep the already-mounted Home page cache in sync immediately.
+      final lifeResult = await _functions.httpsCallable('getLifeState').call();
+      LifeManager.applyServerState(
+        Map<String, dynamic>.from(lifeResult.data as Map),
+      );
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
     } finally {
@@ -96,6 +104,10 @@ class _AdminTestPageState extends State<AdminTestPage> {
       await _functions.httpsCallable('adminSetGoldBalance').call({
         'uid': _uid, 'balance': value,
       });
+      final goldResult = await _functions.httpsCallable('getGoldBalance').call();
+      GoldManager.applyServerState(
+        Map<String, dynamic>.from(goldResult.data as Map),
+      );
       if (mounted) setState(() => _message = 'Gold balance set to $value.');
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
@@ -121,6 +133,8 @@ class _AdminTestPageState extends State<AdminTestPage> {
             ? 'Test mode: all tools are enabled in every chapter.'
             : 'Test mode: chapter tool restrictions restored.';
       });
+      // Refresh inventory immediately so the next game sees the test flag.
+      await ToolManager.refreshInventory();
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
     } finally {
