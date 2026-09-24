@@ -142,24 +142,23 @@ class _HomePageState extends State<HomePage> {
     if (_enterInProgress) return;
     if (!_progress.isChapterUnlocked(index)) return;
     _enterInProgress = true;
-    final unfinishedChapter = SaveManager.unfinishedChapter;
-    if (unfinishedChapter != null &&
-        unfinishedChapter != _chapterKey(index)) {
-      _enterInProgress = false;
-      return;
-    }
+    try {
+      final unfinishedChapter = SaveManager.unfinishedChapter;
+      if (unfinishedChapter != null &&
+          unfinishedChapter != _chapterKey(index)) {
+        return;
+      }
 
     // The server can still own an active session even when its local board
     // snapshot is missing/stale. Never let Home open a different chapter in
     // that state; Evolution2048Page would otherwise reject the entry only
     // after navigation and leave the user on a dead game screen.
     final activeChapter = _progress.activeGameChapterIndex;
-    if (_progress.activeGameSessionId != null &&
-        activeChapter != null &&
-        activeChapter != index) {
-      _enterInProgress = false;
-      return;
-    }
+      if (_progress.activeGameSessionId != null &&
+          activeChapter != null &&
+          activeChapter != index) {
+        return;
+      }
     unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -185,7 +184,9 @@ class _HomePageState extends State<HomePage> {
       ToolManager.refreshInventory().catchError((_) => null),
     ]);
     if (mounted) setState(() {});
-    _enterInProgress = false;
+    } finally {
+      _enterInProgress = false;
+    }
   }
 
   String _chapterKey(int index) => HomePage.chapters[index].titleKey == 'technology'
