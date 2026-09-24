@@ -482,11 +482,23 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
-    if (!mounted) return; final previewEngine = GameEngine(chapter: chapter, forceNewBoard: true, boardLifeActive: false);
-    final previewReplay = previewEngine.createSaveData()['replayLog'];
-    final initialTiles = previewReplay is Map && previewReplay['initialTiles'] is List ? List<dynamic>.from(previewReplay['initialTiles'] as List) : const <dynamic>[];
-    final started = await PlayerProgressService.instance.restartGameSession(chapter.index, initialTiles: initialTiles); if (!started || !mounted) return; await ToolManager.refreshInventory(); if (!mounted) return;
-    final newEngine = GameEngine(chapter: chapter, forceNewBoard: forceNewBoard, boardLifeActive: true);
+    if (!mounted) return;
+    final newEngine = GameEngine(
+      chapter: chapter,
+      forceNewBoard: true,
+      boardLifeActive: true,
+    );
+    final previewReplay = newEngine.createSaveData()['replayLog'];
+    final initialTiles = previewReplay is Map && previewReplay['initialTiles'] is List
+        ? List<dynamic>.from(previewReplay['initialTiles'] as List)
+        : const <dynamic>[];
+    final started = await PlayerProgressService.instance.restartGameSession(
+      chapter.index,
+      initialTiles: initialTiles,
+    );
+    if (!started || !mounted) return;
+    await ToolManager.refreshInventory();
+    if (!mounted) return;
     setState(() { _engine = newEngine; _toolMode = null; _firstSwapIndex = null; _dragStart = null; _swipeHandled = false; _evolutionValue = null; _evolutionCreatureName = null; });
     _engine.startGameTimer(); _startUiRefreshTimer(); unawaited(AudioManager.instance.playChapterMusic(chapter)); _focusNode.requestFocus();
   }
