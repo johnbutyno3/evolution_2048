@@ -30,7 +30,13 @@ async function readAndRegenerate(transaction, uid, membership) {
   const regenStartMillis = normalizeRegenStart(data.regenStartAt);
 
   if (membership.infiniteLives) {
-    return { lives: NORMAL_CAP, regenStartMillis: null, membership };
+    return {
+      lives: NORMAL_CAP,
+      regenStartMillis: null,
+      membership,
+      regeneratedAmount: 0,
+      previousLives: lives,
+    };
   }
 
   const regenerated = regenerate({
@@ -44,6 +50,8 @@ async function readAndRegenerate(transaction, uid, membership) {
     lives: regenerated.lives,
     regenStartMillis: regenerated.regenStartMillis,
     membership,
+    regeneratedAmount: Math.max(0, regenerated.lives - lives),
+    previousLives: lives,
   };
 }
 
@@ -68,6 +76,21 @@ async function resolveServerState(transaction, uid) {
     current.lives,
     current.regenStartMillis,
   );
+
+  if (current.regeneratedAmount > 0) {
+    const eventRef = db
+      .collection('users')
+      .doc(uid)
+      .collection('life_events')
+      .doc();
+    transaction.create(eventRef, {
+      eventType: 'life_regeneration',
+      amount: current.regeneratedAmount,
+      beforeLives: current.previousLives,
+      afterLives: current.lives,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
 
   return lifeResponse(
     current.lives,
