@@ -266,6 +266,10 @@ class GameEngine {
   Map<String, dynamic> createSaveData() {
     return <String, dynamic>{
       'chapter': _chapter.name,
+      // Capture the session binding with the snapshot itself. SaveManager
+      // uses this to reject an old engine snapshot after a restart has moved
+      // the global session ID to the replacement session.
+      'gameSessionId': SaveManager.gameSessionId,
       'tiles': _board.tiles.map((tile) => tile?.value).toList(),
       'score': score,
       'bestScore': bestScore,
