@@ -1245,7 +1245,10 @@ exports.completeChapter = onCall(async (request) => {
       // numeric inventory balance for an unlimited tool when a chapter is
       // completed.
       if (!rewardIsGoldenUnlimitedUndo) {
-        const currentRewardUses = toolInventory[chapterRewardToolType] ?? 0;
+        const currentRewardUses =
+          toolUpdates[chapterRewardToolType] ??
+          toolInventory[chapterRewardToolType] ??
+          0;
         if (!Number.isSafeInteger(currentRewardUses) ||
             currentRewardUses < 0 ||
             currentRewardUses >= MAX_SAFE_INTEGER) {
@@ -1254,8 +1257,10 @@ exports.completeChapter = onCall(async (request) => {
             'Tool reward inventory is invalid.',
           );
         }
-        toolUpdates[chapterRewardToolType] =
-          currentRewardUses + 1;
+        // Apply the reward on top of any tool uses already settled in this
+        // same completion transaction. Otherwise consuming the rewarded tool
+        // during the chapter would have its deduction overwritten.
+        toolUpdates[chapterRewardToolType] = currentRewardUses + 1;
       }
     }
 
