@@ -136,6 +136,12 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
+    // A second tap/call while the first local-first start is still being
+    // verified must not create a second charged server session. The first
+    // request already made the local game playable, so this duplicate call
+    // can return immediately without waiting for Firebase.
+    if (_pendingStartSession != null) return true;
+
     // Do not let a known-empty local/server snapshot start a game. For a
     // normal positive balance, decrement locally so board creation is not
     // blocked by network latency.
