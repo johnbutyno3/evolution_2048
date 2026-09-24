@@ -145,6 +145,7 @@ class _HomePageState extends State<HomePage> {
     final unfinishedChapter = SaveManager.unfinishedChapter;
     if (unfinishedChapter != null &&
         unfinishedChapter != _chapterKey(index)) {
+      _enterInProgress = false;
       return;
     }
 
@@ -156,6 +157,7 @@ class _HomePageState extends State<HomePage> {
     if (_progress.activeGameSessionId != null &&
         activeChapter != null &&
         activeChapter != index) {
+      _enterInProgress = false;
       return;
     }
     unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
