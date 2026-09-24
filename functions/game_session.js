@@ -198,6 +198,7 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
             replayLog,
             chapterIndex: oldSession.chapterIndex,
             targetValue: oldSession.targetValue,
+            expectedInitialTiles: oldSession.initialTiles,
             allowedTools: allowedToolsForChapter(
               oldSession.chapterIndex,
               allToolsEnabledForTest,
@@ -319,6 +320,7 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
         startedAt,
         expiresAt,
         toolUsage: {},
+        initialTiles: [...(request.data?.initialTiles ?? [])],
         createdAt: FieldValue.serverTimestamp(),
         replacedSessionId: typeof oldSessionId === 'string' ? oldSessionId : null,
         replacedSessionChapterIndex: Number.isInteger(
@@ -414,6 +416,7 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
             replayLog,
             chapterIndex: session.chapterIndex,
             targetValue: session.targetValue,
+            expectedInitialTiles: session.initialTiles,
             allowedTools: allowedToolsForChapter(
               session.chapterIndex,
               allToolsEnabledForTest,
