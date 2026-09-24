@@ -40,7 +40,8 @@ class SaveManager {
     required String? previousSessionId,
     required String newSessionId,
   }) async {
-    if (newSessionId.trim().isEmpty) return;
+    final id = newSessionId.trim();
+    if (id.isEmpty) return;
     _preferences ??= await SharedPreferences.getInstance();
     final root = _cachedSave;
     if (root == null) return;
@@ -56,7 +57,7 @@ class SaveManager {
     final updatedChapter = Map<String, dynamic>.from(
       chapterSave.map((key, value) => MapEntry(key.toString(), value)),
     );
-    updatedChapter['gameSessionId'] = newSessionId.trim();
+    updatedChapter['gameSessionId'] = id;
     final updatedChapters = <String, dynamic>{};
     for (final entry in chapters.entries) {
       final key = entry.key.toString();
@@ -71,12 +72,25 @@ class SaveManager {
     updatedChapters[chapter] = updatedChapter;
     final updatedRoot = Map<String, dynamic>.from(root);
     updatedRoot['chapters'] = updatedChapters;
+
+    // Session rebinding must be ordered with all pending saves. Set the
+    // global session ID inside the same queue operation so a delayed engine
+    // snapshot cannot execute between the rebind write and setGameSessionId
+    // and accidentally restore the old session binding.
     _saveQueue = _saveQueue.then(
       (_) async {
+        await _preferences!.setString(
+          'rebirth_2048_game_session_id_v1',
+          id,
+        );
         _cachedSave = updatedRoot;
         await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
       },
       onError: (_, __) async {
+        await _preferences!.setString(
+          'rebirth_2048_game_session_id_v1',
+          id,
+        );
         _cachedSave = updatedRoot;
         await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
       },
