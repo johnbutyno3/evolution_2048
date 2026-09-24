@@ -179,8 +179,10 @@ class SaveManager {
       if (chapter is! Map) continue;
       final tiles = chapter['tiles'];
       final sessionId = chapter['gameSessionId'];
+      final currentSessionId = gameSessionId;
       if (sessionId is String &&
           sessionId.isNotEmpty &&
+          sessionId == currentSessionId &&
           chapter['gameOver'] != true &&
           chapter['chapterComplete'] != true &&
           tiles is List &&
