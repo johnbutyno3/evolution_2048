@@ -102,7 +102,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     WidgetsBinding.instance.addObserver(this);
     _completionAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 280),
     )..addStatusListener(_handleCompletionAnimationStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
