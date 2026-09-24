@@ -141,6 +141,28 @@ class SaveManager {
     await _preferences!.setString(_profileNameKey, name.trim());
   }
 
+  /// Returns the chapter containing the local unfinished board, if any.
+  /// Only a playable, non-game-over/non-completed snapshot counts.
+  static String? get unfinishedChapter {
+    final chapters = _cachedSave?['chapters'];
+    if (chapters is! Map) return null;
+    for (final entry in chapters.entries) {
+      final chapter = entry.value;
+      if (chapter is! Map) continue;
+      final tiles = chapter['tiles'];
+      final sessionId = chapter['gameSessionId'];
+      if (sessionId is String &&
+          sessionId.isNotEmpty &&
+          chapter['gameOver'] != true &&
+          chapter['chapterComplete'] != true &&
+          tiles is List &&
+          tiles.length == 16) {
+        return entry.key.toString();
+      }
+    }
+    return null;
+  }
+
   static Map<String, dynamic>? loadCached({String? chapter}) {
     final root = _cachedSave;
     if (root == null) {
