@@ -22,6 +22,13 @@ class ToolManager {
 
   static bool get allToolsEnabledForTest => _allToolsEnabledForTest;
 
+  /// Clears account-scoped cached inventory when the authenticated user changes.
+  /// Inventory must never leak from a previous Firebase account.
+  static void clearCachedInventory() {
+    _serverUses.clear();
+    _allToolsEnabledForTest = false;
+  }
+
   final List<ToolState> _tools = <ToolState>[];
 
   List<ToolState> get tools => List.unmodifiable(_tools);
