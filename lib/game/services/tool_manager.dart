@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -64,7 +66,14 @@ class ToolManager {
     }
   }
 
+  /// Starts inventory verification in the background. Game entry must never
+  /// wait for this network read; the server inventory will reconcile the
+  /// cached tool counts when the response arrives.
   static Future<void> refreshInventory() async {
+    unawaited(_refreshInventoryFromServer());
+  }
+
+  static Future<void> _refreshInventoryFromServer() async {
     try {
       final result = await _functions.httpsCallable('getToolInventory').call();
       final data = result.data is Map
@@ -122,10 +131,6 @@ class ToolManager {
     return true;
   }
 
-  /// Returns the globally saved inventory for a tool.
-  ///
-  /// Tool inventory is cumulative across chapters, so this can be used by
-  /// profile/shop UI even when the tool is not currently unlocked.
   static int savedUsesFor(GameToolType type) {
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
       return _unlimitedUses;
