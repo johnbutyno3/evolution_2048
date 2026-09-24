@@ -51,6 +51,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
   Future<bool>? _gameSessionFuture;
+  int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
@@ -181,11 +182,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<bool> _createGameSession() async {
+    final generation = _gameSessionGeneration;
     try {
       final progress = PlayerProgressService.instance;
       // Home already loads authoritative progress. Only fetch here when this
       // page was entered without a current server snapshot.
       if (!progress.loadedFromServer) await progress.refresh();
+      if (!mounted || generation != _gameSessionGeneration) return false;
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
 
@@ -199,7 +202,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         // exactly one Life for the new game.
         final entered =
             await progress.resumeGameSession(_chapterNumber - 1);
-        if (!entered || !mounted) return false;
+        if (!entered || !mounted || generation != _gameSessionGeneration) return false;
 
         // The service has already decided whether this was a resume or a
         // fresh replacement. This local check is only for choosing whether
@@ -217,7 +220,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         // Load the server-authoritative tool inventory before constructing the
         // engine so the board's ToolManager reflects the current account.
         await ToolManager.refreshInventory();
-        if (!mounted) return false;
+        if (!mounted || generation != _gameSessionGeneration) return false;
 
         if (hasPlayableLocalBoard) {
           // Resuming an unfinished server session means this restored board
@@ -249,12 +252,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }
 
       final started = await progress.startGameSession(_chapterNumber - 1);
-      if (!started || !mounted) return false;
+      if (!started || !mounted || generation != _gameSessionGeneration) return false;
 
       // Load the server-authoritative tool inventory before constructing the
       // new engine so tool buttons are immediately usable.
       await ToolManager.refreshInventory();
-      if (!mounted) return false;
+      if (!mounted || generation != _gameSessionGeneration) return false;
 
       // The server has just consumed the Life for this explicit game entry.
       // If this entry follows a normal unfinished exit, the cached board is
@@ -482,6 +485,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     _restartInProgress = true;
+    _gameSessionGeneration++;
 
     // Build the replacement board immediately. The old implementation waited
     // for the Firebase restart transaction before changing the UI, which made
@@ -531,6 +535,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     if (!restarted) {
+      // The server rejected the replacement session. Restore the previous
+      // board only after the replacement engine has fully stopped so a queued
+      // autosave cannot race and put the transient new board back on screen.
       newEngine.stopGameTimer();
       // The replacement engine autosaves immediately. Wait for that queued
       // write to finish, then restore the previous board snapshot so local
