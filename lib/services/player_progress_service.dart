@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 
-/// Server-authoritative account progression.
+/// Server-verified account progression with local-first gameplay entry.
 class PlayerProgressService {
   PlayerProgressService._();
 
@@ -35,6 +35,7 @@ class PlayerProgressService {
   bool _loadedFromServer = false;
   String? _activeGameSessionId;
   int? _activeGameChapterIndex;
+  Future<bool>? _pendingStartSession;
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
   int chapterHighestValue(int chapterIndex) =>
@@ -111,6 +112,9 @@ class PlayerProgressService {
     }
   }
 
+  /// Starts the game locally first. The server still creates and validates the
+  /// charged session in the background; its authoritative response replaces
+  /// the optimistic Life state as soon as it arrives.
   Future<bool> startGameSession(
     int chapterIndex, {
     bool replaceActiveSession = false,
@@ -118,6 +122,29 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
+    // Do not let a known-empty local/server snapshot start a game. For a
+    // normal positive balance, decrement locally so board creation is not
+    // blocked by network latency.
+    if (!LifeManager.optimisticConsumeLife()) return false;
+
+    final pending = _startGameSessionOnServer(
+      chapterIndex,
+      replaceActiveSession: replaceActiveSession,
+    );
+    _pendingStartSession = pending;
+    unawaited(pending.whenComplete(() {
+      if (identical(_pendingStartSession, pending)) {
+        _pendingStartSession = null;
+      }
+    }));
+
+    return true;
+  }
+
+  Future<bool> _startGameSessionOnServer(
+    int chapterIndex, {
+    required bool replaceActiveSession,
+  }) async {
     try {
       final result = await _functions.httpsCallable('startGameSession').call({
         'chapterIndex': chapterIndex,
@@ -149,17 +176,34 @@ class PlayerProgressService {
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
-      // Keep the authoritative server error visible in browser/dev logs.
-      // Callable errors include the server code/message/details, which is
-      // essential for distinguishing Life exhaustion from session failures.
+      // The server remains authoritative. Expected failures such as no Life
+      // simply reconcile the local optimistic state; security failures remain
+      // visible to the backend enforcement layer.
       // ignore: avoid_print
       print(
         'startGameSession failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
       );
+      await LifeManager.refreshFromServer();
       if (replaceActiveSession) await refresh();
+    } catch (error) {
+      // A network/client failure must never become a permanent local grant.
+      // Reconcile with the server when connectivity is available again.
+      print('startGameSession verification failed: $error');
+      try {
+        await LifeManager.refreshFromServer();
+      } catch (_) {
+        // Keep the optimistic UI responsive; the next authoritative refresh
+        // will reconcile the balance.
+      }
     }
     return false;
+  }
+
+  Future<bool> _awaitPendingStartSession() async {
+    final pending = _pendingStartSession;
+    if (pending == null) return _activeGameSessionId != null;
+    return pending;
   }
 
   /// Re-enters the server-owned unfinished session.
@@ -182,10 +226,6 @@ class PlayerProgressService {
         (saved['tiles'] as List).length == 16;
 
     if (!hasPlayableLocalBoard) {
-      // The server may still own an unfinished session even when the local
-      // board cache is missing. In that case this is a fresh entry, not a
-      // resumable board: replace the orphaned same-chapter session atomically
-      // and charge exactly one Life for the new game.
       return startGameSession(
         chapterIndex,
         replaceActiveSession: true,
@@ -215,12 +255,6 @@ class PlayerProgressService {
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
-      // An expired server session cannot be resumed. At that point the local
-      // board is stale relative to the server, so this entry must become a
-      // fresh game and consume exactly one Life through startGameSession.
-      // Do not apply this fallback to other resume failures: a normal
-      // unfinished session must never be silently replaced.
-      // ignore: avoid_print
       print(
         'resumeGameSession failed: code=${error.code}, '
         'message=${error.message}, '
@@ -260,10 +294,6 @@ class PlayerProgressService {
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         _activeGameChapterIndex = chapterIndex;
 
-        // restartGameSession already returns the life state from the same
-        // Firestore transaction that consumed the Life. Apply that exact
-        // state instead of issuing a second read that can race with the
-        // transaction and restore a stale balance in the UI.
         final lifeState = <String, dynamic>{
           'lives': data['lives'],
           'infiniteLives': data['infiniteLives'],
@@ -282,10 +312,6 @@ class PlayerProgressService {
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
-      // Callable errors preserve the server-side reason. Log it instead of
-      // swallowing it so a failed restart can be diagnosed from the browser
-      // console without guessing which precondition failed.
-      // ignore: avoid_print
       print(
         'restartGameSession failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
@@ -299,6 +325,7 @@ class PlayerProgressService {
     String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
+    await _awaitPendingStartSession();
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
 
@@ -319,12 +346,9 @@ class PlayerProgressService {
         if (_activeGameSessionId == settledSessionId) {
           _activeGameSessionId = null;
           _activeGameChapterIndex = null;
-          // Keep the local session binding until the next explicit game
-          // entry can rebind the preserved board to its new charged session.
         }
       }
     } on FirebaseFunctionsException catch (error) {
-      // ignore: avoid_print
       print(
         'exitUnfinishedGameSession failed: code=${error.code}, '
         'message=${error.message}, '
@@ -338,6 +362,7 @@ class PlayerProgressService {
     String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
+    await _awaitPendingStartSession();
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
 
@@ -372,9 +397,6 @@ class PlayerProgressService {
         _loadedFromServer = true;
       }
     } on FirebaseFunctionsException catch (error) {
-      // Keep the server error visible during development. Do not clear the
-      // local session when the server did not confirm abandonment.
-      // ignore: avoid_print
       print(
         'abandonGameSession failed: code=${error.code}, '
         'message=${error.message}, '
@@ -388,8 +410,14 @@ class PlayerProgressService {
     required Map<String, dynamic> replayLog,
   }) async {
     final user = _auth.currentUser;
+    if (user == null) return false;
+
+    // A player can finish very quickly while the background session request
+    // is still in flight. Wait only at completion time; normal board entry is
+    // never blocked by Firebase latency.
+    if (!await _awaitPendingStartSession()) return false;
     final sessionId = _activeGameSessionId;
-    if (user == null || sessionId == null) return false;
+    if (sessionId == null) return false;
 
     try {
       final result = await _functions.httpsCallable('completeChapter').call({
