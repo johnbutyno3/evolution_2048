@@ -29,10 +29,20 @@ class SaveManager {
     final id = sessionId.trim();
     if (id.isEmpty) return;
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setString(
-      'rebirth_2048_game_session_id_v1',
-      id,
+
+    // Keep direct session-binding writes in the same queue as autosaves and
+    // clears. A session ID change must not race an older queued snapshot.
+    _saveQueue = _saveQueue.then(
+      (_) => _preferences!.setString(
+        'rebirth_2048_game_session_id_v1',
+        id,
+      ),
+      onError: (_, __) => _preferences!.setString(
+        'rebirth_2048_game_session_id_v1',
+        id,
+      ),
     );
+    await _saveQueue;
   }
 
   static Future<void> rebindCachedGameSession({
@@ -278,9 +288,17 @@ class SaveManager {
     // Explicitly session-bound snapshots are accepted only while that
     // session is still the current global binding.
     final currentSessionId = gameSessionId;
-    if (snapshotSessionId is String &&
-        snapshotSessionId.isNotEmpty &&
-        snapshotSessionId != currentSessionId) {
+    final snapshotHasSessionBinding =
+        snapshotSessionId is String && snapshotSessionId.isNotEmpty;
+    if (snapshotHasSessionBinding && snapshotSessionId != currentSessionId) {
+      return;
+    }
+
+    // Once a server session exists, an unbound snapshot belongs to the
+    // pre-session engine and must never be promoted into the active session.
+    // Otherwise the initial engine created before Firebase responds can save
+    // its old board after session creation and resurrect it on re-entry.
+    if (!snapshotHasSessionBinding && currentSessionId != null) {
       return;
     }
 
@@ -308,7 +326,6 @@ class SaveManager {
       'version': 1,
       'savedAt': DateTime.now().millisecondsSinceEpoch,
       ...data,
-      if (gameSessionId != null) 'gameSessionId': gameSessionId,
     };
 
     if (!chapterPayload.containsKey('toolUses') && root['toolUses'] != null) {
