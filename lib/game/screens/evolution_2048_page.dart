@@ -392,9 +392,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (shouldRestart == true) { final restarted = await _reset(); if (restarted && mounted) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter)); else if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.'))); }
     else {
       final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null; final chapter = _engine.chapter.name;
-      await SaveManager.clearChapter(chapter); if (!mounted) return;
       if (sessionId != null) await PlayerProgressService.instance.abandonGameSession(sessionId: sessionId, replayLog: replay);
-      if (!mounted) return; Navigator.of(context).pop();
+      await SaveManager.clearChapter(chapter); if (!mounted) return;
+      Navigator.of(context).pop();
     }
   }
 
