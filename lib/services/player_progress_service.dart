@@ -137,14 +137,16 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
-    // A second tap/call while the first local-first start is still being
-    // verified must not create a second charged server session. The first
-    // request already made the local game playable, so this duplicate call
-    // can return immediately without waiting for Firebase.
+    // A second normal start while the first local-first start is still
+    // being verified is already covered by that first operation. Return
+    // immediately so duplicate UI calls never wait on Firebase and never
+    // create another charged session. Completion recovery is the one
+    // intentional exception: it must wait for the failed start before retrying.
     final pendingStart = _pendingStartSession;
     if (pendingStart != null) {
+      if (!retryAfterPendingFailure) return true;
       final pendingResult = await pendingStart;
-      if (pendingResult || !retryAfterPendingFailure) return pendingResult;
+      if (pendingResult) return true;
     }
 
     // Do not let a known-empty local/server snapshot start a game. For a
