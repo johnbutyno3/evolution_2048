@@ -531,6 +531,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     );
 
     if (restarted) {
+      // restartGameSession refreshes the authoritative inventory after the
+      // replacement session is created. The replacement engine was already
+      // mounted for local-first responsiveness, so copy that refreshed
+      // inventory into its existing ToolState before continuing.
+      _engine.toolManager.refreshFromSavedProgress();
+
       final newSessionId =
           PlayerProgressService.instance.activeGameSessionId;
       if (newSessionId != null) {
