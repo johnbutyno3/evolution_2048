@@ -265,8 +265,20 @@ class SaveManager {
     _preferences ??= await SharedPreferences.getInstance();
 
     final chapter = data['chapter'];
+    final snapshotSessionId = data['gameSessionId'];
 
     if (chapter is! String || chapter.isEmpty) {
+      return;
+    }
+
+    // A snapshot captured by an old GameEngine must never be allowed to
+    // overwrite a replacement session's board after Restart/re-entry.
+    // Explicitly session-bound snapshots are accepted only while that
+    // session is still the current global binding.
+    final currentSessionId = gameSessionId;
+    if (snapshotSessionId is String &&
+        snapshotSessionId.isNotEmpty &&
+        snapshotSessionId != currentSessionId) {
       return;
     }
 
