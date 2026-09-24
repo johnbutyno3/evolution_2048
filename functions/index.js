@@ -1180,6 +1180,8 @@ exports.completeChapter = onCall(async (request) => {
     let refundedRegenStartMillis =
       lifeData.regenStartAt?.toMillis?.() ?? null;
     const refundNowMillis = Date.now();
+    const livesBeforeRegeneration = refundedLives;
+    const regenStartBeforeRegeneration = refundedRegenStartMillis;
 
     if (membershipActive && membershipType === 'golden') {
       refundedLives = NORMAL_CAP;
@@ -1202,6 +1204,23 @@ exports.completeChapter = onCall(async (request) => {
         } else {
           refundedRegenStartMillis = start;
         }
+      }
+
+      const regeneratedAmount =
+        Math.max(0, refundedLives - livesBeforeRegeneration);
+      if (regeneratedAmount > 0) {
+        const eventId =
+          `regen_${regenStartBeforeRegeneration ?? 'none'}_${livesBeforeRegeneration}_${refundedLives}`;
+        transaction.create(
+          db.collection('users').doc(uid).collection('life_events').doc(eventId),
+          {
+            eventType: 'life_regeneration',
+            amount: regeneratedAmount,
+            beforeLives: livesBeforeRegeneration,
+            afterLives: refundedLives,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+        );
       }
 
       refundedLives = Math.min(NORMAL_CAP, refundedLives + 1);
