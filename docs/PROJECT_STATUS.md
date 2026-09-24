@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 23:00（Asia/Taipei）
+最後更新：2026-09-24 23:15（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,7 +15,7 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch 最新已提交修正：`67b504e4963b19fa04587feb993b8dd58df1ee99`
+目前 branch 最新已提交修正：`d2588f4d0a60262ff105d6ef5ecbf8f30a170c61`
 
 近期重要提交：
 
@@ -165,6 +165,12 @@
 - `127e7c72`：從商城返回遊戲後，重新讀取 authoritative tool inventory，並同步目前掛載中的 GameEngine ToolState。
 - 修正購買工具／Rewarded Tool 後 Server inventory 已更新、但當前遊戲畫面仍顯示舊數量的問題。
 - 不改變正式工具庫存規則，也不讓正常遊戲操作等待 Firebase。
+
+## 本輪新增帳號工具快取隔離修正
+
+- `4b104705`：ToolManager 新增 account-scoped inventory cache 清除。
+- `380952f9`：登出前清除工具 cache，避免帳號 A 的工具數量短暫出現在帳號 B。
+- 新帳號仍以 Firebase authoritative inventory 重新同步。
 
 ## 下一個明確工作項目
 
