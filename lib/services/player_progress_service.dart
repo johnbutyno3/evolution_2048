@@ -36,6 +36,7 @@ class PlayerProgressService {
   String? _activeGameSessionId;
   int? _activeGameChapterIndex;
   Future<bool>? _pendingStartSession;
+  int _sessionOperationGeneration = 0;
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
   int chapterHighestValue(int chapterIndex) =>
@@ -127,9 +128,11 @@ class PlayerProgressService {
     // blocked by network latency.
     if (!LifeManager.optimisticConsumeLife()) return false;
 
+    final operationGeneration = ++_sessionOperationGeneration;
     final pending = _startGameSessionOnServer(
       chapterIndex,
       replaceActiveSession: replaceActiveSession,
+      operationGeneration: operationGeneration,
     );
     _pendingStartSession = pending;
     unawaited(pending.whenComplete(() {
@@ -144,6 +147,7 @@ class PlayerProgressService {
   Future<bool> _startGameSessionOnServer(
     int chapterIndex, {
     required bool replaceActiveSession,
+    required int operationGeneration,
   }) async {
     try {
       final result = await _functions.httpsCallable('startGameSession').call({
@@ -152,6 +156,7 @@ class PlayerProgressService {
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
+        if (operationGeneration != _sessionOperationGeneration) return false;
         final previousSessionId =
             _activeGameSessionId ?? SaveManager.gameSessionId;
         _activeGameSessionId = data['sessionId'] as String;
@@ -184,14 +189,18 @@ class PlayerProgressService {
         'startGameSession failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
       );
-      await LifeManager.refreshFromServer();
-      if (replaceActiveSession) await refresh();
+      if (operationGeneration == _sessionOperationGeneration) {
+        await LifeManager.refreshFromServer();
+        if (replaceActiveSession) await refresh();
+      }
     } catch (error) {
       // A network/client failure must never become a permanent local grant.
       // Reconcile with the server when connectivity is available again.
       print('startGameSession verification failed: $error');
       try {
-        await LifeManager.refreshFromServer();
+        if (operationGeneration == _sessionOperationGeneration) {
+          await LifeManager.refreshFromServer();
+        }
       } catch (_) {
         // Keep the optimistic UI responsive; the next authoritative refresh
         // will reconcile the balance.
@@ -238,6 +247,7 @@ class PlayerProgressService {
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
+        if (operationGeneration != _sessionOperationGeneration) return false;
         _activeGameSessionId = data['sessionId'] as String;
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         final returnedChapter = data['chapterIndex'];
@@ -282,6 +292,7 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
+    final operationGeneration = ++_sessionOperationGeneration;
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
@@ -316,7 +327,10 @@ class PlayerProgressService {
         'restartGameSession failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
       );
-      await refresh();
+      if (operationGeneration == _sessionOperationGeneration) {
+        await refresh();
+        await LifeManager.refreshFromServer();
+      }
     }
     return false;
   }
