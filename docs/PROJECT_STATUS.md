@@ -21,6 +21,10 @@
 
 - `bf723e0e` — `fix: discard stale life reads after local mutation`
 - `ffa84f39` — `docs: add canonical project status`
+- `a91ecd4e` — `docs: record restart lost-response recovery`
+- `3f5776a7` — `fix: recover committed restart after lost response`
+- `5fec1c8d` — `docs: record life stale-read protection`
+- `bf723e0e` — `fix: discard stale life reads after local mutation`
 - `96014ed4` — `docs: record completion preflight change`
 - `7dbcea20` — `fix: restore gameplay page and preflight chapter completion`
 - `29fbb907` — `fix: start chapter completion verification with animation`
@@ -46,6 +50,7 @@
 - Life regeneration countdown 到期的舊回應覆蓋問題已加入防護。
 - Start / Resume / Restart session response 有 generation / stale-response 防護。
 - Restart 新局會建立新的 server session 並重新綁定 local save。
+- Restart callable response 遺失時，會重新讀取 server active session；若確認 transaction 已建立新 session，不再錯誤 rollback 舊棋盤。
 - 舊 active session 由 server transaction 標記 replaced。
 - Home 同時依 local unfinished session 與 server active session 限制章節切換。
 - SaveManager 不再讓未綁定舊 snapshot 污染新的 server session。
@@ -69,7 +74,7 @@
 
 ### 1. Restart / Game Over
 
-- 尚未完成最終實機確認 Restart 不閃回舊棋盤。
+- 程式面的 Restart lost-response race 已修正；尚未完成最終實機確認 Restart 不閃回舊棋盤。
 - 尚未完成最終實機確認 Game Over → Restart 不閃回舊遊戲。
 - 尚未完成最終實機確認 Restart / Game Over Restart 的 Life 顯示始終正確。
 
