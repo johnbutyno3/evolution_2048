@@ -20,13 +20,17 @@ class LifeManager {
   static String _lifeMode = 'normal';
   static int? _nextLifeAtMillis;
   static bool _regenerationSyncInFlight = false;
+  static int _lifeStateGeneration = 0;
 
   static Future<void> initialize() async {
     await refreshFromServer();
   }
 
   /// Applies an authoritative life payload returned by a server mutation.
+  /// Any in-flight regeneration read becomes stale and may no longer
+  /// overwrite this newer mutation result.
   static void applyServerState(Map<String, dynamic> data) {
+    _lifeStateGeneration++;
     _applyServerState(data);
   }
 
@@ -49,12 +53,34 @@ class LifeManager {
     return true;
   }
 
-  static Future<void> refreshFromServer() async {
+  /// Reads the authoritative state. A normal refresh invalidates any older
+  /// regeneration refresh; only the dedicated regeneration refresh is allowed
+  /// to use the optimistic-preservation rule.
+  static Future<void> refreshFromServer({bool fromRegeneration = false}) async {
+    final requestGeneration = _lifeStateGeneration;
+    if (!fromRegeneration) {
+      _lifeStateGeneration++;
+    }
+
     final result = await _functions.httpsCallable('getLifeState').call();
-    _applyServerState(Map<String, dynamic>.from(result.data as Map));
+    final data = Map<String, dynamic>.from(result.data as Map);
+
+    if (fromRegeneration) {
+      // A newer session/mutation response already arrived. Its state is more
+      // authoritative than this older regeneration read, so discard this
+      // response completely.
+      if (requestGeneration != _lifeStateGeneration) return;
+      _applyServerState(data, preserveLocalRegeneration: true);
+      return;
+    }
+
+    _applyServerState(data);
   }
 
-  static void _applyServerState(Map<String, dynamic> data) {
+  static void _applyServerState(
+    Map<String, dynamic> data, {
+    bool preserveLocalRegeneration = false,
+  }) {
     final lives = data['lives'];
     final infiniteLives = data['infiniteLives'] == true;
     final membership = data['membership'];
@@ -79,11 +105,22 @@ class LifeManager {
       throw StateError('Invalid server regeneration timestamp.');
     }
 
-    _lifeCount = lives;
+    final localLives = _lifeCount;
+    final localNextLifeAtMillis = _nextLifeAtMillis;
+    final preserveOptimisticLife =
+        preserveLocalRegeneration &&
+        !_infiniteLives &&
+        !infiniteLives &&
+        lives < localLives &&
+        localNextLifeAtMillis != null;
+
+    _lifeCount = preserveOptimisticLife ? localLives : lives;
     _infiniteLives = infiniteLives;
     _membership = membership as String;
     _lifeMode = lifeMode as String;
-    _nextLifeAtMillis = nextLifeAtMillis as int?;
+    _nextLifeAtMillis = preserveOptimisticLife
+        ? localNextLifeAtMillis
+        : nextLifeAtMillis as int?;
   }
 
   static bool get isGoldenMember => _lifeMode == 'golden';
@@ -101,7 +138,8 @@ class LifeManager {
   ///
   /// The local transition is immediate so the UI never remains at
   /// "4 (00:00)" while waiting for Firebase. The server is then queried in
-  /// the background and remains authoritative for the final state.
+  /// the background. A stale response can no longer roll the just-regenerated
+  /// Life back down.
   static void tickRegeneration() {
     if (_infiniteLives || _lifeCount < 0 || _nextLifeAtMillis == null) return;
 
@@ -122,7 +160,7 @@ class LifeManager {
 
     if (_regenerationSyncInFlight) return;
     _regenerationSyncInFlight = true;
-    refreshFromServer().catchError((_) {
+    refreshFromServer(fromRegeneration: true).catchError((_) {
       // Keep the optimistic local regeneration visible if Firebase is
       // temporarily unavailable. A later tick/reload will retry.
     }).whenComplete(() {
@@ -144,7 +182,7 @@ class LifeManager {
   static Future<bool> consumeLife() async {
     try {
       final result = await _functions.httpsCallable('consumeLife').call();
-      _applyServerState(Map<String, dynamic>.from(result.data as Map));
+      applyServerState(Map<String, dynamic>.from(result.data as Map));
       return true;
     } on FirebaseFunctionsException catch (error) {
       if (error.code == 'failed-precondition' &&
@@ -158,6 +196,6 @@ class LifeManager {
 
   static Future<void> refundChapterCompletionLife() async {
     final result = await _functions.httpsCallable('refundLife').call();
-    _applyServerState(Map<String, dynamic>.from(result.data as Map));
+    applyServerState(Map<String, dynamic>.from(result.data as Map));
   }
 }
