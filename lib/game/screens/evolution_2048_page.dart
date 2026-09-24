@@ -102,7 +102,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     WidgetsBinding.instance.addObserver(this);
     _completionAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 600),
     )..addStatusListener(_handleCompletionAnimationStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -945,7 +945,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
     await AudioManager.instance.stopMusic();
-    await AudioManager.instance.playSfxAndWait(GameSfx.chapterUnlock);
+    unawaited(AudioManager.instance.playSfx(GameSfx.chapterUnlock));
     if (!mounted) return;
     _chapterCompleteShowing = false;
     final result = await Navigator.of(context).push<String>(
