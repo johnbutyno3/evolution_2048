@@ -367,7 +367,7 @@ class PlayerProgressService {
     if (!LifeManager.optimisticConsumeLife()) return false;
 
     final operationGeneration = ++_sessionOperationGeneration;
-    final previousSessionId = _activeGameSessionId;
+    final previousSessionId = _activeGameSessionId ?? SaveManager.gameSessionId;
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
@@ -435,6 +435,11 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (restartCommitted) {
+          await SaveManager.rebindCachedGameSession(
+            chapter: _chapterNames[chapterIndex],
+            previousSessionId: previousSessionId,
+            newSessionId: refreshedSessionId,
+          );
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
           return true;
