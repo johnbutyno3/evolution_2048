@@ -307,8 +307,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (_gameOverDialogShowing || _chapterCompleteShowing ||
-        _completionAnimationPlaying || _toolMode != null ||
-        _restartInProgress) {
+        _completionAnimationPlaying || _toolMode != null) {
       return KeyEventResult.handled;
     }
     final direction = switch (event.logicalKey) {
@@ -493,6 +492,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // for the Firebase restart transaction before changing the UI, which made
     // a restart visibly stall while the callable completed.
     final oldEngine = _engine;
+    final previousSessionId =
+        PlayerProgressService.instance.activeGameSessionId;
     final saveData = oldEngine.createSaveData();
     final replayLog = saveData['replayLog'];
     final replay = replayLog is Map
@@ -521,12 +522,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _startUiRefreshTimer();
     _focusNode.requestFocus();
 
-    // Keep the new board non-interactive until the server has atomically
-    // created the new session and consumed the Life. This prevents a fast
-    // input during the network round trip from modifying a session that the
-    // server has not accepted yet.
-    final previousSessionId =
-        PlayerProgressService.instance.activeGameSessionId;
+    // The replacement board is locally playable while Firebase performs
+    // the atomic session replacement in the background. Its local snapshot
+    // is rebound to the new authoritative session ID when the call returns.
     final restarted =
         await PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
