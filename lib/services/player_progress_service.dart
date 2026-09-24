@@ -513,7 +513,18 @@ class PlayerProgressService {
     // A player can finish very quickly while the background session request
     // is still in flight. Wait only at completion time; normal board entry is
     // never blocked by Firebase latency.
-    if (!await _awaitPendingStartSession()) return false;
+    if (!await _awaitPendingStartSession()) {
+      // If the background start genuinely failed, the local board is still
+      // usable but has no server session. Recover from the exact replay
+      // initialTiles instead of leaving a completed local game un-settleable.
+      final initialTiles = replayLog['initialTiles'];
+      if (initialTiles is! List || initialTiles.length != 16) return false;
+      final recovered = await startGameSession(
+        chapterIndex,
+        initialTiles: List<dynamic>.from(initialTiles),
+      );
+      if (!recovered) return false;
+    }
     final sessionId = _activeGameSessionId;
     if (sessionId == null) return false;
 
