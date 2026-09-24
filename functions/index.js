@@ -83,6 +83,17 @@ function toolInventoryRef(uid) {
   return db.collection('users').doc(uid).collection('wallet').doc('tools');
 }
 
+function chapterRewardTool(chapterIndex) {
+  return [
+    'timeRewind',
+    'revive',
+    'positionSwap',
+    'duplicate',
+    'duplicate',
+    'timeRewind',
+  ][chapterIndex] || null;
+}
+
 function chapterRewardTools(chapterIndex) {
   return [
     ['timeRewind'],
@@ -1268,6 +1279,21 @@ exports.completeChapter = onCall(async (request) => {
       activeGameChapterIndex: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+
+    const chapterRewardToolType = chapterRewardTool(chapterIndex);
+    if (chapterRewardToolType !== null) {
+      const currentRewardUses = toolInventory[chapterRewardToolType] ?? 0;
+      if (!Number.isSafeInteger(currentRewardUses) ||
+          currentRewardUses < 0 ||
+          currentRewardUses >= MAX_SAFE_INTEGER) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Tool reward inventory is invalid.',
+        );
+      }
+      toolUpdates[chapterRewardToolType] =
+        currentRewardUses + 1;
+    }
 
     if (Object.keys(toolUpdates).length > 0) {
       transaction.set(toolsRef, {
