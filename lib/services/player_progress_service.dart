@@ -242,7 +242,10 @@ class PlayerProgressService {
       );
     }
 
-    final operationGeneration = _sessionOperationGeneration;
+    // Resume is a session-binding operation too. Give it a new generation
+    // so a concurrent Restart/Start cannot later be overwritten by this
+    // older Firebase response.
+    final operationGeneration = ++_sessionOperationGeneration;
     try {
       final result = await _functions.httpsCallable('resumeGameSession').call({
         'chapterIndex': chapterIndex,
