@@ -1236,17 +1236,27 @@ exports.completeChapter = onCall(async (request) => {
 
     const chapterRewardToolType = chapterRewardTool(chapterIndex);
     if (chapterRewardToolType !== null) {
-      const currentRewardUses = toolInventory[chapterRewardToolType] ?? 0;
-      if (!Number.isSafeInteger(currentRewardUses) ||
-          currentRewardUses < 0 ||
-          currentRewardUses >= MAX_SAFE_INTEGER) {
-        throw new HttpsError(
-          'failed-precondition',
-          'Tool reward inventory is invalid.',
-        );
+      const rewardIsGoldenUnlimitedUndo =
+        chapterRewardToolType === 'timeRewind' &&
+        membershipActive &&
+        membershipType === 'golden';
+
+      // Golden members already have unlimited UNDO. Do not manufacture a
+      // numeric inventory balance for an unlimited tool when a chapter is
+      // completed.
+      if (!rewardIsGoldenUnlimitedUndo) {
+        const currentRewardUses = toolInventory[chapterRewardToolType] ?? 0;
+        if (!Number.isSafeInteger(currentRewardUses) ||
+            currentRewardUses < 0 ||
+            currentRewardUses >= MAX_SAFE_INTEGER) {
+          throw new HttpsError(
+            'failed-precondition',
+            'Tool reward inventory is invalid.',
+          );
+        }
+        toolUpdates[chapterRewardToolType] =
+          currentRewardUses + 1;
       }
-      toolUpdates[chapterRewardToolType] =
-        currentRewardUses + 1;
     }
 
     if (Object.keys(toolUpdates).length > 0) {
