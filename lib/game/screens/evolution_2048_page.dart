@@ -381,7 +381,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<bool> _reset() async {
     if (!mounted || _completionAnimationPlaying || _restartInProgress) return false;
     _restartInProgress = true; _gameSessionGeneration++;
-    final oldEngine = _engine; final previousSessionId = PlayerProgressService.instance.activeGameSessionId;
+    final oldEngine = _engine;
     final saveData = oldEngine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
     oldEngine.stopGameTimer();
     final newEngine = GameEngine(chapter: oldEngine.chapter, forceNewBoard: true, boardLifeActive: true);
@@ -392,8 +392,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final restarted = await PlayerProgressService.instance.restartGameSession(_chapterNumber - 1, replayLog: replay, initialTiles: initialTiles);
     if (restarted) {
       _engine.toolManager.refreshFromSavedProgress();
-      final newSessionId = PlayerProgressService.instance.activeGameSessionId;
-      if (newSessionId != null) await SaveManager.rebindCachedGameSession(chapter: oldEngine.chapter.name, previousSessionId: previousSessionId, newSessionId: newSessionId);
     }
     if (!mounted) { _restartInProgress = false; return restarted; }
     if (!restarted) {
