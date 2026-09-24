@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -20,6 +20,21 @@ import 'admin_test_page.dart';
 
 class PersonalPage extends StatelessWidget {
   const PersonalPage({super.key});
+
+  Future<bool> _isAdmin() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return false;
+    try {
+      await FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('adminGetTestAccountState')
+          .call({'uid': uid});
+      return true;
+    } on FirebaseFunctionsException {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,12 +99,10 @@ class PersonalPage extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const FeedbackPage()),
             ),
           ),
-          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            future: user == null
-                ? null
-                : FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+          FutureBuilder<bool>(
+            future: _isAdmin(),
             builder: (context, snapshot) {
-              if (snapshot.data?.data()?['isAdmin'] != true) {
+              if (snapshot.data != true) {
                 return const SizedBox.shrink();
               }
               return _SectionCard(
