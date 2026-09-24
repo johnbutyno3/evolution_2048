@@ -654,55 +654,9 @@ exports.startGameSession = onCall(async (request) => {
       }
     }
 
-    const tools = toolsSnapshot.data() || {};
-    const claimedRaw = Array.isArray(tools.chapterRewardsClaimed)
-      ? tools.chapterRewardsClaimed
-      : [];
-
-    const claimed = claimedRaw.filter(
-      (value) => Number.isInteger(value) &&
-        value >= 0 &&
-        value <= MAX_CHAPTER_INDEX,
-    );
-
-    const alreadyClaimed = claimed.includes(chapterIndex);
-
-    const membership = resolveMembership(membershipSnapshot.data() || {});
-    const membershipType = membership.type;
-    const membershipActive = membership.active;
-    if (!alreadyClaimed) {
-      const rewardTools = chapterRewardTools(chapterIndex);
-      const updates = {
-        chapterRewardsClaimed: [...claimed, chapterIndex],
-        updatedAt: FieldValue.serverTimestamp(),
-      };
-
-      for (const toolType of rewardTools) {
-        const currentUses = Number.isSafeInteger(tools[toolType]) &&
-            tools[toolType] >= 0
-          ? tools[toolType]
-          : 0;
-
-        // GOLDEN has unlimited UNDO, so never create a numeric UNDO
-        // reward for GOLDEN. All other tools remain finite and cumulative.
-        if (membershipActive &&
-            membershipType === 'golden' &&
-            toolType === 'timeRewind') {
-          continue;
-        }
-
-        if (currentUses > MAX_SAFE_INTEGER - 1) {
-          throw new HttpsError(
-            'failed-precondition',
-            'Tool inventory is full.',
-          );
-        }
-
-        updates[toolType] = currentUses + 1;
-      }
-
-      transaction.set(toolsRef, updates, { merge: true });
-    }
+    // Chapter tool rewards are granted only by completeChapter after the
+    // server has validated the completed replay. Starting a session must
+    // never grant a reward merely for entering a chapter.
 
     transaction.create(sessionRef, {
       chapterIndex,
