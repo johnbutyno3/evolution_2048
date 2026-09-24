@@ -66,11 +66,13 @@ class ToolManager {
     }
   }
 
-  /// Starts inventory verification in the background. Game entry must never
-  /// wait for this network read; the server inventory will reconcile the
-  /// cached tool counts when the response arrives.
-  static Future<void> refreshInventory() async {
-    unawaited(_refreshInventoryFromServer());
+  /// Refreshes the server inventory.
+  ///
+  /// Callers that are allowed to wait for inventory synchronization may await
+  /// this future. Game entry itself can still use [unawaited] so network
+  /// latency never blocks the local-first game flow.
+  static Future<void> refreshInventory() {
+    return _refreshInventoryFromServer();
   }
 
   static Future<void> _refreshInventoryFromServer() async {
