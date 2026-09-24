@@ -113,6 +113,7 @@ const List<String> _homeAvatarAssets = [
 class _HomePageState extends State<HomePage> {
   final _progress = PlayerProgressService.instance;
   bool _loading = true;
+  bool _enterInProgress = false;
   @override
   void initState() {
     super.initState();
@@ -138,7 +139,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _enter(BuildContext context, int index) async {
+    if (_enterInProgress) return;
     if (!_progress.isChapterUnlocked(index)) return;
+    _enterInProgress = true;
     final unfinishedChapter = SaveManager.unfinishedChapter;
     if (unfinishedChapter != null &&
         unfinishedChapter != _chapterKey(index)) {
@@ -180,6 +183,7 @@ class _HomePageState extends State<HomePage> {
       ToolManager.refreshInventory().catchError((_) => null),
     ]);
     if (mounted) setState(() {});
+    _enterInProgress = false;
   }
 
   String _chapterKey(int index) => HomePage.chapters[index].titleKey == 'technology'
