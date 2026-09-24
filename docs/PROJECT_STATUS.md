@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 22:05（Asia/Taipei）
+最後更新：2026-09-24 22:15（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,10 +15,12 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch 最新已提交修正：`c57bdf5f4fc21f03d8b6c1e87d76223d983c2766`
+目前 branch 最新已提交修正：`51fb89529dbc064930548b2ce52d7456aa908aa3`
 
 近期重要提交：
 
+- `51fb8952` — `docs: record authoritative session pointer reconciliation`
+- `1df259ff` — `fix: reconcile local session pointer on refresh`
 - `c57bdf5f` — `docs: record start lost-response recovery`
 - `832226b8` — `fix: recover committed start after lost response`
 - `bf723e0e` — `fix: discard stale life reads after local mutation`
@@ -140,6 +142,14 @@
 - Tools：`adminSetAllToolsEnabled` 目前寫入的是 `users/{uid}.allToolsEnabledForTest`，用途是「解除章節工具種類限制」，**不是發放工具使用次數**。
 - `getToolInventory` 仍以 `wallet/tools` 為 authoritative inventory，C1 初始 UNDO 由 `ensureInitialUndo` 保證 +1。
 - 因此「Tools enabled 但 inventory 是 0」在目前語意下不是 Firebase 寫入失敗，而是 TEST toggle 與「工具數量發放」兩個概念不同。不能直接把 toggle 改成 999999，否則會破壞 server-authoritative inventory 與正式扣除規則。
+
+## 本輪新增 Session pointer 修正
+
+- `PlayerProgressService.refresh()` 現在同步 Server authoritative active Session 與 `SaveManager.gameSessionId`。
+- Server 已無 active session 時，會清除本機舊 Session ID。
+- Server 有 active session 且本機 ID 不同時，會同步本機 ID。
+- 修正 `abandonGameSession` / Game Over response 遺失後，舊 Session ID 殘留在本機的競態。
+- Session ID 寫入仍走 SaveManager queue，不改變 local-first 遊戲操作。
 
 ## 下一個明確工作項目
 
