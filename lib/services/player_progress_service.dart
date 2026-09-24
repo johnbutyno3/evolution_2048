@@ -504,6 +504,7 @@ class PlayerProgressService {
     final sessionId = _activeGameSessionId;
     if (sessionId == null) return false;
 
+    final operationGeneration = ++_sessionOperationGeneration;
     try {
       final result = await _functions.httpsCallable('completeChapter').call({
         'sessionId': sessionId,
@@ -512,6 +513,7 @@ class PlayerProgressService {
       });
       final data = result.data;
       if (data is Map && data['unlockedChapterIndex'] is num) {
+        if (operationGeneration != _sessionOperationGeneration) return false;
         _unlockedChapterIndex =
             (data['unlockedChapterIndex'] as num).toInt().clamp(0, 5);
         _loadedFromServer = true;
@@ -521,8 +523,54 @@ class PlayerProgressService {
         await ToolManager.refreshInventory();
         return true;
       }
-    } on FirebaseFunctionsException {
-      return false;
+    } on FirebaseFunctionsException catch (error) {
+      // completeChapter is transactional. Its Firestore writes may commit
+      // even when the callable response is lost. Reconcile before declaring
+      // the chapter completion failed, otherwise the client can remain on a
+      // completed board while the server has already advanced progression.
+      print(
+        'completeChapter failed: code=${error.code}, '
+        'message=${error.message}, details=${error.details}',
+      );
+      if (operationGeneration == _sessionOperationGeneration) {
+        await refresh();
+        if (operationGeneration != _sessionOperationGeneration) return false;
+
+        final sessionClosed =
+            _activeGameSessionId == null &&
+            _activeGameChapterIndex == null;
+        final chapterTargetReached =
+            chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
+        final completionCommitted =
+            sessionClosed && chapterTargetReached;
+
+        if (completionCommitted) {
+          await SaveManager.clearGameSessionId();
+          await ToolManager.refreshInventory();
+          return true;
+        }
+      }
+    } catch (error) {
+      print('completeChapter verification failed: $error');
+      if (operationGeneration == _sessionOperationGeneration) {
+        try {
+          await refresh();
+          if (operationGeneration != _sessionOperationGeneration) return false;
+          final sessionClosed =
+              _activeGameSessionId == null &&
+              _activeGameChapterIndex == null;
+          final chapterTargetReached =
+              chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
+          if (sessionClosed && chapterTargetReached) {
+            await SaveManager.clearGameSessionId();
+            await ToolManager.refreshInventory();
+            return true;
+          }
+        } catch (_) {
+          // Keep the local completion state unchanged until the next
+          // authoritative refresh can reconcile it.
+        }
+      }
     }
     return false;
   }
