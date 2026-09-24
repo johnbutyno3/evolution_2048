@@ -164,15 +164,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final generation = _gameSessionGeneration;
     try {
       final progress = PlayerProgressService.instance;
-      // Do not block first paint on the authoritative progress read. The
-      // Home -> new-game path is local-first: mount a fresh board immediately
-      // and let the background start transaction reconcile the server state.
-      // An existing cached playable session is still considered below; the
-      // server refresh runs in parallel so stale-session cleanup can happen
-      // without delaying normal new-game entry.
-      if (!progress.loadedFromServer) {
-        unawaited(progress.refresh());
-      }
+      // Do not block first paint on the authoritative progress read.
+      // Home -> new-game is local-first: the local board and Life transition
+      // are presented immediately; startGameSession validates the request
+      // against Firebase in the background and reconciles/rolls back if the
+      // server rejects it. This also avoids racing a background progress read
+      // against the charge transaction.
       if (!mounted || generation != _gameSessionGeneration) return false;
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
