@@ -212,7 +212,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _engine.stopGameTimer();
       newEngine.startGameTimer();
       _engine = newEngine;
-      newEngine.setBoardLifeActiveForSession();
+      _engine = newEngine;
       // Tool inventory is authoritative but must not delay game entry. Refresh
       // it in the background and update the already-mounted engine when ready.
       unawaited(_refreshMountedToolInventory(generation));
