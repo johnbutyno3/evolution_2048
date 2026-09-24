@@ -19,6 +19,7 @@ class LifeManager {
   static String _membership = 'general';
   static String _lifeMode = 'normal';
   static int? _nextLifeAtMillis;
+  static bool _regenerationSyncInFlight = false;
 
   static Future<void> initialize() async {
     await refreshFromServer();
@@ -95,6 +96,39 @@ class LifeManager {
 
   static int? get nextLifeAtMillis =>
       _infiniteLives ? null : _nextLifeAtMillis;
+
+  /// Advances the local regeneration state as soon as the countdown expires.
+  ///
+  /// The local transition is immediate so the UI never remains at
+  /// "4 (00:00)" while waiting for Firebase. The server is then queried in
+  /// the background and remains authoritative for the final state.
+  static void tickRegeneration() {
+    if (_infiniteLives || _lifeCount < 0 || _nextLifeAtMillis == null) return;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now < _nextLifeAtMillis!) return;
+
+    final elapsed = now - _nextLifeAtMillis!;
+    final recovered = 1 + (elapsed ~/ _regenIntervalMillis);
+    final nextLives = (_lifeCount + recovered).clamp(0, normalCap);
+    _lifeCount = nextLives;
+
+    if (_lifeCount >= normalCap) {
+      _nextLifeAtMillis = null;
+    } else {
+      _nextLifeAtMillis =
+          _nextLifeAtMillis! + recovered * _regenIntervalMillis;
+    }
+
+    if (_regenerationSyncInFlight) return;
+    _regenerationSyncInFlight = true;
+    refreshFromServer().catchError((_) {
+      // Keep the optimistic local regeneration visible if Firebase is
+      // temporarily unavailable. A later tick/reload will retry.
+    }).whenComplete(() {
+      _regenerationSyncInFlight = false;
+    });
+  }
 
   static Duration? get regenerationRemaining {
     final next = nextLifeAtMillis;
