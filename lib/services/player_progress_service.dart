@@ -298,6 +298,7 @@ class PlayerProgressService {
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
     final operationGeneration = ++_sessionOperationGeneration;
+    final previousSessionId = _activeGameSessionId;
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
@@ -346,8 +347,23 @@ class PlayerProgressService {
         'message=${error.message}, details=${error.details}',
       );
       if (operationGeneration == _sessionOperationGeneration) {
+        // A callable can time out after the Firestore transaction has already
+        // committed. Refresh the authoritative progress before rolling back
+        // the locally responsive replacement board. If the server session ID
+        // changed, the restart succeeded and its response was merely lost.
         await refresh();
+        if (operationGeneration != _sessionOperationGeneration) return false;
+        final refreshedSessionId = _activeGameSessionId;
+        final restartCommitted =
+            refreshedSessionId != null &&
+            refreshedSessionId != previousSessionId &&
+            _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
+        if (restartCommitted) {
+          await SaveManager.setGameSessionId(refreshedSessionId);
+          await ToolManager.refreshInventory();
+          return true;
+        }
       }
     }
     return false;
