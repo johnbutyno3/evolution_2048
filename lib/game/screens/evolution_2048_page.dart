@@ -170,19 +170,41 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final activeChapter = progress.activeGameChapterIndex;
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
-        final entered = await progress.resumeGameSession(_chapterNumber - 1);
-        if (!entered || !mounted || generation != _gameSessionGeneration) return false;
         final saved = SaveManager.loadCached(chapter: _engine.chapter.name);
         final hasPlayableLocalBoard = saved != null &&
             saved['gameSessionId'] == progress.activeGameSessionId &&
             saved['gameOver'] != true && saved['chapterComplete'] != true &&
             saved['tiles'] is List && (saved['tiles'] as List).length == 16;
+        if (!hasPlayableLocalBoard) {
+          final newEngine = GameEngine(
+            chapter: _engine.chapter,
+            forceNewBoard: true,
+            boardLifeActive: true,
+          );
+          final newSave = newEngine.createSaveData();
+          final newReplay = newSave['replayLog'];
+          final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
+              ? List<dynamic>.from(newReplay['initialTiles'] as List)
+              : const <dynamic>[];
+          final entered = await progress.startGameSession(
+            _chapterNumber - 1,
+            replaceActiveSession: true,
+            initialTiles: initialTiles,
+          );
+          if (!entered || !mounted || generation != _gameSessionGeneration) return false;
+          _engine.stopGameTimer();
+          _engine = newEngine;
+          unawaited(_refreshMountedToolInventory(generation));
+          return true;
+        }
+        final entered = await progress.resumeGameSession(_chapterNumber - 1);
+        if (!entered || !mounted || generation != _gameSessionGeneration) return false;
         await ToolManager.refreshInventory();
         if (!mounted || generation != _gameSessionGeneration) return false;
         _engine.stopGameTimer();
         _engine = GameEngine(
           chapter: _engine.chapter,
-          forceNewBoard: !hasPlayableLocalBoard,
+          forceNewBoard: false,
           boardLifeActive: true,
         );
         return true;
@@ -194,7 +216,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
-        boardLifeActive: false,
+        boardLifeActive: true,
       );
       final newSave = newEngine.createSaveData();
       final newReplay = newSave['replayLog'];
@@ -211,7 +233,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (!started || !mounted || generation != _gameSessionGeneration) return false;
       _engine.stopGameTimer();
       newEngine.startGameTimer();
-      _engine = newEngine;
       _engine = newEngine;
       // Tool inventory is authoritative but must not delay game entry. Refresh
       // it in the background and update the already-mounted engine when ready.
