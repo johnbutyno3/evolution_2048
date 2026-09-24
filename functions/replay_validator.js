@@ -172,7 +172,14 @@ function highestValue(board, current) {
   return Math.max(current, ...board.filter((value) => value !== null));
 }
 
-function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requireCompletion = true }) {
+function initialTilesEqual(actual, expected) {
+  return Array.isArray(actual) &&
+    Array.isArray(expected) &&
+    actual.length === expected.length &&
+    actual.every((value, index) => value === expected[index]);
+}
+
+function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requireCompletion = true, expectedInitialTiles = null }) {
   validateChapter(chapterIndex);
   const target = targetValue ?? targetForChapter(chapterIndex);
   if (!Number.isInteger(target) || target !== targetForChapter(chapterIndex)) {
@@ -197,6 +204,10 @@ function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requir
 
   const board = replayLog.initialTiles.slice();
   validateInitialTiles(board, target);
+  if (expectedInitialTiles != null &&
+      !initialTilesEqual(board, expectedInitialTiles)) {
+    fail('Replay initial board does not match the server session.');
+  }
 
   const permitted = new Set(
     Array.isArray(allowedTools) ? allowedTools : allowedToolsForChapter(chapterIndex),
