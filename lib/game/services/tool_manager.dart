@@ -67,7 +67,12 @@ class ToolManager {
     return null;
   }
 
-  bool canUse(GameToolType type) => getTool(type)?.canUse ?? false;
+  bool canUse(GameToolType type) {
+    if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
+      return true;
+    }
+    return getTool(type)?.canUse ?? false;
+  }
 
   void refreshFromSavedProgress() {
     for (final tool in _tools) {
