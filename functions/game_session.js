@@ -118,6 +118,15 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
       const progressSnapshot = await transaction.get(progress);
       const currentProgress = progressSnapshot.data() || {};
       const oldSessionId = currentProgress.activeGameSessionId;
+      const requestedSessionId = request.data?.sessionId;
+      if (requestedSessionId != null &&
+          (typeof requestedSessionId !== 'string' ||
+           requestedSessionId !== oldSessionId)) {
+        throw new HttpsError(
+          'failed-precondition',
+          'The active game session has changed.',
+        );
+      }
       const oldSessionRef = typeof oldSessionId === 'string' && oldSessionId.length > 0
         ? gameSessionRef(uid, oldSessionId)
         : null;
