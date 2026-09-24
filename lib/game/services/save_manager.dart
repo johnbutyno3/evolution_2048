@@ -227,7 +227,10 @@ class SaveManager {
     // All snapshot writes share one queue. Without this, the old engine's
     // queued autosave can finish after a restarted engine's save and put the
     // old board back into SharedPreferences.
-    _saveQueue = _saveQueue.then((_) => _saveNow(data));
+    _saveQueue = _saveQueue.then(
+      (_) => _saveNow(data),
+      onError: (_, __) => _saveNow(data),
+    );
     return _saveQueue;
   }
 
