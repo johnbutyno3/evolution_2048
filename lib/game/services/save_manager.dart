@@ -71,8 +71,17 @@ class SaveManager {
     updatedChapters[chapter] = updatedChapter;
     final updatedRoot = Map<String, dynamic>.from(root);
     updatedRoot['chapters'] = updatedChapters;
-    _cachedSave = updatedRoot;
-    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+    _saveQueue = _saveQueue.then(
+      (_) async {
+        _cachedSave = updatedRoot;
+        await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+      },
+      onError: (_, __) async {
+        _cachedSave = updatedRoot;
+        await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+      },
+    );
+    await _saveQueue;
   }
 
   static Future<void> clearGameSessionId() async {
