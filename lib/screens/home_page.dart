@@ -341,16 +341,14 @@ class _HomePageState extends State<HomePage> {
                                     (unfinishedChapter == null ||
                                         unfinishedChapter == _chapterKey(index));
 
-                                final highestValue = _progress.chapterHighestValue(index);
-                                final stage = highestValue > 0
-                                    ? _stageFromHighestValue(highestValue)
-                                    : 0;
+                                final highestValue =
+                                    _progress.chapterHighestValue(index);
                                 final score = _progress.chapterScore(index);
 
                                 return _ChapterCard(
                                   chapter: HomePage.chapters[index],
                                   unlocked: open,
-                                  stage: stage,
+                                  highestValue: highestValue,
                                   score: score,
                                   onTap: open
                                       ? () => _enter(context, index)
@@ -386,16 +384,6 @@ String _localizedChapterTitle(BuildContext context, String key) {
   };
 }
 
-int _stageFromHighestValue(int value) {
-  var stage = 0;
-  var current = value;
-  while (current >= 2) {
-    current ~/= 2;
-    stage++;
-  }
-  return stage;
-}
-
 class ChapterInfo {
   final String titleKey, image;
   const ChapterInfo({required this.titleKey, required this.image});
@@ -404,14 +392,14 @@ class ChapterInfo {
 class _ChapterCard extends StatelessWidget {
   final ChapterInfo chapter;
   final bool unlocked;
-  final int stage;
+  final int highestValue;
   final int score;
   final VoidCallback? onTap;
   final bool hasUnfinishedOtherChapter;
   const _ChapterCard({
     required this.chapter,
     required this.unlocked,
-    required this.stage,
+    required this.highestValue,
     required this.score,
     required this.onTap,
     this.hasUnfinishedOtherChapter = false,
@@ -457,7 +445,7 @@ class _ChapterCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$stage / $score',
+                    '$highestValue / $score',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
