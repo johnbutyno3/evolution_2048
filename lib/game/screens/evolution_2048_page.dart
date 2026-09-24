@@ -251,17 +251,32 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
           ? List<dynamic>.from(newReplay['initialTiles'] as List)
           : const <dynamic>[];
-      // startGameSession() consumes the Life locally and starts the
-      // Firebase transaction in the background. Do not await the network
-      // transaction here: the new board must become playable immediately.
-      final started = await progress.startGameSession(
+      // Consume the Life locally and start the Firebase transaction, but do
+      // not make the player wait for the network before seeing the new board.
+      // The server result is reconciled below; a rejected transaction rolls
+      // the local board back instead of blocking normal game entry.
+      final startedFuture = progress.startGameSession(
         _chapterNumber - 1,
         initialTiles: initialTiles,
       );
-      if (!started || !mounted || generation != _gameSessionGeneration) return false;
+      final previousEngine = _engine;
       _engine.stopGameTimer();
-      newEngine.startGameTimer();
       _engine = newEngine;
+      newEngine.startGameTimer();
+      _startUiRefreshTimer();
+      if (mounted) setState(() {});
+      final started = await startedFuture;
+      if (!started || !mounted || generation != _gameSessionGeneration) {
+        newEngine.stopGameTimer();
+        if (mounted && generation == _gameSessionGeneration) {
+          await newEngine.flushLocalSave();
+          _engine = previousEngine;
+          _engine.startGameTimer();
+          _startUiRefreshTimer();
+          setState(() {});
+        }
+        return false;
+      }
       // Tool inventory is authoritative but must not delay game entry. Refresh
       // it in the background and update the already-mounted engine when ready.
       unawaited(_refreshMountedToolInventory(generation));
