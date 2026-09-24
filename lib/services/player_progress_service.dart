@@ -108,6 +108,17 @@ class PlayerProgressService {
           ? activeChapter.toInt().clamp(0, 5)
           : null;
 
+      // Keep the local session pointer aligned with the authoritative server
+      // state. In particular, an abandon/game-over transaction can commit
+      // successfully while its callable response is lost; leaving the old
+      // local ID behind would make the next local-first start look as if it
+      // were replacing/resuming a session that no longer exists.
+      if (_activeGameSessionId == null) {
+        await SaveManager.clearGameSessionId();
+      } else if (SaveManager.gameSessionId != _activeGameSessionId) {
+        await SaveManager.setGameSessionId(_activeGameSessionId!);
+      }
+
       _loadedFromServer = true;
     } on FirebaseException {
       _loadedFromServer = false;
