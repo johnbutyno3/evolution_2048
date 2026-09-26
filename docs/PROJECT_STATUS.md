@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-24 21:25（Asia/Taipei）
+最後更新：2026-09-26 09:42（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,16 +15,18 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch 最新已提交 commit：`8a304e61c7d7f00b83516e828ad9fa179721725f`
+目前 branch 最新已提交 commit：`46cbad67346e4197d5cc6bfb3ce7d58cef29f8f7`
 
 本次新增／修正：
 
+- `46cbad67` — `fix: remove obsolete tool manager logout call`
+- `c266c543` — `fix: correct evolution page build syntax`
 - `8a304e61` — `docs: record fully local-first game entry`
 - `497b0b68` — `fix: avoid progress refresh blocking game entry`
 - `a00b110c` — `fix: keep first game entry local-first`
 - `c22e2109` — `docs: record complete local-first game entry fix`
 
-這批變更把「第一次進入遊戲」也納入 local-first：遊戲頁先建立可玩的本機棋盤與 Life 顯示，Progress refresh / Firebase session 驗證在背景進行，不再讓進入遊戲被網路延遲卡住。
+這批變更延續並收尾 local-first 進入遊戲：遊戲頁先建立可玩的本機棋盤與 Life 顯示，Progress refresh / Firebase session 驗證在背景進行，不再讓進入遊戲被網路延遲卡住；另修正 evolution page build 語法，並移除已不存在的 ToolManager logout API 呼叫，恢復 PersonalPage 登出流程可編譯。
 
 ## 已完成／已提交修正
 
@@ -101,7 +103,7 @@
 
 ## 文件狀態差異
 
-- `docs/PROJECT_STATUS.md`：已同步至目前最新 branch HEAD `8a304e61`。
+- `docs/PROJECT_STATUS.md`：本次更新後同步至目前最新 branch HEAD `46cbad67`。
 - `docs/GAME_RULES.md`：目前 GitHub branch 不存在；不可假裝存在，也不可自行創造規則取代既有規則來源。
 - 詳細歷史仍保留於 timestamped canonical progress 文件。
 - 不使用舊 `RELEASE_PREPARATION_TODO.md` 作主要進度來源。

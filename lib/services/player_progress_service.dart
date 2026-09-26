@@ -359,15 +359,8 @@ class PlayerProgressService {
       if (!await pendingStart) return false;
     }
 
-    // Restart is a new game entry and must consume the Life locally first,
-    // exactly like normal startGameSession. The Firebase transaction remains
-    // authoritative and reconciles the final balance when it returns.
-    // This keeps Restart responsive and prevents network latency from making
-    // the player wait before the new board becomes playable.
-    if (!LifeManager.optimisticConsumeLife()) return false;
-
     final operationGeneration = ++_sessionOperationGeneration;
-    final previousSessionId = _activeGameSessionId ?? SaveManager.gameSessionId;
+    final previousSessionId = _activeGameSessionId;
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
@@ -383,11 +376,6 @@ class PlayerProgressService {
         if (operationGeneration != _sessionOperationGeneration) return false;
 
         _activeGameSessionId = data['sessionId'] as String;
-        await SaveManager.rebindCachedGameSession(
-          chapter: _chapterNames[chapterIndex],
-          previousSessionId: previousSessionId,
-          newSessionId: _activeGameSessionId!,
-        );
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         _activeGameChapterIndex = chapterIndex;
 
@@ -435,11 +423,6 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (restartCommitted) {
-          await SaveManager.rebindCachedGameSession(
-            chapter: _chapterNames[chapterIndex],
-            previousSessionId: previousSessionId,
-            newSessionId: refreshedSessionId,
-          );
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
           return true;

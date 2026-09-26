@@ -164,12 +164,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final generation = _gameSessionGeneration;
     try {
       final progress = PlayerProgressService.instance;
-      // Do not block first paint on the authoritative progress read.
-      // Home -> new-game is local-first: the local board and Life transition
-      // are presented immediately; startGameSession validates the request
-      // against Firebase in the background and reconciles/rolls back if the
-      // server rejects it. This also avoids racing a background progress read
-      // against the charge transaction.
+      if (!progress.loadedFromServer) await progress.refresh();
       if (!mounted || generation != _gameSessionGeneration) return false;
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
@@ -256,32 +251,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
           ? List<dynamic>.from(newReplay['initialTiles'] as List)
           : const <dynamic>[];
-      // Consume the Life locally and start the Firebase transaction, but do
-      // not make the player wait for the network before seeing the new board.
-      // The server result is reconciled below; a rejected transaction rolls
-      // the local board back instead of blocking normal game entry.
-      final startedFuture = progress.startGameSession(
+      // startGameSession() consumes the Life locally and starts the
+      // Firebase transaction in the background. Do not await the network
+      // transaction here: the new board must become playable immediately.
+      final started = await progress.startGameSession(
         _chapterNumber - 1,
         initialTiles: initialTiles,
       );
-      final previousEngine = _engine;
+      if (!started || !mounted || generation != _gameSessionGeneration) return false;
       _engine.stopGameTimer();
-      _engine = newEngine;
       newEngine.startGameTimer();
-      _startUiRefreshTimer();
-      if (mounted) setState(() {});
-      final started = await startedFuture;
-      if (!started || !mounted || generation != _gameSessionGeneration) {
-        newEngine.stopGameTimer();
-        if (mounted && generation == _gameSessionGeneration) {
-          await newEngine.flushLocalSave();
-          _engine = previousEngine;
-          _engine.startGameTimer();
-          _startUiRefreshTimer();
-          setState(() {});
-        }
-        return false;
-      }
+      _engine = newEngine;
       // Tool inventory is authoritative but must not delay game entry. Refresh
       // it in the background and update the already-mounted engine when ready.
       unawaited(_refreshMountedToolInventory(generation));
@@ -401,7 +381,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<bool> _reset() async {
     if (!mounted || _completionAnimationPlaying || _restartInProgress) return false;
     _restartInProgress = true; _gameSessionGeneration++;
-    final oldEngine = _engine;
+    final oldEngine = _engine; final previousSessionId = PlayerProgressService.instance.activeGameSessionId;
     final saveData = oldEngine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
     oldEngine.stopGameTimer();
     final newEngine = GameEngine(chapter: oldEngine.chapter, forceNewBoard: true, boardLifeActive: true);
@@ -412,6 +392,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final restarted = await PlayerProgressService.instance.restartGameSession(_chapterNumber - 1, replayLog: replay, initialTiles: initialTiles);
     if (restarted) {
       _engine.toolManager.refreshFromSavedProgress();
+      final newSessionId = PlayerProgressService.instance.activeGameSessionId;
+      if (newSessionId != null) await SaveManager.rebindCachedGameSession(chapter: oldEngine.chapter.name, previousSessionId: previousSessionId, newSessionId: newSessionId);
     }
     if (!mounted) { _restartInProgress = false; return restarted; }
     if (!restarted) {
@@ -568,7 +550,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _showResetMenu(); }, tooltip: 'Reset', visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20))])]), const SizedBox(height: 12),
       Text(_toolMode == null ? 'Highest: ${_engine.highestValue} / ${_engine.targetValue}' : 'Select a tile for ${_toolMode == 'swap' ? 'Swap' : _toolMode == 'duplicate' ? 'Duplicate' : 'REMOVE'}', style: Theme.of(context).textTheme.bodyLarge), const SizedBox(height: 10), _buildEvolutionNotice(),
       AspectRatio(aspectRatio: 1, child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Stack(fit: StackFit.expand, children: [Image.asset(background, fit: BoxFit.cover), Container(color: Colors.black.withValues(alpha: 0.18)), GridView.builder(physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.all(8), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 6, mainAxisSpacing: 6), itemCount: 16, itemBuilder: (context, index) { final tile = _engine.board.tiles[index]; final selected = _firstSwapIndex == index; return GestureDetector(onTap: () => unawaited(_selectToolTile(index)), child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: selected ? Border.all(width: 3, color: Colors.yellow) : null, color: tile == null ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.82)), padding: EdgeInsets.all(_engine.chapter == GameChapter.universe ? 2 : 6), child: tile == null ? const SizedBox.shrink() : Image.asset(tile.creature.imagePath, fit: BoxFit.contain))); }), _buildCompletionAnimation()]))), const SizedBox(height: 12), Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Row(children: [Expanded(child: _buildToolButton(GameToolType.timeRewind)), Expanded(child: _buildToolButton(GameToolType.positionSwap)), Expanded(child: _buildToolButton(GameToolType.revive)), Expanded(child: _buildToolButton(GameToolType.duplicate))]))
-    ])))))))));
+    ]))))))));
   }
 }
 
