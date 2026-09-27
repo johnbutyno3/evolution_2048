@@ -216,7 +216,6 @@ class PlayerProgressService {
       // The server remains authoritative. Expected failures such as no Life
       // simply reconcile the local optimistic state; security failures remain
       // visible to the backend enforcement layer.
-      // ignore: avoid_print
       print(
         'startGameSession failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
