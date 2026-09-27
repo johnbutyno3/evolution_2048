@@ -37,7 +37,7 @@ class SaveManager {
         'rebirth_2048_game_session_id_v1',
         id,
       ),
-      onError: (_, __) => _preferences!.setString(
+      onError: (_, _) => _preferences!.setString(
         'rebirth_2048_game_session_id_v1',
         id,
       ),
@@ -96,7 +96,7 @@ class SaveManager {
         _cachedSave = updatedRoot;
         await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
       },
-      onError: (_, __) async {
+      onError: (_, _) async {
         await _preferences!.setString(
           'rebirth_2048_game_session_id_v1',
           id,
@@ -112,7 +112,7 @@ class SaveManager {
     _preferences ??= await SharedPreferences.getInstance();
     _saveQueue = _saveQueue.then(
       (_) => _preferences!.remove('rebirth_2048_game_session_id_v1'),
-      onError: (_, __) => _preferences!.remove('rebirth_2048_game_session_id_v1'),
+      onError: (_, _) => _preferences!.remove('rebirth_2048_game_session_id_v1'),
     );
     await _saveQueue;
   }
@@ -268,7 +268,7 @@ class SaveManager {
     // old board back into SharedPreferences.
     _saveQueue = _saveQueue.then(
       (_) => _saveNow(data),
-      onError: (_, __) => _saveNow(data),
+      onError: (_, _) => _saveNow(data),
     );
     return _saveQueue;
   }
@@ -365,7 +365,7 @@ class SaveManager {
     // this clear and resurrect the stale board in SharedPreferences.
     _saveQueue = _saveQueue.then(
       (_) => _clearChapterNow(chapter),
-      onError: (_, __) => _clearChapterNow(chapter),
+      onError: (_, _) => _clearChapterNow(chapter),
     );
     await _saveQueue;
   }
