@@ -10,6 +10,7 @@ import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
 
 import '../game/services/audio_manager.dart';
+import '../game/services/tool_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
