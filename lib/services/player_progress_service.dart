@@ -155,7 +155,6 @@ class PlayerProgressService {
     if (!LifeManager.optimisticConsumeLife()) return false;
 
     final operationGeneration = ++_sessionOperationGeneration;
-    final previousSessionId = _activeGameSessionId ?? SaveManager.gameSessionId;
     final pending = _startGameSessionOnServer(
       chapterIndex,
       replaceActiveSession: replaceActiveSession,
