@@ -1,3 +1,5 @@
+// ignore_for_file: curly_braces_in_flow_control_structures, use_build_context_synchronously
+
 import '../../services/creature_collection_service.dart';
 import 'dart:async';
 
