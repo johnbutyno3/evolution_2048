@@ -19,7 +19,6 @@ class LifeManager {
   static String _membership = 'general';
   static String _lifeMode = 'normal';
   static int? _nextLifeAtMillis;
-  static bool _regenerationSyncInFlight = false;
   static int _lifeStateGeneration = 0;
 
   static Future<void> initialize() async {
@@ -130,7 +129,6 @@ class LifeManager {
     _membership = 'general';
     _lifeMode = 'normal';
     _nextLifeAtMillis = null;
-    _regenerationSyncInFlight = false;
   }
 
   static bool get isGoldenMember => _lifeMode == 'golden';
@@ -172,12 +170,9 @@ class LifeManager {
     // background verification, even if a previous regeneration request is
     // still in flight; the older request will be discarded by generation.
     _lifeStateGeneration++;
-    _regenerationSyncInFlight = true;
     refreshFromServer(fromRegeneration: true).catchError((_) {
       // Keep the optimistic local regeneration visible if Firebase is
       // temporarily unavailable. A later refresh/re-entry will retry.
-    }).whenComplete(() {
-      _regenerationSyncInFlight = false;
     });
   }
 
