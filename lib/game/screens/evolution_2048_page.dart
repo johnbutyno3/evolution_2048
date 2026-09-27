@@ -1,3 +1,4 @@
+  // Main evolution game screen.
   @override
   Widget build(BuildContext context) {
     final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount; final lifeRemaining = LifeManager.regenerationRemaining; final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
