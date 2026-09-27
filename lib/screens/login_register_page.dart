@@ -100,7 +100,12 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           error.code != 'popup-closed-by-user' &&
           error.code != 'cancelled-popup-request') {
         final l10n = AppLocalizations.of(context)!;
-        _showError(_authError(l10n, error.code));
+        final message = _authError(l10n, error.code);
+        _showError('$message (${error.code})');
+      }
+    } catch (error) {
+      if (mounted) {
+        _showError('Google/Apple login error: $error');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
