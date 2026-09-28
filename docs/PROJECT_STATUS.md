@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-09-26 09:42（Asia/Taipei）
+最後更新：2026-09-28 21:55（Asia/Taipei）
 專案：`johnbutyno3/evolution_2048`
 分支：`feature/chapter1-spec-implementation`
 主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
@@ -15,10 +15,22 @@
 
 ## 最新 GitHub 狀態
 
-目前 branch 最新已提交 commit：`46cbad67346e4197d5cc6bfb3ce7d58cef29f8f7`
+目前 branch 最新已提交 commit：`88883425d857a92b06b67affb26221947264584a`
 
 本次新增／修正：
 
+- `88883425` — `fix: expose provider login error details`
+- `7c6d889d` — `fix: remove redundant print ignore`
+- `e36c4438` — `fix: remove duplicate avoid_print ignore`
+- `8fba843d` — `fix: simplify unused callback parameters`
+- `1d32b9f0` — `fix: restore ToolManager import`
+- `d18615f9` — `chore: silence intentional progress service logs`
+- `e92166a2` — `chore: silence intentional page lint findings`
+- `e237bd6a` — `fix: restore complete evolution game screen`
+- `f6f9d34f` — `fix: restore evolution game screen source`
+- `14bebfd8` — `fix: remove unused session local`
+- `b03d3d83` — `fix: remove unused life regeneration flag`
+- `dd21536f` — `fix: restore build syntax and remove obsolete tool call`
 - `46cbad67` — `fix: remove obsolete tool manager logout call`
 - `c266c543` — `fix: correct evolution page build syntax`
 - `8a304e61` — `docs: record fully local-first game entry`
@@ -26,7 +38,7 @@
 - `a00b110c` — `fix: keep first game entry local-first`
 - `c22e2109` — `docs: record complete local-first game entry fix`
 
-這批變更延續並收尾 local-first 進入遊戲：遊戲頁先建立可玩的本機棋盤與 Life 顯示，Progress refresh / Firebase session 驗證在背景進行，不再讓進入遊戲被網路延遲卡住；另修正 evolution page build 語法，並移除已不存在的 ToolManager logout API 呼叫，恢復 PersonalPage 登出流程可編譯。
+這批變更主要完成 build／lint 穩定化、完整遊戲畫面來源恢復、必要 import／log 清理，以及登入 provider 錯誤細節暴露；同時延續 local-first 進入遊戲：遊戲頁先建立可玩的本機棋盤與 Life 顯示，Progress refresh / Firebase session 驗證在背景進行，不再讓進入遊戲被網路延遲卡住。
 
 ## 已完成／已提交修正
 
@@ -54,6 +66,7 @@
 - Chapter completion tool reward 與工具 inventory refresh 已接通。
 - 第一階 creature unlock 條件已補正。
 - Tool inventory cache 已做 account-scoped 清除；登出不會把前一帳號工具數量帶到下一帳號。
+- Provider login failure 現在會暴露可診斷的錯誤細節，方便辨識登入流程問題。
 - `allToolsEnabledForTest` 維持「解除章節工具種類限制」語意，不等同正式工具庫存數量。
 
 ## 目前仍未完成／未經最終實機驗證
@@ -103,7 +116,7 @@
 
 ## 文件狀態差異
 
-- `docs/PROJECT_STATUS.md`：本次更新後同步至目前最新 branch HEAD `46cbad67`。
+- `docs/PROJECT_STATUS.md`：本次更新後同步至目前最新 branch HEAD `88883425`。
 - `docs/GAME_RULES.md`：目前 GitHub branch 不存在；不可假裝存在，也不可自行創造規則取代既有規則來源。
 - 詳細歷史仍保留於 timestamped canonical progress 文件。
 - 不使用舊 `RELEASE_PREPARATION_TODO.md` 作主要進度來源。
