@@ -493,7 +493,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         // decrement.
         newEngine.stopGameTimer();
         await newEngine.flushLocalSave();
-        await LifeManager.refreshFromServer().catchError((_) {});
         await SaveManager.save(oldEngine.createSaveData());
         oldEngine.startGameTimer();
         _engine = oldEngine;
