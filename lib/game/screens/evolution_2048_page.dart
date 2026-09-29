@@ -166,63 +166,55 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final generation = _gameSessionGeneration;
     try {
       final progress = PlayerProgressService.instance;
-      // Do not block first paint on the authoritative progress read.
-      // Home -> new-game is local-first: the local board and Life transition
-      // are presented immediately; startGameSession validates the request
-      // against Firebase in the background and reconciles/rolls back if the
-      // server rejects it. This also avoids racing a background progress read
-      // against the charge transaction.
       if (!mounted || generation != _gameSessionGeneration) return false;
+
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
+
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
-        final saved = SaveManager.loadCached(chapter: _engine.chapter.name);
+
+        final saved = SaveManager.loadCached(
+          chapter: _engine.chapter.name,
+        );
         final hasPlayableLocalBoard = saved != null &&
-            saved['gameSessionId'] == progress.activeGameSessionId &&
-            saved['gameOver'] != true && saved['chapterComplete'] != true &&
-            saved['tiles'] is List && (saved['tiles'] as List).length == 16;
-        if (!hasPlayableLocalBoard) {
-          final newEngine = GameEngine(
-            chapter: _engine.chapter,
-            forceNewBoard: true,
-            boardLifeActive: true,
-          );
-          final newSave = newEngine.createSaveData();
-          final newReplay = newSave['replayLog'];
-          final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
-              ? List<dynamic>.from(newReplay['initialTiles'] as List)
-              : const <dynamic>[];
-          final entered = await progress.startGameSession(
-            _chapterNumber - 1,
-            replaceActiveSession: true,
-            initialTiles: initialTiles,
-          );
-          if (!entered || !mounted || generation != _gameSessionGeneration) return false;
-          _engine.stopGameTimer();
-          _engine = newEngine;
-          unawaited(_refreshMountedToolInventory(generation));
-          return true;
-        }
-        final entered = await progress.resumeGameSession(_chapterNumber - 1);
-        if (entered) {
-          if (!mounted || generation != _gameSessionGeneration) return false;
-          await ToolManager.refreshInventory();
-          if (!mounted || generation != _gameSessionGeneration) return false;
-          _engine.stopGameTimer();
-          _engine = GameEngine(
+            saved['gameSessionId'] == activeSessionId &&
+            saved['gameOver'] != true &&
+            saved['chapterComplete'] != true &&
+            saved['tiles'] is List &&
+            (saved['tiles'] as List).length == 16;
+
+        if (hasPlayableLocalBoard) {
+          final localEngine = GameEngine(
             chapter: _engine.chapter,
             forceNewBoard: false,
             boardLifeActive: true,
           );
+          if (!localEngine.restoreFromSaveData(saved)) return false;
+
+          _engine.stopGameTimer();
+          _engine = localEngine;
+          _resumeGameplay();
+          _focusNode.requestFocus();
+
+          // Resume validation is authoritative but must never delay the
+          // already-restored local board. A failed verification is reconciled
+          // by PlayerProgressService; the next authoritative operation can
+          // recover the session when necessary.
+          unawaited(
+            progress.resumeGameSession(_chapterNumber - 1).then((_) {
+              if (!mounted || generation != _gameSessionGeneration) return;
+              _engine.toolManager.refreshFromSavedProgress();
+              setState(() {});
+            }).catchError((_) {}),
+          );
+          unawaited(_refreshMountedToolInventory(generation));
           return true;
         }
 
-        // The server session may have expired while the cached board still
-        // exists locally. Never replay that stale board into a new session.
-        // Create a fresh board and bind exactly that board to the replacement
-        // session.
-        if (!mounted || generation != _gameSessionGeneration) return false;
+        // There is a server session but no usable local board. Present a
+        // fresh local board immediately and let the replacement session
+        // validate in the background.
         final newEngine = GameEngine(
           chapter: _engine.chapter,
           forceNewBoard: true,
@@ -233,21 +225,45 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
             ? List<dynamic>.from(newReplay['initialTiles'] as List)
             : const <dynamic>[];
-        final restarted = await progress.startGameSession(
+
+        final previousEngine = _engine;
+        final started = progress.startGameSession(
           _chapterNumber - 1,
           replaceActiveSession: true,
           initialTiles: initialTiles,
         );
-        if (!restarted || !mounted || generation != _gameSessionGeneration) return false;
         _engine.stopGameTimer();
         _engine = newEngine;
-        unawaited(_refreshMountedToolInventory(generation));
+        newEngine.startGameTimer();
+        _startUiRefreshTimer();
+        if (mounted) setState(() {});
+
+        unawaited(
+          started.then((ok) async {
+            if (!mounted || generation != _gameSessionGeneration) return;
+            if (!ok) {
+              newEngine.stopGameTimer();
+              await newEngine.flushLocalSave();
+              await SaveManager.save(previousEngine.createSaveData());
+              previousEngine.startGameTimer();
+              if (mounted) {
+                _engine = previousEngine;
+                _startUiRefreshTimer();
+                setState(() {});
+              }
+              return;
+            }
+            unawaited(_refreshMountedToolInventory(generation));
+          }).catchError((_) {}),
+        );
         return true;
       }
+
       if (_engine.gameOver || _engine.chapterComplete) return false;
-      // Build the exact new local board first. Its initialTiles are sent with
-      // the background session transaction so the server can bind replay
-      // validation to the board that was actually presented to the player.
+
+      // New game: construct the exact board first and start Firebase
+      // validation in the background. startGameSession performs the
+      // optimistic local Life transition.
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
@@ -258,10 +274,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
           ? List<dynamic>.from(newReplay['initialTiles'] as List)
           : const <dynamic>[];
-      // Consume the Life locally and start the Firebase transaction, but do
-      // not make the player wait for the network before seeing the new board.
-      // The server result is reconciled below; a rejected transaction rolls
-      // the local board back instead of blocking normal game entry.
+
       final startedFuture = progress.startGameSession(
         _chapterNumber - 1,
         initialTiles: initialTiles,
@@ -272,28 +285,29 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       newEngine.startGameTimer();
       _startUiRefreshTimer();
       if (mounted) setState(() {});
-      final started = await startedFuture;
-      if (!started || !mounted || generation != _gameSessionGeneration) {
-        newEngine.stopGameTimer();
-        if (mounted && generation == _gameSessionGeneration) {
-          await newEngine.flushLocalSave();
-          _engine = previousEngine;
-          _engine.startGameTimer();
-          _startUiRefreshTimer();
-          setState(() {});
-        }
-        return false;
-      }
-      // Tool inventory is authoritative but must not delay game entry. Refresh
-      // it in the background and update the already-mounted engine when ready.
-      unawaited(_refreshMountedToolInventory(generation));
+
+      unawaited(
+        startedFuture.then((started) async {
+          if (!started || !mounted || generation != _gameSessionGeneration) {
+            if (mounted && generation == _gameSessionGeneration) {
+              newEngine.stopGameTimer();
+              await newEngine.flushLocalSave();
+              _engine = previousEngine;
+              previousEngine.startGameTimer();
+              _startUiRefreshTimer();
+              setState(() {});
+            }
+            return;
+          }
+          unawaited(_refreshMountedToolInventory(generation));
+        }).catchError((_) {}),
+      );
       return true;
     } catch (error) {
       debugPrint('Failed to create game session: $error');
       return false;
     }
   }
-
   Future<void> _refreshMountedToolInventory(int generation) async {
     await ToolManager.refreshInventory();
     if (!mounted || generation != _gameSessionGeneration) return;
@@ -401,28 +415,103 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<bool> _reset() async {
-    if (!mounted || _completionAnimationPlaying || _restartInProgress) return false;
-    _restartInProgress = true; _gameSessionGeneration++;
-    final oldEngine = _engine;
-    final saveData = oldEngine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-    oldEngine.stopGameTimer();
-    final newEngine = GameEngine(chapter: oldEngine.chapter, forceNewBoard: true, boardLifeActive: true);
-    setState(() { _engine = newEngine; _evolutionValue = null; _evolutionCreatureName = null; _firstSwapIndex = null; _dragStart = null; _swipeHandled = false; _toolMode = null; _pressedToolMode = null; });
-    _engine.startGameTimer(); _startUiRefreshTimer(); _focusNode.requestFocus();
-    final newReplayData = newEngine.createSaveData()['replayLog'];
-    final initialTiles = newReplayData is Map && newReplayData['initialTiles'] is List ? List<dynamic>.from(newReplayData['initialTiles'] as List) : const <dynamic>[];
-    final restarted = await PlayerProgressService.instance.restartGameSession(_chapterNumber - 1, replayLog: replay, initialTiles: initialTiles);
-    if (restarted) {
-      _engine.toolManager.refreshFromSavedProgress();
+    if (!mounted || _completionAnimationPlaying || _restartInProgress) {
+      return false;
     }
-    if (!mounted) { _restartInProgress = false; return restarted; }
-    if (!restarted) {
-      newEngine.stopGameTimer(); await newEngine.flushLocalSave(); await SaveManager.save(oldEngine.createSaveData()); oldEngine.startGameTimer();
-      setState(() { _engine = oldEngine; }); _startUiRefreshTimer(); _focusNode.requestFocus();
-    }
-    _restartInProgress = false; if (mounted) setState(() {}); return restarted;
-  }
 
+    final oldEngine = _engine;
+    final saveData = oldEngine.createSaveData();
+    final replayLog = saveData['replayLog'];
+    final replay = replayLog is Map
+        ? Map<String, dynamic>.from(replayLog)
+        : null;
+
+    // Restart is a new game and therefore consumes one Life immediately.
+    // Never make the player wait for the network before seeing the replacement
+    // board. The server remains authoritative and reconciles the optimistic
+    // state in the background.
+    if (!LifeManager.optimisticConsumeLife()) {
+      return false;
+    }
+
+    _restartInProgress = true;
+    _gameSessionGeneration++;
+    final generation = _gameSessionGeneration;
+    oldEngine.stopGameTimer();
+
+    final newEngine = GameEngine(
+      chapter: oldEngine.chapter,
+      forceNewBoard: true,
+      boardLifeActive: true,
+    );
+
+    setState(() {
+      _engine = newEngine;
+      _evolutionValue = null;
+      _evolutionCreatureName = null;
+      _firstSwapIndex = null;
+      _dragStart = null;
+      _swipeHandled = false;
+      _toolMode = null;
+      _pressedToolMode = null;
+    });
+
+    _engine.startGameTimer();
+    _startUiRefreshTimer();
+    _focusNode.requestFocus();
+
+    final newReplayData = newEngine.createSaveData()['replayLog'];
+    final initialTiles = newReplayData is Map && newReplayData['initialTiles'] is List
+        ? List<dynamic>.from(newReplayData['initialTiles'] as List)
+        : const <dynamic>[];
+
+    final restartFuture = PlayerProgressService.instance.restartGameSession(
+      _chapterNumber - 1,
+      replayLog: replay,
+      initialTiles: initialTiles,
+    );
+
+    unawaited(
+      restartFuture.then((restarted) async {
+        if (!mounted || generation != _gameSessionGeneration) return;
+
+        if (restarted) {
+          _engine.toolManager.refreshFromSavedProgress();
+          unawaited(_refreshMountedToolInventory(generation));
+          _restartInProgress = false;
+          setState(() {});
+          return;
+        }
+
+        // Server rejected the optimistic restart. Restore the previous local
+        // board and let the authoritative Life refresh settle the optimistic
+        // decrement.
+        newEngine.stopGameTimer();
+        await newEngine.flushLocalSave();
+        await LifeManager.refreshFromServer().catchError((_) {});
+        await SaveManager.save(oldEngine.createSaveData());
+        oldEngine.startGameTimer();
+        _engine = oldEngine;
+        _startUiRefreshTimer();
+        _focusNode.requestFocus();
+        _restartInProgress = false;
+        if (mounted) setState(() {});
+      }).catchError((_) async {
+        if (!mounted || generation != _gameSessionGeneration) return;
+        newEngine.stopGameTimer();
+        await LifeManager.refreshFromServer().catchError((_) {});
+        await SaveManager.save(oldEngine.createSaveData());
+        oldEngine.startGameTimer();
+        _engine = oldEngine;
+        _startUiRefreshTimer();
+        _focusNode.requestFocus();
+        _restartInProgress = false;
+        if (mounted) setState(() {});
+      }),
+    );
+
+    return true;
+  }
   Future<void> _handleSystemBack() async {
     if (_handlingSystemBack || !mounted) return; _handlingSystemBack = true;
     final chapter = _engine.chapter.name; final sessionId = PlayerProgressService.instance.activeGameSessionId;
@@ -448,7 +537,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (action == 'home') {
       final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
       _engine.pauseGameTimer(); _stopUiRefreshTimer();
-      if (sessionId != null) await PlayerProgressService.instance.exitUnfinishedGameSession(sessionId: sessionId, replayLog: replay);
+      if (sessionId != null) {
+        unawaited(
+          PlayerProgressService.instance.exitUnfinishedGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+      }
       if (mounted) Navigator.of(context).pop(); return;
     }
     if (action == 'restart') {
@@ -531,6 +627,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
     if (!mounted) return;
+
+    if (!LifeManager.optimisticConsumeLife()) return;
+
     final newEngine = GameEngine(
       chapter: chapter,
       forceNewBoard: true,
@@ -540,17 +639,34 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final initialTiles = previewReplay is Map && previewReplay['initialTiles'] is List
         ? List<dynamic>.from(previewReplay['initialTiles'] as List)
         : const <dynamic>[];
-    final started = await PlayerProgressService.instance.restartGameSession(
+
+    setState(() {
+      _engine = newEngine;
+      _toolMode = null;
+      _firstSwapIndex = null;
+      _dragStart = null;
+      _swipeHandled = false;
+      _evolutionValue = null;
+      _evolutionCreatureName = null;
+    });
+    _engine.startGameTimer();
+    _startUiRefreshTimer();
+    unawaited(AudioManager.instance.playChapterMusic(chapter));
+    _focusNode.requestFocus();
+
+    final restartFuture = PlayerProgressService.instance.restartGameSession(
       chapter.index,
       initialTiles: initialTiles,
     );
-    if (!started || !mounted) return;
-    await ToolManager.refreshInventory();
-    if (!mounted) return;
-    setState(() { _engine = newEngine; _toolMode = null; _firstSwapIndex = null; _dragStart = null; _swipeHandled = false; _evolutionValue = null; _evolutionCreatureName = null; });
-    _engine.startGameTimer(); _startUiRefreshTimer(); unawaited(AudioManager.instance.playChapterMusic(chapter)); _focusNode.requestFocus();
-  }
 
+    unawaited(
+      restartFuture.then((started) async {
+        if (!started || !mounted) return;
+        _engine.toolManager.refreshFromSavedProgress();
+        unawaited(_refreshMountedToolInventory(_gameSessionGeneration));
+      }).catchError((_) {}),
+    );
+  }
   String _toolLabel(GameToolType type) => switch (type) { GameToolType.revive => 'REMOVE', GameToolType.timeRewind => 'UNDO', GameToolType.positionSwap => 'SWAP', GameToolType.duplicate => 'DUPLICATE' };
   String _toolModeForType(GameToolType type) => switch (type) { GameToolType.revive => 'revive', GameToolType.timeRewind => 'rewind', GameToolType.positionSwap => 'swap', GameToolType.duplicate => 'duplicate' };
   String _toolImagePath(String mode, {required bool pressed}) => switch (mode) { 'rewind' => pressed ? 'assets/tools/tool_undo_pressed.png' : 'assets/tools/tool_undo.png', 'swap' => pressed ? 'assets/tools/tool_swap_pressed.png' : 'assets/tools/tool_swap.png', 'revive' => pressed ? 'assets/tools/tool_remove_pressed.png' : 'assets/tools/tool_remove.png', 'duplicate' => pressed ? 'assets/tools/tool_duplicate_pressed.png' : 'assets/tools/tool_duplicate.png', _ => '' };
