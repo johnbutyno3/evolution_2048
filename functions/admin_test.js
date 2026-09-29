@@ -185,3 +185,69 @@ exports.adminGetTestAccountState = onCall(async (request) => {
     allToolsEnabledForTest: user.allToolsEnabledForTest === true,
   };
 });
+
+
+exports.adminGetSecurityState = onCall(async (request) => {
+  await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+
+  const [riskSnapshot, enforcementSnapshot, authUser] = await Promise.all([
+    db.collection('security_risk_scores').doc(uid).get(),
+    db.collection('security_enforcement').doc(uid).get(),
+    require('firebase-admin/auth').getAuth().getUser(uid),
+  ]);
+
+  const risk = riskSnapshot.data() || {};
+  const enforcement = enforcementSnapshot.data() || {};
+
+  return {
+    ok: true,
+    uid,
+    disabled: authUser.disabled === true,
+    riskScoreTotal: Number(risk.riskScoreTotal) || 0,
+    lastEventScore: Number(risk.lastEventScore) || 0,
+    lastEventRiskLevel: risk.lastEventRiskLevel ?? null,
+    lastEventId: risk.lastEventId ?? null,
+    enforcementStatus: enforcement.status ?? null,
+    enforcementReason: enforcement.reason ?? null,
+    lockedAt: enforcement.lockedAt?.toDate?.()?.toISOString?.() ?? null,
+    restrictedUntil: enforcement.restrictedUntil?.toDate?.()?.toISOString?.() ?? null,
+  };
+});
+
+exports.adminClearSecurityRestriction = onCall(async (request) => {
+  const adminUid = await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+
+  const auth = require('firebase-admin/auth').getAuth();
+  await auth.updateUser(uid, { disabled: false });
+
+  await Promise.all([
+    db.collection('security_enforcement').doc(uid).set({
+      status: 'active',
+      reason: null,
+      lockedAt: null,
+      restrictedUntil: null,
+      clearedBy: adminUid,
+      clearedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }),
+    db.collection('security_risk_scores').doc(uid).set({
+      riskScoreTotal: 0,
+      lastEventScore: 0,
+      lastEventRiskLevel: 'NORMAL',
+      clearedBy: adminUid,
+      clearedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }),
+  ]);
+
+  return {
+    ok: true,
+    uid,
+    disabled: false,
+    riskScoreTotal: 0,
+    enforcementStatus: 'active',
+    clearedBy: adminUid,
+  };
+});
