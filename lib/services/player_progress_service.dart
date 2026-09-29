@@ -453,50 +453,36 @@ class PlayerProgressService {
     String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
-    // Navigation clears the current local binding immediately. When a new
-    // game start is still pending, wait only in this background settlement
-    // task so the newly created session can still be abandoned correctly.
-    final requestedSessionId = sessionId ?? _activeGameSessionId;
-    if (requestedSessionId != null &&
-        _activeGameSessionId == requestedSessionId) {
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
-      unawaited(SaveManager.clearGameSessionId());
-    }
-
-    await _awaitPendingStartSession();
+    // Returning Home from an unfinished game pauses navigation only.
+    // Keep the active session and local binding so the next entry resumes the
+    // exact same board without charging another Life.
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
 
-    if (_activeGameSessionId == settledSessionId) {
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
-      unawaited(SaveManager.clearGameSessionId());
-    }
+    await _awaitPendingStartSession();
+    final currentSessionId = _activeGameSessionId ?? settledSessionId;
 
     try {
       final result = await _functions.httpsCallable('abandonGameSession').call({
-        'sessionId': settledSessionId,
+        'sessionId': currentSessionId,
         'unfinishedExit': true,
         'replayLog': ?replayLog,
       });
       final data = result.data;
-      final lifeState = data is Map ? data['life'] : null;
-      if (lifeState is Map) {
-        LifeManager.applyServerState(
-          Map<String, dynamic>.from(lifeState),
-        );
+      if (data is Map && data['status'] == 'active') {
+        _activeGameSessionId = currentSessionId;
       }
     } on FirebaseFunctionsException catch (error) {
       print(
-        'exitUnfinishedGameSession failed: code='
+        'exitUnfinishedGameSession failed: code=' 
         '${error.code}, message=${error.message}, '
         'details=${error.details?.toString()},',
       );
-      unawaited(refresh());
+      // Keep the local session binding. A later refresh/resume will reconcile
+      // with the server instead of turning a temporary failure into a new
+      // Life charge.
     }
   }
-
   Future<void> abandonGameSession({
     String? sessionId,
     Map<String, dynamic>? replayLog,
