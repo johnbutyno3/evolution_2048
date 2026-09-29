@@ -432,12 +432,18 @@ class PlayerProgressService {
             refreshedSessionId != null &&
             refreshedSessionId != previousSessionId &&
             _activeGameChapterIndex == chapterIndex;
-        await LifeManager.refreshFromServer();
         if (restartCommitted) {
+          await LifeManager.refreshFromServer();
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
           return true;
         }
+
+        // The server did not create a replacement session. Keep the
+        // local-first Life transition consistent with startGameSession:
+        // restore exactly the optimistic Life that this failed restart
+        // consumed. Do not replace it with a stale server Life read.
+        LifeManager.rollbackOptimisticConsumeLife();
       }
     }
     return false;
