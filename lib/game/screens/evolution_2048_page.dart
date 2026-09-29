@@ -598,8 +598,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (shouldRestart == true) { final restarted = await _reset(); if (restarted && mounted) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter)); else if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.'))); }
     else {
       final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null; final chapter = _engine.chapter.name;
-      if (sessionId != null) await PlayerProgressService.instance.abandonGameSession(sessionId: sessionId, replayLog: replay);
-      await SaveManager.clearChapter(chapter); if (!mounted) return;
+      if (sessionId != null) {
+        unawaited(
+          PlayerProgressService.instance.abandonGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+      }
+      unawaited(SaveManager.clearChapter(chapter));
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
   }
@@ -642,8 +650,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
     if (!mounted) return;
 
-    if (!LifeManager.optimisticConsumeLife()) return;
+    if (!LifeManager.optimisticConsumeLife()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to start the next chapter. Please check your Life.'),
+          ),
+        );
+      }
+      return;
+    }
 
+    final previousEngine = _engine;
     final newEngine = GameEngine(
       chapter: chapter,
       forceNewBoard: true,
@@ -675,10 +693,38 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     unawaited(
       restartFuture.then((started) async {
-        if (!started || !mounted) return;
-        _engine.toolManager.refreshFromSavedProgress();
-        unawaited(_refreshMountedToolInventory(_gameSessionGeneration));
-      }).catchError((_) {}),
+        if (!mounted) return;
+        if (started) {
+          _engine.toolManager.refreshFromSavedProgress();
+          unawaited(_refreshMountedToolInventory(_gameSessionGeneration));
+          return;
+        }
+
+        // The local transition was optimistic. If the authoritative server
+        // rejects it, do not leave the player on an unbound chapter board.
+        newEngine.stopGameTimer();
+        await newEngine.flushLocalSave();
+        await LifeManager.refreshFromServer().catchError((_) {});
+        _engine = previousEngine;
+        if (mounted) {
+          _startUiRefreshTimer();
+          _focusNode.requestFocus();
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to start the next chapter. Please try again.'),
+            ),
+          );
+        }
+      }).catchError((_) async {
+        if (!mounted) return;
+        newEngine.stopGameTimer();
+        await LifeManager.refreshFromServer().catchError((_) {});
+        _engine = previousEngine;
+        _startUiRefreshTimer();
+        _focusNode.requestFocus();
+        setState(() {});
+      }),
     );
   }
   String _toolLabel(GameToolType type) => switch (type) { GameToolType.revive => 'REMOVE', GameToolType.timeRewind => 'UNDO', GameToolType.positionSwap => 'SWAP', GameToolType.duplicate => 'DUPLICATE' };
