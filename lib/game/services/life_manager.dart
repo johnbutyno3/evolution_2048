@@ -53,6 +53,24 @@ class LifeManager {
     return true;
   }
 
+  /// Rolls back the local optimistic game-entry charge when the server
+  /// confirms that no new game session was committed.
+  ///
+  /// This deliberately does not call Firebase. The caller has already checked
+  /// the server-side session state; refreshing the server Life here would race
+  /// the local-first state and could briefly overwrite the UI with an older
+  /// balance.
+  static void rollbackOptimisticConsumeLife() {
+    if (_infiniteLives || _lifeCount >= normalCap) return;
+
+    _lifeCount++;
+    if (_lifeCount >= normalCap) {
+      _lifeCount = normalCap;
+      _nextLifeAtMillis = null;
+    }
+    _lifeStateGeneration++;
+  }
+
   /// Reads the authoritative state. Every request is tied to the generation
   /// that existed when it started, so an older response can never overwrite a
   /// newer local mutation or server mutation.
