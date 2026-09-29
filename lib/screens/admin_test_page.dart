@@ -117,6 +117,27 @@ class _AdminTestPageState extends State<AdminTestPage> {
   }
 
 
+  Future<void> _clearActiveGameSession() async {
+    if (_uid.isEmpty) return;
+    setState(() { _busy = true; _message = ''; });
+    try {
+      final r = await _functions.httpsCallable('adminClearActiveGameSession').call({
+        'uid': _uid,
+      });
+      final d = Map<String, dynamic>.from(r.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _message = d['clearedSessionId'] == null
+            ? 'No active game session found.'
+            : 'Active game session cleared.';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _message = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _clearSecurityRestriction() async {
     if (_uid.isEmpty) return;
     setState(() { _busy = true; _message = ''; });
@@ -309,7 +330,23 @@ class _AdminTestPageState extends State<AdminTestPage> {
                 label: const Text('Clear Security Restriction'),
               ),
             ]),
-          )),          if (_message.isNotEmpty) Padding(
+          )),
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Session Recovery', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Admin-only cleanup for the current test account active game session.'),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: _busy ? null : _clearActiveGameSession,
+                icon: const Icon(Icons.stop_circle_outlined),
+                label: const Text('Clear Active Game Session'),
+              ),
+            ]),
+          )),
+          if (_message.isNotEmpty) Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(_message),
           ),
