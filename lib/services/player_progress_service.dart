@@ -436,9 +436,19 @@ class PlayerProgressService {
     String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
-    await _awaitPendingStartSession();
+    // Clear the local session binding before the network round trip so Home
+    // and immediate re-entry never wait for or depend on Firebase response
+    // timing. Keep the captured session ID for authoritative settlement.
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
+
+    if (_activeGameSessionId == settledSessionId) {
+      _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
+      unawaited(SaveManager.clearGameSessionId());
+    }
+
+    await _awaitPendingStartSession();
 
     try {
       final result = await _functions.httpsCallable('abandonGameSession').call({
@@ -453,19 +463,16 @@ class PlayerProgressService {
           Map<String, dynamic>.from(lifeState),
         );
       }
-      if (data is Map && data['status'] == 'ended') {
-        if (_activeGameSessionId == settledSessionId) {
-          _activeGameSessionId = null;
-          _activeGameChapterIndex = null;
-        }
-      }
     } on FirebaseFunctionsException catch (error) {
       print(
-        'exitUnfinishedGameSession failed: code=${error.code}, '
-        'message=${error.message}, '
+        'exitUnfinishedGameSession failed: code='
+        '${error.code}, message=${error.message}, '
         'details=${error.details?.toString()},',
       );
-      await refresh();
+      // Never block navigation or restore the old local session pointer just
+      // because the server response was unavailable. A later authoritative
+      // refresh can reconcile the account state.
+      unawaited(refresh());
     }
   }
 
@@ -473,9 +480,19 @@ class PlayerProgressService {
     String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
-    await _awaitPendingStartSession();
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
+
+    // Clear the local binding immediately. The server settlement is
+    // authoritative, but it must never block the local Game Over -> Home
+    // navigation path.
+    if (_activeGameSessionId == settledSessionId) {
+      _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
+      unawaited(SaveManager.clearGameSessionId());
+    }
+
+    await _awaitPendingStartSession();
 
     try {
       final result =
@@ -483,12 +500,6 @@ class PlayerProgressService {
         'sessionId': settledSessionId,
         'replayLog': ?replayLog,
       });
-
-      if (_activeGameSessionId == settledSessionId) {
-        _activeGameSessionId = null;
-        _activeGameChapterIndex = null;
-        await SaveManager.clearGameSessionId();
-      }
 
       final data = result.data;
       final chapterProgress = data is Map ? data['chapterProgress'] : null;
@@ -509,10 +520,11 @@ class PlayerProgressService {
       }
     } on FirebaseFunctionsException catch (error) {
       print(
-        'abandonGameSession failed: code=${error.code}, '
-        'message=${error.message}, '
+        'abandonGameSession failed: code='
+        '${error.code}, message=${error.message}, '
         'details=${error.details}',
       );
+      unawaited(refresh());
     }
   }
 
