@@ -231,11 +231,17 @@ class PlayerProgressService {
             serverSessionId != null &&
             serverSessionId != previousSessionId &&
             _activeGameChapterIndex == chapterIndex;
-        await LifeManager.refreshFromServer();
         if (startCommitted) {
+          await LifeManager.refreshFromServer();
           await SaveManager.setGameSessionId(serverSessionId);
           return true;
         }
+
+        // The server did not create a new charged session. Roll back only the
+        // optimistic local Life deduction. Do not refresh Life from Firebase
+        // here: that would race the local-first state and is exactly what used
+        // to produce the visible 4 -> 5 jump after a rejected start.
+        LifeManager.rollbackOptimisticConsumeLife();
       }
     } catch (error) {
       // A network/client failure must never become a permanent local grant.
@@ -250,11 +256,16 @@ class PlayerProgressService {
               serverSessionId != null &&
               serverSessionId != previousSessionId &&
               _activeGameChapterIndex == chapterIndex;
-          await LifeManager.refreshFromServer();
           if (startCommitted) {
+            await LifeManager.refreshFromServer();
             await SaveManager.setGameSessionId(serverSessionId);
             return true;
           }
+
+          // No server session means no server-side Life charge. Restore the
+          // optimistic local decrement without replacing it with a stale
+          // authoritative Life read.
+          LifeManager.rollbackOptimisticConsumeLife();
         }
       } catch (_) {
         // Keep the optimistic UI responsive; the next authoritative refresh
