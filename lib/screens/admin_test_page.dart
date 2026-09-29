@@ -121,16 +121,12 @@ class _AdminTestPageState extends State<AdminTestPage> {
     if (_uid.isEmpty) return;
     setState(() { _busy = true; _message = ''; });
     try {
-      final r = await _functions.httpsCallable('adminClearSecurityRestriction').call({
+      await _functions.httpsCallable('adminClearSecurityRestriction').call({
         'uid': _uid,
       });
-      final d = Map<String, dynamic>.from(r.data as Map);
       if (!mounted) return;
       setState(() {
-        _message =
-            'Security restriction cleared. '
-            'Risk score: \${d['riskScoreTotal'] ?? 0}, '
-            'status: \${d['enforcementStatus'] ?? '--'}.';
+        _message = 'Security restriction cleared.';
       });
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
@@ -138,6 +134,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
   Future<void> _checkSecurityState() async {
     if (_uid.isEmpty) return;
     setState(() { _busy = true; _message = ''; });
