@@ -46,6 +46,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Timer? _uiRefreshTimer;
   Future<bool>? _gameSessionFuture;
   Future<bool>? _completionVerificationFuture;
+  bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
   bool _allowSystemPop = false;
@@ -622,29 +623,104 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   int get _chapterNumber => switch (_engine.chapter) { GameChapter.ocean => 1, GameChapter.land => 2, GameChapter.sky => 3, GameChapter.history => 4, GameChapter.tech => 5, GameChapter.universe => 6 };
 
   Future<void> _showChapterComplete() async {
-    if (_chapterCompleteShowing || !mounted) return; _chapterCompleteShowing = true; _engine.stopGameTimer();
+    if (_chapterCompleteShowing || !mounted) return;
+
+    _chapterCompleteShowing = true;
+    _engine.stopGameTimer();
     final progress = PlayerProgressService.instance;
-    if (progress.activeGameSessionId == null || progress.activeGameChapterIndex != _chapterNumber - 1) { _chapterCompleteShowing = false; return; }
     final completedChapter = _engine.chapter;
-    bool completionAccepted;
+
+    // The completion page is a local UI result. Server verification continues
+    // in the background and only gates the Next Chapter action.
     final pending = _completionVerificationFuture;
-    if (pending != null) {
-      completionAccepted = await pending;
-      _completionVerificationFuture = null;
-    } else {
-      final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog'];
-      if (replayLog is! Map) { _chapterCompleteShowing = false; return; }
-      completionAccepted = await progress.completeChapter(chapterIndex: _chapterNumber - 1, replayLog: Map<String, dynamic>.from(replayLog));
-    }
-    if (!completionAccepted) { _chapterCompleteShowing = false; return; }
-    await AudioManager.instance.stopMusic(); unawaited(AudioManager.instance.playSfx(GameSfx.chapterUnlock)); if (!mounted) return;
-    _chapterCompleteShowing = false;
-    final result = await Navigator.of(context).push<String>(MaterialPageRoute<String>(builder: (context) => _ChapterCompletePage(chapter: completedChapter, score: _engine.score, highestValue: _engine.highestValue, onNextChapter: () => Navigator.of(context).pop('next'), onHome: () => Navigator.of(context).pop('home'))));
+    final verification = pending ??
+        () {
+          final saveData = _engine.createSaveData();
+          final replayLog = saveData['replayLog'];
+          if (replayLog is! Map) return Future<bool>.value(false);
+          final future = progress.completeChapter(
+            chapterIndex: _chapterNumber - 1,
+            replayLog: Map<String, dynamic>.from(replayLog),
+          );
+          _completionVerificationFuture = future;
+          return future;
+        }();
+
+    await AudioManager.instance.stopMusic();
+    unawaited(AudioManager.instance.playSfx(GameSfx.chapterUnlock));
     if (!mounted) return;
-    _completionAnimationPlaying = false; _completionAnimationIndex = null; _completionAnimationImagePath = null;
-    if (result == 'home') { Navigator.of(context).pop(); return; }
-    if (result != 'next') { _focusNode.requestFocus(); return; }
-    switch (completedChapter) { case GameChapter.ocean: _startChapter(GameChapter.land, forceNewBoard: true); break; case GameChapter.land: _startChapter(GameChapter.sky, forceNewBoard: true); break; case GameChapter.sky: _startChapter(GameChapter.history, forceNewBoard: true); break; case GameChapter.history: _startChapter(GameChapter.tech, forceNewBoard: true); break; case GameChapter.tech: _startChapter(GameChapter.universe, forceNewBoard: true); break; case GameChapter.universe: _focusNode.requestFocus(); break; }
+
+    _chapterCompleteShowing = false;
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (context) => _ChapterCompletePage(
+          chapter: completedChapter,
+          score: _engine.score,
+          highestValue: _engine.highestValue,
+          onNextChapter: () async {
+            if (_completionNextInProgress) return;
+            _completionNextInProgress = true;
+            try {
+              final accepted = await verification;
+              if (!accepted) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Chapter verification is still unavailable. Please try again.',
+                      ),
+                    ),
+                  );
+                }
+                return;
+              }
+              if (mounted) {
+                Navigator.of(context).pop('next');
+              }
+            } finally {
+              _completionNextInProgress = false;
+            }
+          },
+          onHome: () => Navigator.of(context).pop('home'),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    _completionVerificationFuture = null;
+    _completionAnimationPlaying = false;
+    _completionAnimationIndex = null;
+    _completionAnimationImagePath = null;
+
+    if (result == 'home') {
+      Navigator.of(context).pop();
+      return;
+    }
+    if (result != 'next') {
+      _focusNode.requestFocus();
+      return;
+    }
+
+    switch (completedChapter) {
+      case GameChapter.ocean:
+        _startChapter(GameChapter.land, forceNewBoard: true);
+        break;
+      case GameChapter.land:
+        _startChapter(GameChapter.sky, forceNewBoard: true);
+        break;
+      case GameChapter.sky:
+        _startChapter(GameChapter.history, forceNewBoard: true);
+        break;
+      case GameChapter.history:
+        _startChapter(GameChapter.tech, forceNewBoard: true);
+        break;
+      case GameChapter.tech:
+        _startChapter(GameChapter.universe, forceNewBoard: true);
+        break;
+      case GameChapter.universe:
+        _focusNode.requestFocus();
+        break;
+    }
   }
 
   Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
@@ -751,9 +827,90 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 }
 
 class _ChapterCompletePage extends StatelessWidget {
-  const _ChapterCompletePage({required this.chapter, required this.score, required this.highestValue, required this.onNextChapter, required this.onHome});
-  final GameChapter chapter; final int score; final int highestValue; final VoidCallback onNextChapter; final VoidCallback onHome;
+  const _ChapterCompletePage({
+    required this.chapter,
+    required this.score,
+    required this.highestValue,
+    required this.onNextChapter,
+    required this.onHome,
+  });
+
+  final GameChapter chapter;
+  final int score;
+  final int highestValue;
+  final FutureOr<void> Function() onNextChapter;
+  final VoidCallback onHome;
   String get _background => switch (chapter) { GameChapter.ocean => 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg', GameChapter.land => 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg', GameChapter.sky => 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg', GameChapter.history => 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png', GameChapter.tech => 'assets/backgrounds/chapter_05_tech/tech_complete.png', GameChapter.universe => 'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg' };
   String get _title => switch (chapter) { GameChapter.ocean => 'Ocean Restored', GameChapter.land => 'Land Restored', GameChapter.sky => 'Sky Restored', GameChapter.history => 'History Restored', GameChapter.tech => 'Technology Restored', GameChapter.universe => 'Universe Restored' };
-  @override Widget build(BuildContext context) => Scaffold(body: Stack(fit: StackFit.expand, children: [Image.asset(_background, fit: BoxFit.cover), Container(color: Colors.black.withValues(alpha: 0.18)), SafeArea(child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [const Spacer(), Text(_title, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(blurRadius: 8, color: Colors.black)])), const SizedBox(height: 10), Text('Score $score    Highest $highestValue', style: const TextStyle(color: Colors.white, fontSize: 16)), const Spacer(), Padding(padding: const EdgeInsets.all(24), child: SizedBox(width: double.infinity, child: Column(children: [SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); onNextChapter(); }, child: const Text('Next Chapter'))), const SizedBox(height: 12), SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); onHome(); }, child: const Text('Home')))])))])))]));
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_background, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.18)),
+        SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Spacer(),
+                Text(
+                  _title,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Score $score    Highest $highestValue',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              unawaited(
+                                AudioManager.instance.playSfx(GameSfx.buttonClick),
+                              );
+                              unawaited(onNextChapter());
+                            },
+                            child: const Text('Next Chapter'),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              unawaited(
+                                AudioManager.instance.playSfx(GameSfx.buttonClick),
+                              );
+                              onHome();
+                            },
+                            child: const Text('Home'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
