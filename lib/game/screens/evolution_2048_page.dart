@@ -468,7 +468,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
-      replayLog: replay,
+      // RESET from a playable unfinished board is a deliberate abandon-and-restart
+      // action. Do not block the new local-first game on replay settlement of the
+      // old unfinished board. Game Over restart still sends its completed replay
+      // log through the server validation boundary.
+      replayLog: oldEngine.gameOver ? replay : null,
       initialTiles: initialTiles,
     );
 
