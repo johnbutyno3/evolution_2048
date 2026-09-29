@@ -520,8 +520,22 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _engine.pauseGameTimer(); _stopUiRefreshTimer(); _allowSystemPop = true;
     if (wasChapterComplete) { Navigator.of(context).pop(); _handlingSystemBack = false; return; }
     if (sessionId != null) {
-      if (wasGameOver) { await PlayerProgressService.instance.abandonGameSession(sessionId: sessionId, replayLog: replay); await SaveManager.clearChapter(chapter); }
-      else await PlayerProgressService.instance.exitUnfinishedGameSession(sessionId: sessionId, replayLog: replay);
+      if (wasGameOver) {
+        unawaited(
+          PlayerProgressService.instance.abandonGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+        unawaited(SaveManager.clearChapter(chapter));
+      } else {
+        unawaited(
+          PlayerProgressService.instance.exitUnfinishedGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+          ),
+        );
+      }
     }
     Navigator.of(context).pop(); _handlingSystemBack = false;
   }
