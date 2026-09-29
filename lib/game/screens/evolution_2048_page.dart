@@ -496,18 +496,26 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _startUiRefreshTimer();
         _focusNode.requestFocus();
         _restartInProgress = false;
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+          // A rejected restart must not leave the Game Over board with no
+          // dialog and no playable input. Keep the original Game Over state
+          // and immediately present the retry choice again.
+          unawaited(_showGameOver());
+        }
       }).catchError((_) async {
         if (!mounted || generation != _gameSessionGeneration) return;
         newEngine.stopGameTimer();
-        await LifeManager.refreshFromServer().catchError((_) {});
         await SaveManager.save(oldEngine.createSaveData());
         oldEngine.startGameTimer();
         _engine = oldEngine;
         _startUiRefreshTimer();
         _focusNode.requestFocus();
         _restartInProgress = false;
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+          unawaited(_showGameOver());
+        }
       }),
     );
 
