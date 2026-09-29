@@ -436,9 +436,18 @@ class PlayerProgressService {
     String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
-    // Clear the local session binding before the network round trip so Home
-    // and immediate re-entry never wait for or depend on Firebase response
-    // timing. Keep the captured session ID for authoritative settlement.
+    // Navigation clears the current local binding immediately. When a new
+    // game start is still pending, wait only in this background settlement
+    // task so the newly created session can still be abandoned correctly.
+    final requestedSessionId = sessionId ?? _activeGameSessionId;
+    if (requestedSessionId != null &&
+        _activeGameSessionId == requestedSessionId) {
+      _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
+      unawaited(SaveManager.clearGameSessionId());
+    }
+
+    await _awaitPendingStartSession();
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
 
@@ -447,8 +456,6 @@ class PlayerProgressService {
       _activeGameChapterIndex = null;
       unawaited(SaveManager.clearGameSessionId());
     }
-
-    await _awaitPendingStartSession();
 
     try {
       final result = await _functions.httpsCallable('abandonGameSession').call({
@@ -469,9 +476,6 @@ class PlayerProgressService {
         '${error.code}, message=${error.message}, '
         'details=${error.details?.toString()},',
       );
-      // Never block navigation or restore the old local session pointer just
-      // because the server response was unavailable. A later authoritative
-      // refresh can reconcile the account state.
       unawaited(refresh());
     }
   }
@@ -480,19 +484,23 @@ class PlayerProgressService {
     String? sessionId,
     Map<String, dynamic>? replayLog,
   }) async {
-    final settledSessionId = sessionId ?? _activeGameSessionId;
-    if (settledSessionId == null) return;
-
-    // Clear the local binding immediately. The server settlement is
-    // authoritative, but it must never block the local Game Over -> Home
-    // navigation path.
-    if (_activeGameSessionId == settledSessionId) {
+    final requestedSessionId = sessionId ?? _activeGameSessionId;
+    if (requestedSessionId != null &&
+        _activeGameSessionId == requestedSessionId) {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
       unawaited(SaveManager.clearGameSessionId());
     }
 
     await _awaitPendingStartSession();
+    final settledSessionId = sessionId ?? _activeGameSessionId;
+    if (settledSessionId == null) return;
+
+    if (_activeGameSessionId == settledSessionId) {
+      _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
+      unawaited(SaveManager.clearGameSessionId());
+    }
 
     try {
       final result =
