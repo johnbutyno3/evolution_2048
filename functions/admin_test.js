@@ -251,3 +251,49 @@ exports.adminClearSecurityRestriction = onCall(async (request) => {
     clearedBy: adminUid,
   };
 });
+
+
+exports.adminClearActiveGameSession = onCall(async (request) => {
+  const adminUid = await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+
+  const progressRef = db.collection('users').doc(uid)
+    .collection('progress').doc('game');
+
+  let clearedSessionId = null;
+  await db.runTransaction(async (transaction) => {
+    const progressSnapshot = await transaction.get(progressRef);
+    const current = progressSnapshot.data() || {};
+    const sessionId = current.activeGameSessionId;
+
+    if (typeof sessionId === 'string' && sessionId.length > 0) {
+      clearedSessionId = sessionId;
+      const sessionRef = db.collection('users').doc(uid)
+        .collection('game_sessions').doc(sessionId);
+      const sessionSnapshot = await transaction.get(sessionRef);
+
+      if (sessionSnapshot.exists &&
+          sessionSnapshot.data()?.status === 'active') {
+        transaction.update(sessionRef, {
+          status: 'abandoned',
+          abandonedAt: FieldValue.serverTimestamp(),
+          abandonedReason: 'admin_test_cleanup',
+          abandonedBy: adminUid,
+        });
+      }
+    }
+
+    transaction.set(progressRef, {
+      activeGameSessionId: FieldValue.delete(),
+      activeGameChapterIndex: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+
+  return {
+    ok: true,
+    uid,
+    clearedSessionId,
+    changedBy: adminUid,
+  };
+});
