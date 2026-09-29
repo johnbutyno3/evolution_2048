@@ -117,6 +117,27 @@ class _AdminTestPageState extends State<AdminTestPage> {
   }
 
 
+  Future<void> _clearSecurityRestriction() async {
+    if (_uid.isEmpty) return;
+    setState(() { _busy = true; _message = ''; });
+    try {
+      final r = await _functions.httpsCallable('adminClearSecurityRestriction').call({
+        'uid': _uid,
+      });
+      final d = Map<String, dynamic>.from(r.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _message =
+            'Security restriction cleared. '
+            'Risk score: \${d['riskScoreTotal'] ?? 0}, '
+            'status: \${d['enforcementStatus'] ?? '--'}.';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _message = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
   Future<void> _checkSecurityState() async {
     if (_uid.isEmpty) return;
     setState(() { _busy = true; _message = ''; });
@@ -277,7 +298,21 @@ class _AdminTestPageState extends State<AdminTestPage> {
               ),
             ]),
           )),
-          if (_message.isNotEmpty) Padding(
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Security Recovery', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Admin-only reset for the current test account security lock.'),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: _busy ? null : _clearSecurityRestriction,
+                icon: const Icon(Icons.lock_open_outlined),
+                label: const Text('Clear Security Restriction'),
+              ),
+            ]),
+          )),          if (_message.isNotEmpty) Padding(
             padding: const EdgeInsets.only(top: 12),
             child: Text(_message),
           ),
