@@ -562,38 +562,20 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
           );
         }
 
-        // Returning to Home refunds the Life consumed for this session.
-        // The session is ended so the next explicit game entry creates a new
-        // session and consumes exactly one Life again. The local board remains
-        // available and is rebound to the new session by the Flutter client.
-        const membershipSnapshotForRefund = snapshotMap.get(membership.path);
-        const lifeSnapshotForRefund = snapshotMap.get(lifeRef(uid).path);
-        const refundedLife = await refundLifeInTransaction(
-          transaction,
-          uid,
-          membershipSnapshotForRefund,
-          lifeSnapshotForRefund,
-        );
-
+        // Returning to Home does NOT end an unfinished game.
+        // The consumed Life stays consumed and the active session remains
+        // authoritative so the player can leave and later resume the exact
+        // same board without paying another Life.
         transaction.update(sessionRef, {
-          status: 'ended',
-          endedAt: FieldValue.serverTimestamp(),
-          endReason: 'unfinished_exit',
           lastUnfinishedExitAt: FieldValue.serverTimestamp(),
         });
-        transaction.set(progress, {
-          activeGameSessionId: FieldValue.delete(),
-          activeGameChapterIndex: FieldValue.delete(),
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
 
-        finalStatus = 'ended';
+        finalStatus = 'active';
         return {
-          status: 'ended',
-          life: refundedLife,
+          status: 'active',
+          life: null,
         };
       }
-
       transaction.update(sessionRef, {
         status: 'ended',
         endedAt: FieldValue.serverTimestamp(),
