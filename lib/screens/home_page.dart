@@ -175,14 +175,11 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    // The game settles Life and active-session state before returning Home.
-    // Refresh the authoritative server state so the Home header never keeps
-    // showing the pre-entry Life balance after a game session ends.
-    await Future.wait([
-      _progress.refresh().catchError((_) => null),
-      LifeManager.refreshFromServer().catchError((_) => null),
-      ToolManager.refreshInventory().catchError((_) => null),
-    ]);
+    // Home must appear immediately after the game closes. Authoritative
+    // progress, Life, and tools are reconciled in the background.
+    unawaited(_progress.refresh().catchError((_) => null));
+    unawaited(LifeManager.refreshFromServer().catchError((_) => null));
+    unawaited(ToolManager.refreshInventory().catchError((_) => null));
     if (mounted) setState(() {});
     } finally {
       _enterInProgress = false;
