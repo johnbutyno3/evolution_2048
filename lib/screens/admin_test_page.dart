@@ -117,6 +117,29 @@ class _AdminTestPageState extends State<AdminTestPage> {
   }
 
 
+  Future<void> _checkSecurityState() async {
+    if (_uid.isEmpty) return;
+    setState(() { _busy = true; _message = ''; });
+    try {
+      final r = await _functions.httpsCallable('adminGetSecurityState').call({
+        'uid': _uid,
+      });
+      final d = Map<String, dynamic>.from(r.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _message =
+            'Security status: ${d['enforcementStatus'] ?? '--'}\\n'
+            'Risk score: ${d['riskScoreTotal'] ?? 0}\\n'
+            'Account disabled: ${d['disabled'] == true}\\n'
+            'Reason: ${d['enforcementReason'] ?? '--'}';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _message = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _setAllToolsEnabled(bool enabled) async {
     if (_uid.isEmpty) return;
     setState(() { _busy = true; _message = ''; });
@@ -236,6 +259,21 @@ class _AdminTestPageState extends State<AdminTestPage> {
                 title: const Text('Enable all tools in every chapter'),
                 value: _allToolsEnabledForTest,
                 onChanged: _busy ? null : _setAllToolsEnabled,
+              ),
+            ]),
+          )),
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Security Diagnostic', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Read the server security state of this test account.'),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _checkSecurityState,
+                icon: const Icon(Icons.security_outlined),
+                label: const Text('Check Security State'),
               ),
             ]),
           )),
