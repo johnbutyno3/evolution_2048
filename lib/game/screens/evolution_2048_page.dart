@@ -240,30 +240,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   void _startCompletionAnimation(int value) {
-    if (_completionAnimationPlaying || !mounted) return;
-    final index = _engine.board.tiles.indexWhere((tile) => tile?.value == value);
-    if (index < 0) { _showChapterComplete(); return; }
-    final progress = PlayerProgressService.instance;
-    final saveData = _engine.createSaveData();
-    final replayLog = saveData['replayLog'];
-    if (progress.activeGameSessionId == null || progress.activeGameChapterIndex != _chapterNumber - 1 || replayLog is! Map) {
-      _showChapterComplete();
-      return;
-    }
-    // Start the server verification immediately. The 280ms visual animation
-    // now runs in parallel with Firebase validation instead of after it.
-    _completionVerificationFuture = progress.completeChapter(
-      chapterIndex: _chapterNumber - 1,
-      replayLog: Map<String, dynamic>.from(replayLog),
-    );
-    setState(() {
-      _completionAnimationPlaying = true;
-      _completionAnimationIndex = index;
-      _completionAnimationImagePath = _engine.board.tiles[index]!.creature.imagePath;
-    });
-    _completionAnimationController..reset()..forward();
+    _showChapterComplete();
   }
-
   Widget _buildCompletionAnimation() {
     final index = _completionAnimationIndex; final imagePath = _completionAnimationImagePath;
     if (!_completionAnimationPlaying || index == null || imagePath == null) return const SizedBox.shrink();
