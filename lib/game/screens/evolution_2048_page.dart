@@ -49,6 +49,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
+  Future<bool>? _pendingRestartFuture;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -475,6 +476,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       replayLog: oldEngine.gameOver ? replay : null,
       initialTiles: initialTiles,
     );
+    _pendingRestartFuture = restartFuture;
+    unawaited(restartFuture.whenComplete(() {
+      if (identical(_pendingRestartFuture, restartFuture)) {
+        _pendingRestartFuture = null;
+      }
+    }));
 
     unawaited(
       restartFuture.then((restarted) async {
@@ -561,6 +568,20 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     ])));
     if (!mounted || action == null || action == 'continue') return;
     if (action == 'home') {
+      // Do not race a just-started RESET against Home navigation. This wait is
+      // only for the navigation boundary; gameplay and the replacement board
+      // remain local-first and do not wait for Firebase.
+      final pendingRestart = _pendingRestartFuture;
+      if (pendingRestart != null) {
+        final restarted = await pendingRestart;
+        if (!mounted) return;
+        if (restarted) {
+          await SaveManager.save(_engine.createSaveData());
+          if (mounted) Navigator.of(context).pop();
+          return;
+        }
+      }
+
       final sessionId =
           PlayerProgressService.instance.activeGameSessionId;
       final saveData = _engine.createSaveData();
