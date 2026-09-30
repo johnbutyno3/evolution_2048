@@ -10,6 +10,7 @@ import '../models/creature.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
+import '../services/game_lifecycle_manager.dart';
 import '../services/save_manager.dart';
 import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
@@ -164,150 +165,21 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<bool> _createGameSession() async {
-    final generation = _gameSessionGeneration;
-    try {
-      final progress = PlayerProgressService.instance;
-      if (!mounted || generation != _gameSessionGeneration) return false;
-
-      final activeSessionId = progress.activeGameSessionId;
-      final activeChapter = progress.activeGameChapterIndex;
-
-      if (activeSessionId != null) {
-        if (activeChapter != _chapterNumber - 1) return false;
-
-        final saved = SaveManager.loadCached(
-          chapter: _engine.chapter.name,
-        );
-        final hasPlayableLocalBoard = saved != null &&
-            saved['gameSessionId'] == activeSessionId &&
-            saved['gameOver'] != true &&
-            saved['chapterComplete'] != true &&
-            saved['tiles'] is List &&
-            (saved['tiles'] as List).length == 16;
-
-        if (hasPlayableLocalBoard) {
-          final localEngine = GameEngine(
-            chapter: _engine.chapter,
-            forceNewBoard: false,
-            boardLifeActive: true,
-          );
-          if (!localEngine.restoreFromSaveData(saved)) return false;
-
-          _engine.stopGameTimer();
-          _engine = localEngine;
-          _resumeGameplay();
-          _focusNode.requestFocus();
-
-          // Resume validation is authoritative but must never delay the
-          // already-restored local board. A failed verification is reconciled
-          // by PlayerProgressService; the next authoritative operation can
-          // recover the session when necessary.
-          unawaited(
-            progress.resumeGameSession(_chapterNumber - 1).then((_) {
-              if (!mounted || generation != _gameSessionGeneration) return;
-              _engine.toolManager.refreshFromSavedProgress();
-              setState(() {});
-            }).catchError((_) {}),
-          );
-          unawaited(_refreshMountedToolInventory(generation));
-          return true;
-        }
-
-        // There is a server session but no usable local board. Present a
-        // fresh local board immediately and let the replacement session
-        // validate in the background.
-        final newEngine = GameEngine(
-          chapter: _engine.chapter,
-          forceNewBoard: true,
-          boardLifeActive: true,
-        );
-        final newSave = newEngine.createSaveData();
-        final newReplay = newSave['replayLog'];
-        final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
-            ? List<dynamic>.from(newReplay['initialTiles'] as List)
-            : const <dynamic>[];
-
-        final previousEngine = _engine;
-        final started = progress.startGameSession(
-          _chapterNumber - 1,
-          replaceActiveSession: true,
-          initialTiles: initialTiles,
-        );
-        _engine.stopGameTimer();
-        _engine = newEngine;
-        newEngine.startGameTimer();
-        _startUiRefreshTimer();
-        if (mounted) setState(() {});
-
-        unawaited(
-          started.then((ok) async {
-            if (!mounted || generation != _gameSessionGeneration) return;
-            if (!ok) {
-              newEngine.stopGameTimer();
-              await newEngine.flushLocalSave();
-              await SaveManager.save(previousEngine.createSaveData());
-              previousEngine.startGameTimer();
-              if (mounted) {
-                _engine = previousEngine;
-                _startUiRefreshTimer();
-                setState(() {});
-              }
-              return;
-            }
-            unawaited(_refreshMountedToolInventory(generation));
-          }).catchError((_) {}),
-        );
-        return true;
-      }
-
-      if (_engine.gameOver || _engine.chapterComplete) return false;
-
-      // New game: construct the exact board first and start Firebase
-      // validation in the background. startGameSession performs the
-      // optimistic local Life transition.
-      final newEngine = GameEngine(
-        chapter: _engine.chapter,
-        forceNewBoard: true,
-        boardLifeActive: true,
-      );
-      final newSave = newEngine.createSaveData();
-      final newReplay = newSave['replayLog'];
-      final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
-          ? List<dynamic>.from(newReplay['initialTiles'] as List)
-          : const <dynamic>[];
-
-      final startedFuture = progress.startGameSession(
-        _chapterNumber - 1,
-        initialTiles: initialTiles,
-      );
-      final previousEngine = _engine;
-      _engine.stopGameTimer();
-      _engine = newEngine;
-      newEngine.startGameTimer();
-      _startUiRefreshTimer();
-      if (mounted) setState(() {});
-
-      unawaited(
-        startedFuture.then((started) async {
-          if (!started || !mounted || generation != _gameSessionGeneration) {
-            if (mounted && generation == _gameSessionGeneration) {
-              newEngine.stopGameTimer();
-              await newEngine.flushLocalSave();
-              _engine = previousEngine;
-              previousEngine.startGameTimer();
-              _startUiRefreshTimer();
-              setState(() {});
-            }
-            return;
-          }
-          unawaited(_refreshMountedToolInventory(generation));
-        }).catchError((_) {}),
-      );
-      return true;
-    } catch (error) {
-      debugPrint('Failed to create game session: $error');
+    final chapter = _engine.chapter;
+    final lifecycle = GameLifecycleManager.instance;
+    final result = await lifecycle.open(chapter: chapter);
+    if (!mounted) return false;
+    final opened = result.$1;
+    if (opened == null) {
       return false;
     }
+    _engine.stopGameTimer();
+    _engine = opened;
+    _engine.startGameTimer();
+    _startUiRefreshTimer();
+    _focusNode.requestFocus();
+    await _refreshMountedToolInventory(0);
+    return true;
   }
   Future<void> _refreshMountedToolInventory(int generation) async {
     await ToolManager.refreshInventory();
