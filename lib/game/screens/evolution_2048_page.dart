@@ -314,27 +314,87 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (mode == 'swap') { if (_firstSwapIndex == null) { setState(() => _firstSwapIndex = index); return; } final first = _firstSwapIndex!; if (first == index) return; if (_engine.usePositionSwap(first ~/ 4, first % 4, row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } }
   }
 
-  Future<void> _showGameOver() async {
-    if (_gameOverDialogShowing || !mounted) return; _gameOverDialogShowing = true; _engine.stopGameTimer(); await AudioManager.instance.stopMusic(); await AudioManager.instance.playSfx(GameSfx.gameOver); if (!mounted) return;
-    final shouldRestart = await showDialog<bool>(context: context, barrierDismissible: false, builder: (context) => AlertDialog(title: const Text('Game Over'), content: Text('Score: ${_engine.score}\nHighest: ${_engine.highestValue}'), actions: [TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Home')), FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Restart'))]));
-    if (!mounted) return; _gameOverDialogShowing = false;
-    if (shouldRestart == true) { final restarted = await _reset(); if (restarted && mounted) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter)); else if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.'))); }
-    else {
-      final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null; final chapter = _engine.chapter.name;
-      if (sessionId != null) {
-        unawaited(
-          PlayerProgressService.instance.abandonGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
-        );
-      }
-      unawaited(SaveManager.clearChapter(chapter));
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    }
+  Future<void> _goHomeFromGame() async {
+    if (!mounted) return;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Abandon this game?"),
+        content: const Text("This game will end. The Life already used for it will not be returned."),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop("continue"), child: const Text("Continue Game")),
+          FilledButton(onPressed: () => Navigator.of(context).pop("abandon"), child: const Text("Abandon")),
+        ],
+      ),
+    );
+    if (action != "abandon" || !mounted) return;
+    _engine.pauseGameTimer();
+    _stopUiRefreshTimer();
+    await GameLifecycleManager.instance.abandon(_engine);
+    if (mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _showGameOver() async {
+    if (_gameOverDialogShowing || !mounted) return;
+    _gameOverDialogShowing = true;
+    _engine.stopGameTimer();
+    await GameLifecycleManager.instance.gameOver(_engine);
+    if (!mounted) return;
+    await AudioManager.instance.stopMusic();
+    unawaited(AudioManager.instance.playSfx(GameSfx.gameOver));
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Material(
+        color: Colors.black.withValues(alpha: .78),
+        child: InkWell(
+          onTap: () => Navigator.of(context).pop(),
+          child: Center(
+            child: Text("GAME OVER\\n\\nScore: ${_engine.score}\\nHighest: ${_engine.highestValue}\\n\\nTap anywhere to return Home",
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _gameOverDialogShowing = false;
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _showChapterComplete() async {
+    if (_chapterCompleteShowing || !mounted) return;
+    _chapterCompleteShowing = true;
+    _engine.stopGameTimer();
+    await GameLifecycleManager.instance.complete(_engine);
+    if (!mounted) return;
+    await AudioManager.instance.stopMusic();
+    unawaited(AudioManager.instance.playSfx(GameSfx.chapterUnlock));
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Material(
+        color: Colors.black.withValues(alpha: .72),
+        child: InkWell(
+          onTap: () => Navigator.of(context).pop(),
+          child: Center(
+            child: Text("CHAPTER COMPLETE\\n\\nScore: ${_engine.score}\\nHighest: ${_engine.highestValue}\\n\\nTap anywhere to return Home",
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    _chapterCompleteShowing = false;
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
+    return;
+  }
   String _backgroundForHighest(int highestValue) {
     final backgrounds = switch (_engine.chapter) { GameChapter.ocean => _oceanBackgrounds, GameChapter.land => _landBackgrounds, GameChapter.sky => _skyBackgrounds, GameChapter.history => _historyBackgrounds, GameChapter.tech => _techBackgrounds, GameChapter.universe => _universeBackgrounds };
     final stage = highestValue > 0 ? (highestValue.bitLength - 1) : 1;
