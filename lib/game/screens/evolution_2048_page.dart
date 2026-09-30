@@ -188,7 +188,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   void _handleDragEnd(DragEndDetails details) { _dragStart = null; _swipeHandled = false; }
 
   void _move(String direction) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
+    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null) return;
     bool changed;
     switch (direction) { case 'up': changed = _engine.moveUp(); break; case 'down': changed = _engine.moveDown(); break; case 'left': changed = _engine.moveLeft(); break; case 'right': changed = _engine.moveRight(); break; default: changed = false; }
     if (!changed) return;
@@ -210,7 +210,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _startTool(String mode) async {
-    if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
+    if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
     if (!toolState.canUse) { if (!mounted) return; if (mode == 'rewind') { await _showToolUnavailable('UNDO'); return; } Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) async { await ToolManager.refreshInventory(); if (!mounted) return; _engine.toolManager.refreshFromSavedProgress(); setState(() {}); }); return; }
