@@ -7,8 +7,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ActiveGameStore {
   ActiveGameStore._();
 
-  static const _key = 'rebirth_2048_active_game_v2';
+  static const _keyPrefix = 'rebirth_2048_active_game_v2_';
   static SharedPreferences? _prefs;
+  static String? _accountKey;
+
+  static String get _key => '$_keyPrefix${_accountKey ?? 'anonymous'}';
+
+  static Future<void> setAccountScope(String? accountId) async {
+    await _init();
+    final normalized = accountId?.trim();
+    _accountKey = normalized == null || normalized.isEmpty ? null : normalized;
+  }
 
   static Future<void> _init() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -39,5 +48,8 @@ class ActiveGameStore {
     await _prefs!.remove(_key);
   }
 
-  static Future<void> clearForAccountSwitch() => clear();
+  static Future<void> clearForAccountSwitch() async {
+    await clear();
+    _accountKey = null;
+  }
 }
