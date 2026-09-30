@@ -29,7 +29,6 @@ class GameEngine {
 
     _gameTimerRunning = false;
     _gameTimerStartedAt = null;
-    _saveLocal();
   }
 
   static const int boardSize = 4;
