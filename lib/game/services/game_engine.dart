@@ -649,7 +649,6 @@ class GameEngine {
       gameOver = _isGameOver();
 
       if (gameOver) {
-        markGameOver();
       }
 
       _saveLocal();
@@ -700,7 +699,6 @@ class GameEngine {
     gameOver = _isGameOver();
 
     if (gameOver) {
-      markGameOver();
     }
 
     _updateBestScore();
