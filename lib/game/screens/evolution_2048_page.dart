@@ -11,11 +11,9 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
 import '../services/game_lifecycle_manager.dart';
-import '../services/save_manager.dart';
 import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
-import '../../services/player_progress_service.dart';
 import '../services/life_manager.dart';
 import '../services/tool_manager.dart';
 import '../../l10n/app_localizations.dart';
@@ -398,91 +396,3 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 }
 
-class _ChapterCompletePage extends StatelessWidget {
-  const _ChapterCompletePage({
-    required this.chapter,
-    required this.score,
-    required this.highestValue,
-    required this.onNextChapter,
-    required this.onHome,
-  });
-
-  final GameChapter chapter;
-  final int score;
-  final int highestValue;
-  final Future<void> Function() onNextChapter;
-  final VoidCallback onHome;
-  String get _background => switch (chapter) { GameChapter.ocean => 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg', GameChapter.land => 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg', GameChapter.sky => 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg', GameChapter.history => 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png', GameChapter.tech => 'assets/backgrounds/chapter_05_tech/tech_complete.png', GameChapter.universe => 'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg' };
-  String get _title => switch (chapter) { GameChapter.ocean => 'Ocean Restored', GameChapter.land => 'Land Restored', GameChapter.sky => 'Sky Restored', GameChapter.history => 'History Restored', GameChapter.tech => 'Technology Restored', GameChapter.universe => 'Universe Restored' };
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset(_background, fit: BoxFit.cover),
-        Container(color: Colors.black.withValues(alpha: 0.18)),
-        SafeArea(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Spacer(),
-                Text(
-                  _title,
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    shadows: [Shadow(blurRadius: 8, color: Colors.black)],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Score $score    Highest $highestValue',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              unawaited(
-                                AudioManager.instance.playSfx(GameSfx.buttonClick),
-                              );
-                              unawaited(onNextChapter());
-                            },
-                            child: const Text('Next Chapter'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: () {
-                              unawaited(
-                                AudioManager.instance.playSfx(GameSfx.buttonClick),
-                              );
-                              onHome();
-                            },
-                            child: const Text('Home'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
