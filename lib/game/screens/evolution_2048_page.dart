@@ -112,7 +112,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       case AppLifecycleState.detached:
         _engine.pauseGameTimer();
         _stopUiRefreshTimer();
-        if (_lifecycle.hasActiveGame) unawaited(_lifecycle.save(_engine));
+        if (GameLifecycleManager.instance.hasActiveGame) unawaited(GameLifecycleManager.instance.save(_engine));
         break;
     }
   }
