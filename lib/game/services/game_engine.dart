@@ -6,7 +6,6 @@ import 'dart:math';
 import '../models/game_board.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
-import 'save_manager.dart';
 import 'active_game_store.dart';
 import 'life_manager.dart';
 import 'tool_manager.dart';
@@ -22,44 +21,14 @@ class GameEngine {
   }) : _random = random ?? Random(),
        _chapter = chapter {
     _gameId = gameId;
-    _autoSaveEnabled = false;
+    _autoSaveEnabled = true;
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
     reset();
     _boardLifeActive = boardLifeActive;
 
-    final saved = SaveManager.loadCached(chapter: _chapter.name);
-    final savedBoardEnded =
-        saved != null &&
-        (saved['gameOver'] == true || saved['chapterComplete'] == true);
-
-    if (!forceNewBoard &&
-        saved != null &&
-        _shouldRestoreSavedChapter(saved) &&
-        !savedBoardEnded) {
-      restoreFromSaveData(saved);
-    }
-
-    _autoSaveEnabled = true;
-
-    final hasSavedBoard =
-        !forceNewBoard &&
-        saved != null &&
-        _shouldRestoreSavedChapter(saved) &&
-        !savedBoardEnded &&
-        saved['tiles'] is List &&
-        (saved['tiles'] as List).length == boardSize * boardSize;
-
-    if (!hasSavedBoard && !boardLifeActive) {
-      _boardLifeActive = false;
-    }
-
-    // A restored active game continues counting only when the page
-    // explicitly resumes it. This prevents time spent outside the app
-    // from being counted as active game time.
     _gameTimerRunning = false;
     _gameTimerStartedAt = null;
-
     _saveLocal();
   }
 
