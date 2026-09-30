@@ -774,6 +774,9 @@ exports.finishGame = onCall({ minInstances: 1 }, async (request) => {
   const uid = request.auth.uid;
   const gameId = request.data?.gameId;
   const reason = request.data?.reason;
+  const chapterIndex = request.data?.chapterIndex;
+  const highestValue = request.data?.highestValue;
+  const score = request.data?.score;
 
   if (typeof gameId !== 'string' || gameId.length < 16 || gameId.length > 128) {
     throw new HttpsError('invalid-argument', 'Invalid game id.');
@@ -782,6 +785,14 @@ exports.finishGame = onCall({ minInstances: 1 }, async (request) => {
   const allowedReasons = new Set(['abandoned', 'game_over', 'completed']);
   if (typeof reason !== 'string' || !allowedReasons.has(reason)) {
     throw new HttpsError('invalid-argument', 'Invalid finish reason.');
+  }
+
+  if (reason === 'completed' &&
+      (!Number.isInteger(chapterIndex) ||
+       chapterIndex < 0 || chapterIndex > MAX_CHAPTER_INDEX ||
+       !Number.isSafeInteger(highestValue) ||
+       !Number.isSafeInteger(score))) {
+    throw new HttpsError('invalid-argument', 'Invalid completion data.');
   }
 
   const progress = progressRef(uid);
@@ -803,6 +814,68 @@ exports.finishGame = onCall({ minInstances: 1 }, async (request) => {
       return { gameId, status: data.status || 'ended' };
     }
 
+    if (reason === 'completed') {
+      if (data.chapterIndex !== chapterIndex) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Game chapter does not match completion.',
+        );
+      }
+
+      const requiredTarget = TARGETS[chapterIndex];
+      if (highestValue < requiredTarget) {
+        throw new HttpsError(
+          'failed-precondition',
+          'Chapter completion target was not reached.',
+        );
+      }
+
+      const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
+        ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
+        : 0;
+      const nextUnlocked = Math.min(chapterIndex + 1, MAX_CHAPTER_INDEX);
+      const chapterName = CHAPTER_NAMES[chapterIndex];
+      const chapterProgress = current.chapterProgress &&
+          typeof current.chapterProgress === 'object'
+        ? current.chapterProgress
+        : {};
+      const oldChapter = chapterProgress[chapterName] || {};
+
+      transaction.set(progress, {
+        unlockedChapterIndex: Math.max(currentUnlocked, nextUnlocked),
+        highestValue: Math.max(
+          Number.isInteger(current.highestValue) ? current.highestValue : 0,
+          highestValue,
+        ),
+        score: Math.max(
+          Number.isSafeInteger(current.score) ? current.score : 0,
+          score,
+        ),
+        chapterProgress: {
+          [chapterName]: {
+            highestValue: Math.max(
+              Number.isInteger(oldChapter.highestValue) ? oldChapter.highestValue : 0,
+              highestValue,
+            ),
+            score: Math.max(
+              Number.isSafeInteger(oldChapter.score) ? oldChapter.score : 0,
+              score,
+            ),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+        },
+        activeGameSessionId: FieldValue.delete(),
+        activeGameChapterIndex: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    } else if (current.activeGameSessionId === gameId) {
+      transaction.set(progress, {
+        activeGameSessionId: FieldValue.delete(),
+        activeGameChapterIndex: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
     const finalStatus = reason === 'completed'
       ? 'completed'
       : reason === 'game_over'
@@ -813,16 +886,27 @@ exports.finishGame = onCall({ minInstances: 1 }, async (request) => {
       status: finalStatus,
       endedAt: FieldValue.serverTimestamp(),
       endReason: reason,
+      ...(reason === 'completed'
+        ? { highestValue, score }
+        : {}),
     });
 
-    if (current.activeGameSessionId === gameId) {
-      transaction.set(progress, {
-        activeGameSessionId: FieldValue.delete(),
-        activeGameChapterIndex: FieldValue.delete(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    }
-
-    return { gameId, status: finalStatus };
+    return {
+      gameId,
+      status: finalStatus,
+      ...(reason === 'completed'
+        ? {
+            unlockedChapterIndex: Math.min(
+              MAX_CHAPTER_INDEX,
+              Math.max(
+                Number.isInteger(current.unlockedChapterIndex)
+                  ? current.unlockedChapterIndex
+                  : 0,
+                chapterIndex + 1,
+              ),
+            ),
+          }
+        : {}),
+    };
   });
 });
