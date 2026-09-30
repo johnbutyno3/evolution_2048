@@ -6,6 +6,7 @@ import '../game/models/game_tile.dart';
 import '../game/services/audio_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
+import '../game/services/game_lifecycle_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../game/services/save_manager.dart';
 import '../services/player_profile_service.dart';
@@ -112,6 +113,7 @@ const List<String> _homeAvatarAssets = [
 
 class _HomePageState extends State<HomePage> {
   final _progress = PlayerProgressService.instance;
+  final _lifecycle = GameLifecycleManager.instance;
   bool _loading = true;
   bool _enterInProgress = false;
   @override
@@ -127,6 +129,7 @@ class _HomePageState extends State<HomePage> {
       GoldManager.initialize().catchError((_) => null),
       ToolManager.refreshInventory().catchError((_) => null),
       _progress.refresh().catchError((_) => null),
+      _lifecycle.initialize(),
     ]);
     if (mounted) setState(() => _loading = false);
   }
@@ -141,51 +144,42 @@ class _HomePageState extends State<HomePage> {
   Future<void> _enter(BuildContext context, int index) async {
     if (_enterInProgress) return;
     if (!_progress.isChapterUnlocked(index)) return;
+
+    final activeChapter = _lifecycle.activeChapter;
+    if (_lifecycle.hasActiveGame && activeChapter != index) return;
+
+    if (!_lifecycle.hasActiveGame &&
+        !LifeManager.isGoldenMember &&
+        LifeManager.lifeCount <= 0) {
+      return;
+    }
+
     _enterInProgress = true;
     try {
-      final unfinishedChapter = SaveManager.unfinishedChapter;
-      if (unfinishedChapter != null &&
-          unfinishedChapter != _chapterKey(index)) {
-        return;
-      }
-
-    // The server can still own an active session even when its local board
-    // snapshot is missing/stale. Never let Home open a different chapter in
-    // that state; Evolution2048Page would otherwise reject the entry only
-    // after navigation and leave the user on a dead game screen.
-    final activeChapter = _progress.activeGameChapterIndex;
-      if (_progress.activeGameSessionId != null &&
-          activeChapter != null &&
-          activeChapter != index) {
-        return;
-      }
-    unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => Evolution2048Page(
-          initialChapter: switch (index) {
-            0 => GameChapter.ocean,
-            1 => GameChapter.land,
-            2 => GameChapter.sky,
-            3 => GameChapter.history,
-            4 => GameChapter.tech,
-            _ => GameChapter.universe,
-          },
+      unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => Evolution2048Page(
+            initialChapter: switch (index) {
+              0 => GameChapter.ocean,
+              1 => GameChapter.land,
+              2 => GameChapter.sky,
+              3 => GameChapter.history,
+              4 => GameChapter.tech,
+              _ => GameChapter.universe,
+            },
+          ),
         ),
-      ),
-    );
-
-    // Home must appear immediately after the game closes. Authoritative
-    // progress, Life, and tools are reconciled in the background.
-    unawaited(_progress.refresh().catchError((_) => null));
-    unawaited(LifeManager.refreshFromServer().catchError((_) => null));
-    unawaited(ToolManager.refreshInventory().catchError((_) => null));
-    if (mounted) setState(() {});
+      );
+      await _lifecycle.initialize();
+      unawaited(_progress.refresh().catchError((_) => null));
+      unawaited(LifeManager.refreshFromServer().catchError((_) {}));
+      unawaited(ToolManager.refreshInventory().catchError((_) {}));
+      if (mounted) setState(() {});
     } finally {
       _enterInProgress = false;
     }
   }
-
   String _chapterKey(int index) => HomePage.chapters[index].titleKey == 'technology'
       ? 'tech'
       : HomePage.chapters[index].titleKey == 'space'
