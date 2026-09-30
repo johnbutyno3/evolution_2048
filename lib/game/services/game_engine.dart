@@ -15,7 +15,6 @@ class GameEngine {
     Random? random,
     GameChapter chapter = GameChapter.ocean,
     bool forceNewBoard = false,
-    bool boardLifeActive = false,
     String? gameId,
   }) : _random = random ?? Random(),
        _chapter = chapter {
