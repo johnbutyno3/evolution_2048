@@ -1,6 +1,5 @@
 // ignore_for_file: prefer_initializing_formals
 
-import 'dart:async';
 import 'dart:math';
 
 import '../models/game_board.dart';
