@@ -17,9 +17,10 @@ class GameEngine {
     GameChapter chapter = GameChapter.ocean,
     bool forceNewBoard = false,
     bool boardLifeActive = false,
+    bool autoSaveEnabled = true,
   }) : _random = random ?? Random(),
        _chapter = chapter {
-    _autoSaveEnabled = false;
+    _autoSaveEnabled = autoSaveEnabled;
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
     reset();
@@ -36,8 +37,6 @@ class GameEngine {
         !savedBoardEnded) {
       restoreFromSaveData(saved);
     }
-
-    _autoSaveEnabled = true;
 
     final hasSavedBoard =
         !forceNewBoard &&
@@ -57,7 +56,9 @@ class GameEngine {
     _gameTimerRunning = false;
     _gameTimerStartedAt = null;
 
-    _saveLocal();
+    if (_autoSaveEnabled) {
+      _saveLocal();
+    }
   }
 
   static const int boardSize = 4;
