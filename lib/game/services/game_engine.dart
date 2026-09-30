@@ -7,7 +7,6 @@ import '../models/game_board.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'active_game_store.dart';
-import 'life_manager.dart';
 import 'tool_manager.dart';
 import 'replay_recorder.dart';
 
@@ -25,34 +24,11 @@ class GameEngine {
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
     reset();
-    _boardLifeActive = boardLifeActive;
-
     _gameTimerRunning = false;
     _gameTimerStartedAt = null;
   }
 
   static const int boardSize = 4;
-
-  // ============================================================
-  // Life
-  // ============================================================
-
-  static const int maxLives = LifeManager.normalCap;
-
-  /// Tracks whether the current board already owns its server-paid Life.
-  bool _boardLifeActive = false;
-
-  int get lives => LifeManager.lifeCount;
-
-  bool get hasLife => LifeManager.isGoldenMember || lives > 0;
-
-  /// Marks the current board as finished after Game Over without mutating Life.
-  bool markGameOver() {
-    if (!gameOver || chapterComplete || !_boardLifeActive) return false;
-    _boardLifeActive = false;
-    _stopGameTimer();
-    return true;
-  }
 
   // ============================================================
   // Game Timer
@@ -258,9 +234,6 @@ class GameEngine {
       'chapterComplete': chapterComplete,
 
       // Life state.
-      'lives': LifeManager.lifeCount,
-      'nextLifeAtMillis': LifeManager.nextLifeAtMillis,
-      'boardLifeActive': _boardLifeActive,
 
       // Active gameplay time.
       'gameElapsedSeconds': _gameElapsedSeconds,
@@ -342,10 +315,6 @@ class GameEngine {
     score = _readInt(data['score']);
     bestScore = _readInt(data['bestScore']);
     _toolPenaltyTotal = _readInt(data['toolPenaltyTotal']);
-    if (data['boardLifeActive'] is bool) {
-      _boardLifeActive = data['boardLifeActive'] as bool;
-    }
-
     hasReached2048 = data['hasReached2048'] == true;
     hasReached4096 = data['hasReached4096'] == true;
     hasReached8192 = data['hasReached8192'] == true;
@@ -661,7 +630,6 @@ class GameEngine {
     _gameTimerRunning = false;
 
     // Reset Game Over deduction state for the new game.
-    _boardLifeActive = false;
 
     _spawnTile();
     _spawnTile();
