@@ -6,7 +6,6 @@ import 'dart:math';
 import '../models/game_board.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
-import 'active_game_store.dart';
 import 'tool_manager.dart';
 import 'replay_recorder.dart';
 
@@ -19,7 +18,6 @@ class GameEngine {
   }) : _random = random ?? Random(),
        _chapter = chapter {
     _gameId = gameId;
-    _autoSaveEnabled = true;
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
     reset();
@@ -76,7 +74,6 @@ class GameEngine {
     _gameTimerStartedAt = null;
     _gameTimerRunning = false;
 
-    _saveLocal();
   }
 
   /// Stop the game timer permanently.
@@ -120,8 +117,6 @@ class GameEngine {
 
   final Random _random;
   GameChapter _chapter;
-  bool _autoSaveEnabled = false;
-  Future<void> _saveQueue = Future<void>.value();
 
   String? _gameId;
 
@@ -216,9 +211,6 @@ class GameEngine {
   Map<String, dynamic> createSaveData() {
     return <String, dynamic>{
       'chapter': _chapter.name,
-      // Capture the session binding with the snapshot itself. SaveManager
-      // uses this to reject an old engine snapshot after a restart has moved
-      // the global session ID to the replacement session.
       'gameId': _gameId,
       'tiles': _board.tiles.map((tile) => tile?.value).toList(),
       'score': score,
@@ -232,8 +224,6 @@ class GameEngine {
       'gameOver': gameOver,
       'chapterComplete': chapterComplete,
 
-      // Life state.
-
       // Active gameplay time.
       'gameElapsedSeconds': _gameElapsedSeconds,
       'gameTimerRunning': _gameTimerRunning,
@@ -241,17 +231,6 @@ class GameEngine {
       'replayLog': _replayRecorder.log?.toJson(),
     };
   }
-
-  void _saveLocal() {
-    if (!_autoSaveEnabled) return;
-
-    final snapshot = createSaveData();
-
-    _saveQueue = _saveQueue.then((_) => ActiveGameStore.save(snapshot));
-  }
-
-  /// Wait until all queued local snapshots have been persisted.
-  Future<void> flushLocalSave() => _saveQueue;
 
   bool _shouldRestoreSavedChapter(Map<String, dynamic> data) {
     final savedChapter = data['chapter'];
@@ -772,10 +751,6 @@ class GameEngine {
     if (highestValue >= targetValue) {
       chapterComplete = true;
 
-      // Chapter completion and its Life refund are finalized atomically by
-      // the server completeChapter call. Do not refund here, because this
-      // client-side milestone can be reached more than once before the
-      // server accepts the completion.
       switch (_chapter) {
         case GameChapter.ocean:
           hasReached4096 = true;
