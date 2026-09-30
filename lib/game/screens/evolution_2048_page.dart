@@ -150,7 +150,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final ready = await _ensureGameSession();
     if (!mounted) return;
     if (!ready) {
-      if (_engine.gameOver && !_engine.chapterComplete) await _showGameOver();
+      // The bootstrap engine is never a playable fallback. If chapter access
+      // or Life/session validation fails, leave the page instead of exposing
+      // an uncharged board that can be played at Life=0.
+      if (mounted) Navigator.of(context).pop();
       return;
     }
     _resumeGameplay();
