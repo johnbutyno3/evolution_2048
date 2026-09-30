@@ -34,9 +34,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _gameOverDialogShowing = false;
   bool _chapterCompleteShowing = false;
   bool _completionAnimationPlaying = false;
-  late final AnimationController _completionAnimationController;
-  int? _completionAnimationIndex;
-  String? _completionAnimationImagePath;
   String? _toolMode;
   int? _firstSwapIndex;
   String? _pressedToolMode;
@@ -88,10 +85,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     super.initState();
     _engine = GameEngine(chapter: widget.initialChapter ?? GameChapter.ocean);
     WidgetsBinding.instance.addObserver(this);
-    _completionAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 280),
-    )..addStatusListener(_handleCompletionAnimationStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(_initializeGameplaySession());
@@ -107,7 +100,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _stopUiRefreshTimer();
     _engine.pauseGameTimer();
     unawaited(AudioManager.instance.stopMusic());
-    _completionAnimationController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -187,11 +179,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     });
   }
   void _stopUiRefreshTimer() { _uiRefreshTimer?.cancel(); _uiRefreshTimer = null; }
-  void _handleCompletionAnimationStatus(AnimationStatus status) {
-    if (status != AnimationStatus.completed || !mounted) return;
-    _showChapterComplete();
-  }
-
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return KeyEventResult.handled;
@@ -227,28 +214,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (mounted) setState(() {});
     if (newEvolutionValues.isNotEmpty) { _showEvolutionNotice(newEvolutionValues.last); HapticService.evolutionImpact(); }
     if (_engine.chapterComplete) {
-      if (newEvolutionValues.contains(_engine.targetValue)) _startCompletionAnimation(_engine.targetValue); else _showChapterComplete();
+      _showChapterComplete();
     } else if (_engine.gameOver) _showGameOver();
-  }
-
-  void _startCompletionAnimation(int value) {
-    _showChapterComplete();
-  }
-  Widget _buildCompletionAnimation() {
-    final index = _completionAnimationIndex; final imagePath = _completionAnimationImagePath;
-    if (!_completionAnimationPlaying || index == null || imagePath == null) return const SizedBox.shrink();
-    return Positioned.fill(child: IgnorePointer(child: LayoutBuilder(builder: (context, constraints) {
-      const boardPadding = 8.0; const tileGap = 6.0;
-      final tileSize = (constraints.maxWidth - boardPadding * 2 - tileGap * 3) / 4;
-      final row = index ~/ 4; final column = index % 4;
-      final startX = boardPadding + column * (tileSize + tileGap); final startY = boardPadding + row * (tileSize + tileGap);
-      final startCenter = Offset(startX + tileSize / 2, startY + tileSize / 2); final boardCenter = Offset(constraints.maxWidth / 2, constraints.maxHeight / 2);
-      return AnimatedBuilder(animation: _completionAnimationController, builder: (context, child) {
-        final progress = Curves.easeInOutCubic.transform(_completionAnimationController.value);
-        final center = Offset.lerp(startCenter, boardCenter, progress)!; final scale = 1 + progress * 3.0;
-        return Transform.translate(offset: center - boardCenter, child: Transform.scale(scale: scale, child: child));
-      }, child: Align(alignment: Alignment.center, child: SizedBox(width: tileSize, height: tileSize, child: Image.asset(imagePath, fit: BoxFit.contain))));
-    })));
   }
 
   void _showEvolutionNotice(int value) { if (!mounted) return; setState(() { _evolutionValue = value; _evolutionCreatureName = _creatureNameForValue(value); }); }
