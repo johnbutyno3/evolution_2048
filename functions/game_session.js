@@ -1,9 +1,6 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
-const crypto = require('crypto');
 const { enforceSensitiveOperation } = require('./security_enforcement');
-const { replayGame, allowedToolsForChapter } = require('./replay_validator');
-const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
 const {
   NORMAL_CAP,
   resolveMembership,
@@ -16,14 +13,9 @@ const {
 
 const db = getFirestore();
 const MAX_CHAPTER_INDEX = 5;
-const GAME_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
 const STAGE_COUNTS = [12, 13, 14, 15, 16, 17];
 const TARGETS = STAGE_COUNTS.map((stageCount) => 2 ** stageCount);
 const CHAPTER_NAMES = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'];
-
-function recordSecurityEvent({ uid, action, severity = 'warning', reason, details = {} }) {
-  return recordAuditEvent(db, { uid, action, severity, reason, details });
-}
 
 function lifeRef(uid) {
   return db.collection('users').doc(uid).collection('life').doc('current');
@@ -41,17 +33,6 @@ function gameSessionRef(uid, sessionId) {
   return db.collection('users').doc(uid).collection('game_sessions').doc(sessionId);
 }
 
-function toolInventoryRef(uid) {
-  return db.collection('users').doc(uid).collection('wallet').doc('tools');
-}
-
-
-async function refundLifeInTransaction(
-  transaction,
-  uid,
-  membershipSnapshot,
-  lifeSnapshot,
-) {
   const membership = resolveMembership(membershipSnapshot?.data() || {});
   const life = lifeRef(uid);
   const data = lifeSnapshot.data() || {};
