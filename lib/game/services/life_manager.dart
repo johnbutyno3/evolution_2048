@@ -185,8 +185,8 @@ class LifeManager {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  /// Legacy explicit server consume API. Normal game entry now uses the
-  /// local-first session flow instead of waiting for this call.
+  /// Legacy explicit server consume API. Kept only for non-gameplay
+  /// compatibility; normal game entry never waits for it.
   static Future<bool> consumeLife() async {
     try {
       final result = await _functions.httpsCallable('consumeLife').call();
