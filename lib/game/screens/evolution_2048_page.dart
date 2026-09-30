@@ -561,17 +561,30 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     ])));
     if (!mounted || action == null || action == 'continue') return;
     if (action == 'home') {
-      final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-      _engine.pauseGameTimer(); _stopUiRefreshTimer();
+      final sessionId =
+          PlayerProgressService.instance.activeGameSessionId;
+      final saveData = _engine.createSaveData();
+      final replayLog = saveData['replayLog'];
+      final replay =
+          replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
+
+      _engine.pauseGameTimer();
+      _stopUiRefreshTimer();
+
+      // Home navigation must wait for the current board snapshot to reach
+      // the serialized SaveManager queue. Otherwise the next page can race
+      // the autosave and restore either the old or the new board.
+      await SaveManager.save(saveData);
+
       if (sessionId != null) {
-        unawaited(
-          PlayerProgressService.instance.exitUnfinishedGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
+        await PlayerProgressService.instance.exitUnfinishedGameSession(
+          sessionId: sessionId,
+          replayLog: replay,
         );
       }
-      if (mounted) Navigator.of(context).pop(); return;
+
+      if (mounted) Navigator.of(context).pop();
+      return;
     }
     if (action == 'restart') {
       final restarted = await _reset();
