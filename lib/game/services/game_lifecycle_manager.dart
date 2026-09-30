@@ -184,6 +184,10 @@ class GameLifecycleManager {
         await _revokeRejectedStart();
         return;
       }
+      if (_active?['gameId'] != gameId || _active?['status'] != _activeStatus) {
+        unawaited(_verifyFinish(gameId: gameId, reason: 'abandoned'));
+        return;
+      }
       if (data['lives'] is int) {
         LifeManager.applyServerState(data);
       }
