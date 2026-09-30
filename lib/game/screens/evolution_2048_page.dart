@@ -112,6 +112,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       case AppLifecycleState.detached:
         _engine.pauseGameTimer();
         _stopUiRefreshTimer();
+        if (_lifecycle.hasActiveGame) unawaited(_lifecycle.save(_engine));
         break;
     }
   }
@@ -214,7 +215,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
     if (!toolState.canUse) { if (!mounted) return; if (mode == 'rewind') { await _showToolUnavailable('UNDO'); return; } Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) async { await ToolManager.refreshInventory(); if (!mounted) return; _engine.toolManager.refreshFromSavedProgress(); setState(() {}); }); return; }
-    if (mode == 'rewind') { if (!_engine.canUseTimeRewind) { await _showToolUnavailable('UNDO'); return; } if (_engine.useTimeRewind()) setState(() {}); _focusNode.requestFocus(); return; }
+    if (mode == 'rewind') { if (!_engine.canUseTimeRewind) { await _showToolUnavailable('UNDO'); return; } if (_engine.useTimeRewind()) { unawaited(GameLifecycleManager.instance.save(_engine)); setState(() {}); } _focusNode.requestFocus(); return; }
     setState(() { _toolMode = mode; _firstSwapIndex = null; });
   }
   Future<void> _showToolUnavailable(String toolName) async {
@@ -225,10 +226,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
   Future<void> _selectToolTile(int index) async {
     final mode = _toolMode; if (mode == null) return; final tile = _engine.board.tiles[index]; final row = index ~/ 4; final column = index % 4;
-    if (mode == 'duplicate') { if (_firstSwapIndex == null) { if (tile == null) return; setState(() => _firstSwapIndex = index); return; } final first = _firstSwapIndex!; if (first == index || tile != null) return; if (_engine.useDuplicate(first ~/ 4, first % 4, row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
+    if (mode == 'duplicate') { if (_firstSwapIndex == null) { if (tile == null) return; setState(() => _firstSwapIndex = index); return; } final first = _firstSwapIndex!; if (first == index || tile != null) return; if (_engine.useDuplicate(first ~/ 4, first % 4, row, column)) { unawaited(GameLifecycleManager.instance.save(_engine)); setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
     if (tile == null) return;
-    if (mode == 'revive') { if (_engine.useRevive(row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
-    if (mode == 'swap') { if (_firstSwapIndex == null) { setState(() => _firstSwapIndex = index); return; } final first = _firstSwapIndex!; if (first == index) return; if (_engine.usePositionSwap(first ~/ 4, first % 4, row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } }
+    if (mode == 'revive') { if (_engine.useRevive(row, column)) { unawaited(GameLifecycleManager.instance.save(_engine)); setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
+    if (mode == 'swap') { if (_firstSwapIndex == null) { setState(() => _firstSwapIndex = index); return; } final first = _firstSwapIndex!; if (first == index) return; if (_engine.usePositionSwap(first ~/ 4, first % 4, row, column)) { unawaited(GameLifecycleManager.instance.save(_engine)); setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } }
   }
 
   Future<void> _goHomeFromGame() async {
