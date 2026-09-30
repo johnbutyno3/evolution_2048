@@ -143,7 +143,13 @@ class GameLifecycleManager {
     final gameId = engine.gameId;
     await _finishLocal(_completedStatus);
     if (gameId != null) {
-      unawaited(_verifyFinish(gameId: gameId, reason: 'completed'));
+      unawaited(_verifyFinish(
+        gameId: gameId,
+        reason: 'completed',
+        chapterIndex: engine.chapter.index,
+        highestValue: engine.highestValue,
+        score: engine.score,
+      ));
     }
   }
 
@@ -197,11 +203,17 @@ class GameLifecycleManager {
   Future<void> _verifyFinish({
     required String gameId,
     required String reason,
+    int? chapterIndex,
+    int? highestValue,
+    int? score,
   }) async {
     try {
       await _functions.httpsCallable('finishGame').call({
         'gameId': gameId,
         'reason': reason,
+        if (chapterIndex != null) 'chapterIndex': chapterIndex,
+        if (highestValue != null) 'highestValue': highestValue,
+        if (score != null) 'score': score,
       });
     } catch (_) {
       // The local state is already settled. The next authenticated refresh
