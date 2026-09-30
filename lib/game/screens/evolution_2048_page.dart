@@ -46,12 +46,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
   Future<bool>? _gameSessionFuture;
-  Future<bool>? _completionVerificationFuture;
-  bool _completionNextInProgress = false;
-  int _gameSessionGeneration = 0;
-  bool _restartInProgress = false;
-  bool _allowSystemPop = false;
-  bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
 
   static const List<String> _oceanBackgrounds = [
@@ -178,12 +172,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _engine.startGameTimer();
     _startUiRefreshTimer();
     _focusNode.requestFocus();
-    await _refreshMountedToolInventory(0);
+    await _refreshMountedToolInventory();
     return true;
   }
-  Future<void> _refreshMountedToolInventory(int generation) async {
+  Future<void> _refreshMountedToolInventory() async {
     await ToolManager.refreshInventory();
-    if (!mounted || generation != _gameSessionGeneration) return;
+    if (!mounted) return;
     _engine.toolManager.refreshFromSavedProgress();
     setState(() {});
   }
