@@ -178,6 +178,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
 
+      // An active server session may only be resumed when the exact local
+      // snapshot exists. A Game Over session is never resumable.
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
 
@@ -204,13 +206,19 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           _resumeGameplay();
           _focusNode.requestFocus();
 
-          // Resume validation is authoritative but must never delay the
-          // already-restored local board. A failed verification is reconciled
-          // by PlayerProgressService; the next authoritative operation can
-          // recover the session when necessary.
+          // Resume verification is background-only. The exact local board is
+          // already mounted and is never replaced by a bootstrap board.
           unawaited(
-            progress.resumeGameSession(_chapterNumber - 1).then((_) {
+            progress.resumeGameSession(_chapterNumber - 1).then((ok) {
               if (!mounted || generation != _gameSessionGeneration) return;
+              if (!ok) {
+                // The server rejected/expired this session. Do not silently
+                // continue an unverified board.
+                _engine.stopGameTimer();
+                unawaited(SaveManager.clearChapter(_engine.chapter.name));
+                setState(() {});
+                return;
+              }
               _engine.toolManager.refreshFromSavedProgress();
               setState(() {});
             }).catchError((_) {}),
@@ -219,9 +227,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           return true;
         }
 
-        // There is a server session but no usable local board. Present a
-        // fresh local board immediately and let the replacement session
-        // validate in the background.
+        // Server says an unfinished session exists, but there is no playable
+        // local board. This is a new game replacement and therefore needs a
+        // Life. Check the local Life gate BEFORE mounting any new board.
         final newEngine = GameEngine(
           chapter: _engine.chapter,
           forceNewBoard: true,
@@ -233,44 +241,31 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             ? List<dynamic>.from(newReplay['initialTiles'] as List)
             : const <dynamic>[];
 
-        final previousEngine = _engine;
-        final started = progress.startGameSession(
+        final started = await progress.startGameSession(
           _chapterNumber - 1,
           replaceActiveSession: true,
           initialTiles: initialTiles,
         );
+        if (!started ||
+            !mounted ||
+            generation != _gameSessionGeneration) {
+          return false;
+        }
+
         _engine.stopGameTimer();
         _engine = newEngine;
-        newEngine.startGameTimer();
+        _engine.startGameTimer();
         _startUiRefreshTimer();
-        if (mounted) setState(() {});
-
-        unawaited(
-          started.then((ok) async {
-            if (!mounted || generation != _gameSessionGeneration) return;
-            if (!ok) {
-              newEngine.stopGameTimer();
-              await newEngine.flushLocalSave();
-              await SaveManager.save(previousEngine.createSaveData());
-              previousEngine.startGameTimer();
-              if (mounted) {
-                _engine = previousEngine;
-                _startUiRefreshTimer();
-                setState(() {});
-              }
-              return;
-            }
-            unawaited(_refreshMountedToolInventory(generation));
-          }).catchError((_) {}),
-        );
+        _focusNode.requestFocus();
+        setState(() {});
+        unawaited(_refreshMountedToolInventory(generation));
         return true;
       }
 
       if (_engine.gameOver || _engine.chapterComplete) return false;
 
-      // New game: construct the exact board first and start Firebase
-      // validation in the background. startGameSession performs the
-      // optimistic local Life transition.
+      // New game: the local Life check happens first. The server request is
+      // started by startGameSession but never blocks board creation.
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
@@ -282,33 +277,23 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           ? List<dynamic>.from(newReplay['initialTiles'] as List)
           : const <dynamic>[];
 
-      final startedFuture = progress.startGameSession(
+      final started = await progress.startGameSession(
         _chapterNumber - 1,
         initialTiles: initialTiles,
       );
-      final previousEngine = _engine;
+      if (!started ||
+          !mounted ||
+          generation != _gameSessionGeneration) {
+        return false;
+      }
+
       _engine.stopGameTimer();
       _engine = newEngine;
       newEngine.startGameTimer();
       _startUiRefreshTimer();
-      if (mounted) setState(() {});
-
-      unawaited(
-        startedFuture.then((started) async {
-          if (!started || !mounted || generation != _gameSessionGeneration) {
-            if (mounted && generation == _gameSessionGeneration) {
-              newEngine.stopGameTimer();
-              await newEngine.flushLocalSave();
-              _engine = previousEngine;
-              previousEngine.startGameTimer();
-              _startUiRefreshTimer();
-              setState(() {});
-            }
-            return;
-          }
-          unawaited(_refreshMountedToolInventory(generation));
-        }).catchError((_) {}),
-      );
+      _focusNode.requestFocus();
+      setState(() {});
+      unawaited(_refreshMountedToolInventory(generation));
       return true;
     } catch (error) {
       debugPrint('Failed to create game session: $error');
