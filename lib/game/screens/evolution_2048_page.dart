@@ -26,7 +26,7 @@ class Evolution2048Page extends StatefulWidget {
 }
 
 class _Evolution2048PageState extends State<Evolution2048Page>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with WidgetsBindingObserver {
   late GameEngine _engine;
   final FocusNode _focusNode = FocusNode();
   Offset? _dragStart;
