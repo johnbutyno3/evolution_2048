@@ -192,8 +192,17 @@ class GameLifecycleManager {
       if (data['lives'] is int) {
         LifeManager.applyServerState(data);
       }
-    } on FirebaseFunctionsException {
-      await _revokeRejectedStart();
+    } on FirebaseFunctionsException catch (error) {
+      const hardRejectCodes = <String>{
+        'invalid-argument',
+        'unauthenticated',
+        'permission-denied',
+        'failed-precondition',
+        'already-exists',
+      };
+      if (hardRejectCodes.contains(error.code)) {
+        await _revokeRejectedStart();
+      }
     } catch (_) {
       // A temporary network failure does not interrupt local gameplay.
     }
