@@ -7,6 +7,7 @@ import '../models/game_board.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'save_manager.dart';
+import 'active_game_store.dart';
 import 'life_manager.dart';
 import 'tool_manager.dart';
 import 'replay_recorder.dart';
@@ -17,8 +18,10 @@ class GameEngine {
     GameChapter chapter = GameChapter.ocean,
     bool forceNewBoard = false,
     bool boardLifeActive = false,
+    String? gameId,
   }) : _random = random ?? Random(),
        _chapter = chapter {
+    _gameId = gameId;
     _autoSaveEnabled = false;
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
@@ -177,6 +180,10 @@ class GameEngine {
   bool _autoSaveEnabled = false;
   Future<void> _saveQueue = Future<void>.value();
 
+  String? _gameId;
+
+  String? get gameId => _gameId;
+
   late GameBoard _board;
   late ToolManager _toolManager;
   late final ReplayRecorder _replayRecorder;
@@ -269,7 +276,7 @@ class GameEngine {
       // Capture the session binding with the snapshot itself. SaveManager
       // uses this to reject an old engine snapshot after a restart has moved
       // the global session ID to the replacement session.
-      'gameSessionId': SaveManager.gameSessionId,
+      'gameId': _gameId,
       'tiles': _board.tiles.map((tile) => tile?.value).toList(),
       'score': score,
       'bestScore': bestScore,
@@ -300,7 +307,7 @@ class GameEngine {
 
     final snapshot = createSaveData();
 
-    _saveQueue = _saveQueue.then((_) => SaveManager.save(snapshot));
+    _saveQueue = _saveQueue.then((_) => ActiveGameStore.save(snapshot));
   }
 
   /// Wait until all queued local snapshots have been persisted.
@@ -308,6 +315,7 @@ class GameEngine {
 
   bool _shouldRestoreSavedChapter(Map<String, dynamic> data) {
     final savedChapter = data['chapter'];
+    if (data['gameId'] is String) _gameId = data['gameId'] as String;
     if (savedChapter is! String) return false;
 
     return _chapter == GameChapter.ocean || savedChapter == _chapter.name;
