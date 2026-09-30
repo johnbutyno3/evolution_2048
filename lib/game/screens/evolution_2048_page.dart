@@ -175,6 +175,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final progress = PlayerProgressService.instance;
       if (!mounted || generation != _gameSessionGeneration) return false;
 
+      // The Home screen is the normal gate, but the game screen must enforce
+      // the same authoritative chapter rule itself. This prevents a stale
+      // navigation/cache state from opening another unlocked chapter when
+      // Life is 0 or when another chapter still owns the unfinished session.
+      if (!progress.isChapterUnlocked(_chapterNumber - 1)) {
+        return false;
+      }
+
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
 
