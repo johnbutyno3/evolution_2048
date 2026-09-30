@@ -49,6 +49,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
+  Future<void>? _pendingRestartFuture;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -480,48 +481,61 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       replayLog: oldEngine.gameOver ? replay : null,
       initialTiles: initialTiles,
     );
+
+    final restartSettlement = restartFuture.then((restarted) async {
+      if (!mounted || generation != _gameSessionGeneration) return;
+
+      if (restarted) {
+        // restartGameSession has now rebound SaveManager to the replacement
+        // session. Persist the already-visible new board again with that NEW
+        // session ID. The constructor/autosave snapshot may have been written
+        // while the old session ID was still active.
+        await SaveManager.save(newEngine.createSaveData());
+        _engine.toolManager.refreshFromSavedProgress();
+        unawaited(_refreshMountedToolInventory(generation));
+        _restartInProgress = false;
+        setState(() {});
+        return;
+      }
+
+      // Server rejected the optimistic restart. Restore the previous local
+      // board and let the authoritative Life refresh settle the optimistic
+      // decrement.
+      newEngine.stopGameTimer();
+      await newEngine.flushLocalSave();
+      await SaveManager.save(oldEngine.createSaveData());
+      oldEngine.startGameTimer();
+      _engine = oldEngine;
+      _startUiRefreshTimer();
+      _focusNode.requestFocus();
+      _restartInProgress = false;
+      if (mounted) {
+        setState(() {});
+        // A rejected restart must not leave the Game Over board with no
+        // dialog and no playable input. Keep the original Game Over state
+        // and immediately present the retry choice again.
+        unawaited(_showGameOver());
+      }
+    }).catchError((_) async {
+      if (!mounted || generation != _gameSessionGeneration) return;
+      newEngine.stopGameTimer();
+      await SaveManager.save(oldEngine.createSaveData());
+      oldEngine.startGameTimer();
+      _engine = oldEngine;
+      _startUiRefreshTimer();
+      _focusNode.requestFocus();
+      _restartInProgress = false;
+      if (mounted) {
+        setState(() {});
+        unawaited(_showGameOver());
+      }
+    });
+
+    _pendingRestartFuture = restartSettlement;
     unawaited(
-      restartFuture.then((restarted) async {
-        if (!mounted || generation != _gameSessionGeneration) return;
-
-        if (restarted) {
-          _engine.toolManager.refreshFromSavedProgress();
-          unawaited(_refreshMountedToolInventory(generation));
-          _restartInProgress = false;
-          setState(() {});
-          return;
-        }
-
-        // Server rejected the optimistic restart. Restore the previous local
-        // board and let the authoritative Life refresh settle the optimistic
-        // decrement.
-        newEngine.stopGameTimer();
-        await newEngine.flushLocalSave();
-        await SaveManager.save(oldEngine.createSaveData());
-        oldEngine.startGameTimer();
-        _engine = oldEngine;
-        _startUiRefreshTimer();
-        _focusNode.requestFocus();
-        _restartInProgress = false;
-        if (mounted) {
-          setState(() {});
-          // A rejected restart must not leave the Game Over board with no
-          // dialog and no playable input. Keep the original Game Over state
-          // and immediately present the retry choice again.
-          unawaited(_showGameOver());
-        }
-      }).catchError((_) async {
-        if (!mounted || generation != _gameSessionGeneration) return;
-        newEngine.stopGameTimer();
-        await SaveManager.save(oldEngine.createSaveData());
-        oldEngine.startGameTimer();
-        _engine = oldEngine;
-        _startUiRefreshTimer();
-        _focusNode.requestFocus();
-        _restartInProgress = false;
-        if (mounted) {
-          setState(() {});
-          unawaited(_showGameOver());
+      restartSettlement.whenComplete(() {
+        if (identical(_pendingRestartFuture, restartSettlement)) {
+          _pendingRestartFuture = null;
         }
       }),
     );
@@ -565,33 +579,37 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     ])));
     if (!mounted || action == null || action == 'continue') return;
     if (action == 'home') {
-      // Home must settle any still-pending local-first session start before
-      // capturing the final snapshot. Otherwise the snapshot can be saved
-      // without the newly-created session ID, and re-entry will sometimes
-      // resume the old board and sometimes create a new one.
+      // A RESET is local-first, so Home can be pressed before Firebase has
+      // finished replacing the session. Navigation is the only boundary where
+      // we wait: first settle RESET, then save the board under its final
+      // session binding. This prevents old/new board races without delaying
+      // normal gameplay.
+      final pendingRestart = _pendingRestartFuture;
+      if (pendingRestart != null) {
+        await pendingRestart;
+      }
+
+      if (!mounted) return;
       _engine.pauseGameTimer();
       _stopUiRefreshTimer();
 
-      // Finish pending autosaves before capturing the replay log.
       await _engine.flushLocalSave();
-      final pendingSave = _engine.createSaveData();
-      final pendingReplayLog = pendingSave['replayLog'];
-      final pendingReplay = pendingReplayLog is Map
-          ? Map<String, dynamic>.from(pendingReplayLog)
-          : null;
-
-      // This call also waits for a pending start and keeps the session active.
-      await PlayerProgressService.instance.exitUnfinishedGameSession(
-        replayLog: pendingReplay,
-      );
-
-      // Re-capture after session settlement so gameSessionId is guaranteed to
-      // match the active session binding before persisting the board.
       final saveData = _engine.createSaveData();
       final replayLog = saveData['replayLog'];
-      final replay =
-          replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-      await SaveManager.save(saveData);
+      final replay = replayLog is Map
+          ? Map<String, dynamic>.from(replayLog)
+          : null;
+
+      // This call waits for a pending initial start and keeps the current
+      // unfinished session active. After RESET has settled, this always refers
+      // to the replacement session (or the restored old session after rollback).
+      await PlayerProgressService.instance.exitUnfinishedGameSession(
+        replayLog: replay,
+      );
+
+      // Capture once more after session settlement so the persisted snapshot
+      // carries the final active session ID.
+      await SaveManager.save(_engine.createSaveData());
 
       if (mounted) Navigator.of(context).pop();
       return;
