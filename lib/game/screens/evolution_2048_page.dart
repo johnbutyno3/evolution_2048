@@ -257,10 +257,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     for (final creature in creatures) { if (creature.value == value) return creature.name; } return '';
   }
 
-  Future<bool> _reset() async => false;
-  Future<void> _handleSystemBack() => _goHomeFromGame();
-
-  Future<void> _showResetMenu() => _goHomeFromGame();
   Future<void> _startTool(String mode) async {
     if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
@@ -361,9 +357,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     Navigator.of(context).pop();
   }
 
-  Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
-    return;
-  }
   String _backgroundForHighest(int highestValue) {
     final backgrounds = switch (_engine.chapter) { GameChapter.ocean => _oceanBackgrounds, GameChapter.land => _landBackgrounds, GameChapter.sky => _skyBackgrounds, GameChapter.history => _historyBackgrounds, GameChapter.tech => _techBackgrounds, GameChapter.universe => _universeBackgrounds };
     final stage = highestValue > 0 ? (highestValue.bitLength - 1) : 1;
@@ -371,7 +364,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     return backgrounds[backgroundIndex];
   }
   String get _chapterTitle => switch (_engine.chapter) { GameChapter.ocean => 'Ocean Chapter', GameChapter.land => 'Land Chapter', GameChapter.sky => 'Sky Chapter', GameChapter.history => 'History Chapter', GameChapter.tech => 'Technology Chapter', GameChapter.universe => 'Universe Chapter' };
-  int get _chapterNumber => switch (_engine.chapter) { GameChapter.ocean => 1, GameChapter.land => 2, GameChapter.sky => 3, GameChapter.history => 4, GameChapter.tech => 5, GameChapter.universe => 6 };
 
   String _toolLabel(GameToolType type) => switch (type) { GameToolType.revive => 'REMOVE', GameToolType.timeRewind => 'UNDO', GameToolType.positionSwap => 'SWAP', GameToolType.duplicate => 'DUPLICATE' };
   String _toolModeForType(GameToolType type) => switch (type) { GameToolType.revive => 'revive', GameToolType.timeRewind => 'rewind', GameToolType.positionSwap => 'swap', GameToolType.duplicate => 'duplicate' };
