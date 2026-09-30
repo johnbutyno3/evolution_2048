@@ -93,7 +93,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   @override
   void initState() {
     super.initState();
-    _engine = GameEngine(chapter: widget.initialChapter ?? GameChapter.ocean);
+    // Bootstrap only: session validation decides whether the saved board is resumed.
+    // It must not autosave a temporary board before that decision.
+    _engine = GameEngine(
+      chapter: widget.initialChapter ?? GameChapter.ocean,
+      autoSaveEnabled: false,
+    );
     WidgetsBinding.instance.addObserver(this);
     _completionAnimationController = AnimationController(
       vsync: this,
@@ -565,17 +570,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // remain local-first and do not wait for Firebase.
       final sessionId =
           PlayerProgressService.instance.activeGameSessionId;
+      _engine.pauseGameTimer();
+      _stopUiRefreshTimer();
+
+      // Finish pending autosaves before capturing the final board snapshot.
+      await _engine.flushLocalSave();
       final saveData = _engine.createSaveData();
       final replayLog = saveData['replayLog'];
       final replay =
           replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-
-      _engine.pauseGameTimer();
-      _stopUiRefreshTimer();
-
-      // Drain older GameEngine autosaves before writing the final board.
-      // This guarantees the Home snapshot is the last local snapshot persisted.
-      await _engine.flushLocalSave();
       await SaveManager.save(saveData);
 
       if (sessionId != null) {
