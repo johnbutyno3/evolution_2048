@@ -39,7 +39,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   int? _evolutionValue;
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
-  Future<bool>? _gameSessionFuture;
   static const double _swipeThreshold = 30;
 
   static const List<String> _oceanBackgrounds = [
@@ -125,28 +124,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _initializeGameplaySession() async {
     if (!mounted) return;
-    final ready = await _ensureGameSession();
+    final ready = await _createGameSession();
     if (!mounted) return;
     if (!ready) {
-      if (_engine.gameOver && !_engine.chapterComplete) await _showGameOver();
+      Navigator.of(context).pop();
       return;
     }
     _resumeGameplay();
     _focusNode.requestFocus();
-    if (_engine.gameOver && !_engine.chapterComplete) await _showGameOver();
   }
-
-  Future<bool> _ensureGameSession() {
-    final existing = _gameSessionFuture;
-    if (existing != null) return existing;
-    final future = _createGameSession();
-    _gameSessionFuture = future;
-    future.whenComplete(() {
-      if (identical(_gameSessionFuture, future)) _gameSessionFuture = null;
-    });
-    return future;
-  }
-
   Future<bool> _createGameSession() async {
     final chapter = _engine.chapter;
     final lifecycle = GameLifecycleManager.instance;
