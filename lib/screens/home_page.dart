@@ -345,10 +345,9 @@ class _HomePageState extends State<HomePage> {
                               itemCount: HomePage.chapters.length,
                               itemBuilder: (context, index) {
                                 final serverOpen = _progress.isChapterUnlocked(index);
-                                final unfinishedChapter = SaveManager.unfinishedChapter;
+                                final activeChapter = _lifecycle.activeChapter;
                                 final open = serverOpen &&
-                                    (unfinishedChapter == null ||
-                                        unfinishedChapter == _chapterKey(index));
+                                    (activeChapter == null || activeChapter == index);
 
                                 final highestValue =
                                     _progress.chapterHighestValue(index);
@@ -363,8 +362,8 @@ class _HomePageState extends State<HomePage> {
                                       ? () => _enter(context, index)
                                       : null,
                                   hasUnfinishedOtherChapter: serverOpen &&
-                                      unfinishedChapter != null &&
-                                      unfinishedChapter != _chapterKey(index),
+                                      activeChapter != null &&
+                                      activeChapter != index,
                                 );
                               },
                             );
