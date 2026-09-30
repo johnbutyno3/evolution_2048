@@ -119,7 +119,7 @@ class GameLifecycleManager {
   }
 
   Future<void> abandon(GameEngine engine) async {
-    await engine.pauseGameTimer();
+    engine.pauseGameTimer();
     await save(engine);
     final gameId = engine.gameId;
     await _finishLocal(_abandonedStatus);
