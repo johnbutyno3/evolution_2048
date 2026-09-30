@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/game_tile.dart';
 import 'active_game_store.dart';
@@ -24,6 +25,7 @@ class GameLifecycleManager {
   GameLifecycleManager._();
 
   static final instance = GameLifecycleManager._();
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFunctions _functions =
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
@@ -41,6 +43,7 @@ class GameLifecycleManager {
   bool get hasActiveGame => _active?['status'] == _activeStatus;
 
   Future<void> initialize() async {
+    await ActiveGameStore.setAccountScope(_auth.currentUser?.uid);
     _active = await ActiveGameStore.load();
     if (_active?['status'] != _activeStatus) {
       _active = null;
