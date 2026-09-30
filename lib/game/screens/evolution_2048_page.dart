@@ -288,62 +288,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<bool> _reset() async => false;
-  Future<void> _handleSystemBack() async {
-    if (_handlingSystemBack || !mounted) return; _handlingSystemBack = true;
-    final chapter = _engine.chapter.name; final sessionId = PlayerProgressService.instance.activeGameSessionId;
-    final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-    final wasGameOver = _engine.gameOver; final wasChapterComplete = _engine.chapterComplete;
-    _engine.pauseGameTimer(); _stopUiRefreshTimer(); _allowSystemPop = true;
-    if (wasChapterComplete) { Navigator.of(context).pop(); _handlingSystemBack = false; return; }
-    if (sessionId != null) {
-      if (wasGameOver) {
-        unawaited(
-          PlayerProgressService.instance.abandonGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
-        );
-        unawaited(SaveManager.clearChapter(chapter));
-      } else {
-        unawaited(
-          PlayerProgressService.instance.exitUnfinishedGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
-        );
-      }
-    }
-    Navigator.of(context).pop(); _handlingSystemBack = false;
-  }
+  Future<void> _handleSystemBack() => _goHomeFromGame();
 
-  Future<void> _showResetMenu() async {
-    if (!mounted || _completionAnimationPlaying || _gameOverDialogShowing || _chapterCompleteShowing) return;
-    final action = await showModalBottomSheet<String>(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(leading: const Icon(Icons.home_outlined), title: const Text('回首頁'), onTap: () => Navigator.of(context).pop('home')),
-      ListTile(leading: const Icon(Icons.refresh), title: const Text('重玩'), onTap: () => Navigator.of(context).pop('restart')),
-      ListTile(leading: const Icon(Icons.play_arrow), title: const Text('繼續'), onTap: () => Navigator.of(context).pop('continue')),
-    ])));
-    if (!mounted || action == null || action == 'continue') return;
-    if (action == 'home') {
-      final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-      _engine.pauseGameTimer(); _stopUiRefreshTimer();
-      if (sessionId != null) {
-        unawaited(
-          PlayerProgressService.instance.exitUnfinishedGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
-        );
-      }
-      if (mounted) Navigator.of(context).pop(); return;
-    }
-    if (action == 'restart') {
-      final restarted = await _reset();
-      if (restarted && mounted) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
-      else if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.')));
-    }
-  }
-
+  Future<void> _showResetMenu() => _goHomeFromGame();
   Future<void> _startTool(String mode) async {
     if (PlayerProgressService.instance.activeGameSessionId == null) return;
     if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
