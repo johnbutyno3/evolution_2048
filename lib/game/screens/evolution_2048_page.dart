@@ -565,28 +565,33 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     ])));
     if (!mounted || action == null || action == 'continue') return;
     if (action == 'home') {
-      // Do not race a just-started RESET against Home navigation. This wait is
-      // only for the navigation boundary; gameplay and the replacement board
-      // remain local-first and do not wait for Firebase.
-      final sessionId =
-          PlayerProgressService.instance.activeGameSessionId;
+      // Home must settle any still-pending local-first session start before
+      // capturing the final snapshot. Otherwise the snapshot can be saved
+      // without the newly-created session ID, and re-entry will sometimes
+      // resume the old board and sometimes create a new one.
       _engine.pauseGameTimer();
       _stopUiRefreshTimer();
 
-      // Finish pending autosaves before capturing the final board snapshot.
+      // Finish pending autosaves before capturing the replay log.
       await _engine.flushLocalSave();
+      final pendingSave = _engine.createSaveData();
+      final pendingReplayLog = pendingSave['replayLog'];
+      final pendingReplay = pendingReplayLog is Map
+          ? Map<String, dynamic>.from(pendingReplayLog)
+          : null;
+
+      // This call also waits for a pending start and keeps the session active.
+      await PlayerProgressService.instance.exitUnfinishedGameSession(
+        replayLog: pendingReplay,
+      );
+
+      // Re-capture after session settlement so gameSessionId is guaranteed to
+      // match the active session binding before persisting the board.
       final saveData = _engine.createSaveData();
       final replayLog = saveData['replayLog'];
       final replay =
           replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
       await SaveManager.save(saveData);
-
-      if (sessionId != null) {
-        await PlayerProgressService.instance.exitUnfinishedGameSession(
-          sessionId: sessionId,
-          replayLog: replay,
-        );
-      }
 
       if (mounted) Navigator.of(context).pop();
       return;
