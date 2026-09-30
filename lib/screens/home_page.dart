@@ -174,6 +174,7 @@ class _HomePageState extends State<HomePage> {
       await _lifecycle.initialize();
       unawaited(_progress.refresh().catchError((_) => null));
       unawaited(LifeManager.refreshFromServer().catchError((_) {}));
+      await _lifecycle.initialize();
       unawaited(ToolManager.refreshInventory().catchError((_) {}));
       if (mounted) setState(() {});
     } finally {
