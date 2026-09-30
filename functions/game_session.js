@@ -77,10 +77,18 @@ exports.beginGame = onCall({ minInstances: 1 }, async (request) => {
     const current = progressSnapshot.data() || {};
     const activeSessionId = current.activeGameSessionId;
     if (typeof activeSessionId === 'string' && activeSessionId.length > 0) {
-      throw new HttpsError(
-        'failed-precondition',
-        'An active game already exists.',
-      );
+      const activeSnapshot = await transaction.get(gameSessionRef(uid, activeSessionId));
+      const activeData = activeSnapshot.exists ? activeSnapshot.data() : null;
+      if (activeData?.status === 'active') {
+        throw new HttpsError(
+          'failed-precondition',
+          'An active game already exists.',
+        );
+      }
+      transaction.set(progress, {
+        activeGameSessionId: FieldValue.delete(),
+        activeGameChapterIndex: FieldValue.delete(),
+      }, { merge: true });
     }
 
     const unlocked = Number.isInteger(current.unlockedChapterIndex)
