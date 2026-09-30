@@ -322,6 +322,7 @@ class GameEngine {
   }
 
   bool restoreFromSaveData(Map<String, dynamic> data) {
+    if (data['gameId'] is String) _gameId = data['gameId'] as String;
     final savedChapter = data['chapter'];
     if (savedChapter is! String) return false;
 
