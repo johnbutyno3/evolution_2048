@@ -635,3 +635,194 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
   }
 });
 
+
+
+/*
+ * Clean gameplay lifecycle API.
+ *
+ * These two callables are intentionally separate from the legacy session
+ * functions above. The Flutter game lifecycle uses only beginGame/finishGame:
+ * the device starts and saves the board locally first; Firebase verifies the
+ * important transition in the background.
+ */
+exports.beginGame = onCall({ minInstances: 1 }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'begin_game');
+
+  const uid = request.auth.uid;
+  const gameId = request.data?.gameId;
+  const chapterIndex = request.data?.chapterIndex;
+  const initialTiles = request.data?.initialTiles;
+
+  if (typeof gameId !== 'string' || gameId.length < 16 || gameId.length > 128) {
+    throw new HttpsError('invalid-argument', 'Invalid game id.');
+  }
+  if (!Number.isInteger(chapterIndex) ||
+      chapterIndex < 0 || chapterIndex > MAX_CHAPTER_INDEX) {
+    throw new HttpsError('invalid-argument', 'Invalid chapter index.');
+  }
+  if (!Array.isArray(initialTiles) ||
+      initialTiles.length !== 16 ||
+      initialTiles.filter((value) => value !== null).length !== 2 ||
+      initialTiles.some((value) => value !== null && value !== 2 && value !== 4)) {
+    throw new HttpsError('invalid-argument', 'Invalid initial board.');
+  }
+
+  const progress = progressRef(uid);
+  const life = lifeRef(uid);
+  const membership = membershipRef(uid);
+  const session = gameSessionRef(uid, gameId);
+
+  return db.runTransaction(async (transaction) => {
+    const snapshots = await transaction.getAll(progress, life, membership, session);
+    const progressSnapshot = snapshots[0];
+    const lifeSnapshot = snapshots[1];
+    const membershipSnapshot = snapshots[2];
+    const sessionSnapshot = snapshots[3];
+
+    if (sessionSnapshot.exists) {
+      throw new HttpsError('already-exists', 'Game id already exists.');
+    }
+
+    const current = progressSnapshot.data() || {};
+    const activeSessionId = current.activeGameSessionId;
+    if (typeof activeSessionId === 'string' && activeSessionId.length > 0) {
+      throw new HttpsError(
+        'failed-precondition',
+        'An active game already exists.',
+      );
+    }
+
+    const unlocked = Number.isInteger(current.unlockedChapterIndex)
+      ? Math.min(Math.max(current.unlockedChapterIndex, 0), MAX_CHAPTER_INDEX)
+      : 0;
+    if (chapterIndex > unlocked) {
+      throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
+    }
+
+    const membershipState = resolveMembership(
+      membershipSnapshot.data() || {},
+    );
+
+    let lives = normalizeLives(lifeSnapshot.data()?.lives);
+    let regenStartMillis = normalizeRegenStart(lifeSnapshot.data()?.regenStartAt);
+    const nowMillis = Date.now();
+
+    if (membershipState.infiniteLives) {
+      lives = NORMAL_CAP;
+      regenStartMillis = null;
+    } else {
+      const regenerated = regenerate({
+        lives,
+        regenStartMillis,
+        nowMillis,
+        interval: intervalMs(membershipState),
+      });
+      lives = regenerated.lives;
+      regenStartMillis = regenerated.regenStartMillis;
+    }
+
+    if (!membershipState.infiniteLives && lives <= 0) {
+      throw new HttpsError('failed-precondition', 'No lives available.');
+    }
+
+    const nextLives = membershipState.infiniteLives ? lives : lives - 1;
+    const nextRegenStart = nextLives < NORMAL_CAP
+      ? (regenStartMillis ?? nowMillis)
+      : null;
+
+    transaction.set(life, {
+      lives: nextLives,
+      regenStartAt: nextRegenStart == null
+        ? null
+        : Timestamp.fromMillis(nextRegenStart),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    transaction.set(progress, {
+      activeGameSessionId: gameId,
+      activeGameChapterIndex: chapterIndex,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    transaction.create(session, {
+      chapterIndex,
+      targetValue: TARGETS[chapterIndex],
+      status: 'active',
+      initialTiles: [...initialTiles],
+      startedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return {
+      gameId,
+      chapterIndex,
+      targetValue: TARGETS[chapterIndex],
+      ...lifeResponse(nextLives, nextRegenStart, membershipState),
+    };
+  });
+});
+
+exports.finishGame = onCall({ minInstances: 1 }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'finish_game');
+
+  const uid = request.auth.uid;
+  const gameId = request.data?.gameId;
+  const reason = request.data?.reason;
+
+  if (typeof gameId !== 'string' || gameId.length < 16 || gameId.length > 128) {
+    throw new HttpsError('invalid-argument', 'Invalid game id.');
+  }
+
+  const allowedReasons = new Set(['abandoned', 'game_over', 'completed']);
+  if (typeof reason !== 'string' || !allowedReasons.has(reason)) {
+    throw new HttpsError('invalid-argument', 'Invalid finish reason.');
+  }
+
+  const progress = progressRef(uid);
+  const session = gameSessionRef(uid, gameId);
+
+  return db.runTransaction(async (transaction) => {
+    const snapshots = await transaction.getAll(session, progress);
+    const sessionSnapshot = snapshots[0];
+    const progressSnapshot = snapshots[1];
+
+    if (!sessionSnapshot.exists) {
+      return { gameId, status: 'missing' };
+    }
+
+    const current = progressSnapshot.data() || {};
+    const data = sessionSnapshot.data() || {};
+
+    if (data.status !== 'active') {
+      return { gameId, status: data.status || 'ended' };
+    }
+
+    const finalStatus = reason === 'completed'
+      ? 'completed'
+      : reason === 'game_over'
+        ? 'game_over'
+        : 'abandoned';
+
+    transaction.update(session, {
+      status: finalStatus,
+      endedAt: FieldValue.serverTimestamp(),
+      endReason: reason,
+    });
+
+    if (current.activeGameSessionId === gameId) {
+      transaction.set(progress, {
+        activeGameSessionId: FieldValue.delete(),
+        activeGameChapterIndex: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    return { gameId, status: finalStatus };
+  });
+});
