@@ -39,6 +39,7 @@ class PlayerProgressService {
   String? _activeGameSessionId;
   int? _activeGameChapterIndex;
   Future<bool>? _pendingStartSession;
+  int? _pendingStartChapterIndex;
   int _sessionOperationGeneration = 0;
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
@@ -146,9 +147,18 @@ class PlayerProgressService {
     // intentional exception: it must wait for the failed start before retrying.
     final pendingStart = _pendingStartSession;
     if (pendingStart != null) {
-      if (!retryAfterPendingFailure) return true;
-      final pendingResult = await pendingStart;
-      if (pendingResult) return true;
+      // A pending start belongs to exactly one chapter. It may only satisfy
+      // another request for that same chapter. A request for a different
+      // chapter must wait for the first operation to settle and then perform
+      // its own Life/chapter/session checks; otherwise Life=0 could
+      // accidentally mount a second chapter's board for free.
+      if (_pendingStartChapterIndex == chapterIndex) {
+        if (!retryAfterPendingFailure) return pendingStart;
+        final pendingResult = await pendingStart;
+        if (pendingResult) return true;
+      } else {
+        await pendingStart;
+      }
     }
 
     // Do not let a known-empty local/server snapshot start a game. For a
@@ -164,9 +174,11 @@ class PlayerProgressService {
       operationGeneration: operationGeneration,
     );
     _pendingStartSession = pending;
+    _pendingStartChapterIndex = chapterIndex;
     unawaited(pending.whenComplete(() {
       if (identical(_pendingStartSession, pending)) {
         _pendingStartSession = null;
+        _pendingStartChapterIndex = null;
       }
     }));
 
