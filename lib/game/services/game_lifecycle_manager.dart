@@ -68,7 +68,6 @@ class GameLifecycleManager {
         final engine = GameEngine(
           chapter: chapter,
           forceNewBoard: true,
-          boardLifeActive: true,
           gameId: saved['gameId'] as String?,
         );
         if (!engine.restoreFromSaveData(saved)) {
@@ -91,7 +90,6 @@ class GameLifecycleManager {
       final engine = GameEngine(
         chapter: chapter,
         forceNewBoard: true,
-        boardLifeActive: true,
         gameId: gameId,
       );
       await save(engine);
