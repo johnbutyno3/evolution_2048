@@ -63,15 +63,10 @@ class SaveManager {
     final currentId = chapterSave['gameSessionId'];
     if (previousSessionId != null && currentId != previousSessionId) return;
 
-    // A genuinely new game has no previous session binding. Its freshly
-    // created local snapshot may therefore still be unbound while the server
-    // start transaction is being verified. Bind that snapshot to the new
-    // authoritative session instead of silently skipping the rebind.
-    if (previousSessionId == null &&
-        currentId is String &&
-        currentId.isNotEmpty) {
-      return;
-    }
+    // When there is no previous active session, the newly created local
+    // board must be rebound to the server session even if an older cached
+    // chapter snapshot still carries a stale session ID. The fresh engine's
+    // queued save is the snapshot that becomes authoritative here.
 
     final updatedChapter = Map<String, dynamic>.from(
       chapterSave.map((key, value) => MapEntry(key.toString(), value)),
