@@ -242,6 +242,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       if (_engine.gameOver || _engine.chapterComplete) return false;
 
+      // With no active server session, a zero-life account cannot be shown a
+      // fabricated new board. Only a real session owns a Life and a playable
+      // board.
+      if (!LifeManager.isGoldenMember && LifeManager.lifeCount <= 0) {
+        return false;
+      }
+
       // New game: there is no active server session, so the previous
       // session-use overlay must not leak into this new board.
       ToolManager.clearSessionUsage();
