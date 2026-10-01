@@ -240,17 +240,29 @@ class GameLifecycleManager {
     int? highestValue,
     int? score,
   }) async {
-    try {
-      await _functions.httpsCallable('finishGame').call({
-        'gameId': gameId,
-        'reason': reason,
-        if (chapterIndex != null) 'chapterIndex': chapterIndex,
-        if (highestValue != null) 'highestValue': highestValue,
-        if (score != null) 'score': score,
-      });
-    } catch (_) {
-      // The local state is already settled. The next authenticated refresh
-      // is responsible for reconciliation.
+    const retryDelays = <Duration>[
+      Duration.zero,
+      Duration(seconds: 2),
+      Duration(seconds: 5),
+    ];
+
+    for (final delay in retryDelays) {
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+      try {
+        await _functions.httpsCallable('finishGame').call({
+          'gameId': gameId,
+          'reason': reason,
+          if (chapterIndex != null) 'chapterIndex': chapterIndex,
+          if (highestValue != null) 'highestValue': highestValue,
+          if (score != null) 'score': score,
+        });
+        return;
+      } catch (_) {
+        // finishGame is idempotent for an already-ended session. Retry
+        // transient failures without blocking the local UI transition.
+      }
     }
   }
 
