@@ -678,6 +678,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                 }
                 return;
               }
+
+              // The server has now settled the completed session and any
+              // tool deductions/rewards. Drop the old session overlay before
+              // leaving the completion page.
+              ToolManager.clearSessionUsage();
+
               if (mounted) {
                 Navigator.of(context).pop('next');
               }
