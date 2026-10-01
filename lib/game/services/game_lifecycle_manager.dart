@@ -130,7 +130,6 @@ class GameLifecycleManager {
   }
 
   Future<void> gameOver(GameEngine engine) async {
-    await engine.flushLocalSave();
     await save(engine);
     final gameId = engine.gameId;
     await _finishLocal(_gameOverStatus);
