@@ -26,11 +26,8 @@ for (const fileName of sourceFiles) {
 }
 
 const requiredOwners = {
-  startGameSession: 'index.js',
-  resumeGameSession: 'index.js',
-  completeChapter: 'index.js',
-  restartGameSession: 'game_session.js',
-  abandonGameSession: 'game_session.js',
+  beginGame: 'game_session.js',
+  finishGame: 'game_session.js',
   getLifeState: 'life.js',
   consumeLife: 'life.js',
   refundLife: 'life.js',
