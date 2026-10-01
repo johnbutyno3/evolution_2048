@@ -97,7 +97,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
         final account = await GoogleSignIn.instance.authenticate();
         final idToken = account.authentication.idToken;
         if (idToken == null || idToken.isEmpty) {
-          throw const FirebaseAuthException(
+          throw FirebaseAuthException(
             code: 'missing-google-id-token',
             message: 'Google sign-in did not return an ID token.',
           );
