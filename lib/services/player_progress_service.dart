@@ -192,11 +192,10 @@ class PlayerProgressService {
         final previousSessionId =
             _activeGameSessionId ?? SaveManager.gameSessionId;
         _activeGameSessionId = data['sessionId'] as String;
-        await SaveManager.rebindCachedGameSession(
-          chapter: _chapterNames[chapterIndex],
-          previousSessionId: previousSessionId,
-          newSessionId: _activeGameSessionId!,
-        );
+        // Restart creates a replacement board locally. Do not rebind the old
+        // cached board to the new session: that would resurrect the previous
+        // board when the player re-enters. The new GameEngine snapshot is
+        // persisted separately by the caller after this session is accepted.
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
@@ -432,11 +431,8 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (restartCommitted) {
-          await SaveManager.rebindCachedGameSession(
-            chapter: _chapterNames[chapterIndex],
-            previousSessionId: previousSessionId,
-            newSessionId: refreshedSessionId,
-          );
+          // The replacement board is owned by the caller's new GameEngine.
+          // Never promote the previous cached board into this new session.
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
           return true;
