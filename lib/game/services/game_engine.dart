@@ -80,7 +80,6 @@ class GameEngine {
   /// Used for Game Over and Chapter Complete.
   void stopGameTimer() {
     _stopGameTimer();
-    _saveLocal();
   }
 
   void _stopGameTimer() {
@@ -399,7 +398,6 @@ class GameEngine {
       spawnIndex: spawnIndex,
       spawnValue: spawnValue,
     );
-    _saveLocal();
     return true;
   }
 
@@ -417,7 +415,6 @@ class GameEngine {
     _newEvolutionValuesThisMove.clear();
 
     _replayRecorder.recordTimeRewind();
-    _saveLocal();
     return true;
   }
 
@@ -458,7 +455,6 @@ class GameEngine {
       secondRow: secondRow,
       secondColumn: secondColumn,
     );
-    _saveLocal();
     return true;
   }
 
@@ -508,7 +504,6 @@ class GameEngine {
       targetRow: targetRow,
       targetColumn: targetColumn,
     );
-    _saveLocal();
     return true;
   }
 
@@ -612,8 +607,6 @@ class GameEngine {
     _spawnTile();
 
     _replayRecorder.start(_board);
-
-    _saveLocal();
   }
 
   // ============================================================
@@ -650,8 +643,6 @@ class GameEngine {
       if (gameOver) {
       }
 
-      _saveLocal();
-
       return false;
     }
 
@@ -674,8 +665,6 @@ class GameEngine {
         spawnIndex: -1,
         spawnValue: -1,
       );
-
-      _saveLocal();
 
       return true;
     }
@@ -701,7 +690,6 @@ class GameEngine {
     }
 
     _updateBestScore();
-    _saveLocal();
 
     return true;
   }
