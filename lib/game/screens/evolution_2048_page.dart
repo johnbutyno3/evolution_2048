@@ -742,6 +742,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     final previousEngine = _engine;
+
+    // Chapter completion settles the old session. The next chapter starts
+    // with a fresh session-use overlay.
+    ToolManager.clearSessionUsage();
+
     final newEngine = GameEngine(
       chapter: chapter,
       forceNewBoard: true,
@@ -785,6 +790,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         newEngine.stopGameTimer();
         await newEngine.flushLocalSave();
         await LifeManager.refreshFromServer().catchError((_) {});
+        ToolManager.restoreSessionUsageFromReplayLog(
+          previousEngine.createSaveData()['replayLog'],
+        );
+        previousEngine.toolManager.refreshFromSavedProgress();
         _engine = previousEngine;
         if (mounted) {
           _startUiRefreshTimer();
