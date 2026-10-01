@@ -379,11 +379,9 @@ class PlayerProgressService {
         if (operationGeneration != _sessionOperationGeneration) return false;
 
         _activeGameSessionId = data['sessionId'] as String;
-        await SaveManager.rebindCachedGameSession(
-          chapter: _chapterNames[chapterIndex],
-          previousSessionId: previousSessionId,
-          newSessionId: _activeGameSessionId!,
-        );
+        // RESET already created a brand-new local board. Never rebind the
+        // previous cached snapshot to the replacement session; doing so
+        // resurrects the old board on the next page entry.
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         _activeGameChapterIndex = chapterIndex;
 
