@@ -18,6 +18,11 @@ class ToolManager {
     region: 'us-central1',
   );
   static final Map<GameToolType, int> _serverUses = {};
+  // Usage that belongs to the currently active local game session but has
+  // not yet been settled against the account inventory on the server.
+  // This must survive BACK/re-entry and must not be overwritten by a plain
+  // account-inventory refresh.
+  static final Map<GameToolType, int> _sessionUses = {};
   static bool _allToolsEnabledForTest = false;
 
   static bool get allToolsEnabledForTest => _allToolsEnabledForTest;
@@ -26,6 +31,7 @@ class ToolManager {
   /// Inventory must never leak from a previous Firebase account.
   static void clearCachedInventory() {
     _serverUses.clear();
+    _sessionUses.clear();
     _allToolsEnabledForTest = false;
   }
 
@@ -116,6 +122,38 @@ class ToolManager {
     }
   }
 
+  /// Clears the optimistic usage overlay when a brand-new game session is
+  /// created. The previous session will have been settled by the server.
+  static void clearSessionUsage() {
+    _sessionUses.clear();
+  }
+
+  /// Rebuilds the usage overlay from the persisted replay log of the active
+  /// local session. The account inventory itself remains server-authoritative;
+  /// the overlay represents uses that are still pending session settlement.
+  static void restoreSessionUsageFromReplayLog(dynamic replayLog) {
+    _sessionUses.clear();
+    if (replayLog is! Map) return;
+    final events = replayLog['events'];
+    if (events is! List) return;
+
+    for (final rawEvent in events) {
+      if (rawEvent is! Map) continue;
+      final rawType = rawEvent['type'];
+      if (rawType is! String) continue;
+
+      final type = switch (rawType) {
+        'revive' => GameToolType.revive,
+        'timeRewind' => GameToolType.timeRewind,
+        'positionSwap' => GameToolType.positionSwap,
+        'duplicate' => GameToolType.duplicate,
+        _ => null,
+      };
+      if (type == null) continue;
+      _sessionUses[type] = (_sessionUses[type] ?? 0) + 1;
+    }
+  }
+
   static Future<bool> purchase(GameToolType type, int amount) async {
     try {
       final result = await _functions.httpsCallable('purchaseTool').call({
@@ -154,14 +192,10 @@ class ToolManager {
     if (!tool.canUse) return false;
 
     tool.usesRemaining -= 1;
-    // Keep the mounted/static snapshot aligned with the optimistic local
-    // consumption. Otherwise a later refreshFromSavedProgress() (for example
-    // after returning from Shop) could resurrect the just-used tool before
-    // the server settlement refresh arrives.
-    final cachedUses = _serverUses[type];
-    if (cachedUses != null && cachedUses > 0) {
-      _serverUses[type] = cachedUses - 1;
-    }
+    // The account inventory is not settled until the active session is
+    // restarted/completed. Track this use separately so a Firebase inventory
+    // refresh cannot resurrect the tool during BACK/re-entry.
+    _sessionUses[type] = (_sessionUses[type] ?? 0) + 1;
     return true;
   }
 
@@ -169,7 +203,9 @@ class ToolManager {
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
       return _unlimitedUses;
     }
-    return _serverUses[type] ?? 0;
+    final accountUses = _serverUses[type] ?? 0;
+    final pendingSessionUses = _sessionUses[type] ?? 0;
+    return (accountUses - pendingSessionUses).clamp(0, accountUses);
   }
 
   static Map<GameToolType, int> savedInventory() {
