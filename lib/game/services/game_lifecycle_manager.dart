@@ -174,38 +174,57 @@ class GameLifecycleManager {
     required int chapterIndex,
     required List<int?> initialTiles,
   }) async {
-    try {
-      final result = await _functions.httpsCallable('beginGame').call({
-        'gameId': gameId,
-        'chapterIndex': chapterIndex,
-        'initialTiles': initialTiles,
-      });
-      final data = Map<String, dynamic>.from(result.data as Map);
-      if (data['gameId'] != gameId) {
-        await _revokeRejectedStart();
+    const hardRejectCodes = <String>{
+      'invalid-argument',
+      'unauthenticated',
+      'permission-denied',
+      'failed-precondition',
+      'already-exists',
+    };
+    const retryDelays = <Duration>[
+      Duration.zero,
+      Duration(seconds: 2),
+      Duration(seconds: 5),
+    ];
+
+    for (var attempt = 0; attempt < retryDelays.length; attempt++) {
+      if (retryDelays[attempt] > Duration.zero) {
+        await Future<void>.delayed(retryDelays[attempt]);
+      }
+
+      try {
+        final result = await _functions.httpsCallable('beginGame').call({
+          'gameId': gameId,
+          'chapterIndex': chapterIndex,
+          'initialTiles': initialTiles,
+        });
+        final data = Map<String, dynamic>.from(result.data as Map);
+        if (data['gameId'] != gameId) {
+          await _revokeRejectedStart();
+          return;
+        }
+        if (_active?['gameId'] != gameId ||
+            _active?['status'] != _activeStatus) {
+          unawaited(_verifyFinish(gameId: gameId, reason: 'abandoned'));
+          return;
+        }
+        if (data['lives'] is int) {
+          LifeManager.applyServerState(data);
+        }
         return;
+      } on FirebaseFunctionsException catch (error) {
+        if (hardRejectCodes.contains(error.code)) {
+          await _revokeRejectedStart();
+          return;
+        }
+        // Transient Firebase/network errors are retried. beginGame is
+        // idempotent for the same gameId + chapter + initial board.
+      } catch (_) {
+        // Non-Firebase transport errors are also safe to retry.
       }
-      if (_active?['gameId'] != gameId || _active?['status'] != _activeStatus) {
-        unawaited(_verifyFinish(gameId: gameId, reason: 'abandoned'));
-        return;
-      }
-      if (data['lives'] is int) {
-        LifeManager.applyServerState(data);
-      }
-    } on FirebaseFunctionsException catch (error) {
-      const hardRejectCodes = <String>{
-        'invalid-argument',
-        'unauthenticated',
-        'permission-denied',
-        'failed-precondition',
-        'already-exists',
-      };
-      if (hardRejectCodes.contains(error.code)) {
-        await _revokeRejectedStart();
-      }
-    } catch (_) {
-      // A temporary network failure does not interrupt local gameplay.
     }
+    // All verification attempts failed transiently. Keep the local game
+    // playable; a later authenticated lifecycle refresh can reconcile it.
   }
 
   Future<void> _revokeRejectedStart() async {
