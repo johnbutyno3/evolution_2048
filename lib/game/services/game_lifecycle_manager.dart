@@ -36,6 +36,7 @@ class GameLifecycleManager {
 
   Map<String, dynamic>? _active;
   bool _opening = false;
+  final Map<String, Future<void>> _pendingStarts = <String, Future<void>>{};
 
   Map<String, dynamic>? get active => _active;
   String? get activeGameId => _active?['gameId'] as String?;
@@ -94,11 +95,15 @@ class GameLifecycleManager {
       );
       await save(engine);
 
-      unawaited(_verifyStart(
+      final startVerification = _verifyStart(
         gameId: gameId,
         chapterIndex: wanted,
         initialTiles: engine.board.tiles.map((tile) => tile?.value).toList(),
-      ));
+      );
+      _pendingStarts[gameId] = startVerification;
+      unawaited(startVerification.whenComplete(() {
+        _pendingStarts.remove(gameId);
+      }));
 
       return (engine, GameOpenResult.opened);
     } finally {
@@ -239,6 +244,11 @@ class GameLifecycleManager {
     int? highestValue,
     int? score,
   }) async {
+    final pendingStart = _pendingStarts[gameId];
+    if (pendingStart != null) {
+      await pendingStart;
+    }
+
     const retryDelays = <Duration>[
       Duration.zero,
       Duration(seconds: 2),
