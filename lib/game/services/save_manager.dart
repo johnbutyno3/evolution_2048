@@ -53,6 +53,31 @@ class SaveManager {
     final id = newSessionId.trim();
     if (id.isEmpty) return;
     _preferences ??= await SharedPreferences.getInstance();
+
+    // Read and rewrite the snapshot only inside the save queue. Capturing
+    // _cachedSave before waiting is unsafe: a fresh GameEngine save may still
+    // be queued, and the older captured root could overwrite that new board
+    // when the Firebase session response finally arrives.
+    _saveQueue = _saveQueue.then(
+      (_) => _rebindCachedGameSessionNow(
+        chapter: chapter,
+        previousSessionId: previousSessionId,
+        newSessionId: id,
+      ),
+      onError: (_, _) => _rebindCachedGameSessionNow(
+        chapter: chapter,
+        previousSessionId: previousSessionId,
+        newSessionId: id,
+      ),
+    );
+    await _saveQueue;
+  }
+
+  static Future<void> _rebindCachedGameSessionNow({
+    required String chapter,
+    required String? previousSessionId,
+    required String newSessionId,
+  }) async {
     final root = _cachedSave;
     if (root == null) return;
     final chapters = root['chapters'];
@@ -63,15 +88,11 @@ class SaveManager {
     final currentId = chapterSave['gameSessionId'];
     if (previousSessionId != null && currentId != previousSessionId) return;
 
-    // When there is no previous active session, the newly created local
-    // board must be rebound to the server session even if an older cached
-    // chapter snapshot still carries a stale session ID. The fresh engine's
-    // queued save is the snapshot that becomes authoritative here.
-
     final updatedChapter = Map<String, dynamic>.from(
       chapterSave.map((key, value) => MapEntry(key.toString(), value)),
     );
-    updatedChapter['gameSessionId'] = id;
+    updatedChapter['gameSessionId'] = newSessionId;
+
     final updatedChapters = <String, dynamic>{};
     for (final entry in chapters.entries) {
       final key = entry.key.toString();
@@ -84,32 +105,16 @@ class SaveManager {
           : entry.value;
     }
     updatedChapters[chapter] = updatedChapter;
+
     final updatedRoot = Map<String, dynamic>.from(root);
     updatedRoot['chapters'] = updatedChapters;
+    _cachedSave = updatedRoot;
 
-    // Session rebinding must be ordered with all pending saves. Set the
-    // global session ID inside the same queue operation so a delayed engine
-    // snapshot cannot execute between the rebind write and setGameSessionId
-    // and accidentally restore the old session binding.
-    _saveQueue = _saveQueue.then(
-      (_) async {
-        await _preferences!.setString(
-          'rebirth_2048_game_session_id_v1',
-          id,
-        );
-        _cachedSave = updatedRoot;
-        await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
-      },
-      onError: (_, _) async {
-        await _preferences!.setString(
-          'rebirth_2048_game_session_id_v1',
-          id,
-        );
-        _cachedSave = updatedRoot;
-        await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
-      },
+    await _preferences!.setString(
+      'rebirth_2048_game_session_id_v1',
+      newSessionId,
     );
-    await _saveQueue;
+    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
   }
 
   static Future<void> clearGameSessionId() async {
