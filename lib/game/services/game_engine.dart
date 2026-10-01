@@ -346,6 +346,11 @@ class GameEngine {
     }
 
     _chapter = restoredChapter;
+
+    // Rebuild the pending tool-use overlay from the persisted local replay
+    // before creating ToolManager, so an unfinished session that already used
+    // UNDO/another tool cannot regain that use after BACK/re-entry.
+    ToolManager.restoreSessionUsageFromReplayLog(data['replayLog']);
     _initializeTools();
 
     _board = GameBoard(size: boardSize);
