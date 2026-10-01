@@ -356,7 +356,11 @@ class PlayerProgressService {
     // response.
     final pendingStart = _pendingStartSession;
     if (pendingStart != null) {
-      if (!await pendingStart) return false;
+      // Restart is itself an authoritative session-creation/replacement
+      // operation. A failed earlier start must not force the UI to roll back
+      // the replacement board: restartGameSession can create the replacement
+      // session even when that earlier start never committed.
+      await pendingStart;
     }
 
     final operationGeneration = ++_sessionOperationGeneration;
