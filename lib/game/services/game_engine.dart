@@ -291,6 +291,19 @@ class GameEngine {
       'gameElapsedSeconds': _gameElapsedSeconds,
       'gameTimerRunning': _gameTimerRunning,
       'gameTimerStartedAt': _gameTimerStartedAt?.millisecondsSinceEpoch,
+
+      // Persist the one-step UNDO snapshot. An unfinished game can be
+      // left with BACK and resumed later, so the visible UNDO inventory must
+      // remain actually usable after re-entry.
+      'previousBoard': _previousBoard,
+      'previousScore': _previousScore,
+      'previousHasReached2048': _previousHasReached2048,
+      'previousHasReached4096': _previousHasReached4096,
+      'previousHasReached8192': _previousHasReached8192,
+      'previousHasReached16384': _previousHasReached16384,
+      'previousGameOver': _previousGameOver,
+      'previousChapterComplete': _previousChapterComplete,
+      'hasPreviousState': _hasPreviousState,
       'replayLog': _replayRecorder.log?.toJson(),
     };
   }
@@ -402,16 +415,38 @@ class GameEngine {
 
     _newEvolutionValuesThisMove.clear();
 
-    _previousBoard = null;
-    _hasPreviousState = false;
-
-    _previousScore = 0;
-    _previousHasReached2048 = false;
-    _previousHasReached4096 = false;
-    _previousHasReached8192 = false;
-    _previousHasReached16384 = false;
-    _previousGameOver = false;
-    _previousChapterComplete = false;
+    // Restore the one-step UNDO state saved with an unfinished snapshot.
+    // Older snapshots simply have no previousBoard and therefore keep the
+    // normal "no previous move" behavior.
+    final rawPreviousBoard = data['previousBoard'];
+    if (rawPreviousBoard is List && rawPreviousBoard.length == boardSize * boardSize) {
+      _previousBoard = rawPreviousBoard.map<int?>((raw) {
+        if (raw == null) return null;
+        return raw is num ? raw.toInt() : null;
+      }).toList();
+      _previousScore = _readInt(data['previousScore']);
+      _previousHasReached2048 = data['previousHasReached2048'] == true;
+      _previousHasReached4096 = data['previousHasReached4096'] == true;
+      _previousHasReached8192 = data['previousHasReached8192'] == true;
+      _previousHasReached16384 = data['previousHasReached16384'] == true;
+      _previousGameOver = data['previousGameOver'] == true;
+      _previousChapterComplete = data['previousChapterComplete'] == true;
+      _hasPreviousState = data['hasPreviousState'] == true;
+      if (_previousBoard == null || !_hasPreviousState) {
+        _previousBoard = null;
+        _hasPreviousState = false;
+      }
+    } else {
+      _previousBoard = null;
+      _hasPreviousState = false;
+      _previousScore = 0;
+      _previousHasReached2048 = false;
+      _previousHasReached4096 = false;
+      _previousHasReached8192 = false;
+      _previousHasReached16384 = false;
+      _previousGameOver = false;
+      _previousChapterComplete = false;
+    }
 
     _updateBestScore();
 
