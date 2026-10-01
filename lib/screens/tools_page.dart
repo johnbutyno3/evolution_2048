@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
 import '../game/services/life_manager.dart';
+import '../game/services/gold_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../services/shop_config_service.dart';
 
@@ -24,9 +25,10 @@ class _ToolsPageState extends State<ToolsPage> {
   Future<Map<String, dynamic>> _load() async {
     final results = await Future.wait([
       ToolManager.refreshInventory(),
+      GoldManager.refresh(),
       ShopConfigService.load(),
     ]);
-    return results[1] as Map<String, dynamic>;
+    return results[2] as Map<String, dynamic>;
   }
 
   Future<void> _buy({
