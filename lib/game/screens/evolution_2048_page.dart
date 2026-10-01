@@ -141,6 +141,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _initializeGameplaySession() async {
     if (!mounted) return;
+
+    // Never let the previous mounted game's inventory snapshot appear as the
+    // inventory for a newly opened game page. Firebase will refill this
+    // account-scoped snapshot in the background.
+    ToolManager.clearCachedInventory();
+    _engine.toolManager.refreshFromSavedProgress();
+    setState(() {});
+
     final ready = await _ensureGameSession();
     if (!mounted) return;
     if (!ready) {
