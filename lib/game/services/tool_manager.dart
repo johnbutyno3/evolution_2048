@@ -205,7 +205,8 @@ class ToolManager {
     }
     final accountUses = _serverUses[type] ?? 0;
     final pendingSessionUses = _sessionUses[type] ?? 0;
-    return (accountUses - pendingSessionUses).clamp(0, accountUses);
+    final remaining = accountUses - pendingSessionUses;
+    return remaining < 0 ? 0 : remaining;
   }
 
   static Map<GameToolType, int> savedInventory() {
