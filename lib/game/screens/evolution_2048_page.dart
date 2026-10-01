@@ -525,13 +525,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (_handlingSystemBack || _restartInProgress || !mounted) return;
     _handlingSystemBack = true;
 
-    final saveData = _engine.createSaveData();
     final wasChapterComplete = _engine.chapterComplete;
 
     _engine.pauseGameTimer();
     _stopUiRefreshTimer();
 
     if (!wasChapterComplete) {
+      // Pause first so the persisted snapshot contains the latest elapsed
+      // gameplay time. Saving a snapshot captured before pause would write
+      // the old timer value back over the freshly accumulated time.
+      final saveData = _engine.createSaveData();
       // BACK means temporarily leave the game, not end the session.
       // Preserve both the active session binding and the exact current board
       // so the next entry always resumes this unfinished game. RESET is the
@@ -558,9 +561,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // "回首頁" only leaves the current unfinished game. It must behave
       // exactly like system BACK: preserve the active session and local
       // snapshot. Only "重玩" creates a new session and consumes a Life.
-      final saveData = _engine.createSaveData();
       _engine.pauseGameTimer();
       _stopUiRefreshTimer();
+      // Capture the snapshot after pausing so the accumulated gameplay time
+      // cannot be overwritten by a stale pre-pause value.
+      final saveData = _engine.createSaveData();
       await _engine.flushLocalSave();
       await SaveManager.save(saveData);
       if (mounted) Navigator.of(context).pop();
