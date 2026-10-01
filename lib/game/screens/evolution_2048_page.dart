@@ -170,6 +170,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final progress = PlayerProgressService.instance;
       if (!mounted || generation != _gameSessionGeneration) return false;
 
+      // The server owns the active-session pointer. Hydrate it before deciding
+      // whether this entry is a resume or a genuinely new game. The board
+      // itself remains local-first; this refresh only decides which existing
+      // session must be restored.
+      if (!progress.loadedFromServer) {
+        await progress.refresh();
+        if (!mounted || generation != _gameSessionGeneration) return false;
+      }
+
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
 
@@ -214,54 +223,24 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           return true;
         }
 
-        // There is a server session but no usable local board. Present a
-        // fresh local board immediately and let the replacement session
-        // validate in the background.
-        final newEngine = GameEngine(
-          chapter: _engine.chapter,
-          forceNewBoard: true,
-          boardLifeActive: true,
+        // An active server session is never replaced merely because the
+        // local snapshot is missing. Replacing it would consume another Life
+        // and silently turn BACK/re-entry into a new game. There is no safe
+        // way to reconstruct the exact current board from initialTiles alone.
+        // Keep the active session untouched and refuse to manufacture a new
+        // board.
+        debugPrint(
+          'Active game session exists but its local board snapshot is missing: '
+          '$activeSessionId',
         );
-        final newSave = newEngine.createSaveData();
-        final newReplay = newSave['replayLog'];
-        final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
-            ? List<dynamic>.from(newReplay['initialTiles'] as List)
-            : const <dynamic>[];
-
-        final previousEngine = _engine;
-        final started = progress.startGameSession(
-          _chapterNumber - 1,
-          replaceActiveSession: true,
-          initialTiles: initialTiles,
-        );
-        _engine.stopGameTimer();
-        _engine = newEngine;
-        newEngine.startGameTimer();
-        _startUiRefreshTimer();
-        if (mounted) setState(() {});
-
-        unawaited(
-          started.then((ok) async {
-            if (!mounted || generation != _gameSessionGeneration) return;
-            if (!ok) {
-              newEngine.stopGameTimer();
-              await newEngine.flushLocalSave();
-              await SaveManager.save(previousEngine.createSaveData());
-              previousEngine.startGameTimer();
-              if (mounted) {
-                _engine = previousEngine;
-                _startUiRefreshTimer();
-                setState(() {});
-              }
-              return;
-            }
-            unawaited(_refreshMountedToolInventory(generation));
-          }).catchError((_) {}),
-        );
-        return true;
+        return false;
       }
 
       if (_engine.gameOver || _engine.chapterComplete) return false;
+
+      // New game: there is no active server session, so the previous
+      // session-use overlay must not leak into this new board.
+      ToolManager.clearSessionUsage();
 
       // New game: construct the exact board first and start Firebase
       // validation in the background. startGameSession performs the
@@ -441,6 +420,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final generation = _gameSessionGeneration;
     oldEngine.stopGameTimer();
 
+    // RESET starts a genuinely new session. The old session's pending tool
+    // usage is settled by restartGameSession; do not carry it into the new
+    // board.
+    ToolManager.clearSessionUsage();
+
     final newEngine = GameEngine(
       chapter: oldEngine.chapter,
       forceNewBoard: true,
@@ -491,7 +475,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         newEngine.stopGameTimer();
         await newEngine.flushLocalSave();
         await LifeManager.refreshFromServer().catchError((_) {});
+        ToolManager.restoreSessionUsageFromReplayLog(
+          oldEngine.createSaveData()['replayLog'],
+        );
         await SaveManager.save(oldEngine.createSaveData());
+        oldEngine.toolManager.refreshFromSavedProgress();
         oldEngine.startGameTimer();
         _engine = oldEngine;
         _startUiRefreshTimer();
@@ -502,7 +490,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         if (!mounted || generation != _gameSessionGeneration) return;
         newEngine.stopGameTimer();
         await LifeManager.refreshFromServer().catchError((_) {});
+        ToolManager.restoreSessionUsageFromReplayLog(
+          oldEngine.createSaveData()['replayLog'],
+        );
         await SaveManager.save(oldEngine.createSaveData());
+        oldEngine.toolManager.refreshFromSavedProgress();
         oldEngine.startGameTimer();
         _engine = oldEngine;
         _startUiRefreshTimer();
