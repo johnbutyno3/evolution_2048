@@ -554,17 +554,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     ])));
     if (!mounted || action == null || action == 'continue') return;
     if (action == 'home') {
-      final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-      _engine.pauseGameTimer(); _stopUiRefreshTimer();
-      if (sessionId != null) {
-        unawaited(
-          PlayerProgressService.instance.exitUnfinishedGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
-        );
-      }
-      if (mounted) Navigator.of(context).pop(); return;
+      // "回首頁" only leaves the current unfinished game. It must behave
+      // exactly like system BACK: preserve the active session and local
+      // snapshot. Only "重玩" creates a new session and consumes a Life.
+      final saveData = _engine.createSaveData();
+      _engine.pauseGameTimer();
+      _stopUiRefreshTimer();
+      await _engine.flushLocalSave();
+      await SaveManager.save(saveData);
+      if (mounted) Navigator.of(context).pop();
+      return;
     }
     if (action == 'restart') {
       final restarted = await _reset();
