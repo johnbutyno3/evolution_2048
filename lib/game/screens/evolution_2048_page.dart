@@ -554,32 +554,38 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _showResetMenu() async {
-    if (!mounted || _completionAnimationPlaying || _gameOverDialogShowing || _chapterCompleteShowing) return;
-    final action = await showModalBottomSheet<String>(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(leading: const Icon(Icons.home_outlined), title: const Text('回首頁'), onTap: () => Navigator.of(context).pop('home')),
-      ListTile(leading: const Icon(Icons.refresh), title: const Text('重玩'), onTap: () => Navigator.of(context).pop('restart')),
-      ListTile(leading: const Icon(Icons.play_arrow), title: const Text('繼續'), onTap: () => Navigator.of(context).pop('continue')),
-    ])));
-    if (!mounted || action == null || action == 'continue') return;
-    if (_restartInProgress) return;
-    if (action == 'home') {
-      // "回首頁" only leaves the current unfinished game. It must behave
-      // exactly like system BACK: preserve the active session and local
-      // snapshot. Only "重玩" creates a new session and consumes a Life.
-      _engine.pauseGameTimer();
-      _stopUiRefreshTimer();
-      // Capture the snapshot after pausing so the accumulated gameplay time
-      // cannot be overwritten by a stale pre-pause value.
-      final saveData = _engine.createSaveData();
-      await _engine.flushLocalSave();
-      await SaveManager.save(saveData);
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
-    if (action == 'restart') {
-      final restarted = await _reset();
-      if (restarted && mounted) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
-      else if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.')));
+    if (!mounted || _completionAnimationPlaying || _gameOverDialogShowing || _chapterCompleteShowing || _restartInProgress) return;
+
+    // RESET creates a new board and consumes one Life. Leaving the game is
+    // handled only by system BACK, so this dialog intentionally has no
+    // "回首頁" option.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('確定重玩？'),
+        content: const Text('重玩會建立新的棋盤並扣除 1 條生命。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('確定'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || confirmed != true || _restartInProgress) return;
+
+    final restarted = await _reset();
+    if (restarted && mounted) {
+      unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.')),
+      );
     }
   }
 
