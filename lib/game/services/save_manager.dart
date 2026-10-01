@@ -62,7 +62,16 @@ class SaveManager {
 
     final currentId = chapterSave['gameSessionId'];
     if (previousSessionId != null && currentId != previousSessionId) return;
-    if (currentId is! String || currentId.isEmpty) return;
+
+    // A genuinely new game has no previous session binding. Its freshly
+    // created local snapshot may therefore still be unbound while the server
+    // start transaction is being verified. Bind that snapshot to the new
+    // authoritative session instead of silently skipping the rebind.
+    if (previousSessionId == null &&
+        currentId is String &&
+        currentId.isNotEmpty) {
+      return;
+    }
 
     final updatedChapter = Map<String, dynamic>.from(
       chapterSave.map((key, value) => MapEntry(key.toString(), value)),
