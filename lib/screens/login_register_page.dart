@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -25,6 +26,8 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   bool _isRegister = false;
   bool _loading = false;
   bool _obscurePassword = true;
+
+  static Future<void>? _googleSignInInitialization;
 
   @override
   void dispose() {
@@ -82,7 +85,44 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     }
   }
 
-  Future<void> _googleLogin() async => _providerLogin(GoogleAuthProvider());
+  Future<void> _googleLogin() async {
+    setState(() => _loading = true);
+    try {
+      if (kIsWeb) {
+        await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+      } else {
+        _googleSignInInitialization ??= GoogleSignIn.instance.initialize();
+        await _googleSignInInitialization;
+
+        final account = await GoogleSignIn.instance.authenticate();
+        final idToken = account.authentication.idToken;
+        if (idToken == null || idToken.isEmpty) {
+          throw const FirebaseAuthException(
+            code: 'missing-google-id-token',
+            message: 'Google sign-in did not return an ID token.',
+          );
+        }
+
+        await FirebaseAuth.instance.signInWithCredential(
+          GoogleAuthProvider.credential(idToken: idToken),
+        );
+      }
+      if (mounted) await _continueAfterAuth();
+    } on FirebaseAuthException catch (error) {
+      if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        _showError('${_authError(l10n, error.code)} (${error.code})');
+      }
+    } on GoogleSignInException catch (error) {
+      if (mounted && error.code != GoogleSignInExceptionCode.canceled) {
+        _showError('Google login failed: ${error.description ?? error.code.name}');
+      }
+    } catch (error) {
+      if (mounted) _showError('Google login failed: $error');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   Future<void> _appleLogin() async => _providerLogin(AppleAuthProvider());
 
@@ -100,13 +140,10 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           error.code != 'popup-closed-by-user' &&
           error.code != 'cancelled-popup-request') {
         final l10n = AppLocalizations.of(context)!;
-        final message = _authError(l10n, error.code);
-        _showError('$message (${error.code})');
+        _showError('${_authError(l10n, error.code)} (${error.code})');
       }
     } catch (error) {
-      if (mounted) {
-        _showError('Google/Apple login error: $error');
-      }
+      if (mounted) _showError('Google/Apple login error: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
