@@ -98,14 +98,19 @@ class ToolManager {
       _allToolsEnabledForTest = data['allToolsEnabledForTest'] == true;
       final inventory = data['inventory'];
       if (inventory is! Map) return;
-      for (final entry in inventory.entries) {
-        final type = GameToolType.values.where(
-          (value) => value.name == entry.key,
-        );
-        if (type.isNotEmpty && entry.value is num) {
-          _serverUses[type.first] = (entry.value as num).toInt();
-        }
+
+      // Firebase is authoritative for inventory. Replace the account-scoped
+      // snapshot instead of merging into the previous in-memory values.
+      // Otherwise a previous session can leave a stale use count visible
+      // until the next purchase/consumption.
+      final serverSnapshot = <GameToolType, int>{};
+      for (final type in GameToolType.values) {
+        final raw = inventory[type.name];
+        serverSnapshot[type] = raw is num && raw.toInt() >= 0 ? raw.toInt() : 0;
       }
+      _serverUses
+        ..clear()
+        ..addAll(serverSnapshot);
     } on FirebaseFunctionsException {
       return;
     }
