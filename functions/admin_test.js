@@ -216,6 +216,50 @@ exports.adminGetSecurityState = onCall(async (request) => {
   };
 });
 
+exports.adminResetSecurityState = onCall(async (request) => {
+  const adminUid = await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+  if (request.data?.confirm !== true) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Security state reset requires explicit confirmation.',
+    );
+  }
+
+  const enforcementRef = db.collection('security_enforcement').doc(uid);
+  const riskRef = db.collection('security_risk_scores').doc(uid);
+
+  await Promise.all([
+    enforcementRef.set({
+      status: 'active',
+      reason: null,
+      restrictedUntil: null,
+      updatedAt: FieldValue.serverTimestamp(),
+      clearedAt: FieldValue.serverTimestamp(),
+      clearedBy: adminUid,
+    }, { merge: true }),
+    riskRef.set({
+      riskScoreTotal: 0,
+      riskLevel: 'NORMAL',
+      lastEventScore: 0,
+      lastEventRiskLevel: 'NORMAL',
+      updatedAt: FieldValue.serverTimestamp(),
+      clearedAt: FieldValue.serverTimestamp(),
+      clearedBy: adminUid,
+    }, { merge: true }),
+  ]);
+
+  return {
+    ok: true,
+    uid,
+    enforcementStatus: 'active',
+    riskScore: 0,
+    riskLevel: 'NORMAL',
+    changedBy: adminUid,
+  };
+});
+
+
 
 exports.adminSetUnlockedChapter = onCall(async (request) => {
   const adminUid = await requireAdmin(request);
