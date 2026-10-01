@@ -18,6 +18,12 @@ class GoldManager {
   static int get balance => _cachedBalance ?? 0;
   static int get lifetimeSpent => _cachedLifetimeSpent ?? 0;
 
+  /// Clears account-scoped Gold cache when Firebase authentication changes.
+  static void clearCachedState() {
+    _cachedBalance = null;
+    _cachedLifetimeSpent = null;
+  }
+
   static void applyServerState(Map<String, dynamic> data) {
     final balance = data['balance'];
     if (balance is num && balance.toInt() >= 0) {
