@@ -522,7 +522,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     return true;
   }
   Future<void> _handleSystemBack() async {
-    if (_handlingSystemBack || !mounted) return;
+    if (_handlingSystemBack || _restartInProgress || !mounted) return;
     _handlingSystemBack = true;
 
     final saveData = _engine.createSaveData();
@@ -553,6 +553,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       ListTile(leading: const Icon(Icons.play_arrow), title: const Text('繼續'), onTap: () => Navigator.of(context).pop('continue')),
     ])));
     if (!mounted || action == null || action == 'continue') return;
+    if (_restartInProgress) return;
     if (action == 'home') {
       // "回首頁" only leaves the current unfinished game. It must behave
       // exactly like system BACK: preserve the active session and local
