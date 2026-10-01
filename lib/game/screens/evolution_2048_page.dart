@@ -237,19 +237,75 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final action = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Abandon this game?"),
-        content: const Text("This game will end. The Life already used for it will not be returned."),
+        title: const Text("HOME"),
+        content: const Text("Do you want to keep this game?"),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop("continue"), child: const Text("Continue Game")),
-          FilledButton(onPressed: () => Navigator.of(context).pop("abandon"), child: const Text("Abandon")),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop("keep"),
+            child: const Text("YES"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop("end"),
+            child: const Text("NO"),
+          ),
         ],
       ),
     );
-    if (action != "abandon" || !mounted) return;
+    if (action == null || !mounted) return;
+
     _engine.pauseGameTimer();
     _stopUiRefreshTimer();
-    await GameLifecycleManager.instance.abandon(_engine);
+
+    if (action == "keep") {
+      await GameLifecycleManager.instance.save(_engine);
+    } else {
+      await GameLifecycleManager.instance.abandon(_engine);
+    }
+
     if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _restartGame() async {
+    if (!mounted || _gameOverDialogShowing || _chapterCompleteShowing) return;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("RESTART"),
+        content: const Text("Open a new game? One Life will be used."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop("no"),
+            child: const Text("NO"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop("yes"),
+            child: const Text("YES"),
+          ),
+        ],
+      ),
+    );
+    if (action != "yes" || !mounted) return;
+
+    _engine.pauseGameTimer();
+    _stopUiRefreshTimer();
+    final result = await GameLifecycleManager.instance.restart(_engine);
+    if (!mounted) return;
+    final nextEngine = result.$1;
+    if (nextEngine == null) {
+      _resumeGameplay();
+      _focusNode.requestFocus();
+      return;
+    }
+
+    _engine = nextEngine;
+    _evolutionValue = null;
+    _evolutionCreatureName = null;
+    _toolMode = null;
+    _firstSwapIndex = null;
+    _resumeGameplay();
+    _focusNode.requestFocus();
+    await _refreshMountedToolInventory();
+    if (mounted) setState(() {});
   }
 
   Future<void> _showGameOver() async {
@@ -332,9 +388,31 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   @override
   Widget build(BuildContext context) {
     final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount; final lifeRemaining = LifeManager.regenerationRemaining; final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
-    return PopScope<void>(canPop: false, onPopInvokedWithResult: (didPop, result) { if (!didPop) unawaited(_goHomeFromGame()); }, child: Scaffold(appBar: AppBar(title: Text(_chapterTitle), actions: []), body: SafeArea(child: Focus(autofocus: true, focusNode: _focusNode, onKeyEvent: _handleKey, child: GestureDetector(onPanStart: _handleDragStart, onPanUpdate: _handleDragUpdate, onPanEnd: _handleDragEnd, child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: Padding(padding: const EdgeInsets.all(16), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+    return PopScope<void>(canPop: false, onPopInvokedWithResult: (didPop, result) { if (!didPop) unawaited(_goHomeFromGame()); }, child: Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => unawaited(_goHomeFromGame()),
+          tooltip: 'HOME',
+          icon: const Icon(Icons.arrow_back),
+        ),
+        title: Text(_chapterTitle),
+      ),
+      body: SafeArea(child: Focus(autofocus: true, focusNode: _focusNode, onKeyEvent: _handleKey, child: GestureDetector(onPanStart: _handleDragStart, onPanUpdate: _handleDragUpdate, onPanEnd: _handleDragEnd, child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: Padding(padding: const EdgeInsets.all(16), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Score ${_engine.score}', style: Theme.of(context).textTheme.titleMedium), Text('Best ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium)]), const SizedBox(height: 12),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _goHomeFromGame(); }, tooltip: 'Home', visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.arrow_back, size: 20))])]), const SizedBox(height: 12),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [
+        Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium),
+        IconButton(
+          onPressed: () {
+            unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick));
+            unawaited(_restartGame());
+          },
+          tooltip: 'RESTART',
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          icon: const Icon(Icons.replay, size: 20),
+        ),
+      ])]), const SizedBox(height: 12),
       Text(_toolMode == null ? 'Highest: ${_engine.highestValue} / ${_engine.targetValue}' : 'Select a tile for ${_toolMode == 'swap' ? 'Swap' : _toolMode == 'duplicate' ? 'Duplicate' : 'REMOVE'}', style: Theme.of(context).textTheme.bodyLarge), const SizedBox(height: 10), _buildEvolutionNotice(),
       AspectRatio(aspectRatio: 1, child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Stack(fit: StackFit.expand, children: [Image.asset(background, fit: BoxFit.cover), Container(color: Colors.black.withValues(alpha: 0.18)), GridView.builder(physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.all(8), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 6, mainAxisSpacing: 6), itemCount: 16, itemBuilder: (context, index) { final tile = _engine.board.tiles[index]; final selected = _firstSwapIndex == index; return GestureDetector(onTap: () => unawaited(_selectToolTile(index)), child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: selected ? Border.all(width: 3, color: Colors.yellow) : null, color: tile == null ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.82)), padding: EdgeInsets.all(_engine.chapter == GameChapter.universe ? 2 : 6), child: tile == null ? const SizedBox.shrink() : Image.asset(tile.creature.imagePath, fit: BoxFit.contain))); })]))), const SizedBox(height: 12), Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Row(children: [Expanded(child: _buildToolButton(GameToolType.timeRewind)), Expanded(child: _buildToolButton(GameToolType.positionSwap)), Expanded(child: _buildToolButton(GameToolType.revive)), Expanded(child: _buildToolButton(GameToolType.duplicate))]))
     ])))))))));
