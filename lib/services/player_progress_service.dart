@@ -376,6 +376,11 @@ class PlayerProgressService {
         if (operationGeneration != _sessionOperationGeneration) return false;
 
         _activeGameSessionId = data['sessionId'] as String;
+        await SaveManager.rebindCachedGameSession(
+          chapter: _chapterNames[chapterIndex],
+          previousSessionId: previousSessionId,
+          newSessionId: _activeGameSessionId!,
+        );
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         _activeGameChapterIndex = chapterIndex;
 
@@ -423,6 +428,11 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (restartCommitted) {
+          await SaveManager.rebindCachedGameSession(
+            chapter: _chapterNames[chapterIndex],
+            previousSessionId: previousSessionId,
+            newSessionId: refreshedSessionId,
+          );
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
           return true;
