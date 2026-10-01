@@ -155,19 +155,34 @@ class ToolManager {
   }
 
   static Future<bool> purchase(GameToolType type, int amount) async {
+    // Refresh the wallet immediately before purchase so an admin grant or a
+    // recent Gold transaction is not hidden behind an old client cache.
+    await GoldManager.refresh();
+
     try {
       final result = await _functions.httpsCallable('purchaseTool').call({
         'toolType': type.name,
         'amount': amount,
       });
-      final uses = result.data is Map ? result.data['uses'] : null;
-      if (uses is! num) return false;
+      final data = result.data is Map
+          ? Map<String, dynamic>.from(result.data as Map)
+          : <String, dynamic>{};
+      final uses = data['uses'];
+      final balance = data['balance'];
+
+      // The purchase callable is atomic: Gold deduction and tool inventory
+      // grant are committed together. Accept the result only when both
+      // authoritative values are present, then refresh the complete inventory
+      // so every tool state reflects the same server snapshot.
+      if (uses is! num || balance is! num) return false;
       _serverUses[type] = uses.toInt();
-      if (result.data is Map) {
-        GoldManager.applyServerState(Map<String, dynamic>.from(result.data as Map));
-      }
+      GoldManager.applyServerState(data);
+      await refreshInventory();
       return true;
-    } on FirebaseFunctionsException {
+    } on FirebaseFunctionsException catch (error) {
+      // Re-read the authoritative wallet after a rejected purchase so a
+      // stale client cache cannot continue displaying an incorrect balance.
+      await GoldManager.refresh();
       return false;
     }
   }
