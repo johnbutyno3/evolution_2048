@@ -230,14 +230,6 @@ class GameEngine {
     };
   }
 
-  bool _shouldRestoreSavedChapter(Map<String, dynamic> data) {
-    final savedChapter = data['chapter'];
-    if (data['gameId'] is String) _gameId = data['gameId'] as String;
-    if (savedChapter is! String) return false;
-
-    return _chapter == GameChapter.ocean || savedChapter == _chapter.name;
-  }
-
   bool restoreFromSaveData(Map<String, dynamic> data) {
     if (data['gameId'] is String) _gameId = data['gameId'] as String;
     final savedChapter = data['chapter'];
