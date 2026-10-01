@@ -185,3 +185,33 @@ exports.adminGetTestAccountState = onCall(async (request) => {
     allToolsEnabledForTest: user.allToolsEnabledForTest === true,
   };
 });
+
+
+exports.adminSetUnlockedChapter = onCall(async (request) => {
+  const adminUid = await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+  const chapterIndex = request.data?.chapterIndex;
+
+  if (!Number.isInteger(chapterIndex) ||
+      chapterIndex < 0 || chapterIndex > 5) {
+    throw new HttpsError('invalid-argument', 'chapterIndex must be between 0 and 5.');
+  }
+
+  const progressRef = db.collection('users').doc(uid)
+    .collection('progress').doc('game');
+  const snapshot = await progressRef.get();
+  const current = snapshot.data() || {};
+  const currentUnlocked = Number.isInteger(current.unlockedChapterIndex)
+    ? Math.min(Math.max(current.unlockedChapterIndex, 0), 5)
+    : 0;
+
+  const unlockedChapterIndex = Math.max(currentUnlocked, chapterIndex);
+  await progressRef.set({
+    unlockedChapterIndex,
+    updatedAt: FieldValue.serverTimestamp(),
+    lastAdminAdjustmentBy: adminUid,
+    lastAdminAdjustmentAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { ok: true, uid, unlockedChapterIndex, changedBy: adminUid };
+});
