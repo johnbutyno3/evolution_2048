@@ -602,16 +602,24 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!mounted) return; _gameOverDialogShowing = false;
     if (shouldRestart == true) { final restarted = await _reset(); if (restarted && mounted) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter)); else if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.'))); }
     else {
-      final sessionId = PlayerProgressService.instance.activeGameSessionId; final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null; final chapter = _engine.chapter.name;
+      final sessionId = PlayerProgressService.instance.activeGameSessionId;
+      final saveData = _engine.createSaveData();
+      final replayLog = saveData['replayLog'];
+      final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
+      final chapter = _engine.chapter.name;
+
+      // Game Over is an ended session, not a temporary BACK. Complete the
+      // server-side abandonment before leaving the page so an immediate
+      // re-entry cannot observe the old active-session pointer and get stuck
+      // with no playable local board.
+      _gameSessionGeneration++;
       if (sessionId != null) {
-        unawaited(
-          PlayerProgressService.instance.abandonGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
+        await PlayerProgressService.instance.abandonGameSession(
+          sessionId: sessionId,
+          replayLog: replay,
         );
       }
-      unawaited(SaveManager.clearChapter(chapter));
+      await SaveManager.clearChapter(chapter);
       if (!mounted) return;
       Navigator.of(context).pop();
     }
