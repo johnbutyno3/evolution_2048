@@ -1,5 +1,6 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
 
 const db = getFirestore();
 const MEMBERSHIP_MODES = new Set(['general', 'premium', 'golden']);
@@ -183,6 +184,35 @@ exports.adminGetTestAccountState = onCall(async (request) => {
     expiresAt: membership.expiresAt?.toDate?.()?.toISOString?.() ?? null,
     goldBalance: Number.isSafeInteger(gold.balance) ? gold.balance : 0,
     allToolsEnabledForTest: user.allToolsEnabledForTest === true,
+  };
+});
+
+
+exports.adminGetSecurityState = onCall(async (request) => {
+  await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+
+  const [authUser, enforcementSnapshot, riskSnapshot] = await Promise.all([
+    getAuth().getUser(uid),
+    db.collection('security_enforcement').doc(uid).get(),
+    db.collection('security_risk_scores').doc(uid).get(),
+  ]);
+
+  const enforcement = enforcementSnapshot.data() || {};
+  const risk = riskSnapshot.data() || {};
+
+  return {
+    ok: true,
+    uid,
+    authDisabled: authUser.disabled === true,
+    enforcementStatus: enforcement.status || 'active',
+    enforcementReason: enforcement.reason || null,
+    lockedAt: enforcement.lockedAt?.toDate?.()?.toISOString?.() ?? null,
+    restrictedUntil: enforcement.restrictedUntil?.toDate?.()?.toISOString?.() ?? null,
+    riskScore: Number.isFinite(Number(risk.riskScoreTotal))
+      ? Number(risk.riskScoreTotal)
+      : 0,
+    riskLevel: typeof risk.riskLevel === 'string' ? risk.riskLevel : 'NORMAL',
   };
 });
 
