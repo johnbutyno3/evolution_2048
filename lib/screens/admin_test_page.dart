@@ -117,6 +117,27 @@ class _AdminTestPageState extends State<AdminTestPage> {
   }
 
 
+  Future<void> _setUnlockedChapter(int chapterIndex) async {
+    if (_uid.isEmpty) return;
+    setState(() { _busy = true; _message = ''; });
+    try {
+      final r = await _functions.httpsCallable('adminSetUnlockedChapter').call({
+        'uid': _uid,
+        'chapterIndex': chapterIndex,
+      });
+      final d = Map<String, dynamic>.from(r.data as Map);
+      if (mounted) {
+        setState(() => _message =
+            'Test mode: chapters unlocked through C' +
+            (((d['unlockedChapterIndex'] as num).toInt()) + 1).toString() + '.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _message = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _setAllToolsEnabled(bool enabled) async {
     if (_uid.isEmpty) return;
     setState(() { _busy = true; _message = ''; });
@@ -219,6 +240,23 @@ class _AdminTestPageState extends State<AdminTestPage> {
             ]),
           )),
 
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Chapter Test / Cheat', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text('Admin-only test control. Unlocks chapters for testing.'),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (var index = 0; index < 6; index++)
+                  OutlinedButton(
+                    onPressed: _busy ? null : () => _setUnlockedChapter(index),
+                    child: Text('Unlock C' + (index + 1).toString()),
+                  ),
+              ]),
+            ]),
+          )),
           const SizedBox(height: 12),
           Card(child: Padding(
             padding: const EdgeInsets.all(16),
