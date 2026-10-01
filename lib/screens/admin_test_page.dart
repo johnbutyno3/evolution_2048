@@ -23,6 +23,13 @@ class _AdminTestPageState extends State<AdminTestPage> {
   bool? _infiniteLives;
   String? _lifeMode;
   bool _allToolsEnabledForTest = false;
+  bool? _authDisabled;
+  String? _enforcementStatus;
+  String? _enforcementReason;
+  String? _lockedAt;
+  String? _restrictedUntil;
+  String? _riskLevel;
+  int? _riskScore;
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
   String get _uid => _auth.currentUser?.uid ?? '';
@@ -52,6 +59,19 @@ class _AdminTestPageState extends State<AdminTestPage> {
         _allToolsEnabledForTest = d['allToolsEnabledForTest'] == true;
         _loading = false;
       });
+      final securityResult = await _functions.httpsCallable('adminGetSecurityState').call({'uid': _uid});
+      final security = Map<String, dynamic>.from(securityResult.data as Map);
+      if (!mounted) return;
+      setState(() {
+        _authDisabled = security['authDisabled'] == true;
+        _enforcementStatus = security['enforcementStatus'] as String?;
+        _enforcementReason = security['enforcementReason'] as String?;
+        _lockedAt = security['lockedAt'] as String?;
+        _restrictedUntil = security['restrictedUntil'] as String?;
+        _riskLevel = security['riskLevel'] as String?;
+        _riskScore = (security['riskScore'] as num?)?.toInt();
+      });
+
       final lifeResult = await _functions.httpsCallable('getLifeState').call();
       final life = Map<String, dynamic>.from(lifeResult.data as Map);
       if (!mounted) return;
@@ -216,6 +236,22 @@ class _AdminTestPageState extends State<AdminTestPage> {
               Text('Lives: ${_infiniteLives == true ? '∞' : (_lives?.toString() ?? '--')}'),
               Text('Infinite Lives: ${_infiniteLives ?? false}'),
               Text('Life Mode: ${_lifeMode ?? '--'}'),
+            ]),
+          )),
+          const SizedBox(height: 12),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Security Enforcement', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('UID: $_uid'),
+              Text('Firebase Auth Disabled: ${_authDisabled ?? '--'}'),
+              Text('Enforcement Status: ${_enforcementStatus ?? '--'}'),
+              Text('Risk Level: ${_riskLevel ?? '--'}'),
+              Text('Risk Score: ${_riskScore ?? 0}'),
+              if (_enforcementReason != null) Text('Reason: $_enforcementReason'),
+              if (_lockedAt != null) Text('Locked At: $_lockedAt'),
+              if (_restrictedUntil != null) Text('Restricted Until: $_restrictedUntil'),
             ]),
           )),
           const SizedBox(height: 12),
