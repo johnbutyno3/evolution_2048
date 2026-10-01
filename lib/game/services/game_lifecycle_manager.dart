@@ -150,7 +150,7 @@ class GameLifecycleManager {
     await save(engine);
     await _finishLocal(_abandonedStatus);
 
-    final finished = await _verifyFinish(
+    final finished = await _verifyFinishResult(
       gameId: gameId,
       reason: 'abandoned',
     );
@@ -264,7 +264,7 @@ class GameLifecycleManager {
     await LifeManager.refreshFromServer().catchError((_) {});
   }
 
-  Future<bool> _verifyFinish({
+  Future<void> _verifyFinish({
     required String gameId,
     required String reason,
     int? chapterIndex,
@@ -276,6 +276,22 @@ class GameLifecycleManager {
       await pendingStart;
     }
 
+    await _verifyFinishResult(
+      gameId: gameId,
+      reason: reason,
+      chapterIndex: chapterIndex,
+      highestValue: highestValue,
+      score: score,
+    );
+  }
+
+  Future<bool> _verifyFinishResult({
+    required String gameId,
+    required String reason,
+    int? chapterIndex,
+    int? highestValue,
+    int? score,
+  }) async {
     const retryDelays = <Duration>[
       Duration.zero,
       Duration(seconds: 2),
