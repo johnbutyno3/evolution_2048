@@ -111,6 +111,12 @@ class GameLifecycleManager {
     }
   }
 
+  Future<void> waitForPendingStarts() async {
+    final pending = List<Future<void>>.from(_pendingStarts.values);
+    if (pending.isEmpty) return;
+    await Future.wait(pending);
+  }
+
   Future<void> save(GameEngine engine) async {
     final data = engine.createSaveData();
     final gameId = engine.gameId;
@@ -132,6 +138,27 @@ class GameLifecycleManager {
     if (gameId != null) {
       unawaited(_verifyFinish(gameId: gameId, reason: 'abandoned'));
     }
+  }
+
+  Future<(GameEngine?, GameOpenResult)> restart(GameEngine engine) async {
+    final gameId = engine.gameId;
+    if (gameId == null || gameId.isEmpty) {
+      return (null, GameOpenResult.rejected);
+    }
+
+    engine.pauseGameTimer();
+    await save(engine);
+    await _finishLocal(_abandonedStatus);
+
+    final finished = await _verifyFinish(
+      gameId: gameId,
+      reason: 'abandoned',
+    );
+    if (!finished) {
+      return (null, GameOpenResult.rejected);
+    }
+
+    return open(chapter: engine.chapter);
   }
 
   Future<void> gameOver(GameEngine engine) async {
@@ -237,7 +264,7 @@ class GameLifecycleManager {
     await LifeManager.refreshFromServer().catchError((_) {});
   }
 
-  Future<void> _verifyFinish({
+  Future<bool> _verifyFinish({
     required String gameId,
     required String reason,
     int? chapterIndex,
@@ -267,12 +294,13 @@ class GameLifecycleManager {
           'highestValue': ?highestValue,
           'score': ?score,
         });
-        return;
+        return true;
       } catch (_) {
         // finishGame is idempotent for an already-ended session. Retry
-        // transient failures without blocking the local UI transition.
+        // transient failures without blocking normal local transitions.
       }
     }
+    return false;
   }
 
   String _newGameId() {
