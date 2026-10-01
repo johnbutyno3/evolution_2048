@@ -884,7 +884,7 @@ class _ChapterCompletePage extends StatelessWidget {
                               unawaited(
                                 AudioManager.instance.playSfx(GameSfx.buttonClick),
                               );
-                              unawaited(onNextChapter());
+                              unawaited(Future<void>.sync(onNextChapter));
                             },
                             child: const Text('Next Chapter'),
                           ),
