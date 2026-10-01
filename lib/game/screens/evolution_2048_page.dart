@@ -584,7 +584,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _startTool(String mode) async {
-    if (PlayerProgressService.instance.activeGameSessionId == null) return;
+    // Gameplay is local-first. A tool must not become unclickable merely
+    // because the Firebase session response is still in flight.
     if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
