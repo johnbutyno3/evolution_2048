@@ -514,31 +514,27 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     return true;
   }
   Future<void> _handleSystemBack() async {
-    if (_handlingSystemBack || !mounted) return; _handlingSystemBack = true;
-    final chapter = _engine.chapter.name; final sessionId = PlayerProgressService.instance.activeGameSessionId;
-    final saveData = _engine.createSaveData(); final replayLog = saveData['replayLog']; final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-    final wasGameOver = _engine.gameOver; final wasChapterComplete = _engine.chapterComplete;
-    _engine.pauseGameTimer(); _stopUiRefreshTimer(); _allowSystemPop = true;
-    if (wasChapterComplete) { Navigator.of(context).pop(); _handlingSystemBack = false; return; }
-    if (sessionId != null) {
-      if (wasGameOver) {
-        unawaited(
-          PlayerProgressService.instance.abandonGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
-        );
-        unawaited(SaveManager.clearChapter(chapter));
-      } else {
-        unawaited(
-          PlayerProgressService.instance.exitUnfinishedGameSession(
-            sessionId: sessionId,
-            replayLog: replay,
-          ),
-        );
-      }
+    if (_handlingSystemBack || !mounted) return;
+    _handlingSystemBack = true;
+
+    final saveData = _engine.createSaveData();
+    final wasChapterComplete = _engine.chapterComplete;
+
+    _engine.pauseGameTimer();
+    _stopUiRefreshTimer();
+
+    if (!wasChapterComplete) {
+      // BACK means temporarily leave the game, not end the session.
+      // Preserve both the active session binding and the exact current board
+      // so the next entry always resumes this unfinished game. RESET is the
+      // only normal action that creates a new board and consumes a Life.
+      await _engine.flushLocalSave();
+      await SaveManager.save(saveData);
     }
-    Navigator.of(context).pop(); _handlingSystemBack = false;
+
+    _allowSystemPop = true;
+    if (mounted) Navigator.of(context).pop();
+    _handlingSystemBack = false;
   }
 
   Future<void> _showResetMenu() async {
