@@ -142,9 +142,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileNameRequired => 'Please enter a player name.';
 
   @override
-  String get profileSetupFailed => 'Unable to set up your profile.';
-
-  @override
   String get profileNameTooLong =>
       'Player name must be 30 characters or fewer.';
 
@@ -232,210 +229,235 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gameTime => 'Game Time';
+
+  @override
+  String get personalTitle => 'Personal';
+
   @override
-  String get personalTitle => "Personal";
+  String get playerBasicInfo => 'Player Basic Information';
 
   @override
-  String get playerBasicInfo => "Player Basic Information";
+  String get playerBasicInfoSubtitle =>
+      'Avatar, Player Name, Player ID and account information';
 
   @override
-  String get playerBasicInfoSubtitle => "Avatar, Player Name, Player ID and account information";
+  String get creatureCollection => 'Creature Collection';
 
   @override
-  String get creatureCollection => "Creature Collection";
+  String get creatureCollectionSubtitle => 'Discovered life forms';
 
   @override
-  String get creatureCollectionSubtitle => "Discovered life forms";
+  String get settings => 'Settings';
 
   @override
-  String get settings => "Settings";
+  String get settingsSubtitle => 'Music, sound effects, vibration and language';
 
   @override
-  String get settingsSubtitle => "Music, sound effects, vibration and language";
+  String get gameGuide => 'Game Guide';
 
   @override
-  String get gameGuide => "Game Guide";
+  String get gameGuideSubtitle => 'Rules and how to play';
 
   @override
-  String get gameGuideSubtitle => "Rules and how to play";
+  String get versionInfo => 'Version Info';
 
   @override
-  String get versionInfo => "Version Info";
+  String get versionInfoSubtitle => 'App and game version';
 
   @override
-  String get versionInfoSubtitle => "App and game version";
+  String get messagesFeedback => 'Messages / Feedback';
 
   @override
-  String get messagesFeedback => "Messages / Feedback";
+  String get messagesFeedbackSubtitle =>
+      'Send questions, suggestions or bug reports';
 
   @override
-  String get messagesFeedbackSubtitle => "Send questions, suggestions or bug reports";
+  String get testControls => 'Test Controls';
 
   @override
-  String get testControls => "Test Controls";
+  String get testControlsSubtitle => 'Membership modes and Gold balance';
 
   @override
-  String get testControlsSubtitle => "Membership modes and Gold balance";
+  String get aboutGame => 'About Game';
 
   @override
-  String get aboutGame => "About Game";
+  String get aboutGameSubtitle =>
+      'Creator, music, assets and third-party services';
 
   @override
-  String get aboutGameSubtitle => "Creator, music, assets and third-party services";
+  String get logOut => 'Log Out';
 
   @override
-  String get logOut => "Log Out";
+  String get logoutConfirm =>
+      'Are you sure you want to log out of your account?';
 
   @override
-  String get logoutConfirm => "Are you sure you want to log out of your account?";
+  String get cancel => 'Cancel';
 
   @override
-  String get cancel => "Cancel";
+  String get chooseAvatar => 'Choose your avatar';
 
   @override
-  String get chooseAvatar => "Choose your avatar";
+  String get save => 'Save';
 
   @override
-  String get save => "Save";
+  String get loading => 'Loading...';
 
   @override
-  String get loading => "Loading...";
+  String get notAvailable => 'Not available';
 
   @override
-  String get notAvailable => "Not available";
+  String get goldenMember => 'Golden Member';
 
   @override
-  String get goldenMember => "Golden Member";
+  String get premiumMember => 'Premium Member';
 
   @override
-  String get premiumMember => "Premium Member";
+  String get generalMember => 'General Member';
 
   @override
-  String get generalMember => "General Member";
+  String get playerNameEmpty => 'Player name cannot be empty.';
 
   @override
-  String get playerNameEmpty => "Player name cannot be empty.";
+  String get playerNameUpdated => 'Player name updated.';
 
   @override
-  String get playerNameUpdated => "Player name updated.";
+  String get playerNameUpdateFailed => 'Unable to update player name.';
 
   @override
-  String get playerNameUpdateFailed => "Unable to update player name.";
+  String get playerNameUpdateError => 'Failed to update player name.';
 
   @override
-  String get playerNameUpdateError => "Failed to update player name.";
+  String get undiscovered => 'Undiscovered';
 
   @override
-  String get undiscovered => "Undiscovered";
+  String stageLabel(Object stage) {
+    return 'Stage $stage';
+  }
 
   @override
-  String stageLabel(int stage) => 'Stage ' + stage.toString() + '';
+  String discoveredCount(Object discovered, Object total) {
+    return '$discovered / $total discovered';
+  }
 
   @override
-  String discoveredCount(int discovered, int total) => '' + discovered.toString() + ' / ' + total.toString() + ' discovered';
+  String get gold => 'Gold';
 
   @override
-  String get gold => "Gold";
+  String get goldBalance => 'Gold Balance';
 
   @override
-  String get goldBalance => "Gold Balance";
+  String get lifetimeSpent => 'Lifetime Spent';
 
   @override
-  String get lifetimeSpent => "Lifetime Spent";
+  String goldAmount(Object amount) {
+    return '$amount Gold';
+  }
 
   @override
-  String goldAmount(int amount) => '$amount Gold';
+  String get goldUsage => 'Gold is used for lives and tool purchases.';
 
   @override
-  String get goldUsage => "Gold is used for lives and tool purchases.";
+  String get backgroundMusic => 'Background Music';
 
   @override
-  String get backgroundMusic => "Background Music";
+  String get musicVolume => 'Music Volume';
 
   @override
-  String get musicVolume => "Music Volume";
+  String get soundEffects => 'Sound Effects';
 
   @override
-  String get soundEffects => "Sound Effects";
+  String get soundEffectsVolume => 'Sound Effects Volume';
 
   @override
-  String get soundEffectsVolume => "Sound Effects Volume";
+  String get vibration => 'Vibration';
 
   @override
-  String get vibration => "Vibration";
+  String get language => 'Language';
 
   @override
-  String get language => "Language";
+  String get english => 'English';
 
   @override
-  String get english => "English";
+  String get traditionalChinese => '繁體中文';
 
   @override
-  String get traditionalChinese => "繁體中文";
+  String get howToPlay => 'How to Play';
 
   @override
-  String get howToPlay => "How to Play";
+  String get howToPlayDescription =>
+      'Use the 4×4 board to move and merge identical life forms into the next evolution stage.';
 
   @override
-  String get howToPlayDescription => "Use the 4×4 board to move and merge identical life forms into the next evolution stage.";
+  String get sixChapters => 'Six Chapters';
 
   @override
-  String get sixChapters => "Six Chapters";
+  String get chapterSequence =>
+      'Ocean → Land → Sky → History → Technology → Space';
 
   @override
-  String get chapterSequence => "Ocean → Land → Sky → History → Technology → Space";
+  String get resources => 'Resources';
 
   @override
-  String get resources => "Resources";
+  String get resourcesDescription =>
+      'Lives are used for gameplay attempts. Gold can be used to purchase additional lives and tools. Tool inventory is cumulative across chapters.';
 
   @override
-  String get resourcesDescription => "Lives are used for gameplay attempts. Gold can be used to purchase additional lives and tools. Tool inventory is cumulative across chapters.";
+  String get app => 'App';
 
   @override
-  String get app => "App";
+  String get gameVersion => 'Game Version';
 
   @override
-  String get gameVersion => "Game Version";
+  String get currentDevelopmentBuild => 'Current development build';
 
   @override
-  String get currentDevelopmentBuild => "Current development build";
+  String get build => 'Build';
 
   @override
-  String get build => "Build";
+  String get buildDescription =>
+      'Read from the platform package in the release build.';
 
   @override
-  String get buildDescription => "Read from the platform package in the release build.";
+  String get creator => 'Creator';
 
   @override
-  String get creator => "Creator";
+  String get creatorName => 'Game creator: Rebirth 2048 development team';
 
   @override
-  String get creatorName => "Game creator: Rebirth 2048 development team";
+  String get musicSources => 'Music & Sound Sources';
 
   @override
-  String get musicSources => "Music & Sound Sources";
+  String get musicSourcesDescription =>
+      'Music and sound assets and their sources are documented in the project audio source record and final attribution list.';
 
   @override
-  String get musicSourcesDescription => "Music and sound assets and their sources are documented in the project audio source record and final attribution list.";
+  String get artworkServices => 'Artwork & Third-party Services';
 
   @override
-  String get artworkServices => "Artwork & Third-party Services";
+  String get artworkServicesDescription =>
+      'Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.';
 
   @override
-  String get artworkServicesDescription => "Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.";
+  String get version => 'Version';
 
   @override
-  String get version => "Version";
+  String get developmentBuild => 'Development Build';
 
-  String get developmentBuild => "Development Build";
   @override
-  String get playerId => "Player ID";
+  String get playerId => 'Player ID';
 
   @override
-  String get membership => "Membership";
+  String get membership => 'Membership';
 
-  String get evolutionProgress => "Evolution Progress";
   @override
-  String chapterLabel(int number, String name) => 'Chapter ' + number.toString() + ' · ' + name + '';
+  String get evolutionProgress => 'Evolution Progress';
 
+  @override
+  String chapterLabel(Object name, Object number) {
+    return 'Chapter $number · $name';
+  }
+
+  @override
+  String get profileSetupFailed => 'Unable to set up your profile.';
 }

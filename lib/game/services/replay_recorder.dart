@@ -1,7 +1,6 @@
 import '../models/game_board.dart';
 import '../models/replay_event.dart';
 import 'replay_log.dart';
-import 'save_manager.dart';
 
 /// Records the player's local gameplay actions into the untrusted replay log.
 ///
@@ -23,7 +22,6 @@ class ReplayRecorder {
       chapter: chapter,
       initialTiles: _tiles(board),
     );
-    _save();
   }
 
   void restoreFromSave(Map<String, dynamic>? data, GameBoard board) {
@@ -55,7 +53,6 @@ class ReplayRecorder {
       ),
     );
 
-    _save();
   }
 
   void recordRevive({
@@ -74,7 +71,6 @@ class ReplayRecorder {
         spawnValue: spawnValue,
       ),
     );
-    _save();
   }
 
   void recordPositionSwap({
@@ -92,7 +88,6 @@ class ReplayRecorder {
         secondIndex: secondRow * 4 + secondColumn,
       ),
     );
-    _save();
   }
 
   void recordDuplicate({
@@ -110,7 +105,6 @@ class ReplayRecorder {
         targetIndex: targetRow * 4 + targetColumn,
       ),
     );
-    _save();
   }
 
   void recordTimeRewind() {
@@ -118,18 +112,6 @@ class ReplayRecorder {
     if (log == null) return;
 
     log.events.add(ReplayEvent.timeRewind());
-    _save();
-  }
-
-  void _save() {
-    final current = _log;
-    if (current == null) return;
-
-    final save = SaveManager.loadCached(chapter: chapter) ??
-        <String, dynamic>{'chapter': chapter};
-
-    save['replayLog'] = current.toJson();
-    SaveManager.save(save);
   }
 
   List<int?> _tiles(GameBoard board) {

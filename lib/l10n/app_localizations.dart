@@ -259,6 +259,11 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Score'**
   String get score;
+
+  /// No description provided for @stage.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage'**
   String get stage;
 
   /// No description provided for @best.
@@ -356,7 +361,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Player name must be 30 characters or fewer.'**
   String get profileNameTooLong;
-  String get profileSetupFailed;
 
   /// No description provided for @profileContinue.
   ///
@@ -525,76 +529,432 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Game Time'**
   String get gameTime;
-  String get playerId;
-  String get membership;
-  String get personalTitle;
-  String get playerBasicInfo;
-  String get playerBasicInfoSubtitle;
-  String get creatureCollection;
-  String get creatureCollectionSubtitle;
-  String get settings;
-  String get settingsSubtitle;
-  String get gameGuide;
-  String get gameGuideSubtitle;
-  String get versionInfo;
-  String get versionInfoSubtitle;
-  String get messagesFeedback;
-  String get messagesFeedbackSubtitle;
-  String get testControls;
-  String get testControlsSubtitle;
-  String get aboutGame;
-  String get aboutGameSubtitle;
-  String get logOut;
-  String get logoutConfirm;
-  String get cancel;
-  String get chooseAvatar;
-  String get save;
-  String get loading;
-  String get notAvailable;
-  String get goldenMember;
-  String get premiumMember;
-  String get generalMember;
-  String get playerNameEmpty;
-  String get playerNameUpdated;
-  String get playerNameUpdateFailed;
-  String get playerNameUpdateError;
-  String get undiscovered;
-  String get gold;
-  String get goldBalance;
-  String get lifetimeSpent;
-  String goldAmount(int amount);
-  String get goldUsage;
-  String get backgroundMusic;
-  String get musicVolume;
-  String get soundEffects;
-  String get soundEffectsVolume;
-  String get vibration;
-  String get language;
-  String get english;
-  String get traditionalChinese;
-  String get howToPlay;
-  String get howToPlayDescription;
-  String get sixChapters;
-  String get chapterSequence;
-  String get resources;
-  String get resourcesDescription;
-  String get app;
-  String get gameVersion;
-  String get currentDevelopmentBuild;
-  String get build;
-  String get buildDescription;
-  String get creator;
-  String get creatorName;
-  String get musicSources;
-  String get musicSourcesDescription;
-  String get artworkServices;
-  String get artworkServicesDescription;
-  String get version;
-  String get developmentBuild;
-  String stageLabel(int stage);
-  String discoveredCount(int discovered, int total);
-  String chapterLabel(int number, String name);
 
+  /// No description provided for @personalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get personalTitle;
+
+  /// No description provided for @playerBasicInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Basic Information'**
+  String get playerBasicInfo;
+
+  /// No description provided for @playerBasicInfoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Avatar, Player Name, Player ID and account information'**
+  String get playerBasicInfoSubtitle;
+
+  /// No description provided for @creatureCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'Creature Collection'**
+  String get creatureCollection;
+
+  /// No description provided for @creatureCollectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discovered life forms'**
+  String get creatureCollectionSubtitle;
+
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @settingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Music, sound effects, vibration and language'**
+  String get settingsSubtitle;
+
+  /// No description provided for @gameGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Game Guide'**
+  String get gameGuide;
+
+  /// No description provided for @gameGuideSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules and how to play'**
+  String get gameGuideSubtitle;
+
+  /// No description provided for @versionInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Version Info'**
+  String get versionInfo;
+
+  /// No description provided for @versionInfoSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App and game version'**
+  String get versionInfoSubtitle;
+
+  /// No description provided for @messagesFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages / Feedback'**
+  String get messagesFeedback;
+
+  /// No description provided for @messagesFeedbackSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send questions, suggestions or bug reports'**
+  String get messagesFeedbackSubtitle;
+
+  /// No description provided for @testControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Controls'**
+  String get testControls;
+
+  /// No description provided for @testControlsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership modes and Gold balance'**
+  String get testControlsSubtitle;
+
+  /// No description provided for @aboutGame.
+  ///
+  /// In en, this message translates to:
+  /// **'About Game'**
+  String get aboutGame;
+
+  /// No description provided for @aboutGameSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Creator, music, assets and third-party services'**
+  String get aboutGameSubtitle;
+
+  /// No description provided for @logOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Log Out'**
+  String get logOut;
+
+  /// No description provided for @logoutConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to log out of your account?'**
+  String get logoutConfirm;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @chooseAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your avatar'**
+  String get chooseAvatar;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @notAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get notAvailable;
+
+  /// No description provided for @goldenMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Golden Member'**
+  String get goldenMember;
+
+  /// No description provided for @premiumMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Premium Member'**
+  String get premiumMember;
+
+  /// No description provided for @generalMember.
+  ///
+  /// In en, this message translates to:
+  /// **'General Member'**
+  String get generalMember;
+
+  /// No description provided for @playerNameEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Player name cannot be empty.'**
+  String get playerNameEmpty;
+
+  /// No description provided for @playerNameUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Player name updated.'**
+  String get playerNameUpdated;
+
+  /// No description provided for @playerNameUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to update player name.'**
+  String get playerNameUpdateFailed;
+
+  /// No description provided for @playerNameUpdateError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update player name.'**
+  String get playerNameUpdateError;
+
+  /// No description provided for @undiscovered.
+  ///
+  /// In en, this message translates to:
+  /// **'Undiscovered'**
+  String get undiscovered;
+
+  /// No description provided for @stageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Stage {stage}'**
+  String stageLabel(Object stage);
+
+  /// No description provided for @discoveredCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{discovered} / {total} discovered'**
+  String discoveredCount(Object discovered, Object total);
+
+  /// No description provided for @gold.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold'**
+  String get gold;
+
+  /// No description provided for @goldBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold Balance'**
+  String get goldBalance;
+
+  /// No description provided for @lifetimeSpent.
+  ///
+  /// In en, this message translates to:
+  /// **'Lifetime Spent'**
+  String get lifetimeSpent;
+
+  /// No description provided for @goldAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} Gold'**
+  String goldAmount(Object amount);
+
+  /// No description provided for @goldUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold is used for lives and tool purchases.'**
+  String get goldUsage;
+
+  /// No description provided for @backgroundMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Music'**
+  String get backgroundMusic;
+
+  /// No description provided for @musicVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Music Volume'**
+  String get musicVolume;
+
+  /// No description provided for @soundEffects.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound Effects'**
+  String get soundEffects;
+
+  /// No description provided for @soundEffectsVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound Effects Volume'**
+  String get soundEffectsVolume;
+
+  /// No description provided for @vibration.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibration'**
+  String get vibration;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @english.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// No description provided for @traditionalChinese.
+  ///
+  /// In en, this message translates to:
+  /// **'繁體中文'**
+  String get traditionalChinese;
+
+  /// No description provided for @howToPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Play'**
+  String get howToPlay;
+
+  /// No description provided for @howToPlayDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the 4×4 board to move and merge identical life forms into the next evolution stage.'**
+  String get howToPlayDescription;
+
+  /// No description provided for @sixChapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Six Chapters'**
+  String get sixChapters;
+
+  /// No description provided for @chapterSequence.
+  ///
+  /// In en, this message translates to:
+  /// **'Ocean → Land → Sky → History → Technology → Space'**
+  String get chapterSequence;
+
+  /// No description provided for @resources.
+  ///
+  /// In en, this message translates to:
+  /// **'Resources'**
+  String get resources;
+
+  /// No description provided for @resourcesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Lives are used for gameplay attempts. Gold can be used to purchase additional lives and tools. Tool inventory is cumulative across chapters.'**
+  String get resourcesDescription;
+
+  /// No description provided for @app.
+  ///
+  /// In en, this message translates to:
+  /// **'App'**
+  String get app;
+
+  /// No description provided for @gameVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Game Version'**
+  String get gameVersion;
+
+  /// No description provided for @currentDevelopmentBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Current development build'**
+  String get currentDevelopmentBuild;
+
+  /// No description provided for @build.
+  ///
+  /// In en, this message translates to:
+  /// **'Build'**
+  String get build;
+
+  /// No description provided for @buildDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Read from the platform package in the release build.'**
+  String get buildDescription;
+
+  /// No description provided for @creator.
+  ///
+  /// In en, this message translates to:
+  /// **'Creator'**
+  String get creator;
+
+  /// No description provided for @creatorName.
+  ///
+  /// In en, this message translates to:
+  /// **'Game creator: Rebirth 2048 development team'**
+  String get creatorName;
+
+  /// No description provided for @musicSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Music & Sound Sources'**
+  String get musicSources;
+
+  /// No description provided for @musicSourcesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Music and sound assets and their sources are documented in the project audio source record and final attribution list.'**
+  String get musicSourcesDescription;
+
+  /// No description provided for @artworkServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork & Third-party Services'**
+  String get artworkServices;
+
+  /// No description provided for @artworkServicesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.'**
+  String get artworkServicesDescription;
+
+  /// No description provided for @version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get version;
+
+  /// No description provided for @developmentBuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Development Build'**
+  String get developmentBuild;
+
+  /// No description provided for @playerId.
+  ///
+  /// In en, this message translates to:
+  /// **'Player ID'**
+  String get playerId;
+
+  /// No description provided for @membership.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership'**
+  String get membership;
+
+  /// No description provided for @evolutionProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Evolution Progress'**
+  String get evolutionProgress;
+
+  /// No description provided for @chapterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapter {number} · {name}'**
+  String chapterLabel(Object name, Object number);
+
+  /// No description provided for @profileSetupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to set up your profile.'**
+  String get profileSetupFailed;
 }
 
 class _AppLocalizationsDelegate

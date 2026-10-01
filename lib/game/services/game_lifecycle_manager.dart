@@ -263,9 +263,9 @@ class GameLifecycleManager {
         await _functions.httpsCallable('finishGame').call({
           'gameId': gameId,
           'reason': reason,
-          if (chapterIndex != null) 'chapterIndex': chapterIndex,
-          if (highestValue != null) 'highestValue': highestValue,
-          if (score != null) 'score': score,
+          'chapterIndex': ?chapterIndex,
+          'highestValue': ?highestValue,
+          'score': ?score,
         });
         return;
       } catch (_) {

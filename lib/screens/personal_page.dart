@@ -1,4 +1,4 @@
-﻿import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -13,6 +13,7 @@ import '../game/services/audio_manager.dart';
 import '../game/services/active_game_store.dart';
 import '../game/services/tool_manager.dart';
 import '../game/services/gold_manager.dart';
+import '../game/services/game_lifecycle_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 import 'login_register_page.dart';
@@ -584,7 +585,7 @@ class _CollectionPageState extends State<CollectionPage> {
         );
 
         final hasPlayedChapter =
-            PlayerProgressService.instance.activeGameChapterIndex == index ||
+            GameLifecycleManager.instance.activeChapter == index ||
             PlayerProgressService.instance.chapterHighestValue(index) > 0;
 
         if (hasPlayedChapter) {

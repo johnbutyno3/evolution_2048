@@ -181,11 +181,6 @@ class _HomePageState extends State<HomePage> {
       _enterInProgress = false;
     }
   }
-  String _chapterKey(int index) => HomePage.chapters[index].titleKey == 'technology'
-      ? 'tech'
-      : HomePage.chapters[index].titleKey == 'space'
-          ? 'universe'
-          : HomePage.chapters[index].titleKey;
 
   @override
   Widget build(BuildContext context) {
