@@ -177,6 +177,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (!progress.loadedFromServer) {
         await progress.refresh();
         if (!mounted || generation != _gameSessionGeneration) return false;
+        // Without an authoritative session pointer we must not guess that
+        // this is a new game. Guessing here can consume a Life and discard an
+        // unfinished local board during a transient Firebase failure.
+        if (!progress.loadedFromServer) return false;
       }
 
       final activeSessionId = progress.activeGameSessionId;
@@ -273,6 +277,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             if (mounted && generation == _gameSessionGeneration) {
               newEngine.stopGameTimer();
               await newEngine.flushLocalSave();
+              ToolManager.restoreSessionUsageFromReplayLog(
+                previousEngine.createSaveData()['replayLog'],
+              );
+              previousEngine.toolManager.refreshFromSavedProgress();
               _engine = previousEngine;
               previousEngine.startGameTimer();
               _startUiRefreshTimer();
