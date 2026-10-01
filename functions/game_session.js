@@ -70,11 +70,43 @@ exports.beginGame = onCall({ minInstances: 1 }, async (request) => {
     const membershipSnapshot = snapshots[2];
     const sessionSnapshot = snapshots[3];
 
+    const current = progressSnapshot.data() || {};
+
     if (sessionSnapshot.exists) {
+      const existing = sessionSnapshot.data() || {};
+      const sameBoard =
+        JSON.stringify(existing.initialTiles || []) === JSON.stringify(initialTiles);
+      if (existing.status === 'active' &&
+          existing.chapterIndex === chapterIndex &&
+          sameBoard) {
+        const membershipState = resolveMembership(
+          membershipSnapshot.data() || {},
+        );
+        let existingLives = normalizeLives(lifeSnapshot.data()?.lives);
+        let existingRegenStart =
+          normalizeRegenStart(lifeSnapshot.data()?.regenStartAt);
+        if (membershipState.infiniteLives) {
+          existingLives = NORMAL_CAP;
+          existingRegenStart = null;
+        } else {
+          const regenerated = regenerate({
+            lives: existingLives,
+            regenStartMillis: existingRegenStart,
+            nowMillis: Date.now(),
+            interval: intervalMs(membershipState),
+          });
+          existingLives = regenerated.lives;
+          existingRegenStart = regenerated.regenStartMillis;
+        }
+        return {
+          gameId,
+          chapterIndex,
+          targetValue: TARGETS[chapterIndex],
+          ...lifeResponse(existingLives, existingRegenStart, membershipState),
+        };
+      }
       throw new HttpsError('already-exists', 'Game id already exists.');
     }
-
-    const current = progressSnapshot.data() || {};
     const activeSessionId = current.activeGameSessionId;
     if (typeof activeSessionId === 'string' && activeSessionId.length > 0) {
       const activeSnapshot = await transaction.get(gameSessionRef(uid, activeSessionId));
