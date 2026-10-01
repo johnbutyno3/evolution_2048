@@ -183,6 +183,53 @@ class _AdminTestPageState extends State<AdminTestPage> {
     }
   }
 
+
+  Future<void> _resetSecurityState() async {
+    if (_uid.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Security State?'),
+        content: const Text(
+          'This clears the test account security lock and risk score. '
+          'It does not change Firebase Auth disabled status.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() { _busy = true; _message = ''; });
+    try {
+      await _functions.httpsCallable('adminResetSecurityState').call({
+        'uid': _uid,
+        'confirm': true,
+      });
+      if (!mounted) return;
+      setState(() {
+        _enforcementStatus = 'active';
+        _enforcementReason = null;
+        _riskLevel = 'NORMAL';
+        _riskScore = 0;
+        _restrictedUntil = null;
+        _message = 'Security Enforcement reset for this test account.';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _message = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   String _label(String mode) {
     switch (mode) {
       case 'premium': return 'Premium';
@@ -252,6 +299,12 @@ class _AdminTestPageState extends State<AdminTestPage> {
               if (_enforcementReason != null) Text('Reason: $_enforcementReason'),
               if (_lockedAt != null) Text('Locked At: $_lockedAt'),
               if (_restrictedUntil != null) Text('Restricted Until: $_restrictedUntil'),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _resetSecurityState,
+                icon: const Icon(Icons.lock_open_outlined),
+                label: const Text('Reset Security Enforcement'),
+              ),
             ]),
           )),
           const SizedBox(height: 12),
