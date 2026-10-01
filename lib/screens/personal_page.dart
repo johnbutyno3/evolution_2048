@@ -163,6 +163,7 @@ class PersonalPage extends StatelessWidget {
 
     ToolManager.clearCachedInventory();
     LifeManager.clearCachedState();
+    GoldManager.clearCachedState();
     await FirebaseAuth.instance.signOut();
 
     if (!context.mounted) return;
