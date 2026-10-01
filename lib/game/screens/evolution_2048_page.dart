@@ -477,6 +477,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         if (!mounted || generation != _gameSessionGeneration) return;
 
         if (restarted) {
+          // Persist the replacement board after the new server session ID is
+          // bound. This prevents the old cached board from being restored on
+          // the next entry and makes RESET durable immediately.
+          await newEngine.flushLocalSave();
+          if (!mounted || generation != _gameSessionGeneration) return;
           _engine.toolManager.refreshFromSavedProgress();
           unawaited(_refreshMountedToolInventory(generation));
           _restartInProgress = false;
