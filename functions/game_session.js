@@ -415,7 +415,6 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
       // session that is actually being settled.
       const refs = [sessionRef, progress];
       if (unfinishedExit || replayLog != null) refs.push(membership);
-      if (unfinishedExit) refs.push(lifeRef(uid));
       if (replayLog != null) refs.push(userRef, toolInventoryRef(uid));
       const snapshots = await transaction.getAll(...refs);
       const snapshotMap = new Map(
