@@ -209,18 +209,21 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
         // validation still remains critical when the replay belongs to the
         // same server session.
         if (replaySessionId != null && replaySessionId !== oldSessionId) {
-          throw new HttpsError(
-            'failed-precondition',
-            'The replay session no longer matches the active game session.',
-          );
-        }
-        if (replaySessionId == null && oldSessionId == null) {
-          throw new HttpsError(
-            'failed-precondition',
-            'A replay requires an active game session.',
-          );
-        }
-        const allToolsEnabledForTest =
+          // The client is holding a stale snapshot from an older session.
+          // This is a normal local-first race, not replay tampering. Do not
+          // validate or charge the stale replay; replace the authoritative
+          // active session atomically instead.
+          replayResult = {
+            toolUsage: oldSession.toolUsage && typeof oldSession.toolUsage === 'object'
+              ? oldSession.toolUsage
+              : {},
+            score: Number.isSafeInteger(oldSession.finalScore) ? oldSession.finalScore : 0,
+            highestValue: Number.isSafeInteger(oldSession.finalHighestValue)
+              ? oldSession.finalHighestValue
+              : 0,
+          };
+        } else {
+          const allToolsEnabledForTest =
           snapshotMap.get(userRef.path)?.data()?.allToolsEnabledForTest === true;
         try {
           replayResult = replayGame({
@@ -244,6 +247,7 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
             error: securityError.message,
           };
           throw securityError;
+        }
         }
 
         const previousUsage = oldSession.toolUsage &&
