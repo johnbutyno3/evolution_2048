@@ -386,7 +386,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
                 for (var index = 0; index < 6; index++)
                   OutlinedButton(
                     onPressed: _busy ? null : () => _setUnlockedChapter(index),
-                    child: Text('Unlock C' + (index + 1).toString()),
+                    child: Text('Unlock C${index + 1}'),
                   ),
               ]),
             ]),
