@@ -24,6 +24,9 @@ class ToolManager {
   // account-inventory refresh.
   static final Map<GameToolType, int> _sessionUses = {};
   static bool _allToolsEnabledForTest = false;
+  static String? _lastPurchaseError;
+
+  static String? get lastPurchaseError => _lastPurchaseError;
 
   static bool get allToolsEnabledForTest => _allToolsEnabledForTest;
 
@@ -33,6 +36,7 @@ class ToolManager {
     _serverUses.clear();
     _sessionUses.clear();
     _allToolsEnabledForTest = false;
+    _lastPurchaseError = null;
   }
 
   final List<ToolState> _tools = <ToolState>[];
@@ -155,6 +159,7 @@ class ToolManager {
   }
 
   static Future<bool> purchase(GameToolType type, int amount) async {
+    _lastPurchaseError = null;
     // Refresh the wallet immediately before purchase so an admin grant or a
     // recent Gold transaction is not hidden behind an old client cache.
     await GoldManager.refresh();
@@ -174,7 +179,10 @@ class ToolManager {
       // grant are committed together. Accept the result only when both
       // authoritative values are present, then refresh the complete inventory
       // so every tool state reflects the same server snapshot.
-      if (uses is! num || balance is! num) return false;
+      if (uses is! num || balance is! num) {
+        _lastPurchaseError = 'Server returned an invalid purchase result.';
+        return false;
+      }
       _serverUses[type] = uses.toInt();
       GoldManager.applyServerState(data);
       await refreshInventory();
@@ -183,6 +191,13 @@ class ToolManager {
       // Re-read the authoritative wallet after a rejected purchase so a
       // stale client cache cannot continue displaying an incorrect balance.
       await GoldManager.refresh();
+      _lastPurchaseError = switch (error.code) {
+        'failed-precondition' => error.message ?? 'Purchase precondition failed.',
+        'permission-denied' => error.message ?? 'Account operation is restricted.',
+        'unauthenticated' => 'Please sign in again.',
+        'invalid-argument' => error.message ?? 'Invalid purchase request.',
+        _ => error.message ?? 'Tool purchase failed (${error.code}).',
+      };
       return false;
     }
   }
