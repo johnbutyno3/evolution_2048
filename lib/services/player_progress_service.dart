@@ -179,7 +179,6 @@ class PlayerProgressService {
     required List<dynamic> initialTiles,
     required int operationGeneration,
   }) async {
-    final previousSessionId = _activeGameSessionId ?? SaveManager.gameSessionId;
     try {
       final result = await _functions.httpsCallable('startGameSession').call({
         'chapterIndex': chapterIndex,
@@ -189,8 +188,6 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         if (operationGeneration != _sessionOperationGeneration) return false;
-        final previousSessionId =
-            _activeGameSessionId ?? SaveManager.gameSessionId;
         _activeGameSessionId = data['sessionId'] as String;
         // Restart creates a replacement board locally. Do not rebind the old
         // cached board to the new session: that would resurrect the previous
