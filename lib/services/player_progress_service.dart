@@ -374,7 +374,7 @@ class PlayerProgressService {
         // RESET is a replacement transaction. The server must use the
         // authoritative active session at transaction time instead of a
         // client-cached session ID, which may already be stale.
-        if (replaySessionId != null) 'replaySessionId': replaySessionId,
+        'replaySessionId': ?replaySessionId,
         'replayLog': ?replayLog,
         'initialTiles': initialTiles,
       });
