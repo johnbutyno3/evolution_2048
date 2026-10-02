@@ -140,6 +140,7 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
   const membership = membershipRef(uid);
   const userRef = db.collection('users').doc(uid);
   const replayLog = request.data?.replayLog ?? null;
+  const replaySessionId = request.data?.replaySessionId ?? null;
 
   try {
     return await db.runTransaction(async (transaction) => {
@@ -201,6 +202,24 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
       let replayResult = null;
       if (replayLog != null && activeSessionIsValid) {
         const oldSession = oldSessionSnapshot.data() || {};
+        // A local-first client can briefly hold a replay snapshot from an
+        // older session while Firestore already points at a different active
+        // session. That is a session-binding race, not replay tampering.
+        // Reject it without creating a critical security event; true replay
+        // validation still remains critical when the replay belongs to the
+        // same server session.
+        if (replaySessionId != null && replaySessionId !== oldSessionId) {
+          throw new HttpsError(
+            'failed-precondition',
+            'The replay session no longer matches the active game session.',
+          );
+        }
+        if (replaySessionId == null && oldSessionId == null) {
+          throw new HttpsError(
+            'failed-precondition',
+            'A replay requires an active game session.',
+          );
+        }
         const allToolsEnabledForTest =
           snapshotMap.get(userRef.path)?.data()?.allToolsEnabledForTest === true;
         try {
