@@ -704,10 +704,17 @@ exports.resumeGameSession = onCall(async (request) => {
   await enforceSensitiveOperation(request.auth.uid, 'resume_game_session');
 
   const chapterIndex = request.data?.chapterIndex;
+  const requestedSessionId = request.data?.sessionId;
   if (!Number.isInteger(chapterIndex) ||
       chapterIndex < 0 ||
       chapterIndex > MAX_CHAPTER_INDEX) {
     throw new HttpsError('invalid-argument', 'Invalid chapter index.');
+  }
+  if (requestedSessionId != null &&
+      (typeof requestedSessionId !== 'string' ||
+       requestedSessionId.length < 16 ||
+       requestedSessionId.length > 128)) {
+    throw new HttpsError('invalid-argument', 'Invalid game session.');
   }
 
   const uid = request.auth.uid;
@@ -717,13 +724,19 @@ exports.resumeGameSession = onCall(async (request) => {
 
   await db.runTransaction(async (transaction) => {
     const progressSnapshot = await transaction.get(progressRef);
-
     const current = progressSnapshot.data() || {};
-    sessionId = current.activeGameSessionId;
+    const activeSessionId = current.activeGameSessionId;
     const activeChapter = current.activeGameChapterIndex;
 
-    if (typeof sessionId !== 'string' || sessionId.length === 0 ||
-        activeChapter !== chapterIndex) {
+    sessionId = requestedSessionId || activeSessionId;
+    if (typeof sessionId !== 'string' || sessionId.length === 0) {
+      throw new HttpsError(
+        'failed-precondition',
+        'No matching unfinished game session is available to resume.',
+      );
+    }
+
+    if (requestedSessionId == null && activeChapter !== chapterIndex) {
       throw new HttpsError(
         'failed-precondition',
         'No matching unfinished game session is available to resume.',
@@ -732,15 +745,36 @@ exports.resumeGameSession = onCall(async (request) => {
 
     const sessionRef = gameSessionRef(uid, sessionId);
     const sessionSnapshot = await transaction.get(sessionRef);
-    if (!sessionSnapshot.exists ||
-        sessionSnapshot.data()?.status !== 'active') {
+    if (!sessionSnapshot.exists) {
       throw new HttpsError(
         'failed-precondition',
-        'The unfinished game session is no longer active.',
+        'The unfinished game session is no longer available.',
       );
     }
 
-    const expiresAt = sessionSnapshot.data()?.expiresAt;
+    const session = sessionSnapshot.data() || {};
+    const isPausedResume =
+        requestedSessionId != null && session.status === 'paused';
+    const isActiveResume =
+        session.status === 'active' &&
+        activeSessionId === sessionId &&
+        activeChapter === chapterIndex;
+
+    if (!isPausedResume && !isActiveResume) {
+      throw new HttpsError(
+        'failed-precondition',
+        'The unfinished game session is not available to resume.',
+      );
+    }
+
+    if (session.chapterIndex !== chapterIndex) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Game session does not match the chapter.',
+      );
+    }
+
+    const expiresAt = session.expiresAt;
     if (!expiresAt ||
         typeof expiresAt.toMillis !== 'function' ||
         expiresAt.toMillis() <= Date.now()) {
@@ -750,14 +784,16 @@ exports.resumeGameSession = onCall(async (request) => {
       );
     }
 
-    // Resume is a continuation of the same server-owned board. The Life was
-    // consumed when this session was originally created and remains owned by
-    // this active board until Game Over, Restart, or Chapter Completion.
     transaction.set(sessionRef, {
+      status: 'active',
       lastResumedAt: FieldValue.serverTimestamp(),
+      pausedAt: FieldValue.delete(),
     }, { merge: true });
-
-    return null;
+    transaction.set(progressRef, {
+      activeGameSessionId: sessionId,
+      activeGameChapterIndex: chapterIndex,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
   });
 
   return {
@@ -766,7 +802,6 @@ exports.resumeGameSession = onCall(async (request) => {
     life: null,
   };
 });
-
 exports.completeChapter = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError(
