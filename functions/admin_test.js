@@ -216,6 +216,37 @@ exports.adminGetSecurityState = onCall(async (request) => {
   };
 });
 
+
+exports.adminGetSecurityEvents = onCall(async (request) => {
+  await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+  const snapshot = await db.collection('security_events')
+    .where('uid', '==', uid)
+    .orderBy('timestamp', 'desc')
+    .limit(20)
+    .get();
+
+  return {
+    ok: true,
+    uid,
+    events: snapshot.docs.map((doc) => {
+      const event = doc.data() || {};
+      return {
+        eventId: event.eventId || doc.id,
+        eventType: event.eventType || 'unknown',
+        reason: event.reason || 'unspecified',
+        severity: event.severity || 'WARNING',
+        riskScore: Number.isFinite(Number(event.riskScore)) ? Number(event.riskScore) : 0,
+        riskLevel: event.riskLevel || 'NORMAL',
+        status: event.status || 'unknown',
+        timestamp: event.timestamp?.toDate?.()?.toISOString?.() ?? null,
+        toolType: event.toolType || null,
+        details: event.details || {},
+      };
+    }),
+  };
+});
+
 exports.adminResetSecurityState = onCall(async (request) => {
   const adminUid = await requireAdmin(request);
   const uid = validateTargetUid(request.data?.uid);
