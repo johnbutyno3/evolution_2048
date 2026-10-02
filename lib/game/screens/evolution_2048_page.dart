@@ -256,7 +256,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           ? pausedSaved['gameSessionId'] as String
           : null;
 
-      if (pausedSessionId != null) {
+      if (pausedSaved != null && pausedSessionId != null) {
         final resumed = await progress.resumeGameSession(
           _chapterNumber - 1,
           sessionId: pausedSessionId,
