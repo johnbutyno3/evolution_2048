@@ -179,6 +179,7 @@ class PlayerProgressService {
     required List<dynamic> initialTiles,
     required int operationGeneration,
   }) async {
+    final previousSessionId = _activeGameSessionId;
     try {
       final result = await _functions.httpsCallable('startGameSession').call({
         'chapterIndex': chapterIndex,
