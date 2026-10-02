@@ -342,6 +342,7 @@ class PlayerProgressService {
   Future<bool> restartGameSession(
     int chapterIndex, {
     Map<String, dynamic>? replayLog,
+    String? replaySessionId,
     required List<dynamic> initialTiles,
   }) async {
     final user = _auth.currentUser;
@@ -368,6 +369,7 @@ class PlayerProgressService {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
         if (_activeGameSessionId != null) 'sessionId': _activeGameSessionId,
+        if (replaySessionId != null) 'replaySessionId': replaySessionId,
         'replayLog': ?replayLog,
         'initialTiles': initialTiles,
       });
