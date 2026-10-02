@@ -30,6 +30,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
   String? _restrictedUntil;
   String? _riskLevel;
   int? _riskScore;
+  List<Map<String, dynamic>> _securityEvents = [];
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
   String get _uid => _auth.currentUser?.uid ?? '';
@@ -184,6 +185,31 @@ class _AdminTestPageState extends State<AdminTestPage> {
   }
 
 
+
+  Future<void> _loadSecurityEvents() async {
+    if (_uid.isEmpty) return;
+    setState(() { _busy = true; _message = ''; });
+    try {
+      final result = await _functions.httpsCallable('adminGetSecurityEvents').call({'uid': _uid});
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final events = (data['events'] as List? ?? [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _securityEvents = events;
+        _message = events.isEmpty
+            ? 'No security events found for this account.'
+            : 'Loaded ${events.length} latest security events.';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _message = e.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+
   Future<void> _resetSecurityState() async {
     if (_uid.isEmpty) return;
     final confirmed = await showDialog<bool>(
@@ -305,6 +331,26 @@ class _AdminTestPageState extends State<AdminTestPage> {
                 icon: const Icon(Icons.lock_open_outlined),
                 label: const Text('Reset Security Enforcement'),
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _loadSecurityEvents,
+                icon: const Icon(Icons.manage_search),
+                label: const Text('Load Latest Security Events'),
+              ),
+              if (_securityEvents.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                for (final event in _securityEvents)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${event['timestamp'] ?? '--'} · ${event['eventType']}'),
+                    subtitle: Text(
+                      'Reason: ${event['reason']} | Severity: ${event['severity']} | '
+                      'Risk: ${event['riskScore']} (${event['riskLevel']}) | Status: ${event['status']}'
+                      '${event['toolType'] == null ? '' : ' | Tool: ${event['toolType']}'}',
+                    ),
+                    isThreeLine: true,
+                  ),
+              ],
             ]),
           )),
           const SizedBox(height: 12),
