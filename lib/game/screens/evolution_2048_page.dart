@@ -421,6 +421,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final replay = replayLog is Map
         ? Map<String, dynamic>.from(replayLog)
         : null;
+    final replaySessionId = saveData['gameSessionId'] is String
+        ? saveData['gameSessionId'] as String
+        : null;
 
     // Restart is a new game and therefore consumes one Life immediately.
     // Never make the player wait for the network before seeing the replacement
@@ -469,6 +472,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
       replayLog: replay,
+      replaySessionId: replaySessionId,
       initialTiles: initialTiles,
     );
 
