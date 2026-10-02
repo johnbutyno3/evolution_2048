@@ -368,7 +368,9 @@ class PlayerProgressService {
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
-        if (_activeGameSessionId != null) 'sessionId': _activeGameSessionId,
+        // RESET is a replacement transaction. The server must use the
+        // authoritative active session at transaction time instead of a
+        // client-cached session ID, which may already be stale.
         if (replaySessionId != null) 'replaySessionId': replaySessionId,
         'replayLog': ?replayLog,
         'initialTiles': initialTiles,
