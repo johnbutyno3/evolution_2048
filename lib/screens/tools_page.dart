@@ -37,7 +37,7 @@ class _ToolsPageState extends State<ToolsPage> {
     required int amount,
   }) async {
     if (!await ToolManager.purchase(type, amount)) {
-      _message('Not enough Gold or purchase failed.');
+      _message(ToolManager.lastPurchaseError ?? 'Tool purchase failed.');
       return;
     }
 
