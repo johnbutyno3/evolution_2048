@@ -23,7 +23,9 @@ class ReplayRecorder {
       chapter: chapter,
       initialTiles: _tiles(board),
     );
-    _save();
+    // The owning GameEngine persists the complete snapshot after reset/start.
+    // Saving here would load the previous chapter snapshot and overwrite its
+    // replayLog while a brand-new engine is still unbound to its new session.
   }
 
   void restoreFromSave(Map<String, dynamic>? data, GameBoard board) {
