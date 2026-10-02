@@ -275,14 +275,18 @@ class PlayerProgressService {
   /// clears that chapter snapshot. If the server still exposes an ended/stale
   /// active session while no playable local board remains, this is a fresh
   /// game entry and must use startGameSession instead of resume.
-  Future<bool> resumeGameSession(int chapterIndex) async {
+  Future<bool> resumeGameSession(
+    int chapterIndex, {
+    String? sessionId,
+  }) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
     final chapterName = _chapterNames[chapterIndex];
+    final bindingSessionId = sessionId ?? _activeGameSessionId;
     final saved = SaveManager.loadCached(chapter: chapterName);
     final hasPlayableLocalBoard = saved != null &&
-        saved['gameSessionId'] == _activeGameSessionId &&
+        saved['gameSessionId'] == bindingSessionId &&
         saved['gameOver'] != true &&
         saved['chapterComplete'] != true &&
         saved['tiles'] is List &&
@@ -299,6 +303,7 @@ class PlayerProgressService {
     try {
       final result = await _functions.httpsCallable('resumeGameSession').call({
         'chapterIndex': chapterIndex,
+        if (sessionId != null) 'sessionId': sessionId,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
@@ -456,7 +461,9 @@ class PlayerProgressService {
         _activeGameSessionId == requestedSessionId) {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
-      unawaited(SaveManager.clearGameSessionId());
+      if (!unfinishedExit) {
+        unawaited(SaveManager.clearGameSessionId());
+      }
     }
 
     await _awaitPendingStartSession();
@@ -466,7 +473,9 @@ class PlayerProgressService {
     if (_activeGameSessionId == settledSessionId) {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
-      unawaited(SaveManager.clearGameSessionId());
+      if (!unfinishedExit) {
+        unawaited(SaveManager.clearGameSessionId());
+      }
     }
 
     try {
@@ -495,6 +504,7 @@ class PlayerProgressService {
   Future<void> abandonGameSession({
     String? sessionId,
     Map<String, dynamic>? replayLog,
+    bool unfinishedExit = false,
   }) async {
     final requestedSessionId = sessionId ?? _activeGameSessionId;
     if (requestedSessionId != null &&
@@ -519,6 +529,7 @@ class PlayerProgressService {
           await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': settledSessionId,
         'replayLog': ?replayLog,
+        'unfinishedExit': unfinishedExit,
       });
 
       final data = result.data;
