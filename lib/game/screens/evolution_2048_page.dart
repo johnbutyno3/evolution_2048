@@ -49,6 +49,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
+  Future<bool>? _restartFuture;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -480,6 +481,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       replaySessionId: replaySessionId,
       initialTiles: initialTiles,
     );
+    _restartFuture = restartFuture;
 
     unawaited(
       restartFuture.then((restarted) async {
@@ -539,8 +541,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     return true;
   }
   Future<void> _handleSystemBack() async {
-    if (_handlingSystemBack || _restartInProgress || !mounted) return;
+    if (_handlingSystemBack || !mounted) return;
     _handlingSystemBack = true;
+
+    // RESET creates the new board immediately, but Firebase may still be
+    // binding the new session. BACK must remain available; wait for that
+    // operation to settle before leaving so Home can never race the session
+    // replacement and restore the old board.
+    final pendingRestart = _restartFuture;
+    if (_restartInProgress && pendingRestart != null) {
+      await pendingRestart;
+      if (!mounted) return;
+    }
 
     final wasChapterComplete = _engine.chapterComplete;
 
