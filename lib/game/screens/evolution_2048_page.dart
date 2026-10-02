@@ -241,6 +241,43 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return false;
       }
 
+      // A BACK action pauses the exact session while keeping its local
+      // snapshot. Returning to this chapter later resumes that session
+      // without consuming another Life.
+      final pausedSaved = SaveManager.loadCached(
+        chapter: _engine.chapter.name,
+      );
+      final pausedSessionId = pausedSaved != null &&
+              pausedSaved['gameSessionId'] is String &&
+              pausedSaved['gameOver'] != true &&
+              pausedSaved['chapterComplete'] != true &&
+              pausedSaved['tiles'] is List &&
+              (pausedSaved['tiles'] as List).length == 16
+          ? pausedSaved['gameSessionId'] as String
+          : null;
+
+      if (pausedSessionId != null) {
+        final resumed = await progress.resumeGameSession(
+          _chapterNumber - 1,
+          sessionId: pausedSessionId,
+        );
+        if (!mounted || generation != _gameSessionGeneration) return false;
+        if (!resumed) return false;
+
+        final localEngine = GameEngine(
+          chapter: _engine.chapter,
+          forceNewBoard: false,
+          boardLifeActive: true,
+        );
+        if (!localEngine.restoreFromSaveData(pausedSaved)) return false;
+        _engine.stopGameTimer();
+        _engine = localEngine;
+        _resumeGameplay();
+        _focusNode.requestFocus();
+        unawaited(_refreshMountedToolInventory(generation));
+        return true;
+      }
+
       if (_engine.gameOver || _engine.chapterComplete) return false;
 
       // With no active server session, a zero-life account cannot be shown a
@@ -544,10 +581,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (_handlingSystemBack || !mounted) return;
     _handlingSystemBack = true;
 
-    // RESET creates the new board immediately, but Firebase may still be
-    // binding the new session. BACK must remain available; wait for that
-    // operation to settle before leaving so Home can never race the session
-    // replacement and restore the old board.
     final pendingRestart = _restartFuture;
     if (_restartInProgress && pendingRestart != null) {
       await pendingRestart;
@@ -555,21 +588,30 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     final wasChapterComplete = _engine.chapterComplete;
+    final saveData = _engine.createSaveData();
+    final sessionId = saveData['gameSessionId'] is String
+        ? saveData['gameSessionId'] as String
+        : null;
+    final replayLog = saveData['replayLog'];
+    final replay = replayLog is Map
+        ? Map<String, dynamic>.from(replayLog)
+        : null;
 
     _engine.pauseGameTimer();
     _stopUiRefreshTimer();
 
     if (!wasChapterComplete) {
-      // Pause first so the persisted snapshot contains the latest elapsed
-      // gameplay time. Saving a snapshot captured before pause would write
-      // the old timer value back over the freshly accumulated time.
-      final saveData = _engine.createSaveData();
-      // BACK means temporarily leave the game, not end the session.
-      // Preserve both the active session binding and the exact current board
-      // so the next entry always resumes this unfinished game. RESET is the
-      // only normal action that creates a new board and consumes a Life.
+      // BACK saves the exact board, then pauses the server session. The Life
+      // stays reserved by this unfinished board; it is not refunded.
       await _engine.flushLocalSave();
       await SaveManager.save(saveData);
+      if (sessionId != null) {
+        await PlayerProgressService.instance.abandonGameSession(
+          sessionId: sessionId,
+          replayLog: replay,
+          unfinishedExit: true,
+        );
+      }
     }
 
     _allowSystemPop = true;
@@ -578,37 +620,25 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _showResetMenu() async {
-    if (!mounted || _completionAnimationPlaying || _gameOverDialogShowing || _chapterCompleteShowing || _restartInProgress) return;
+    if (!mounted ||
+        _completionAnimationPlaying ||
+        _gameOverDialogShowing ||
+        _chapterCompleteShowing ||
+        _restartInProgress) {
+      return;
+    }
 
-    // RESET creates a new board and consumes one Life. Leaving the game is
-    // handled only by system BACK, so this dialog intentionally has no
-    // "回首頁" option.
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('確定重玩？'),
-        content: const Text('重玩會建立新的棋盤並扣除 1 條生命。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('確定'),
-          ),
-        ],
-      ),
-    );
-
-    if (!mounted || confirmed != true || _restartInProgress) return;
-
+    // RESET always creates a new board and consumes one Life immediately.
     final restarted = await _reset();
     if (restarted && mounted) {
       unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.')),
+        const SnackBar(
+          content: Text(
+            'Unable to restart the game. Please check your Life and try again.',
+          ),
+        ),
       );
     }
   }
