@@ -597,6 +597,24 @@ exports.startGameSession = onCall(async (request) => {
       throw new HttpsError('permission-denied', 'Chapter is not unlocked.');
     }
 
+    // A paused unfinished board is exclusive. Until it is resumed or
+    // explicitly reset, no other chapter may start a new session.
+    const pausedSessionId = current.pausedGameSessionId;
+    const pausedChapter = current.pausedGameChapterIndex;
+    if (typeof pausedSessionId === 'string' &&
+        pausedSessionId.length > 0) {
+      if (pausedChapter !== chapterIndex) {
+        throw new HttpsError(
+          'failed-precondition',
+          'An unfinished game must be continued before another chapter can start.',
+        );
+      }
+      throw new HttpsError(
+        'failed-precondition',
+        'Resume the unfinished game instead of starting a new game.',
+      );
+    }
+
     const replaceActiveSession = request.data?.replaceActiveSession === true;
     const existingSessionId = current.activeGameSessionId;
     let existingSessionRef = null;
@@ -682,6 +700,8 @@ exports.startGameSession = onCall(async (request) => {
     transaction.set(progressRef, {
       activeGameSessionId: sessionId,
       activeGameChapterIndex: chapterIndex,
+      pausedGameSessionId: FieldValue.delete(),
+      pausedGameChapterIndex: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
 
