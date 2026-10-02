@@ -449,58 +449,6 @@ class PlayerProgressService {
     return false;
   }
 
-  Future<void> exitUnfinishedGameSession({
-    String? sessionId,
-    Map<String, dynamic>? replayLog,
-  }) async {
-    // Navigation clears the current local binding immediately. When a new
-    // game start is still pending, wait only in this background settlement
-    // task so the newly created session can still be abandoned correctly.
-    final requestedSessionId = sessionId ?? _activeGameSessionId;
-    if (requestedSessionId != null &&
-        _activeGameSessionId == requestedSessionId) {
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
-      if (!unfinishedExit) {
-        unawaited(SaveManager.clearGameSessionId());
-      }
-    }
-
-    await _awaitPendingStartSession();
-    final settledSessionId = sessionId ?? _activeGameSessionId;
-    if (settledSessionId == null) return;
-
-    if (_activeGameSessionId == settledSessionId) {
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
-      if (!unfinishedExit) {
-        unawaited(SaveManager.clearGameSessionId());
-      }
-    }
-
-    try {
-      final result = await _functions.httpsCallable('abandonGameSession').call({
-        'sessionId': settledSessionId,
-        'unfinishedExit': true,
-        'replayLog': ?replayLog,
-      });
-      final data = result.data;
-      final lifeState = data is Map ? data['life'] : null;
-      if (lifeState is Map) {
-        LifeManager.applyServerState(
-          Map<String, dynamic>.from(lifeState),
-        );
-      }
-    } on FirebaseFunctionsException catch (error) {
-      print(
-        'exitUnfinishedGameSession failed: code='
-        '${error.code}, message=${error.message}, '
-        'details=${error.details?.toString()},',
-      );
-      unawaited(refresh());
-    }
-  }
-
   Future<void> abandonGameSession({
     String? sessionId,
     Map<String, dynamic>? replayLog,
@@ -511,7 +459,9 @@ class PlayerProgressService {
         _activeGameSessionId == requestedSessionId) {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
-      unawaited(SaveManager.clearGameSessionId());
+      if (!unfinishedExit) {
+        unawaited(SaveManager.clearGameSessionId());
+      }
     }
 
     await _awaitPendingStartSession();
@@ -521,7 +471,9 @@ class PlayerProgressService {
     if (_activeGameSessionId == settledSessionId) {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
-      unawaited(SaveManager.clearGameSessionId());
+      if (!unfinishedExit) {
+        unawaited(SaveManager.clearGameSessionId());
+      }
     }
 
     try {
