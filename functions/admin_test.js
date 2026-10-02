@@ -133,7 +133,6 @@ exports.adminSetGoldBalance = onCall(async (request) => {
   };
 });
 
-
 exports.adminSetAllToolsEnabled = onCall(async (request) => {
   const adminUid = await requireAdmin(request);
   const uid = validateTargetUid(request.data?.uid);
@@ -187,7 +186,6 @@ exports.adminGetTestAccountState = onCall(async (request) => {
   };
 });
 
-
 exports.adminGetSecurityState = onCall(async (request) => {
   await requireAdmin(request);
   const uid = validateTargetUid(request.data?.uid);
@@ -216,15 +214,20 @@ exports.adminGetSecurityState = onCall(async (request) => {
   };
 });
 
-
 exports.adminGetSecurityEvents = onCall(async (request) => {
   await requireAdmin(request);
   const uid = validateTargetUid(request.data?.uid);
+
   const snapshot = await db.collection('security_events')
     .where('uid', '==', uid)
+    .orderBy('timestamp', 'desc')
+    .limit(20)
     .get();
 
-  const events = snapshot.docs.map((doc) => {
+  return {
+    ok: true,
+    uid,
+    events: snapshot.docs.map((doc) => {
       const event = doc.data() || {};
       return {
         eventId: event.eventId || doc.id,
@@ -238,13 +241,8 @@ exports.adminGetSecurityEvents = onCall(async (request) => {
         toolType: event.toolType || null,
         details: event.details || {},
       };
-    }).sort((a, b) => {
-      const aTime = a.timestamp ? Date.parse(a.timestamp) : 0;
-      const bTime = b.timestamp ? Date.parse(b.timestamp) : 0;
-      return bTime - aTime;
-    }).slice(0, 20);
-
-  return { ok: true, uid, events };
+    }),
+  };
 });
 
 exports.adminResetSecurityState = onCall(async (request) => {
@@ -289,8 +287,6 @@ exports.adminResetSecurityState = onCall(async (request) => {
     changedBy: adminUid,
   };
 });
-
-
 
 exports.adminSetUnlockedChapter = onCall(async (request) => {
   const adminUid = await requireAdmin(request);
