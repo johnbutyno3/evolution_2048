@@ -598,6 +598,8 @@ exports.abandonGameSession = onCall({ minInstances: 1 }, async (request) => {
         transaction.set(progress, {
           activeGameSessionId: FieldValue.delete(),
           activeGameChapterIndex: FieldValue.delete(),
+          pausedGameSessionId: sessionId,
+          pausedGameChapterIndex: chapterIndex,
           updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
 
