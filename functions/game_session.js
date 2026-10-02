@@ -343,6 +343,8 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
       transaction.set(progress, {
         activeGameSessionId: newSessionId,
         activeGameChapterIndex: chapterIndex,
+        pausedGameSessionId: FieldValue.delete(),
+        pausedGameChapterIndex: FieldValue.delete(),
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
 
