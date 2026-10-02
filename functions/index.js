@@ -754,7 +754,9 @@ exports.resumeGameSession = onCall(async (request) => {
 
     const session = sessionSnapshot.data() || {};
     const isPausedResume =
-        requestedSessionId != null && session.status === 'paused';
+        requestedSessionId != null &&
+        session.status === 'paused' &&
+        (activeSessionId == null || activeSessionId === sessionId);
     const isActiveResume =
         session.status === 'active' &&
         activeSessionId === sessionId &&
