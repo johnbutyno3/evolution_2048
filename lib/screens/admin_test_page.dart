@@ -149,8 +149,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
       final d = Map<String, dynamic>.from(r.data as Map);
       if (mounted) {
         setState(() => _message =
-            'Test mode: chapters unlocked through C' +
-            (((d['unlockedChapterIndex'] as num).toInt()) + 1).toString() + '.');
+            'Test mode: chapters unlocked through C${(d['unlockedChapterIndex'] as num).toInt() + 1}.');
       }
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
