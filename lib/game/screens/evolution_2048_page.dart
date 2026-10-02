@@ -295,6 +295,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             }
             return;
           }
+          // startGameSession has now bound SaveManager to the new server
+          // session. Persist the visible board again with that binding so
+          // re-entry cannot fall back to the previous snapshot.
+          await newEngine.flushLocalSave();
+          await SaveManager.save(newEngine.createSaveData());
           unawaited(_refreshMountedToolInventory(generation));
         }).catchError((_) {}),
       );
@@ -485,6 +490,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // bound. This prevents the old cached board from being restored on
           // the next entry and makes RESET durable immediately.
           await newEngine.flushLocalSave();
+          // restartGameSession has now bound SaveManager to the replacement
+          // session. Persist the visible new board again with that binding.
+          await SaveManager.save(newEngine.createSaveData());
           if (!mounted || generation != _gameSessionGeneration) return;
           _engine.toolManager.refreshFromSavedProgress();
           unawaited(_refreshMountedToolInventory(generation));
