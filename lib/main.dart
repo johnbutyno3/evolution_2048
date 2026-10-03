@@ -1,6 +1,7 @@
 ﻿import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
@@ -11,13 +12,24 @@ import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
 
+const kFirebaseAppCheckDebugToken = String.fromEnvironment(
+  'FIREBASE_APPCHECK_DEBUG_TOKEN',
+  defaultValue: '',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await FirebaseAppCheck.instance.activate(
-    providerWeb: WebDebugProvider(),
+    providerWeb: kDebugMode
+        ? WebDebugProvider(
+            debugToken: kFirebaseAppCheckDebugToken.isEmpty
+                ? null
+                : kFirebaseAppCheckDebugToken,
+          )
+        : WebDebugProvider(),
   );
 
   // FirebaseAuth restores the persisted session asynchronously. Wait for
