@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 import '../game/services/tool_manager.dart';
+import 'session_generation.dart';
 
 /// Server-verified account progression with local-first gameplay entry.
 class PlayerProgressService {
@@ -40,6 +41,7 @@ class PlayerProgressService {
   int? _activeGameChapterIndex;
   Future<bool>? _pendingStartSession;
   int _sessionOperationGeneration = 0;
+  final SessionGeneration _sessionIdentityGeneration = SessionGeneration();
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
   int chapterHighestValue(int chapterIndex) =>
@@ -73,6 +75,13 @@ class PlayerProgressService {
       return;
     }
 
+    // Refresh is a reader of authoritative server state, not a session owner.
+    // Capture the owner generation before the network await. RESET increments
+    // this generation as soon as it begins, so a late refresh can finish but
+    // can no longer publish its snapshot into the replacement session.
+    final refreshGeneration = _sessionIdentityGeneration.current;
+    final refreshOwnerSessionId = _activeGameSessionId;
+
     try {
       final snapshot = await _firestore
           .collection('users')
@@ -81,11 +90,17 @@ class PlayerProgressService {
           .doc(_progressDocument)
           .get(const GetOptions(source: Source.server));
 
+      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
+          _activeGameSessionId != refreshOwnerSessionId) {
+        return;
+      }
+
       final data = snapshot.data() ?? <String, dynamic>{};
       final value = data['unlockedChapterIndex'];
-      _unlockedChapterIndex = value is num ? value.toInt().clamp(0, 5) : 0;
+      final unlockedChapterIndex =
+          value is num ? value.toInt().clamp(0, 5) : 0;
 
-      _chapterProgress.clear();
+      final refreshedChapterProgress = <String, Map<String, int>>{};
       final chapterProgress = data['chapterProgress'];
       if (chapterProgress is Map) {
         for (final entry in chapterProgress.entries) {
@@ -93,7 +108,7 @@ class PlayerProgressService {
           if (value is! Map) continue;
           final highest = value['highestValue'];
           final score = value['score'];
-          _chapterProgress[entry.key.toString()] = {
+          refreshedChapterProgress[entry.key.toString()] = {
             'highestValue': highest is num ? highest.toInt() : 0,
             'score': score is num ? score.toInt() : 0,
           };
@@ -101,29 +116,57 @@ class PlayerProgressService {
       }
 
       final sessionId = data['activeGameSessionId'];
-      _activeGameSessionId = sessionId is String && sessionId.isNotEmpty
-          ? sessionId
-          : null;
+      final refreshedSessionId =
+          sessionId is String && sessionId.isNotEmpty ? sessionId : null;
 
       final activeChapter = data['activeGameChapterIndex'];
-      _activeGameChapterIndex = activeChapter is num
+      final refreshedChapterIndex = activeChapter is num
           ? activeChapter.toInt().clamp(0, 5)
           : null;
 
-      // Keep the local session pointer aligned with the authoritative server
-      // state. In particular, an abandon/game-over transaction can commit
-      // successfully while its callable response is lost; leaving the old
-      // local ID behind would make the next local-first start look as if it
-      // were replacing/resuming a session that no longer exists.
-      if (_activeGameSessionId == null) {
-        await SaveManager.clearGameSessionId();
-      } else if (SaveManager.gameSessionId != _activeGameSessionId) {
-        await SaveManager.setGameSessionId(_activeGameSessionId!);
+      // The session generation is still checked immediately before the local
+      // identity commit. This closes the window between parsing the response
+      // and publishing the server session to the local state.
+      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
+          _activeGameSessionId != refreshOwnerSessionId) {
+        return;
+      }
+
+      _unlockedChapterIndex = unlockedChapterIndex;
+      _chapterProgress
+        ..clear()
+        ..addAll(refreshedChapterProgress);
+      _activeGameSessionId = refreshedSessionId;
+      _activeGameChapterIndex = refreshedChapterIndex;
+
+      // The queue itself is guarded as well. RESET can begin after the
+      // in-memory commit above but before SharedPreferences executes this
+      // write; queue-time ownership prevents that stale refresh from writing
+      // the old session ID into SaveManager.
+      if (refreshedSessionId == null) {
+        await SaveManager.clearGameSessionIdIf(() =>
+            _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
+            _activeGameSessionId == refreshedSessionId);
+      } else if (SaveManager.gameSessionId != refreshedSessionId) {
+        await SaveManager.setGameSessionIdIf(
+          refreshedSessionId,
+          () =>
+              _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
+              _activeGameSessionId == refreshedSessionId,
+        );
+      }
+
+      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
+          _activeGameSessionId != refreshedSessionId) {
+        return;
       }
 
       _loadedFromServer = true;
     } on FirebaseException {
-      _loadedFromServer = false;
+      if (_sessionIdentityGeneration.isCurrent(refreshGeneration) &&
+          _activeGameSessionId == refreshOwnerSessionId) {
+        _loadedFromServer = false;
+      }
     }
   }
 
@@ -210,17 +253,11 @@ class PlayerProgressService {
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
-      // The server remains authoritative. Expected failures such as no Life
-      // simply reconcile the local optimistic state; security failures remain
-      // visible to the backend enforcement layer.
       print(
         'startGameSession failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
       );
       if (operationGeneration == _sessionOperationGeneration) {
-        // The callable can time out after the transaction has already created
-        // the charged session. Refresh first so a lost response cannot make
-        // the local-first client believe that the new game never started.
         await refresh();
         if (operationGeneration != _sessionOperationGeneration) return false;
         final serverSessionId = _activeGameSessionId;
@@ -235,8 +272,6 @@ class PlayerProgressService {
         }
       }
     } catch (error) {
-      // A network/client failure must never become a permanent local grant.
-      // Reconcile with the server when connectivity is available again.
       print('startGameSession verification failed: $error');
       try {
         if (operationGeneration == _sessionOperationGeneration) {
@@ -268,11 +303,6 @@ class PlayerProgressService {
   }
 
   /// Re-enters the server-owned unfinished session.
-  ///
-  /// A normal unfinished exit keeps a local board snapshot. Game Over -> Back
-  /// clears that chapter snapshot. If the server still exposes an ended/stale
-  /// active session while no playable local board remains, this is a fresh
-  /// game entry and must use startGameSession instead of resume.
   Future<bool> resumeGameSession(
     int chapterIndex, {
     String? sessionId,
@@ -290,13 +320,8 @@ class PlayerProgressService {
         saved['tiles'] is List &&
         (saved['tiles'] as List).length == 16;
 
-    if (!hasPlayableLocalBoard) {
-      return false;
-    }
+    if (!hasPlayableLocalBoard) return false;
 
-    // Resume is a session-binding operation too. Give it a new generation
-    // so a concurrent Restart/Start cannot later be overwritten by this
-    // older Firebase response.
     final operationGeneration = ++_sessionOperationGeneration;
     try {
       final result = await _functions.httpsCallable('resumeGameSession').call({
@@ -328,14 +353,11 @@ class PlayerProgressService {
         'message=${error.message}, '
         'details=${error.details?.toString()},',
       );
-
       final isExpiredSession =
           error.code == 'deadline-exceeded' &&
           (error.message ?? '').toLowerCase().contains('expired');
       if (isExpiredSession) {
         await refresh();
-        // The previous session has expired. The caller must create a fresh
-        // board and provide its exact initialTiles for the replacement session.
         return false;
       }
     }
@@ -351,18 +373,12 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
-    // A local-first game entry may still be waiting for its Firebase
-    // start transaction when the player immediately presses Restart. Let that
-    // transaction settle before creating the replacement session; otherwise
-    // both server transactions can charge a Life and leave two competing
-    // sessions even though the client operation generation rejects the stale
-    // response.
+    // RESET takes ownership immediately. This invalidates any refresh that is
+    // already waiting on Firestore before the replacement session is created.
+    _sessionIdentityGeneration.begin();
+
     final pendingStart = _pendingStartSession;
     if (pendingStart != null) {
-      // Restart is itself an authoritative session-creation/replacement
-      // operation. A failed earlier start must not force the UI to roll back
-      // the replacement board: restartGameSession can create the replacement
-      // session even when that earlier start never committed.
       await pendingStart;
     }
 
@@ -371,24 +387,15 @@ class PlayerProgressService {
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
-        // RESET is a replacement transaction. The server must use the
-        // authoritative active session at transaction time instead of a
-        // client-cached session ID, which may already be stale.
         'replaySessionId': ?replaySessionId,
         'replayLog': ?replayLog,
         'initialTiles': initialTiles,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
-        // A newer session operation may have superseded this restart while
-        // Firebase was processing it. Never let the stale response overwrite
-        // the newer client session binding.
         if (operationGeneration != _sessionOperationGeneration) return false;
 
         _activeGameSessionId = data['sessionId'] as String;
-        // RESET already created a brand-new local board. Never rebind the
-        // previous cached snapshot to the replacement session; doing so
-        // resurrects the old board on the next page entry.
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         _activeGameChapterIndex = chapterIndex;
 
@@ -408,12 +415,6 @@ class PlayerProgressService {
           await LifeManager.refreshFromServer();
         }
 
-        // Restart creates a new GameEngine before this server call returns so
-        // the replacement board stays responsive. Reconcile the authoritative
-        // tool inventory now that the new session exists, then update the
-        // already-mounted engine's ToolState as well. Without this second
-        // step, the static inventory cache could be correct while the visible
-        // tool button kept the old 0-use state from engine construction.
         await ToolManager.refreshInventory();
         return true;
       }
@@ -423,10 +424,6 @@ class PlayerProgressService {
         'message=${error.message}, details=${error.details}',
       );
       if (operationGeneration == _sessionOperationGeneration) {
-        // A callable can time out after the Firestore transaction has already
-        // committed. Refresh the authoritative progress before rolling back
-        // the locally responsive replacement board. If the server session ID
-        // changed, the restart succeeded and its response was merely lost.
         await refresh();
         if (operationGeneration != _sessionOperationGeneration) return false;
         final refreshedSessionId = _activeGameSessionId;
@@ -436,8 +433,6 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (restartCommitted) {
-          // The replacement board is owned by the caller's new GameEngine.
-          // Never promote the previous cached board into this new session.
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
           return true;
@@ -475,8 +470,7 @@ class PlayerProgressService {
     }
 
     try {
-      final result =
-          await _functions.httpsCallable('abandonGameSession').call({
+      final result = await _functions.httpsCallable('abandonGameSession').call({
         'sessionId': settledSessionId,
         'replayLog': ?replayLog,
         'unfinishedExit': unfinishedExit,
@@ -516,13 +510,7 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null) return false;
 
-    // A player can finish very quickly while the background session request
-    // is still in flight. Wait only at completion time; normal board entry is
-    // never blocked by Firebase latency.
     if (!await _awaitPendingStartSession()) {
-      // If the background start genuinely failed, the local board is still
-      // usable but has no server session. Recover from the exact replay
-      // initialTiles instead of leaving a completed local game un-settleable.
       final initialTiles = replayLog['initialTiles'];
       if (initialTiles is! List || initialTiles.length != 16) return false;
       final recovered = await startGameSession(
@@ -555,10 +543,6 @@ class PlayerProgressService {
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
-      // completeChapter is transactional. Its Firestore writes may commit
-      // even when the callable response is lost. Reconcile before declaring
-      // the chapter completion failed, otherwise the client can remain on a
-      // completed board while the server has already advanced progression.
       print(
         'completeChapter failed: code=${error.code}, '
         'message=${error.message}, details=${error.details}',
@@ -572,8 +556,7 @@ class PlayerProgressService {
             _activeGameChapterIndex == null;
         final chapterTargetReached =
             chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
-        final completionCommitted =
-            sessionClosed && chapterTargetReached;
+        final completionCommitted = sessionClosed && chapterTargetReached;
 
         if (completionCommitted) {
           await SaveManager.clearGameSessionId();
