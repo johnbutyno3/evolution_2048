@@ -91,10 +91,11 @@ service cloud.firestore {
     }
 
     match /feedback/{feedbackId} {
+      // Players may submit their own feedback, but feedback is immutable
+      // from the client after creation. Admins manage the records.
       allow create: if signedIn()
           && request.resource.data.uid == request.auth.uid;
-      allow read, update, delete: if isAdmin()
-          || (signedIn() && resource.data.uid == request.auth.uid);
+      allow read, update, delete: if isAdmin();
     }
   }
 }
