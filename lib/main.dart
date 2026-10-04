@@ -1,4 +1,4 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
@@ -17,31 +17,41 @@ const kFirebaseAppCheckDebugToken = String.fromEnvironment(
   defaultValue: '',
 );
 
+const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
+  'FIREBASE_APPCHECK_WEB_SITE_KEY',
+  defaultValue: '',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  if (kIsWeb && !kDebugMode && kFirebaseAppCheckWebSiteKey.isEmpty) {
+    throw StateError(
+      'FIREBASE_APPCHECK_WEB_SITE_KEY is required for release Web builds.',
+    );
+  }
+
   await FirebaseAppCheck.instance.activate(
-    providerWeb: kDebugMode
+    webProvider: kDebugMode
         ? WebDebugProvider(
             debugToken: kFirebaseAppCheckDebugToken.isEmpty
                 ? null
                 : kFirebaseAppCheckDebugToken,
           )
-        : WebDebugProvider(),
+        : ReCaptchaV3Provider(kFirebaseAppCheckWebSiteKey),
+    androidProvider: kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
+    appleProvider: kDebugMode
+        ? AppleProvider.debug
+        : AppleProvider.appAttest,
   );
 
-  // FirebaseAuth restores the persisted session asynchronously. Wait for
-  // its first state event before deciding whether to show login or HomePage.
-  // Otherwise a valid signed-in account can look signed out on a cold start.
   await FirebaseAuth.instance.authStateChanges().first;
 
   await SaveManager.initialize();
-
-  // HomePage initializes authenticated account state. Keep startup focused
-  // on Firebase/Auth restoration so the same life/gold reads are not made
-  // once here and again immediately by HomePage.
 
   runApp(const Rebirth2048App());
 }
