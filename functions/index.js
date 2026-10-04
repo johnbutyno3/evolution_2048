@@ -18,7 +18,7 @@ const {
 } = require('./game_session_helpers');
 
 initializeApp();
-setGlobalOptions({ region: 'us-central1' });
+setGlobalOptions({ region: 'us-central1', enforceAppCheck: true });
 
 const db = getFirestore();
 Object.assign(exports, require('./profile'));
