@@ -34,7 +34,7 @@ Future<void> main() async {
   }
 
   await FirebaseAppCheck.instance.activate(
-    webProvider: kDebugMode
+    providerWeb: kDebugMode
         ? WebDebugProvider(
             debugToken: kFirebaseAppCheckDebugToken.isEmpty
                 ? null
