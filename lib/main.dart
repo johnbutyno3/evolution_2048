@@ -51,8 +51,11 @@ Future<void> main() async {
         : const AppleAppAttestProvider(),
   );
 
-  await FirebaseAuth.instance.authStateChanges().first;
-
+  // Do not block app startup on the first Web Auth state event. Firebase Auth
+  // initializes asynchronously in the browser; waiting here can leave the
+  // whole Flutter app blank when the Web Auth layer reports a transient init
+  // error. The UI reads currentUser when it builds and Auth continues to manage
+  // its state normally after startup.
   await SaveManager.initialize();
 
   runApp(const Rebirth2048App());
