@@ -12,9 +12,17 @@ import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
 
+// Web debug can optionally receive a locally supplied, already-registered
+// debug token. The token must never be committed to source control.
+const kFirebaseAppCheckWebDebugToken = String.fromEnvironment(
+  'FIREBASE_APPCHECK_WEB_DEBUG_TOKEN',
+  defaultValue: '',
+);
+
 // Web debug intentionally does not require a dart-define token. WebDebugProvider
 // uses the browser-local Firebase App Check debug token mechanism configured in
-// web/index.html. Release Web still requires the production Site Key.
+// web/index.html when no explicit token is supplied. Release Web still requires
+// the production Site Key.
 const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
   'FIREBASE_APPCHECK_WEB_SITE_KEY',
   defaultValue: '',
@@ -41,7 +49,11 @@ Future<void> main() async {
 
   await FirebaseAppCheck.instance.activate(
     providerWeb: (kDebugMode || kFirebaseAppCheckDebug)
-        ? WebDebugProvider()
+        ? WebDebugProvider(
+            debugToken: kFirebaseAppCheckWebDebugToken.isNotEmpty
+                ? kFirebaseAppCheckWebDebugToken
+                : null,
+          )
         : ReCaptchaV3Provider(kFirebaseAppCheckWebSiteKey),
     providerAndroid: (kDebugMode || kFirebaseAppCheckDebug)
         ? const AndroidDebugProvider()
