@@ -12,11 +12,6 @@ import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
 
-const kFirebaseAppCheckDebugToken = String.fromEnvironment(
-  'FIREBASE_APPCHECK_DEBUG_TOKEN',
-  defaultValue: '',
-);
-
 const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
   'FIREBASE_APPCHECK_WEB_SITE_KEY',
   defaultValue: '',
@@ -35,11 +30,7 @@ Future<void> main() async {
 
   await FirebaseAppCheck.instance.activate(
     providerWeb: kDebugMode
-        ? WebDebugProvider(
-            debugToken: kFirebaseAppCheckDebugToken.isEmpty
-                ? null
-                : kFirebaseAppCheckDebugToken,
-          )
+        ? WebDebugProvider()
         : ReCaptchaV3Provider(kFirebaseAppCheckWebSiteKey),
     androidProvider: kDebugMode
         ? AndroidProvider.debug
