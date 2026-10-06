@@ -662,34 +662,37 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _showGameOver() async {
-    if (_gameOverDialogShowing || !mounted) return; _gameOverDialogShowing = true; _engine.stopGameTimer(); await AudioManager.instance.stopMusic(); await AudioManager.instance.playSfx(GameSfx.gameOver); if (!mounted) return;
-    final shouldRestart = await showDialog<bool>(context: context, barrierDismissible: false, builder: (context) => AlertDialog(title: const Text('Game Over'), content: Text('Score: ${_engine.score}\nHighest: ${_engine.highestValue}'), actions: [TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Home')), FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Restart'))]));
-    if (!mounted) return; _gameOverDialogShowing = false;
-    if (shouldRestart == true) { final restarted = await _reset(); if (restarted && mounted) unawaited(AudioManager.instance.playChapterMusic(_engine.chapter)); else if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to restart the game. Please check your Life and try again.'))); }
-    else {
-      final sessionId = PlayerProgressService.instance.activeGameSessionId;
-      final saveData = _engine.createSaveData();
-      final replayLog = saveData['replayLog'];
-      final replay = replayLog is Map ? Map<String, dynamic>.from(replayLog) : null;
-      final chapter = _engine.chapter.name;
+    if (_gameOverDialogShowing || !mounted) return;
+    _gameOverDialogShowing = true;
+    _engine.stopGameTimer();
+    await AudioManager.instance.stopMusic();
+    await AudioManager.instance.playSfx(GameSfx.gameOver);
+    if (!mounted) return;
 
-      // Game Over is an ended session, not a temporary BACK. Complete the
-      // server-side abandonment before leaving the page so an immediate
-      // re-entry cannot observe the old active-session pointer and get stuck
-      // with no playable local board.
-      _gameSessionGeneration++;
-      if (sessionId != null) {
-        await PlayerProgressService.instance.abandonGameSession(
-          sessionId: sessionId,
-          replayLog: replay,
-        );
-      }
-      await SaveManager.clearChapter(chapter);
-      if (!mounted) return;
-      Navigator.of(context).pop();
+    // GAME OVER returns directly to Home. It does not consume another Life
+    // here. The ended session is cleared; the next Home -> Game entry creates
+    // a genuinely new session and consumes exactly one Life.
+    final sessionId = PlayerProgressService.instance.activeGameSessionId;
+    final saveData = _engine.createSaveData();
+    final replayLog = saveData['replayLog'];
+    final replay = replayLog is Map
+        ? Map<String, dynamic>.from(replayLog)
+        : null;
+    final chapter = _engine.chapter.name;
+
+    _gameSessionGeneration++;
+    if (sessionId != null) {
+      await PlayerProgressService.instance.abandonGameSession(
+        sessionId: sessionId,
+        replayLog: replay,
+      );
     }
-  }
+    await SaveManager.clearChapter(chapter);
 
+    _gameOverDialogShowing = false;
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
   String _backgroundForHighest(int highestValue) {
     final backgrounds = switch (_engine.chapter) { GameChapter.ocean => _oceanBackgrounds, GameChapter.land => _landBackgrounds, GameChapter.sky => _skyBackgrounds, GameChapter.history => _historyBackgrounds, GameChapter.tech => _techBackgrounds, GameChapter.universe => _universeBackgrounds };
     final stage = highestValue > 0 ? (highestValue.bitLength - 1) : 1;
