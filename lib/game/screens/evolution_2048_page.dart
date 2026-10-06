@@ -468,14 +468,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? saveData['gameSessionId'] as String
         : null;
 
-    // Restart is a new game and therefore consumes one Life immediately.
-    // Never make the player wait for the network before seeing the replacement
-    // board. The server remains authoritative and reconciles the optimistic
-    // state in the background.
-    if (!LifeManager.optimisticConsumeLife()) {
-      return false;
-    }
-
+    // restartGameSession owns the single optimistic Life transition.
+    // Keep that ownership in one place so RESET can never consume two Lives.
     _restartInProgress = true;
     _gameSessionGeneration++;
     final generation = _gameSessionGeneration;
