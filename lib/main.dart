@@ -12,6 +12,9 @@ import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
 
+// Web debug intentionally does not require a dart-define token. WebDebugProvider
+// uses the browser-local Firebase App Check debug token mechanism configured in
+// web/index.html. Release Web still requires the production Site Key.
 const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
   'FIREBASE_APPCHECK_WEB_SITE_KEY',
   defaultValue: '',
