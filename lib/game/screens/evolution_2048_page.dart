@@ -468,8 +468,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? saveData['gameSessionId'] as String
         : null;
 
-    // restartGameSession owns the single optimistic Life transition.
-    // Keep that ownership in one place so RESET can never consume two Lives.
+    // RESET is a new game: consume exactly one Life locally now, then let
+    // restartGameSession authoritatively reconcile the same single charge.
+    // This makes the Life display change immediately (5 -> 4, etc.) and
+    // starts/continues the 40-minute regeneration countdown without waiting
+    // for Firebase.
+    if (!LifeManager.optimisticConsumeLife()) {
+      return false;
+    }
+
     _restartInProgress = true;
     _gameSessionGeneration++;
     final generation = _gameSessionGeneration;
