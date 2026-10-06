@@ -17,11 +17,6 @@ const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
   defaultValue: '',
 );
 
-const kFirebaseAppCheckWebDebugToken = String.fromEnvironment(
-  'FIREBASE_APPCHECK_WEB_DEBUG_TOKEN',
-  defaultValue: '',
-);
-
 // Release builds use production App Check providers by default. Test APKs that
 // are sideloaded (and therefore cannot satisfy Play Integrity) must explicitly
 // opt into the debug provider with --dart-define=FIREBASE_APPCHECK_DEBUG=true.
@@ -43,11 +38,7 @@ Future<void> main() async {
 
   await FirebaseAppCheck.instance.activate(
     providerWeb: (kDebugMode || kFirebaseAppCheckDebug)
-        ? WebDebugProvider(
-            debugToken: kFirebaseAppCheckWebDebugToken.isEmpty
-                ? null
-                : kFirebaseAppCheckWebDebugToken,
-          )
+        ? WebDebugProvider()
         : ReCaptchaV3Provider(kFirebaseAppCheckWebSiteKey),
     androidProvider: (kDebugMode || kFirebaseAppCheckDebug)
         ? AndroidProvider.debug
