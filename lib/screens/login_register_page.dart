@@ -39,9 +39,9 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
 
   Future<void> _continueAfterAuth() async {
     try {
-      // Authentication can complete before App Check has obtained its first token.
-      // Callable Functions are App Check enforced, so wait for the token first.
-      await FirebaseAppCheck.instance.getToken(true);
+      // Do not force-refresh App Check here. A forced refresh can trigger a
+      // debug-token exchange even when a valid cached token is already usable.
+      // The callable client will obtain/reuse the App Check token as needed.
       final playerName = await PlayerProfileService.ensureProfile();
       if (!mounted) return;
 
