@@ -17,6 +17,14 @@ const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
   defaultValue: '',
 );
 
+// Release builds use production App Check providers by default. Test APKs that
+// are sideloaded (and therefore cannot satisfy Play Integrity) must explicitly
+// opt into the debug provider with --dart-define=FIREBASE_APPCHECK_DEBUG=true.
+const kFirebaseAppCheckDebug = bool.fromEnvironment(
+  'FIREBASE_APPCHECK_DEBUG',
+  defaultValue: false,
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -29,13 +37,13 @@ Future<void> main() async {
   }
 
   await FirebaseAppCheck.instance.activate(
-    providerWeb: kDebugMode
+    providerWeb: (kDebugMode || kFirebaseAppCheckDebug)
         ? WebDebugProvider()
         : ReCaptchaV3Provider(kFirebaseAppCheckWebSiteKey),
-    androidProvider: kDebugMode
+    androidProvider: (kDebugMode || kFirebaseAppCheckDebug)
         ? AndroidProvider.debug
         : AndroidProvider.playIntegrity,
-    appleProvider: kDebugMode
+    appleProvider: (kDebugMode || kFirebaseAppCheckDebug)
         ? AppleProvider.debug
         : AppleProvider.appAttest,
   );
