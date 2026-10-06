@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_initializing_formals
+﻿// ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
 import 'dart:math';
@@ -922,3 +922,4 @@ class GameEngine {
     return (position.row * boardSize + position.column, value);
   }
 }
+

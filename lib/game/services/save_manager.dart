@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -466,7 +466,7 @@ class SaveManager {
     try {
       final decoded = jsonDecode(raw);
       return decoded is Map
-          ? Map<String, dynamic>.from(decoded as Map)
+          ? Map<String, dynamic>.from(decoded)
           : null;
     } catch (_) {
       return null;

@@ -40,12 +40,12 @@ Future<void> main() async {
     providerWeb: (kDebugMode || kFirebaseAppCheckDebug)
         ? WebDebugProvider()
         : ReCaptchaV3Provider(kFirebaseAppCheckWebSiteKey),
-    androidProvider: (kDebugMode || kFirebaseAppCheckDebug)
-        ? AndroidProvider.debug
-        : AndroidProvider.playIntegrity,
-    appleProvider: (kDebugMode || kFirebaseAppCheckDebug)
-        ? AppleProvider.debug
-        : AppleProvider.appAttest,
+    providerAndroid: (kDebugMode || kFirebaseAppCheckDebug)
+        ? const AndroidDebugProvider()
+        : const AndroidPlayIntegrityProvider(),
+    providerApple: (kDebugMode || kFirebaseAppCheckDebug)
+        ? const AppleDebugProvider()
+        : const AppleAppAttestProvider(),
   );
 
   await FirebaseAuth.instance.authStateChanges().first;

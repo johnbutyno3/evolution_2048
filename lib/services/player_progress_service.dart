@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+﻿// ignore_for_file: avoid_print
 
 import 'dart:async';
 
@@ -589,3 +589,4 @@ class PlayerProgressService {
     return false;
   }
 }
+

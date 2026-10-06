@@ -142,9 +142,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileNameTooLong => '玩家名稱最多30個字元。';
 
   @override
-  String get profileSetupFailed => '建立玩家資料失敗，請再試一次。';
-
-  @override
   String get profileContinue => '繼續';
 
   @override
@@ -227,210 +224,226 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gameTime => '遊戲時間';
+
+  @override
+  String get personalTitle => '個人資訊';
+
   @override
-  String get personalTitle => "個人資訊";
+  String get playerBasicInfo => '玩家基本資料';
 
   @override
-  String get playerBasicInfo => "玩家基本資料";
+  String get playerBasicInfoSubtitle => '頭像、玩家名稱、玩家 ID 與帳號資訊';
 
   @override
-  String get playerBasicInfoSubtitle => "頭像、玩家名稱、玩家 ID 與帳號資訊";
+  String get creatureCollection => '生物圖鑑';
 
   @override
-  String get creatureCollection => "生物圖鑑";
+  String get creatureCollectionSubtitle => '已發現的生命形態';
 
   @override
-  String get creatureCollectionSubtitle => "已發現的生命形態";
+  String get settings => '設定';
 
   @override
-  String get settings => "設定";
+  String get settingsSubtitle => '音樂、音效、震動與語言';
 
   @override
-  String get settingsSubtitle => "音樂、音效、震動與語言";
+  String get gameGuide => '遊戲說明';
 
   @override
-  String get gameGuide => "遊戲說明";
+  String get gameGuideSubtitle => '遊戲規則與玩法';
 
   @override
-  String get gameGuideSubtitle => "遊戲規則與玩法";
+  String get versionInfo => '版本資訊';
 
   @override
-  String get versionInfo => "版本資訊";
+  String get versionInfoSubtitle => 'APP 與遊戲版本';
 
   @override
-  String get versionInfoSubtitle => "APP 與遊戲版本";
+  String get messagesFeedback => '留言 / 意見回饋';
 
   @override
-  String get messagesFeedback => "留言 / 意見回饋";
+  String get messagesFeedbackSubtitle => '傳送問題、建議或錯誤回報';
 
   @override
-  String get messagesFeedbackSubtitle => "傳送問題、建議或錯誤回報";
+  String get testControls => '測試控制';
 
   @override
-  String get testControls => "測試控制";
+  String get testControlsSubtitle => '會員模式與金幣測試控制';
 
   @override
-  String get testControlsSubtitle => "會員模式與金幣測試控制";
+  String get aboutGame => '關於遊戲';
 
   @override
-  String get aboutGame => "關於遊戲";
+  String get aboutGameSubtitle => '製作者、音樂、素材與第三方服務資訊';
 
   @override
-  String get aboutGameSubtitle => "製作者、音樂、素材與第三方服務資訊";
+  String get logOut => '登出';
 
   @override
-  String get logOut => "登出";
+  String get logoutConfirm => '確定要登出帳號嗎？';
 
   @override
-  String get logoutConfirm => "確定要登出帳號嗎？";
+  String get cancel => '取消';
 
   @override
-  String get cancel => "取消";
+  String get chooseAvatar => '選擇頭像';
 
   @override
-  String get chooseAvatar => "選擇頭像";
+  String get save => '儲存';
 
   @override
-  String get save => "儲存";
+  String get loading => '載入中……';
 
   @override
-  String get loading => "載入中……";
+  String get notAvailable => '無法取得';
 
   @override
-  String get notAvailable => "無法取得";
+  String get goldenMember => 'Golden 會員';
 
   @override
-  String get goldenMember => "Golden 會員";
+  String get premiumMember => 'Premium 會員';
 
   @override
-  String get premiumMember => "Premium 會員";
+  String get generalMember => '一般會員';
 
   @override
-  String get generalMember => "一般會員";
+  String get playerNameEmpty => '玩家名稱不可為空白。';
 
   @override
-  String get playerNameEmpty => "玩家名稱不可為空白。";
+  String get playerNameUpdated => '玩家名稱已更新。';
 
   @override
-  String get playerNameUpdated => "玩家名稱已更新。";
+  String get playerNameUpdateFailed => '無法更新玩家名稱。';
 
   @override
-  String get playerNameUpdateFailed => "無法更新玩家名稱。";
+  String get playerNameUpdateError => '更新玩家名稱失敗。';
 
   @override
-  String get playerNameUpdateError => "更新玩家名稱失敗。";
+  String get undiscovered => '尚未發現';
 
   @override
-  String get undiscovered => "尚未發現";
+  String stageLabel(Object stage) {
+    return '第 $stage 階';
+  }
 
   @override
-  String stageLabel(int stage) => '第 ' + stage.toString() + ' 階';
+  String discoveredCount(Object discovered, Object total) {
+    return '已發現 $discovered / $total';
+  }
 
   @override
-  String discoveredCount(int discovered, int total) => '已發現 ' + discovered.toString() + ' / ' + total.toString() + '';
+  String get gold => '金幣';
 
   @override
-  String get gold => "金幣";
+  String get goldBalance => '金幣餘額';
 
   @override
-  String get goldBalance => "金幣餘額";
+  String get lifetimeSpent => '累計消費';
 
   @override
-  String get lifetimeSpent => "累計消費";
+  String goldAmount(Object amount) {
+    return '$amount 金幣';
+  }
 
   @override
-  String goldAmount(int amount) => '$amount 金幣';
+  String get goldUsage => '金幣可用於購買生命與道具。';
 
   @override
-  String get goldUsage => "金幣可用於購買生命與道具。";
+  String get backgroundMusic => '背景音樂';
 
   @override
-  String get backgroundMusic => "背景音樂";
+  String get musicVolume => '音樂音量';
 
   @override
-  String get musicVolume => "音樂音量";
+  String get soundEffects => '音效';
 
   @override
-  String get soundEffects => "音效";
+  String get soundEffectsVolume => '音效音量';
 
   @override
-  String get soundEffectsVolume => "音效音量";
+  String get vibration => '震動';
 
   @override
-  String get vibration => "震動";
+  String get language => '語言';
 
   @override
-  String get language => "語言";
+  String get english => 'English';
 
   @override
-  String get english => "English";
+  String get traditionalChinese => '繁體中文';
 
   @override
-  String get traditionalChinese => "繁體中文";
+  String get howToPlay => '遊戲玩法';
 
   @override
-  String get howToPlay => "遊戲玩法";
+  String get howToPlayDescription => '使用 4×4 棋盤移動並合併相同的生命形態，使其進化到下一階段。';
 
   @override
-  String get howToPlayDescription => "使用 4×4 棋盤移動並合併相同的生命形態，使其進化到下一階段。";
+  String get sixChapters => '六大章節';
 
   @override
-  String get sixChapters => "六大章節";
+  String get chapterSequence => '海洋 → 陸地 → 天空 → 歷史 → 科技 → 宇宙';
 
   @override
-  String get chapterSequence => "海洋 → 陸地 → 天空 → 歷史 → 科技 → 宇宙";
+  String get resources => '資源';
 
   @override
-  String get resources => "資源";
+  String get resourcesDescription => '生命用於遊戲挑戰。金幣可購買額外生命與道具，道具庫存會跨章節累積。';
 
   @override
-  String get resourcesDescription => "生命用於遊戲挑戰。金幣可購買額外生命與道具，道具庫存會跨章節累積。";
+  String get app => 'APP';
 
   @override
-  String get app => "APP";
+  String get gameVersion => '遊戲版本';
 
   @override
-  String get gameVersion => "遊戲版本";
+  String get currentDevelopmentBuild => '目前開發版本';
 
   @override
-  String get currentDevelopmentBuild => "目前開發版本";
+  String get build => '建置版本';
 
   @override
-  String get build => "建置版本";
+  String get buildDescription => '正式發行版將由平台套件讀取版本資訊。';
 
   @override
-  String get buildDescription => "正式發行版將由平台套件讀取版本資訊。";
+  String get creator => '製作資訊';
 
   @override
-  String get creator => "製作資訊";
+  String get creatorName => '遊戲製作者：Rebirth 2048 開發團隊';
 
   @override
-  String get creatorName => "遊戲製作者：Rebirth 2048 開發團隊";
+  String get musicSources => '音樂與音效來源';
 
   @override
-  String get musicSources => "音樂與音效來源";
+  String get musicSourcesDescription => '音樂與音效資產及其來源，依專案音樂來源紀錄與正式授權清單確認。';
 
   @override
-  String get musicSourcesDescription => "音樂與音效資產及其來源，依專案音樂來源紀錄與正式授權清單確認。";
+  String get artworkServices => '美術與第三方服務';
 
   @override
-  String get artworkServices => "美術與第三方服務";
+  String get artworkServicesDescription =>
+      '美術素材、Firebase、Flutter 及其他第三方套件的授權與來源，以正式發行版本的授權清單為準。';
 
   @override
-  String get artworkServicesDescription => "美術素材、Firebase、Flutter 及其他第三方套件的授權與來源，以正式發行版本的授權清單為準。";
+  String get version => '版本';
 
   @override
-  String get version => "版本";
+  String get developmentBuild => '開發版本';
 
-  String get developmentBuild => "開發版本";
   @override
-  String get playerId => "玩家 ID";
+  String get playerId => '玩家 ID';
 
   @override
-  String get membership => "會員資格";
+  String get membership => '會員資格';
 
-  String get evolutionProgress => "進化進度";
   @override
-  String chapterLabel(int number, String name) => '第 ' + number.toString() + ' 章 · ' + name + '';
+  String get evolutionProgress => '進化進度';
 
+  @override
+  String chapterLabel(Object name, Object number) {
+    return '第 $number 章 · $name';
+  }
+
+  @override
+  String get profileSetupFailed => '建立玩家資料失敗，請再試一次。';
 }
