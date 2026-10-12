@@ -90,16 +90,42 @@ function riskLevel(score) {
   return 'NORMAL';
 }
 
-async function applyCriticalRestrictionIfNeeded(db, uid) {
-  const riskSnapshot = await db.collection('security_risk_scores').doc(uid).get();
-  const totalScore = Number(riskSnapshot.data()?.riskScoreTotal) || 0;
+const IMPORTANT_AUTHORITY_ACTIONS = new Set([
+  'spend_gold',
+  'get_gold_balance',
+  'purchase',
+  'submit_purchase_for_verification',
+  'grant_membership',
+  'get_membership_status',
+]);
 
-  if (totalScore < 100) {
-    return null;
+const IMPORTANT_CONFIRMED_REASONS = new Set([
+  'illegal_gold',
+  'transaction_reuse_detected',
+  'forged_receipt',
+  'purchase_verification_mismatch',
+  'membership_tampering_detected',
+  'membership_entitlement_tampering',
+  'gold_balance_tampering_detected',
+]);
+
+function shouldLockForImportantAnomaly({ action, reason, severity }) {
+  const normalizedSeverity = normalizeAuditSeverity(severity);
+  if (normalizedSeverity !== 'CONFIRMED' && normalizedSeverity !== 'CRITICAL') {
+    return false;
   }
 
+  if (!IMPORTANT_AUTHORITY_ACTIONS.has(action)) return false;
+  return IMPORTANT_CONFIRMED_REASONS.has(
+    typeof reason === 'string' ? reason.toLowerCase() : '',
+  );
+}
+
+async function applyCriticalRestrictionIfNeeded(uid, event) {
+  if (!shouldLockForImportantAnomaly(event)) return null;
+
   const { applyCriticalRestriction } = require('./security_enforcement');
-  return applyCriticalRestriction(uid, 'critical_security_risk');
+  return applyCriticalRestriction(uid, event.reason);
 }
 
 function recordSecurityEvent(db, {
@@ -186,9 +212,21 @@ function recordSecurityEvent(db, {
     riskSchemaVersion: 1,
   }, { merge: true });
 
-  const enforcementWrite = riskWrite.then(() =>
-    applyCriticalRestrictionIfNeeded(db, uid).catch(() => null),
-  );
+  // Risk score is for triage and admin alerts, not an automatic lock trigger.
+  // Only a server-confirmed important Gold/purchase/membership anomaly may
+  // trigger account locking. General mismatches and gameplay validation
+  // failures must not be accumulated into an automatic lock.
+  const enforcementWrite = shouldLockForImportantAnomaly({
+    action,
+    reason,
+    severity: normalizedSeverity,
+  })
+    ? applyCriticalRestrictionIfNeeded(uid, {
+        action,
+        reason,
+        severity: normalizedSeverity,
+      }).catch(() => null)
+    : Promise.resolve(null);
 
   return Promise.all([
     eventWrite,
