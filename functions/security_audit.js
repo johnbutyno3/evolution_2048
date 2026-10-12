@@ -239,6 +239,7 @@ function recordSecurityEvent(db, {
 module.exports = {
   calculateRiskScore,
   normalizeAuditSeverity,
+  shouldLockForImportantAnomaly,
   recordSecurityEvent,
   riskLevel,
 };
