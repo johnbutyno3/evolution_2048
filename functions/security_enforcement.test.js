@@ -5,11 +5,13 @@ const originalLoad = Module._load;
 const riskDocuments = new Map();
 const enforcementDocuments = new Map();
 let lastEnforcementWrite = null;
+let lastDisabledUser = null;
 
 function documentRef(store, uid) {
   return {
     async get() {
       return {
+        exists: store.has(uid),
         data: () => store.get(uid) || {},
       };
     },
@@ -43,8 +45,21 @@ const fakeFirestore = {
 };
 
 Module._load = function patchedLoad(request, parent, isMain) {
-  if (request === 'firebase-admin/firestore') {
-    return fakeFirestore;
+  if (request === 'firebase-admin/firestore') return fakeFirestore;
+  if (request === 'firebase-admin/app') {
+    return {
+      getApps: () => [{}],
+      initializeApp: () => ({}),
+    };
+  }
+  if (request === 'firebase-admin/auth') {
+    return {
+      getAuth: () => ({
+        async updateUser(uid, data) {
+          lastDisabledUser = { uid, data };
+        },
+      }),
+    };
   }
   return originalLoad.call(this, request, parent, isMain);
 };
@@ -57,9 +72,7 @@ const {
 Module._load = originalLoad;
 
 function firestoreTimestamp(milliseconds) {
-  return {
-    toMillis: () => milliseconds,
-  };
+  return { toMillis: () => milliseconds };
 }
 
 async function expectPermissionDenied(callback) {
@@ -72,7 +85,7 @@ async function expectPermissionDenied(callback) {
 (async () => {
   riskDocuments.set('normal', { riskScoreTotal: 0 });
   enforcementDocuments.delete('normal');
-  const normal = await enforceSensitiveOperation('normal', 'use_tool');
+  const normal = await enforceSensitiveOperation('normal', 'purchase_tool');
   assert.deepStrictEqual(normal, {
     allowed: true,
     riskLevel: 'NORMAL',
@@ -80,7 +93,7 @@ async function expectPermissionDenied(callback) {
   });
 
   riskDocuments.set('warning', { riskScoreTotal: 59 });
-  const warning = await enforceSensitiveOperation('warning', 'purchase_tool');
+  const warning = await enforceSensitiveOperation('warning', 'purchase');
   assert.strictEqual(warning.allowed, true);
   assert.strictEqual(warning.riskLevel, 'WARNING');
 
@@ -89,18 +102,24 @@ async function expectPermissionDenied(callback) {
   assert.strictEqual(adminAlert.allowed, true);
   assert.strictEqual(adminAlert.riskLevel, 'ADMIN_ALERT');
 
+  // A cumulative score alone is not an account lock.
   riskDocuments.set('critical-boundary', { riskScoreTotal: 100 });
-  await expectPermissionDenied(() =>
-    enforceSensitiveOperation('critical-boundary', 'complete_chapter'),
+  const criticalScoreOnly = await enforceSensitiveOperation(
+    'critical-boundary',
+    'complete_chapter',
   );
+  assert.strictEqual(criticalScoreOnly.allowed, true);
+  assert.strictEqual(criticalScoreOnly.riskLevel, 'CRITICAL');
 
   riskDocuments.set('stored-critical', {
     riskScoreTotal: 0,
     riskLevel: 'CRITICAL',
   });
-  await expectPermissionDenied(() =>
-    enforceSensitiveOperation('stored-critical', 'start_game_session'),
+  const storedRiskOnly = await enforceSensitiveOperation(
+    'stored-critical',
+    'start_game_session',
   );
+  assert.strictEqual(storedRiskOnly.allowed, true);
 
   riskDocuments.set('restricted', { riskScoreTotal: 0 });
   enforcementDocuments.set('restricted', {
@@ -119,34 +138,31 @@ async function expectPermissionDenied(callback) {
   const expired = await enforceSensitiveOperation('expired', 'purchase');
   assert.strictEqual(expired.allowed, true);
 
-  riskDocuments.set('high-but-not-critical', { riskScoreTotal: 80 });
-  enforcementDocuments.delete('high-but-not-critical');
-  const highButNotCritical = await enforceSensitiveOperation(
-    'high-but-not-critical',
-    'grant_membership',
+  enforcementDocuments.set('locked', { status: 'locked' });
+  riskDocuments.set('locked', { riskScoreTotal: 0 });
+  await expectPermissionDenied(() =>
+    enforceSensitiveOperation('locked', 'spend_gold'),
   );
-  assert.strictEqual(highButNotCritical.allowed, true);
-  assert.strictEqual(highButNotCritical.riskLevel, 'ADMIN_ALERT');
 
   await assert.rejects(
     () => enforceSensitiveOperation('normal', 'invalid_operation'),
     (error) => error.code === 'invalid-argument',
   );
 
-  const before = Date.now();
   lastEnforcementWrite = null;
+  lastDisabledUser = null;
   const restriction = await applyCriticalRestriction(
     'restriction-write',
-    'critical_security_risk',
-    31 * 24 * 60 * 60 * 1000,
+    'transaction_reuse_detected',
   );
-  const after = Date.now();
-  assert.strictEqual(restriction.status, 'restricted');
+  assert.deepStrictEqual(restriction, { status: 'locked' });
+  assert.deepStrictEqual(lastDisabledUser, {
+    uid: 'restriction-write',
+    data: { disabled: true },
+  });
   assert.ok(lastEnforcementWrite);
-  assert.strictEqual(lastEnforcementWrite.status, 'restricted');
-  assert.strictEqual(lastEnforcementWrite.reason, 'critical_security_risk');
-  assert.ok(lastEnforcementWrite.restrictedUntil >= new Date(before + 30 * 24 * 60 * 60 * 1000));
-  assert.ok(lastEnforcementWrite.restrictedUntil <= new Date(after + 30 * 24 * 60 * 60 * 1000));
+  assert.strictEqual(lastEnforcementWrite.status, 'locked');
+  assert.strictEqual(lastEnforcementWrite.reason, 'transaction_reuse_detected');
   assert.strictEqual(lastEnforcementWrite.updatedAt, 'SERVER_TIMESTAMP');
 
   await assert.rejects(
