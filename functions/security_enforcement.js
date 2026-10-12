@@ -51,8 +51,10 @@ function isRestrictionActive(data) {
 
 /**
  * Server-only gate for sensitive operations.
- * The cumulative risk score is authoritative; an optional explicit
- * restriction state can also block the operation until its expiry.
+ * Risk scores are triage signals, not proof and not an automatic lock.
+ * Only an explicit server-side enforcement state (created by an authorized
+ * policy decision) blocks access. General mismatches must be reconciled to
+ * backend authority rather than converted into an account lock.
  */
 async function enforceSensitiveOperation(uid, operation) {
   if (typeof uid !== 'string' || uid.length === 0) {
@@ -77,9 +79,9 @@ async function enforceSensitiveOperation(uid, operation) {
     Math.max(totalScore, storedRiskLevel === 'CRITICAL' ? 100 : 0),
   );
 
-  if (derivedRiskLevel === 'CRITICAL'
-      || effectiveRiskLevel === 'CRITICAL'
-      || isRestrictionActive(enforcement)) {
+  // Never lock/block merely because accumulated risk points crossed a
+  // threshold. The explicit enforcement record is the sole lock authority.
+  if (isRestrictionActive(enforcement)) {
     throw new HttpsError(
       'permission-denied',
       'This operation is temporarily restricted for account security.',
