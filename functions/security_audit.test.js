@@ -2,6 +2,7 @@ const assert = require('assert');
 const {
   calculateRiskScore,
   normalizeAuditSeverity,
+  shouldLockForImportantAnomaly,
   recordSecurityEvent,
   riskLevel,
 } = require('./security_audit');
@@ -25,6 +26,38 @@ assert.strictEqual(riskLevel(0), 'NORMAL');
 assert.strictEqual(riskLevel(30), 'WARNING');
 assert.strictEqual(riskLevel(60), 'ADMIN_ALERT');
 assert.strictEqual(riskLevel(100), 'CRITICAL');
+
+// Only confirmed important-authority anomalies may trigger an account lock.
+assert.strictEqual(shouldLockForImportantAnomaly({
+  action: 'spend_gold',
+  reason: 'illegal_gold',
+  severity: 'high',
+}), true);
+assert.strictEqual(shouldLockForImportantAnomaly({
+  action: 'submit_purchase_for_verification',
+  reason: 'transaction_reuse_detected',
+  severity: 'critical',
+}), true);
+assert.strictEqual(shouldLockForImportantAnomaly({
+  action: 'complete_chapter',
+  reason: 'tool_usage_tampering_detected',
+  severity: 'critical',
+}), false);
+assert.strictEqual(shouldLockForImportantAnomaly({
+  action: 'spend_gold',
+  reason: 'illegal_gold',
+  severity: 'warning',
+}), false);
+assert.strictEqual(shouldLockForImportantAnomaly({
+  action: 'spend_gold',
+  reason: 'invalid_wallet_state',
+  severity: 'high',
+}), false);
+assert.strictEqual(shouldLockForImportantAnomaly({
+  action: 'complete_chapter',
+  reason: 'data_mismatch',
+  severity: 'high',
+}), false);
 
 let written;
 let riskWritten;
