@@ -90,6 +90,16 @@ function riskLevel(score) {
   return 'NORMAL';
 }
 
+const IMPORTANT_AUTHORITY_ACTIONS = new Set([
+  'spend_gold',
+  'get_gold_balance',
+  'purchase',
+  'submit_purchase_for_verification',
+  'grant_membership',
+  'get_membership_status',
+  'purchase_tool',
+]);
+
 const IMPORTANT_CONFIRMED_REASONS = new Set([
   'illegal_gold',
   'transaction_reuse_detected',
@@ -100,12 +110,13 @@ const IMPORTANT_CONFIRMED_REASONS = new Set([
   'gold_balance_tampering_detected',
 ]);
 
-function shouldLockForImportantAnomaly({ reason, severity }) {
+function shouldLockForImportantAnomaly({ action, reason, severity }) {
   const normalizedSeverity = normalizeAuditSeverity(severity);
   if (normalizedSeverity !== 'CONFIRMED' && normalizedSeverity !== 'CRITICAL') {
     return false;
   }
 
+  if (!IMPORTANT_AUTHORITY_ACTIONS.has(action)) return false;
   return IMPORTANT_CONFIRMED_REASONS.has(
     typeof reason === 'string' ? reason.toLowerCase() : '',
   );
@@ -207,10 +218,12 @@ function recordSecurityEvent(db, {
   // trigger account locking. General mismatches and gameplay validation
   // failures must not be accumulated into an automatic lock.
   const enforcementWrite = shouldLockForImportantAnomaly({
+    action,
     reason,
     severity: normalizedSeverity,
   })
     ? applyCriticalRestrictionIfNeeded(uid, {
+        action,
         reason,
         severity: normalizedSeverity,
       }).catch(() => null)
