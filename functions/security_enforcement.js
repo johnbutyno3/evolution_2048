@@ -105,8 +105,8 @@ async function applyCriticalRestriction(uid, reason) {
     throw new Error('A valid uid is required.');
   }
 
-  await getAuth().updateUser(uid, { disabled: true });
-
+  // Persist the server-side lock first so protected callables remain blocked
+  // even if Firebase Auth account disabling temporarily fails.
   await enforcementRef(uid).set({
     status: 'locked',
     reason: typeof reason === 'string' && reason.length > 0
@@ -115,6 +115,8 @@ async function applyCriticalRestriction(uid, reason) {
     lockedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
+
+  await getAuth().updateUser(uid, { disabled: true });
 
   return { status: 'locked' };
 }
