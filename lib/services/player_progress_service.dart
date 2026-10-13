@@ -1,6 +1,7 @@
 ﻿// ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -384,8 +385,12 @@ class PlayerProgressService {
 
     final operationGeneration = ++_sessionOperationGeneration;
     final previousSessionId = _activeGameSessionId;
+    final operationId =
+        'restart_${DateTime.now().microsecondsSinceEpoch}_'
+        '${math.Random.secure().nextInt(1 << 32)}';
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
+        'operationId': operationId,
         'chapterIndex': chapterIndex,
         'replaySessionId': ?replaySessionId,
         'replayLog': ?replayLog,
