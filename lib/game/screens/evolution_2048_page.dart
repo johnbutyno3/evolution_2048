@@ -2,6 +2,7 @@
 
 import '../../services/creature_collection_service.dart';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -459,6 +460,28 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     final oldEngine = _engine;
+    final pendingOperation =
+        await PlayerProgressService.instance.loadPendingRestartRequest();
+    Map<String, dynamic>? recoveryPayload;
+    final pendingId = pendingOperation?['operationId'];
+    final pendingPayloadJson = pendingOperation?['payloadJson'];
+    if (pendingId is String && pendingPayloadJson is String) {
+      try {
+        final decoded = jsonDecode(pendingPayloadJson);
+        if (decoded is Map) {
+          final candidate = Map<String, dynamic>.from(
+            decoded.map((key, value) => MapEntry(key.toString(), value)),
+          );
+          if (candidate['chapterIndex'] == _chapterNumber - 1 &&
+              candidate['initialTiles'] is List &&
+              (candidate['initialTiles'] as List).length == 16) {
+            recoveryPayload = candidate;
+          }
+        }
+      } catch (_) {
+        recoveryPayload = null;
+      }
+    }
     final saveData = oldEngine.createSaveData();
     final replayLog = saveData['replayLog'];
     final replay = replayLog is Map
@@ -473,7 +496,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // This makes the Life display change immediately (5 -> 4, etc.) and
     // starts/continues the 40-minute regeneration countdown without waiting
     // for Firebase.
-    if (!LifeManager.optimisticConsumeLife()) {
+    // A recovered operation may already have charged Life on the server.
+    // Reuse its exact operation/payload without applying a second local charge.
+    if (recoveryPayload == null && !LifeManager.optimisticConsumeLife()) {
       return false;
     }
 
@@ -487,10 +512,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // board.
     ToolManager.clearSessionUsage();
 
+    final recoveredTiles = recoveryPayload?['initialTiles'];
     final newEngine = GameEngine(
       chapter: oldEngine.chapter,
       forceNewBoard: true,
       boardLifeActive: true,
+      initialTiles: recoveredTiles is List
+          ? List<dynamic>.from(recoveredTiles)
+          : null,
     );
 
     setState(() {
@@ -515,9 +544,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
-      replayLog: replay,
-      replaySessionId: replaySessionId,
-      initialTiles: initialTiles,
+      replayLog: recoveryPayload?['replayLog'] is Map
+          ? Map<String, dynamic>.from(recoveryPayload!['replayLog'] as Map)
+          : replay,
+      replaySessionId: recoveryPayload?['replaySessionId'] is String
+          ? recoveryPayload!['replaySessionId'] as String
+          : replaySessionId,
+      initialTiles: recoveredTiles is List
+          ? List<dynamic>.from(recoveredTiles)
+          : initialTiles,
+      recoveryPayload: recoveryPayload,
     );
     _restartFuture = restartFuture;
 
