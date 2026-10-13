@@ -194,6 +194,224 @@ exports.consumeTool = onCall(async (request) => {
   });
 });
 
-// Session/progression/profile/purchase verification/admin endpoints are added
-// in subsequent migration commits. Deliberately not exported as placeholders:
-// deploying an incomplete API would break existing Flutter clients.
+
+exports.ensurePlayerProfile = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const ref = playerRef(uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({
+      playerId: crypto.randomUUID().slice(0, 12).toUpperCase(),
+      playerName: null,
+      avatarIndex: 0,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+  const current = (await ref.get()).data() || {};
+  return {
+    playerId: typeof current.playerId === 'string' ? current.playerId : uid.slice(0, 12),
+    playerName: typeof current.playerName === 'string' ? current.playerName : null,
+    avatarIndex: Number.isInteger(current.avatarIndex) ? current.avatarIndex : 0,
+  };
+});
+
+exports.updatePlayerProfile = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const rawName = request.data && request.data.playerName;
+  if (typeof rawName !== 'string') throw new HttpsError('invalid-argument', 'Player name is required.');
+  const playerName = rawName.trim().replace(/\\s+/g, ' ');
+  if (!playerName || playerName.length > 30 || playerName.toUpperCase() === 'PLAYER') {
+    throw new HttpsError('invalid-argument', 'Player name is invalid.');
+  }
+  const ref = playerRef(uid);
+  await ref.set({ playerName, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const data = (await ref.get()).data() || {};
+  return { playerId: data.playerId || uid.slice(0, 12), playerName, avatarIndex: Number.isInteger(data.avatarIndex) ? data.avatarIndex : 0 };
+});
+
+exports.updatePlayerAvatar = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const avatarIndex = request.data && request.data.avatarIndex;
+  if (!Number.isInteger(avatarIndex) || avatarIndex < 0 || avatarIndex > 53) {
+    throw new HttpsError('invalid-argument', 'Avatar index must be between 0 and 53.');
+  }
+  const ref = playerRef(uid);
+  await ref.set({ avatarIndex, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  const data = (await ref.get()).data() || {};
+  return { playerId: data.playerId || uid.slice(0, 12), playerName: data.playerName || null, avatarIndex };
+});
+
+exports.startGameSession = onCall(async (request) => {
+  const uid = requireAuth(request);
+  let chapterIndex;
+  try { chapterIndex = domain.validateChapterIndex(request.data && request.data.chapterIndex); }
+  catch (error) { callableError(error); }
+  const rid = requestId(request.data);
+  const replaceActiveSession = request.data && request.data.replaceActiveSession === true;
+  const initialTiles = request.data && request.data.initialTiles;
+  if (!Array.isArray(initialTiles) || initialTiles.length !== 16) {
+    throw new HttpsError('invalid-argument', 'A 16-cell initial board is required.');
+  }
+  await ensureWallet(uid);
+  const receipt = playerRef(uid).collection('operation_receipts').doc('start_' + rid);
+  const progressRef = playerRef(uid).collection('progress').doc('game');
+  const sessionId = crypto.randomUUID();
+  const newSessionRef = sessionRef(uid, sessionId);
+  const result = await db.runTransaction(async (tx) => {
+    const [priorReceipt, playerSnap, progressSnap, lifeSnap, memberSnap] = await Promise.all([
+      tx.get(receipt), tx.get(playerRef(uid)), tx.get(progressRef), tx.get(lifeRef(uid)), tx.get(membershipRef(uid)),
+    ]);
+    if (priorReceipt.exists) return priorReceipt.data().result;
+    const player = playerSnap.data() || {};
+    const progress = progressSnap.data() || {};
+    const activeId = progress.activeGameSessionId;
+    if (activeId && !replaceActiveSession) {
+      throw new HttpsError('failed-precondition', 'An unfinished game session already exists.');
+    }
+    const unlocked = Number.isInteger(progress.unlockedChapterIndex) ? progress.unlockedChapterIndex : 0;
+    if (chapterIndex > unlocked) throw new HttpsError('permission-denied', 'Chapter is locked.');
+    const life = lifeSnap.data() || { lives: domain.NORMAL_LIFE_CAP, nextLifeAtMillis: null };
+    const member = memberSnap.data() || {};
+    const membership = domain.normalizeMembership(member.type || member.membership);
+    const expiresAtMillis = member.expiresAt && typeof member.expiresAt.toMillis === 'function'
+      ? member.expiresAt.toMillis() : (Number.isFinite(member.expiresAtMillis) ? member.expiresAtMillis : null);
+    const golden = domain.isGoldenMembership(membership, expiresAtMillis);
+    const regen = golden ? { lives: life.lives ?? domain.NORMAL_LIFE_CAP, nextLifeAtMillis: null }
+      : domain.regenerateLives({
+        lives: Number.isSafeInteger(life.lives) && life.lives >= 0 ? life.lives : domain.NORMAL_LIFE_CAP,
+        nextLifeAtMillis: Number.isSafeInteger(life.nextLifeAtMillis) ? life.nextLifeAtMillis : null,
+      });
+    if (!golden && regen.lives <= 0) throw new HttpsError('failed-precondition', 'No lives available.');
+    const livesAfter = golden ? regen.lives : regen.lives - 1;
+    const nextAt = golden ? null : (livesAfter < domain.NORMAL_LIFE_CAP
+      ? (regen.nextLifeAtMillis || Date.now() + domain.LIFE_REGEN_INTERVAL_MS) : null);
+    const lifeState = domain.createLifeResponse({
+      lives: livesAfter, membership, expiresAtMillis, nextLifeAtMillis: nextAt,
+    });
+    const now = Timestamp.now();
+    if (activeId && replaceActiveSession) {
+      tx.set(sessionRef(uid, activeId), {
+        status: 'replaced', closedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    tx.set(lifeRef(uid), { lives: livesAfter, nextLifeAtMillis: nextAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(newSessionRef, {
+      uid, sessionId, chapterIndex, status: 'active',
+      initialTiles, startedAt: now,
+      expiresAt: Timestamp.fromMillis(now.toMillis() + domain.GAME_SESSION_TTL_MS),
+      toolEvents: [],
+    });
+    tx.set(progressRef, { activeGameSessionId: sessionId, activeGameChapterIndex: chapterIndex, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const response = { sessionId, chapterIndex, life: lifeState };
+    tx.create(receipt, { result: response, createdAt: FieldValue.serverTimestamp() });
+    return response;
+  });
+  return result;
+});
+
+exports.resumeGameSession = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const sessionId = request.data && request.data.sessionId;
+  if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(sessionId)) {
+    throw new HttpsError('invalid-argument', 'Session ID is invalid.');
+  }
+  const snap = await sessionRef(uid, sessionId).get();
+  if (!snap.exists) throw new HttpsError('not-found', 'Game session was not found.');
+  const session = snap.data();
+  if (session.status !== 'active') throw new HttpsError('failed-precondition', 'Game session is not active.');
+  if (session.expiresAt && session.expiresAt.toMillis() <= Date.now()) {
+    throw new HttpsError('failed-precondition', 'Game session has expired.');
+  }
+  return { sessionId, chapterIndex: session.chapterIndex, initialTiles: session.initialTiles, startedAtMillis: session.startedAt.toMillis() };
+});
+
+exports.abandonGameSession = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const sessionId = request.data && request.data.sessionId;
+  const rid = requestId(request.data);
+  if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(sessionId)) {
+    throw new HttpsError('invalid-argument', 'Session ID is invalid.');
+  }
+  const receipt = playerRef(uid).collection('operation_receipts').doc('abandon_' + rid);
+  return db.runTransaction(async (tx) => {
+    const existing = await tx.get(receipt);
+    if (existing.exists) return existing.data().result;
+    const ref = sessionRef(uid, sessionId);
+    const [sessionSnap, progressSnap] = await Promise.all([
+      tx.get(ref), tx.get(playerRef(uid).collection('progress').doc('game')),
+    ]);
+    if (!sessionSnap.exists) throw new HttpsError('not-found', 'Game session was not found.');
+    const session = sessionSnap.data();
+    if (session.status === 'active') {
+      tx.set(ref, { status: 'abandoned', closedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
+    const progress = progressSnap.data() || {};
+    if (progress.activeGameSessionId === sessionId) {
+      tx.set(playerRef(uid).collection('progress').doc('game'), {
+        activeGameSessionId: FieldValue.delete(), activeGameChapterIndex: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    const result = { success: true, sessionId };
+    tx.create(receipt, { result, createdAt: FieldValue.serverTimestamp() });
+    return result;
+  });
+});
+
+exports.completeChapter = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const data = request.data || {};
+  const sessionId = data.sessionId;
+  let chapterIndex;
+  try { chapterIndex = domain.validateChapterIndex(data.chapterIndex); }
+  catch (error) { callableError(error); }
+  const rid = requestId(data);
+  if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(sessionId)) {
+    throw new HttpsError('invalid-argument', 'Session ID is invalid.');
+  }
+  const highestValue = domain.validateCreatureValue(data.highestValue);
+  const score = domain.requireInteger(data.score, 'score');
+  const receipt = playerRef(uid).collection('operation_receipts').doc('complete_' + rid);
+  const progressRef = playerRef(uid).collection('progress').doc('game');
+  return db.runTransaction(async (tx) => {
+    const existing = await tx.get(receipt);
+    if (existing.exists) return existing.data().result;
+    const ref = sessionRef(uid, sessionId);
+    const [sessionSnap, progressSnap] = await Promise.all([tx.get(ref), tx.get(progressRef)]);
+    if (!sessionSnap.exists) throw new HttpsError('not-found', 'Game session was not found.');
+    const session = sessionSnap.data();
+    if (session.status !== 'active' || session.chapterIndex !== chapterIndex) {
+      throw new HttpsError('failed-precondition', 'Session is not eligible for completion.');
+    }
+    if (session.expiresAt && session.expiresAt.toMillis() <= Date.now()) {
+      throw new HttpsError('failed-precondition', 'Game session has expired.');
+    }
+    const requiredTarget = 2 ** domain.CHAPTER_STAGE_COUNTS[chapterIndex];
+    if (highestValue < requiredTarget) {
+      throw new HttpsError('failed-precondition', 'Chapter target has not been reached.');
+    }
+    const progress = progressSnap.data() || {};
+    const chapterNames = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'];
+    const chapterKey = chapterNames[chapterIndex];
+    const chapterProgress = { ...(progress.chapterProgress || {}) };
+    const previous = chapterProgress[chapterKey] || {};
+    chapterProgress[chapterKey] = {
+      highestValue: Math.max(Number.isSafeInteger(previous.highestValue) ? previous.highestValue : 0, highestValue),
+      score: Math.max(Number.isSafeInteger(previous.score) ? previous.score : 0, score),
+    };
+    const unlockedChapterIndex = Math.min(5, Math.max(
+      Number.isInteger(progress.unlockedChapterIndex) ? progress.unlockedChapterIndex : 0,
+      chapterIndex < 5 ? chapterIndex + 1 : 5,
+    ));
+    tx.set(ref, { status: 'completed', completedAt: FieldValue.serverTimestamp(), highestValue, score }, { merge: true });
+    tx.set(progressRef, {
+      chapterProgress, unlockedChapterIndex,
+      activeGameSessionId: FieldValue.delete(), activeGameChapterIndex: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const result = { success: true, unlockedChapterIndex, chapterProgress };
+    tx.create(receipt, { result, createdAt: FieldValue.serverTimestamp() });
+    return result;
+  });
+});
