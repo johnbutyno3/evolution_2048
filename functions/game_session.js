@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const crypto = require('crypto');
+const { createRestartOperationContext } = require('./restart_idempotency');
 const { enforceSensitiveOperation } = require('./security_enforcement');
 const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
@@ -131,32 +132,26 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
   }
 
   const uid = request.auth.uid;
-  const operationId = request.data?.operationId;
-  if (operationId != null &&
-      (typeof operationId !== 'string' ||
-       !/^[A-Za-z0-9_-]{12,128}$/.test(operationId))) {
-    throw new HttpsError('invalid-argument', 'Invalid restart operation ID.');
-  }
-  // A client retry must resolve to the same session and Life charge.
-  // Older clients that do not send operationId remain compatible, but new
-  // clients always provide one.
-  const effectiveOperationId = operationId || crypto.randomUUID();
-  const operationDocId = crypto.createHash('sha256')
-    .update(`${uid}:restartGameSession:${effectiveOperationId}`)
-    .digest('hex');
-  const requestFingerprint = crypto.createHash('sha256')
-    .update(JSON.stringify({
+  // Keep old-client compatibility, but guarantee that all current clients
+  // provide an operation key so request retries cannot consume another Life.
+  const operationId = request.data?.operationId || crypto.randomUUID();
+  let operationContext;
+  try {
+    operationContext = createRestartOperationContext({
+      uid,
+      operationId,
       chapterIndex,
       initialTiles,
       replaySessionId: request.data?.replaySessionId ?? null,
       replayLog: request.data?.replayLog ?? null,
-    }))
-    .digest('hex');
+    });
+  } catch (error) {
+    throw new HttpsError('invalid-argument', error.message);
+  }
+  const { operationDocId, requestFingerprint, sessionId: newSessionId } =
+    operationContext;
   const operationRef = db.collection('users').doc(uid)
     .collection('game_session_operations').doc(operationDocId);
-  const newSessionId = crypto.createHash('sha256')
-    .update(`${uid}:restart-session:${effectiveOperationId}`)
-    .digest('hex').slice(0, 32);
   const startedAt = new Date();
   const expiresAt = new Date(startedAt.getTime() + GAME_SESSION_TTL_MS);
   const newSessionRef = gameSessionRef(uid, newSessionId);
