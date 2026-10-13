@@ -17,6 +17,7 @@ class GameEngine {
     GameChapter chapter = GameChapter.ocean,
     bool forceNewBoard = false,
     bool boardLifeActive = false,
+    List<dynamic>? initialTiles,
   }) : _random = random ?? Random(),
        _chapter = chapter {
     _autoSaveEnabled = false;
@@ -24,6 +25,23 @@ class GameEngine {
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
     reset();
     _boardLifeActive = boardLifeActive;
+
+    // Rebuild a pending RESET's exact initial board after process recovery.
+    if (initialTiles != null && initialTiles.length == boardSize * boardSize) {
+      restoreFromSaveData(<String, dynamic>{
+        'chapter': _chapter.name,
+        'tiles': initialTiles,
+        'score': 0,
+        'bestScore': bestScore,
+        'boardLifeActive': boardLifeActive,
+        'replayLog': <String, dynamic>{
+          'chapter': _chapter.name,
+          'initialTiles': initialTiles,
+          'events': <dynamic>[],
+        },
+      });
+      _boardLifeActive = boardLifeActive;
+    }
 
     final saved = SaveManager.loadCached(chapter: _chapter.name);
     final savedBoardEnded =

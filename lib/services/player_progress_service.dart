@@ -1,6 +1,8 @@
 ﻿// ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -364,11 +366,65 @@ class PlayerProgressService {
     return false;
   }
 
+  Future<bool>? _pendingRestartSession;
+  String? _uncertainRestartOperationId;
+  String? _uncertainRestartPayloadJson;
+
+  /// Coalesces rapid repeated RESET calls into one in-flight server operation.
+  /// A second tap while the first restart is pending observes the same result,
+  /// so it cannot issue a second Life-consuming callable request.
+  /// Finalizes a committed RESET only after its replacement board is saved.
+  /// Keeping the operation record until then closes the crash window between
+  /// server commit and local board persistence.
+  Future<void> finalizePendingRestartOperation() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final operationId = _uncertainRestartOperationId;
+    await SaveManager.clearPendingRestartOperation(user.uid);
+    if (operationId == null ||
+        _uncertainRestartOperationId == operationId) {
+      _uncertainRestartOperationId = null;
+      _uncertainRestartPayloadJson = null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> loadPendingRestartRequest() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    return SaveManager.loadPendingRestartOperation(user.uid);
+  }
+
   Future<bool> restartGameSession(
     int chapterIndex, {
     Map<String, dynamic>? replayLog,
     String? replaySessionId,
     required List<dynamic> initialTiles,
+    Map<String, dynamic>? recoveryPayload,
+  }) {
+    final pending = _pendingRestartSession;
+    if (pending != null) return pending;
+
+    final operation = _restartGameSessionOnce(
+      chapterIndex,
+      replayLog: replayLog,
+      replaySessionId: replaySessionId,
+      initialTiles: initialTiles,
+      recoveryPayload: recoveryPayload,
+    );
+    _pendingRestartSession = operation;
+    return operation.whenComplete(() {
+      if (identical(_pendingRestartSession, operation)) {
+        _pendingRestartSession = null;
+      }
+    });
+  }
+
+  Future<bool> _restartGameSessionOnce(
+    int chapterIndex, {
+    Map<String, dynamic>? replayLog,
+    String? replaySessionId,
+    required List<dynamic> initialTiles,
+    Map<String, dynamic>? recoveryPayload,
   }) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
@@ -382,14 +438,57 @@ class PlayerProgressService {
       await pendingStart;
     }
 
+    final requestPayload = recoveryPayload == null
+        ? <String, dynamic>{
+            'chapterIndex': chapterIndex,
+            'replaySessionId': ?replaySessionId,
+            'replayLog': ?replayLog,
+            'initialTiles': initialTiles,
+          }
+        : Map<String, dynamic>.from(recoveryPayload);
+    final payloadJson = jsonEncode(requestPayload);
+    var uncertainOperationId = _uncertainRestartOperationId;
+    var uncertainPayloadJson = _uncertainRestartPayloadJson;
+    if (uncertainOperationId == null) {
+      final savedOperation =
+          await SaveManager.loadPendingRestartOperation(user.uid);
+      final savedId = savedOperation?['operationId'];
+      final savedPayload = savedOperation?['payloadJson'];
+      if (savedId is String && savedPayload is String) {
+        uncertainOperationId = savedId;
+        uncertainPayloadJson = savedPayload;
+        _uncertainRestartOperationId = savedId;
+        _uncertainRestartPayloadJson = savedPayload;
+      } else if (savedOperation != null) {
+        await SaveManager.clearPendingRestartOperation(user.uid);
+      }
+    }
+    if (uncertainOperationId != null &&
+        uncertainPayloadJson != payloadJson) {
+      // The previous request may have committed even though its response was
+      // lost. Never issue a different Life-consuming reset until that exact
+      // operation has been reconciled.
+      return false;
+    }
+
     final operationGeneration = ++_sessionOperationGeneration;
     final previousSessionId = _activeGameSessionId;
+    final operationId = uncertainOperationId ??
+        'restart_${DateTime.now().microsecondsSinceEpoch}_'
+        '${math.Random.secure().nextInt(1 << 32)}';
+    // Preserve the exact key and payload after an ambiguous failure so retry
+    // cannot create a second Life-consuming operation.
+    _uncertainRestartOperationId = operationId;
+    _uncertainRestartPayloadJson = payloadJson;
     try {
+      await SaveManager.setPendingRestartOperation(
+        user.uid,
+        operationId: operationId,
+        payloadJson: payloadJson,
+      );
       final result = await _functions.httpsCallable('restartGameSession').call({
-        'chapterIndex': chapterIndex,
-        'replaySessionId': ?replaySessionId,
-        'replayLog': ?replayLog,
-        'initialTiles': initialTiles,
+        'operationId': operationId,
+        ...requestPayload,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
@@ -416,6 +515,8 @@ class PlayerProgressService {
         }
 
         await ToolManager.refreshInventory();
+        // Keep the pending operation until the caller has durably saved the
+        // replacement board. A process death in that gap must still be recoverable.
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
@@ -435,6 +536,43 @@ class PlayerProgressService {
         if (restartCommitted) {
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
+          // Keep the pending operation until the caller has durably saved the
+          // replacement board. A process death in that gap must still be recoverable.
+          return true;
+        }
+
+        // "No lives available" is a definitive server rejection, not an
+        // ambiguous transport failure. If the authoritative active session
+        // is unchanged, this operation did not commit and its persisted key
+        // must not block a later RESET with a different board.
+        if (error.code == 'failed-precondition' &&
+            error.message == 'No lives available.' &&
+            refreshedSessionId == previousSessionId) {
+          await SaveManager.clearPendingRestartOperation(user.uid);
+          if (_uncertainRestartOperationId == operationId) {
+            _uncertainRestartOperationId = null;
+            _uncertainRestartPayloadJson = null;
+          }
+        }
+      }
+    } catch (error) {
+      // Transport/runtime failures can happen after commit too. Reconcile if
+      // possible; otherwise keep the key for an idempotent retry.
+      print('restartGameSession verification failed: $error');
+      if (operationGeneration == _sessionOperationGeneration) {
+        await refresh();
+        if (operationGeneration != _sessionOperationGeneration) return false;
+        final refreshedSessionId = _activeGameSessionId;
+        final restartCommitted =
+            refreshedSessionId != null &&
+            refreshedSessionId != previousSessionId &&
+            _activeGameChapterIndex == chapterIndex;
+        await LifeManager.refreshFromServer();
+        if (restartCommitted) {
+          await SaveManager.setGameSessionId(refreshedSessionId);
+          await ToolManager.refreshInventory();
+          // Keep the pending operation until the caller has durably saved the
+          // replacement board. A process death in that gap must still be recoverable.
           return true;
         }
       }

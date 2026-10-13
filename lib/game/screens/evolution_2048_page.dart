@@ -2,6 +2,7 @@
 
 import '../../services/creature_collection_service.dart';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -49,7 +50,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
-  Future<bool>? _restartFuture;
+  Future<void>? _restartFuture;
+  Completer<void>? _restartCompletion;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -102,7 +104,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     )..addStatusListener(_handleCompletionAnimationStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_initializeGameplaySession());
+      unawaited(_initializeOrRecoverPendingReset());
       AudioManager.instance.initialize().then((_) {
         if (mounted) AudioManager.instance.playChapterMusic(_engine.chapter);
       });
@@ -138,6 +140,46 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!_engine.gameOver && !_engine.chapterComplete) _engine.startGameTimer();
     _startUiRefreshTimer();
     if (mounted) setState(() {});
+  }
+
+  /// Reconcile a RESET that may have committed just before the app process
+  /// was terminated. The persisted operation ID and exact payload are the only
+  /// safe retry identity; do not create a fresh session while that outcome is
+  /// still uncertain.
+  Future<void> _initializeOrRecoverPendingReset() async {
+    if (!mounted) return;
+    final pending = await PlayerProgressService.instance
+        .loadPendingRestartRequest()
+        .catchError((_) => null);
+    if (!mounted) return;
+
+    final operationId = pending?['operationId'];
+    final payloadJson = pending?['payloadJson'];
+    if (operationId is String && payloadJson is String) {
+      try {
+        final decoded = jsonDecode(payloadJson);
+        if (decoded is Map) {
+          final payload = Map<String, dynamic>.from(
+            decoded.map((key, value) => MapEntry(key.toString(), value)),
+          );
+          final tiles = payload['initialTiles'];
+          if (payload['chapterIndex'] == _chapterNumber - 1 &&
+              tiles is List &&
+              tiles.length == 16) {
+            // _reset() reloads this same pending record and reuses its exact
+            // operation ID/payload. It intentionally skips optimistic Life
+            // consumption because the original request may already have
+            // committed on the server.
+            await _reset();
+            return;
+          }
+        }
+      } catch (error) {
+        debugPrint('Unable to inspect pending RESET recovery: $error');
+      }
+    }
+
+    await _initializeGameplaySession();
   }
 
   Future<void> _initializeGameplaySession() async {
@@ -458,7 +500,43 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return false;
     }
 
+    // Claim the RESET single-flight guard before the first await; otherwise
+    // two rapid taps can both pass the initial guard while loading recovery data.
+    _restartInProgress = true;
+    // Publish a completion signal before the first await. BACK can now wait
+    // even while pending-operation recovery is still reading local storage.
+    final restartCompletion = Completer<void>();
+    _restartCompletion = restartCompletion;
+    _restartFuture = restartCompletion.future;
     final oldEngine = _engine;
+    final pendingOperation = await PlayerProgressService.instance
+        .loadPendingRestartRequest()
+        .catchError((_) => null);
+    if (!mounted) {
+      _restartInProgress = false;
+      if (!restartCompletion.isCompleted) restartCompletion.complete();
+      return false;
+    }
+    Map<String, dynamic>? recoveryPayload;
+    final pendingId = pendingOperation?['operationId'];
+    final pendingPayloadJson = pendingOperation?['payloadJson'];
+    if (pendingId is String && pendingPayloadJson is String) {
+      try {
+        final decoded = jsonDecode(pendingPayloadJson);
+        if (decoded is Map) {
+          final candidate = Map<String, dynamic>.from(
+            decoded.map((key, value) => MapEntry(key.toString(), value)),
+          );
+          if (candidate['chapterIndex'] == _chapterNumber - 1 &&
+              candidate['initialTiles'] is List &&
+              (candidate['initialTiles'] as List).length == 16) {
+            recoveryPayload = candidate;
+          }
+        }
+      } catch (_) {
+        recoveryPayload = null;
+      }
+    }
     final saveData = oldEngine.createSaveData();
     final replayLog = saveData['replayLog'];
     final replay = replayLog is Map
@@ -473,11 +551,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // This makes the Life display change immediately (5 -> 4, etc.) and
     // starts/continues the 40-minute regeneration countdown without waiting
     // for Firebase.
-    if (!LifeManager.optimisticConsumeLife()) {
+    // A recovered operation may already have charged Life on the server.
+    // Reuse its exact operation/payload without applying a second local charge.
+    if (recoveryPayload == null && !LifeManager.optimisticConsumeLife()) {
+      _restartInProgress = false;
+      if (!restartCompletion.isCompleted) restartCompletion.complete();
       return false;
     }
-
-    _restartInProgress = true;
     _gameSessionGeneration++;
     final generation = _gameSessionGeneration;
     oldEngine.stopGameTimer();
@@ -487,10 +567,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // board.
     ToolManager.clearSessionUsage();
 
+    final recoveredTiles = recoveryPayload?['initialTiles'];
     final newEngine = GameEngine(
       chapter: oldEngine.chapter,
       forceNewBoard: true,
       boardLifeActive: true,
+      initialTiles: recoveredTiles is List
+          ? List<dynamic>.from(recoveredTiles)
+          : null,
     );
 
     setState(() {
@@ -515,14 +599,20 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
-      replayLog: replay,
-      replaySessionId: replaySessionId,
-      initialTiles: initialTiles,
+      replayLog: recoveryPayload?['replayLog'] is Map
+          ? Map<String, dynamic>.from(recoveryPayload!['replayLog'] as Map)
+          : replay,
+      replaySessionId: recoveryPayload?['replaySessionId'] is String
+          ? recoveryPayload!['replaySessionId'] as String
+          : replaySessionId,
+      initialTiles: recoveredTiles is List
+          ? List<dynamic>.from(recoveredTiles)
+          : initialTiles,
+      recoveryPayload: recoveryPayload,
     );
     _restartFuture = restartFuture;
 
-    unawaited(
-      restartFuture.then((restarted) async {
+    final processingFuture = restartFuture.then<void>((restarted) async {
         if (!mounted || generation != _gameSessionGeneration) return;
 
         if (restarted) {
@@ -533,6 +623,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // restartGameSession has now bound SaveManager to the replacement
           // session. Persist the visible new board again with that binding.
           await SaveManager.save(newEngine.createSaveData());
+          // Only clear the idempotency record after the replacement board is
+          // durable locally. If the process dies before this point, startup
+          // can retry the exact same server operation safely.
+          await PlayerProgressService.instance.finalizePendingRestartOperation();
           if (!mounted || generation != _gameSessionGeneration) return;
           _engine.toolManager.refreshFromSavedProgress();
           unawaited(_refreshMountedToolInventory(generation));
@@ -573,8 +667,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _focusNode.requestFocus();
         _restartInProgress = false;
         if (mounted) setState(() {});
-      }),
-    );
+      });
+    _restartFuture = processingFuture.whenComplete(() {
+      if (!restartCompletion.isCompleted) restartCompletion.complete();
+      if (identical(_restartCompletion, restartCompletion)) {
+        _restartCompletion = null;
+      }
+    });
 
     return true;
   }
@@ -582,8 +681,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (_handlingSystemBack || !mounted) return;
     _handlingSystemBack = true;
 
-    final pendingRestart = _restartFuture;
-    if (_restartInProgress && pendingRestart != null) {
+    final pendingRestart = _restartInProgress
+        ? (_restartCompletion?.future ?? _restartFuture)
+        : null;
+    if (pendingRestart != null) {
       await pendingRestart;
       if (!mounted) return;
     }
