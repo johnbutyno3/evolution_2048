@@ -112,6 +112,44 @@ exports.consumeLife = onCall(async (request) => {
   });
 });
 
+exports.refundLife = onCall(async (request) => {
+  const uid = requireAuth(request);
+  await ensureWallet(uid);
+  const receipt = playerRef(uid).collection('operation_receipts').doc('refund_chapter_completion');
+  return db.runTransaction(async (tx) => {
+    const [receiptSnap, lifeSnap, memberSnap] = await Promise.all([
+      tx.get(receipt), tx.get(lifeRef(uid)), tx.get(membershipRef(uid)),
+    ]);
+    const memberData = memberSnap.data() || {};
+    const membership = domain.normalizeMembership(memberData.type || memberData.membership);
+    const expiresAtMillis = memberData.expiresAt && typeof memberData.expiresAt.toMillis === 'function'
+      ? memberData.expiresAt.toMillis()
+      : (Number.isFinite(memberData.expiresAtMillis) ? memberData.expiresAtMillis : null);
+    const lifeData = lifeSnap.data() || { lives: domain.NORMAL_LIFE_CAP, nextLifeAtMillis: null };
+    if (domain.isGoldenMembership(membership, expiresAtMillis)) {
+      return domain.createLifeResponse({ lives: lifeData.lives, membership, expiresAtMillis });
+    }
+    // The client invokes this on chapter completion. Apply at most one refund
+    // per account to prevent repeated calls from minting lives. The receipt is
+    // intentionally account-scoped, matching the current client contract.
+    if (!receiptSnap.exists) {
+      const lives = Number.isSafeInteger(lifeData.lives) && lifeData.lives >= 0
+        ? lifeData.lives : domain.NORMAL_LIFE_CAP;
+      const nextLives = Math.min(domain.NORMAL_LIFE_CAP, lives + 1);
+      const nextAt = nextLives >= domain.NORMAL_LIFE_CAP
+        ? null : (Number.isSafeInteger(lifeData.nextLifeAtMillis) ? lifeData.nextLifeAtMillis : Date.now() + domain.LIFE_REGEN_INTERVAL_MS);
+      tx.set(lifeRef(uid), { lives: nextLives, nextLifeAtMillis: nextAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      tx.create(receipt, { createdAt: FieldValue.serverTimestamp() });
+      return domain.createLifeResponse({ lives: nextLives, membership, expiresAtMillis, nextLifeAtMillis: nextAt });
+    }
+    return domain.createLifeResponse({
+      lives: Number.isSafeInteger(lifeData.lives) ? lifeData.lives : domain.NORMAL_LIFE_CAP,
+      membership, expiresAtMillis,
+      nextLifeAtMillis: Number.isSafeInteger(lifeData.nextLifeAtMillis) ? lifeData.nextLifeAtMillis : null,
+    });
+  });
+});
+
 exports.getGoldBalance = onCall(async (request) => {
   const uid = requireAuth(request);
   await ensureWallet(uid);
@@ -119,6 +157,27 @@ exports.getGoldBalance = onCall(async (request) => {
   const data = snap.data() || {};
   return { balance: Number.isSafeInteger(data.balance) && data.balance >= 0 ? data.balance : 0,
     lifetimeSpent: Number.isSafeInteger(data.lifetimeSpent) && data.lifetimeSpent >= 0 ? data.lifetimeSpent : 0 };
+});
+
+exports.spendGold = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const amount = domain.requireInteger(request.data && request.data.amount, 'amount', { min: 1, max: 100000000 });
+  await ensureWallet(uid);
+  const rid = requestId(request.data);
+  const receipt = playerRef(uid).collection('operation_receipts').doc('spend_gold_' + rid);
+  return db.runTransaction(async (tx) => {
+    const existing = await tx.get(receipt);
+    if (existing.exists) return existing.data().result;
+    const walletSnap = await tx.get(goldRef(uid));
+    const wallet = walletSnap.data() || { balance: 0, lifetimeSpent: 0 };
+    const balance = Number.isSafeInteger(wallet.balance) && wallet.balance >= 0 ? wallet.balance : 0;
+    const lifetimeSpent = Number.isSafeInteger(wallet.lifetimeSpent) && wallet.lifetimeSpent >= 0 ? wallet.lifetimeSpent : 0;
+    if (balance < amount) throw new HttpsError('failed-precondition', 'Insufficient Gold.');
+    const result = { balance: balance - amount, lifetimeSpent: lifetimeSpent + amount };
+    tx.set(goldRef(uid), { ...result, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.create(receipt, { result, createdAt: FieldValue.serverTimestamp() });
+    return result;
+  });
 });
 
 exports.getToolInventory = onCall(async (request) => {
