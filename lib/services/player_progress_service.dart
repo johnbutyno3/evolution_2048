@@ -373,6 +373,21 @@ class PlayerProgressService {
   /// Coalesces rapid repeated RESET calls into one in-flight server operation.
   /// A second tap while the first restart is pending observes the same result,
   /// so it cannot issue a second Life-consuming callable request.
+  /// Finalizes a committed RESET only after its replacement board is saved.
+  /// Keeping the operation record until then closes the crash window between
+  /// server commit and local board persistence.
+  Future<void> finalizePendingRestartOperation() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final operationId = _uncertainRestartOperationId;
+    await SaveManager.clearPendingRestartOperation(user.uid);
+    if (operationId == null ||
+        _uncertainRestartOperationId == operationId) {
+      _uncertainRestartOperationId = null;
+      _uncertainRestartPayloadJson = null;
+    }
+  }
+
   Future<Map<String, dynamic>?> loadPendingRestartRequest() async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -500,9 +515,8 @@ class PlayerProgressService {
         }
 
         await ToolManager.refreshInventory();
-        _uncertainRestartOperationId = null;
-        _uncertainRestartPayloadJson = null;
-        await SaveManager.clearPendingRestartOperation(user.uid);
+        // Keep the pending operation until the caller has durably saved the
+        // replacement board. A process death in that gap must still be recoverable.
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
@@ -522,9 +536,8 @@ class PlayerProgressService {
         if (restartCommitted) {
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
-          _uncertainRestartOperationId = null;
-          _uncertainRestartPayloadJson = null;
-          await SaveManager.clearPendingRestartOperation(user.uid);
+          // Keep the pending operation until the caller has durably saved the
+          // replacement board. A process death in that gap must still be recoverable.
           return true;
         }
       }
@@ -544,9 +557,8 @@ class PlayerProgressService {
         if (restartCommitted) {
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
-          _uncertainRestartOperationId = null;
-          _uncertainRestartPayloadJson = null;
-          await SaveManager.clearPendingRestartOperation(user.uid);
+          // Keep the pending operation until the caller has durably saved the
+          // replacement board. A process death in that gap must still be recoverable.
           return true;
         }
       }
