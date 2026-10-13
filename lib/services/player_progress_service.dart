@@ -365,7 +365,35 @@ class PlayerProgressService {
     return false;
   }
 
+  Future<bool>? _pendingRestartSession;
+
+  /// Coalesces rapid repeated RESET calls into one in-flight server operation.
+  /// A second tap while the first restart is pending observes the same result,
+  /// so it cannot issue a second Life-consuming callable request.
   Future<bool> restartGameSession(
+    int chapterIndex, {
+    Map<String, dynamic>? replayLog,
+    String? replaySessionId,
+    required List<dynamic> initialTiles,
+  }) {
+    final pending = _pendingRestartSession;
+    if (pending != null) return pending;
+
+    final operation = _restartGameSessionOnce(
+      chapterIndex,
+      replayLog: replayLog,
+      replaySessionId: replaySessionId,
+      initialTiles: initialTiles,
+    );
+    _pendingRestartSession = operation;
+    return operation.whenComplete(() {
+      if (identical(_pendingRestartSession, operation)) {
+        _pendingRestartSession = null;
+      }
+    });
+  }
+
+  Future<bool> _restartGameSessionOnce(
     int chapterIndex, {
     Map<String, dynamic>? replayLog,
     String? replaySessionId,
