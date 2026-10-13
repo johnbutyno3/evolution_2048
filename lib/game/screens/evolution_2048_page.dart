@@ -459,9 +459,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return false;
     }
 
+    // Claim the RESET single-flight guard before the first await; otherwise
+    // two rapid taps can both pass the initial guard while loading recovery data.
+    _restartInProgress = true;
     final oldEngine = _engine;
-    final pendingOperation =
-        await PlayerProgressService.instance.loadPendingRestartRequest();
+    final pendingOperation = await PlayerProgressService.instance
+        .loadPendingRestartRequest()
+        .catchError((_) => null);
+    if (!mounted) {
+      _restartInProgress = false;
+      return false;
+    }
     Map<String, dynamic>? recoveryPayload;
     final pendingId = pendingOperation?['operationId'];
     final pendingPayloadJson = pendingOperation?['payloadJson'];
@@ -499,10 +507,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // A recovered operation may already have charged Life on the server.
     // Reuse its exact operation/payload without applying a second local charge.
     if (recoveryPayload == null && !LifeManager.optimisticConsumeLife()) {
+      _restartInProgress = false;
       return false;
     }
-
-    _restartInProgress = true;
     _gameSessionGeneration++;
     final generation = _gameSessionGeneration;
     oldEngine.stopGameTimer();
