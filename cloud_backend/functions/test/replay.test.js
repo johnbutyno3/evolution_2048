@@ -36,6 +36,15 @@ test('replay rejects events after target completion', () => {
   assert.throws(() => validateReplay({ replayLog, chapterIndex: 0 }), { code: 'invalid-argument' });
 });
 
+
+test('replay rejects a successful move without spawn data', () => {
+  const replayLog = {
+    version: 1, initialTiles: initial,
+    events: [{ type: 'move', direction: 'left' }],
+  };
+  assert.throws(() => validateReplay({ replayLog, chapterIndex: 0, requireCompletion: false }), /must include spawn data/);
+});
+
 test('a non-completing replay returns server-calculated score and highest value', () => {
   const replayLog = {
     version: 1, initialTiles: initial,
