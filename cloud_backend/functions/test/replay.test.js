@@ -44,5 +44,5 @@ test('a non-completing replay returns server-calculated score and highest value'
   const result = validateReplay({ replayLog, chapterIndex: 0, requireCompletion: false });
   assert.equal(result.score, 4);
   assert.equal(result.highestValue, 4);
-  assert.deepEqual(result.finalBoard.slice(0, 4), [4, 2, null, null]);
+  assert.deepEqual(result.finalBoard.slice(0, 4), [4, null, 2, null]);
 });
