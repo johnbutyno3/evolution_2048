@@ -425,6 +425,107 @@ exports.startGameSession = onCall(async (request) => {
   return result;
 });
 
+exports.restartGameSession = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const data = request.data || {};
+  let chapterIndex;
+  try { chapterIndex = domain.validateChapterIndex(data.chapterIndex); }
+  catch (error) { callableError(error); }
+  const initialTiles = data.initialTiles;
+  if (!Array.isArray(initialTiles) || initialTiles.length !== 16 ||
+      initialTiles.some((value) => value !== null && value !== 2 && value !== 4) ||
+      initialTiles.filter((value) => value !== null).length !== 2) {
+    throw new HttpsError('invalid-argument', 'Initial board must contain exactly two 2/4 tiles and fourteen empty cells.');
+  }
+  const oldSessionId = data.replaySessionId;
+  if (oldSessionId != null && (typeof oldSessionId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(oldSessionId))) {
+    throw new HttpsError('invalid-argument', 'Previous session ID is invalid.');
+  }
+  const rid = requestId(data);
+  await ensureWallet(uid);
+  const receipt = playerRef(uid).collection('operation_receipts').doc('restart_' + rid);
+  const progressRef = playerRef(uid).collection('progress').doc('game');
+  const newSessionId = crypto.randomUUID();
+  const newSessionRef = sessionRef(uid, newSessionId);
+  return db.runTransaction(async (tx) => {
+    const [receiptSnap, progressSnap, lifeSnap, memberSnap, toolsSnap] = await Promise.all([
+      tx.get(receipt), tx.get(progressRef), tx.get(lifeRef(uid)),
+      tx.get(membershipRef(uid)), tx.get(toolsRef(uid)),
+    ]);
+    if (receiptSnap.exists) return receiptSnap.data().result;
+    const progress = progressSnap.data() || {};
+    const activeId = progress.activeGameSessionId;
+    if (oldSessionId && activeId !== oldSessionId) {
+      throw new HttpsError('failed-precondition', 'Previous session is no longer active.');
+    }
+    if (activeId && !oldSessionId) {
+      throw new HttpsError('failed-precondition', 'Active session ID is required to restart.');
+    }
+    const unlocked = Number.isInteger(progress.unlockedChapterIndex) ? progress.unlockedChapterIndex : 0;
+    if (chapterIndex > unlocked) throw new HttpsError('permission-denied', 'Chapter is locked.');
+    const memberData = memberSnap.data() || {};
+    const membership = domain.normalizeMembership(memberData.type || memberData.membership);
+    const expiresAtMillis = memberData.expiresAt && typeof memberData.expiresAt.toMillis === 'function'
+      ? memberData.expiresAt.toMillis()
+      : (Number.isFinite(memberData.expiresAtMillis) ? memberData.expiresAtMillis : null);
+    const golden = domain.isGoldenMembership(membership, expiresAtMillis);
+    const lifeData = lifeSnap.data() || { lives: domain.NORMAL_LIFE_CAP, nextLifeAtMillis: null };
+    const regenerated = golden ? { lives: Number.isSafeInteger(lifeData.lives) ? lifeData.lives : domain.NORMAL_LIFE_CAP, nextLifeAtMillis: null }
+      : domain.regenerateLives({
+        lives: Number.isSafeInteger(lifeData.lives) && lifeData.lives >= 0 ? lifeData.lives : domain.NORMAL_LIFE_CAP,
+        nextLifeAtMillis: Number.isSafeInteger(lifeData.nextLifeAtMillis) ? lifeData.nextLifeAtMillis : null,
+      });
+    if (!golden && regenerated.lives <= 0) throw new HttpsError('failed-precondition', 'No lives available.');
+    const livesAfter = golden ? regenerated.lives : regenerated.lives - 1;
+    const nextAt = golden ? null : (livesAfter < domain.NORMAL_LIFE_CAP
+      ? (regenerated.nextLifeAtMillis || Date.now() + domain.LIFE_REGEN_INTERVAL_MS) : null);
+    const inventoryData = toolsSnap.data() || { inventory: {} };
+    const inventory = { ...(inventoryData.inventory || {}) };
+    let replay = null;
+    if (data.replayLog && oldSessionId) {
+      const oldRef = sessionRef(uid, oldSessionId);
+      const oldSnap = await tx.get(oldRef);
+      if (!oldSnap.exists || oldSnap.data().status !== 'active') {
+        throw new HttpsError('failed-precondition', 'Previous session is not active.');
+      }
+      try {
+        replay = validateReplay({
+          replayLog: data.replayLog, chapterIndex: oldSnap.data().chapterIndex,
+          expectedInitialTiles: oldSnap.data().initialTiles, requireCompletion: false,
+        });
+      } catch (error) {
+        throw new HttpsError('failed-precondition', 'Previous replay validation failed.', { reason: error.message });
+      }
+      for (const [toolType, count] of Object.entries(replay.toolUsage)) {
+        if (count <= 0 || (golden && toolType === 'timeRewind')) continue;
+        const available = Number.isSafeInteger(inventory[toolType]) && inventory[toolType] >= 0 ? inventory[toolType] : 0;
+        if (available < count) throw new HttpsError('failed-precondition', 'Insufficient tool inventory for previous replay.', { toolType, available, used: count });
+        inventory[toolType] = available - count;
+      }
+      tx.set(oldRef, { status: 'restarted', closedAt: FieldValue.serverTimestamp(), replayEventCount: replay.eventCount, toolUsage: replay.toolUsage }, { merge: true });
+    } else if (activeId) {
+      tx.set(sessionRef(uid, activeId), { status: 'restarted', closedAt: FieldValue.serverTimestamp() }, { merge: true });
+    }
+    const now = Timestamp.now();
+    tx.set(lifeRef(uid), { lives: livesAfter, nextLifeAtMillis: nextAt, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(toolsRef(uid), { inventory, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(newSessionRef, {
+      uid, sessionId: newSessionId, chapterIndex, status: 'active',
+      initialTiles, startedAt: now,
+      expiresAt: Timestamp.fromMillis(now.toMillis() + domain.GAME_SESSION_TTL_MS),
+      toolEvents: [],
+    });
+    tx.set(progressRef, {
+      activeGameSessionId: newSessionId, activeGameChapterIndex: chapterIndex,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const life = domain.createLifeResponse({ lives: livesAfter, membership, expiresAtMillis, nextLifeAtMillis: nextAt });
+    const result = { sessionId: newSessionId, chapterIndex, ...life };
+    tx.create(receipt, { result, createdAt: FieldValue.serverTimestamp() });
+    return result;
+  });
+});
+
 exports.resumeGameSession = onCall(async (request) => {
   const uid = requireAuth(request);
   const sessionId = request.data && request.data.sessionId;
