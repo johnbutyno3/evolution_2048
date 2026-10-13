@@ -41,7 +41,7 @@ async function main() {
   const sessionsRef = userRef.collection('game_sessions');
 
   try {
-    await userRef.delete().catch(() => {});
+    await db.recursiveDelete(userRef);
     await progressRef.set({ unlockedChapterIndex: 0 });
     await lifeRef.set({ lives: 5, regenStartAt: null });
     await membershipRef.delete().catch(() => {});
