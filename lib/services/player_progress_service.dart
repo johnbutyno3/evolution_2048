@@ -540,6 +540,20 @@ class PlayerProgressService {
           // replacement board. A process death in that gap must still be recoverable.
           return true;
         }
+
+        // "No lives available" is a definitive server rejection, not an
+        // ambiguous transport failure. If the authoritative active session
+        // is unchanged, this operation did not commit and its persisted key
+        // must not block a later RESET with a different board.
+        if (error.code == 'failed-precondition' &&
+            error.message == 'No lives available.' &&
+            refreshedSessionId == previousSessionId) {
+          await SaveManager.clearPendingRestartOperation(user.uid);
+          if (_uncertainRestartOperationId == operationId) {
+            _uncertainRestartOperationId = null;
+            _uncertainRestartPayloadJson = null;
+          }
+        }
       }
     } catch (error) {
       // Transport/runtime failures can happen after commit too. Reconcile if
