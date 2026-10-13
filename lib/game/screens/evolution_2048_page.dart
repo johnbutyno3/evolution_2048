@@ -51,6 +51,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
   Future<void>? _restartFuture;
+  Completer<void>? _restartCompletion;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -502,12 +503,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // Claim the RESET single-flight guard before the first await; otherwise
     // two rapid taps can both pass the initial guard while loading recovery data.
     _restartInProgress = true;
+    // Publish a completion signal before the first await. BACK can now wait
+    // even while pending-operation recovery is still reading local storage.
+    final restartCompletion = Completer<void>();
+    _restartCompletion = restartCompletion;
+    _restartFuture = restartCompletion.future;
     final oldEngine = _engine;
     final pendingOperation = await PlayerProgressService.instance
         .loadPendingRestartRequest()
         .catchError((_) => null);
     if (!mounted) {
       _restartInProgress = false;
+      if (!restartCompletion.isCompleted) restartCompletion.complete();
       return false;
     }
     Map<String, dynamic>? recoveryPayload;
@@ -548,6 +555,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // Reuse its exact operation/payload without applying a second local charge.
     if (recoveryPayload == null && !LifeManager.optimisticConsumeLife()) {
       _restartInProgress = false;
+      if (!restartCompletion.isCompleted) restartCompletion.complete();
       return false;
     }
     _gameSessionGeneration++;
@@ -660,7 +668,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _restartInProgress = false;
         if (mounted) setState(() {});
       });
-    _restartFuture = processingFuture;
+    _restartFuture = processingFuture.whenComplete(() {
+      if (!restartCompletion.isCompleted) restartCompletion.complete();
+      if (identical(_restartCompletion, restartCompletion)) {
+        _restartCompletion = null;
+      }
+    });
 
     return true;
   }
@@ -668,8 +681,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (_handlingSystemBack || !mounted) return;
     _handlingSystemBack = true;
 
-    final pendingRestart = _restartFuture;
-    if (_restartInProgress && pendingRestart != null) {
+    final pendingRestart = _restartInProgress
+        ? (_restartCompletion?.future ?? _restartFuture)
+        : null;
+    if (pendingRestart != null) {
       await pendingRestart;
       if (!mounted) return;
     }
