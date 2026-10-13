@@ -421,8 +421,22 @@ class PlayerProgressService {
       'initialTiles': initialTiles,
     };
     final payloadJson = jsonEncode(requestPayload);
-    final uncertainOperationId = _uncertainRestartOperationId;
-    final uncertainPayloadJson = _uncertainRestartPayloadJson;
+    var uncertainOperationId = _uncertainRestartOperationId;
+    var uncertainPayloadJson = _uncertainRestartPayloadJson;
+    if (uncertainOperationId == null) {
+      final savedOperation =
+          await SaveManager.loadPendingRestartOperation(user.uid);
+      final savedId = savedOperation?['operationId'];
+      final savedPayload = savedOperation?['payloadJson'];
+      if (savedId is String && savedPayload is String) {
+        uncertainOperationId = savedId;
+        uncertainPayloadJson = savedPayload;
+        _uncertainRestartOperationId = savedId;
+        _uncertainRestartPayloadJson = savedPayload;
+      } else if (savedOperation != null) {
+        await SaveManager.clearPendingRestartOperation(user.uid);
+      }
+    }
     if (uncertainOperationId != null &&
         uncertainPayloadJson != payloadJson) {
       // The previous request may have committed even though its response was
@@ -441,6 +455,11 @@ class PlayerProgressService {
     _uncertainRestartOperationId = operationId;
     _uncertainRestartPayloadJson = payloadJson;
     try {
+      await SaveManager.setPendingRestartOperation(
+        user.uid,
+        operationId: operationId,
+        payloadJson: payloadJson,
+      );
       final result = await _functions.httpsCallable('restartGameSession').call({
         'operationId': operationId,
         ...requestPayload,
@@ -472,6 +491,7 @@ class PlayerProgressService {
         await ToolManager.refreshInventory();
         _uncertainRestartOperationId = null;
         _uncertainRestartPayloadJson = null;
+        await SaveManager.clearPendingRestartOperation(user.uid);
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
@@ -493,6 +513,7 @@ class PlayerProgressService {
           await ToolManager.refreshInventory();
           _uncertainRestartOperationId = null;
           _uncertainRestartPayloadJson = null;
+          await SaveManager.clearPendingRestartOperation(user.uid);
           return true;
         }
       }
@@ -514,6 +535,7 @@ class PlayerProgressService {
           await ToolManager.refreshInventory();
           _uncertainRestartOperationId = null;
           _uncertainRestartPayloadJson = null;
+          await SaveManager.clearPendingRestartOperation(user.uid);
           return true;
         }
       }
