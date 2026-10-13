@@ -1,6 +1,7 @@
 ﻿// ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -366,6 +367,8 @@ class PlayerProgressService {
   }
 
   Future<bool>? _pendingRestartSession;
+  String? _uncertainRestartOperationId;
+  String? _uncertainRestartPayloadJson;
 
   /// Coalesces rapid repeated RESET calls into one in-flight server operation.
   /// A second tap while the first restart is pending observes the same result,
@@ -411,18 +414,36 @@ class PlayerProgressService {
       await pendingStart;
     }
 
+    final requestPayload = <String, dynamic>{
+      'chapterIndex': chapterIndex,
+      if (replaySessionId != null) 'replaySessionId': replaySessionId,
+      if (replayLog != null) 'replayLog': replayLog,
+      'initialTiles': initialTiles,
+    };
+    final payloadJson = jsonEncode(requestPayload);
+    final uncertainOperationId = _uncertainRestartOperationId;
+    final uncertainPayloadJson = _uncertainRestartPayloadJson;
+    if (uncertainOperationId != null &&
+        uncertainPayloadJson != payloadJson) {
+      // The previous request may have committed even though its response was
+      // lost. Never issue a different Life-consuming reset until that exact
+      // operation has been reconciled.
+      return false;
+    }
+
     final operationGeneration = ++_sessionOperationGeneration;
     final previousSessionId = _activeGameSessionId;
-    final operationId =
+    final operationId = uncertainOperationId ??
         'restart_${DateTime.now().microsecondsSinceEpoch}_'
         '${math.Random.secure().nextInt(1 << 32)}';
+    // Preserve the exact key and payload after an ambiguous failure so retry
+    // cannot create a second Life-consuming operation.
+    _uncertainRestartOperationId = operationId;
+    _uncertainRestartPayloadJson = payloadJson;
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'operationId': operationId,
-        'chapterIndex': chapterIndex,
-        'replaySessionId': ?replaySessionId,
-        'replayLog': ?replayLog,
-        'initialTiles': initialTiles,
+        ...requestPayload,
       });
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
@@ -449,6 +470,8 @@ class PlayerProgressService {
         }
 
         await ToolManager.refreshInventory();
+        _uncertainRestartOperationId = null;
+        _uncertainRestartPayloadJson = null;
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
@@ -468,6 +491,29 @@ class PlayerProgressService {
         if (restartCommitted) {
           await SaveManager.setGameSessionId(refreshedSessionId);
           await ToolManager.refreshInventory();
+          _uncertainRestartOperationId = null;
+          _uncertainRestartPayloadJson = null;
+          return true;
+        }
+      }
+    } catch (error) {
+      // Transport/runtime failures can happen after commit too. Reconcile if
+      // possible; otherwise keep the key for an idempotent retry.
+      print('restartGameSession verification failed: $error');
+      if (operationGeneration == _sessionOperationGeneration) {
+        await refresh();
+        if (operationGeneration != _sessionOperationGeneration) return false;
+        final refreshedSessionId = _activeGameSessionId;
+        final restartCommitted =
+            refreshedSessionId != null &&
+            refreshedSessionId != previousSessionId &&
+            _activeGameChapterIndex == chapterIndex;
+        await LifeManager.refreshFromServer();
+        if (restartCommitted) {
+          await SaveManager.setGameSessionId(refreshedSessionId);
+          await ToolManager.refreshInventory();
+          _uncertainRestartOperationId = null;
+          _uncertainRestartPayloadJson = null;
           return true;
         }
       }
