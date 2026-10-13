@@ -39,7 +39,14 @@ function createRestartOperationContext({
   return { operationDocId, requestFingerprint, sessionId };
 }
 
+function restartFingerprintMatches(operation, requestFingerprint) {
+  return Boolean(operation) &&
+    typeof operation.requestFingerprint === 'string' &&
+    operation.requestFingerprint === requestFingerprint;
+}
+
 module.exports = {
   OPERATION_ID_PATTERN,
   createRestartOperationContext,
+  restartFingerprintMatches,
 };
