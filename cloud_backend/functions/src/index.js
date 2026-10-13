@@ -208,8 +208,24 @@ exports.purchaseTool = onCall(async (request) => {
     type = domain.normalizeToolType(request.data && request.data.toolType);
     amount = domain.requireInteger(request.data && request.data.amount, 'amount', { min: 1, max: 50 });
   } catch (error) { callableError(error); }
-  const prices = { revive: 100, timeRewind: 50, positionSwap: 200, duplicate: 500 };
-  const price = prices[type] * amount;
+  const packageAmounts = [1, 5, 20, 50];
+  const priceTiers = {
+    timeRewind: { 1: 50, 5: 225, 20: 700, 50: 1500 },
+    revive: { 1: 100, 5: 450, 20: 1400, 50: 3000 },
+    positionSwap: { 1: 200, 5: 900, 20: 2800, 50: 6000 },
+    duplicate: { 1: 500, 5: 2250, 20: 7000, 50: 15000 },
+  };
+  if (!packageAmounts.includes(amount)) {
+    throw new HttpsError('invalid-argument', 'Unsupported tool package amount.');
+  }
+  const member = await membershipState(uid);
+  if (!member.golden && member.membership !== 'premium' && amount !== 1) {
+    throw new HttpsError('failed-precondition', 'General members can only purchase one tool at a time.');
+  }
+  if (member.golden && type === 'timeRewind') {
+    throw new HttpsError('failed-precondition', 'Golden membership includes unlimited UNDO.');
+  }
+  const price = priceTiers[type][amount];
   await ensureWallet(uid);
   const receipt = playerRef(uid).collection('operation_receipts').doc('purchase_' + rid);
   return db.runTransaction(async (tx) => {
@@ -318,8 +334,10 @@ exports.startGameSession = onCall(async (request) => {
   const rid = requestId(request.data);
   const replaceActiveSession = request.data && request.data.replaceActiveSession === true;
   const initialTiles = request.data && request.data.initialTiles;
-  if (!Array.isArray(initialTiles) || initialTiles.length !== 16) {
-    throw new HttpsError('invalid-argument', 'A 16-cell initial board is required.');
+  if (!Array.isArray(initialTiles) || initialTiles.length !== 16 ||
+      initialTiles.some((value) => value !== null && value !== 2 && value !== 4) ||
+      initialTiles.filter((value) => value !== null).length !== 2) {
+    throw new HttpsError('invalid-argument', 'Initial board must contain exactly two 2/4 tiles and fourteen empty cells.');
   }
   await ensureWallet(uid);
   const receipt = playerRef(uid).collection('operation_receipts').doc('start_' + rid);
