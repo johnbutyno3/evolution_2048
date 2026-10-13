@@ -92,6 +92,49 @@ async function main() {
     assert.strictEqual(sessionSnapshots.size, 1,
       'Only one replacement session may be created.');
 
+    // A new operation with zero available Lives must be rejected without
+    // creating a replacement session or an idempotency record.
+    await lifeRef.set({ lives: 0, regenStartAt: null }, { merge: true });
+    const noLifeOperationId = 'restart_no_lives_20261013_001';
+    const noLifeContext = createRestartOperationContext({
+      uid,
+      operationId: noLifeOperationId,
+      chapterIndex: 0,
+      initialTiles: board,
+      replaySessionId: null,
+      replayLog: null,
+    });
+    const noLifeOperationRef = userRef.collection('game_session_operations')
+      .doc(noLifeContext.operationDocId);
+    await assert.rejects(
+      invoke({
+        ...requestData,
+        operationId: noLifeOperationId,
+      }),
+      (error) => error.code === 'failed-precondition' &&
+        error.message === 'No lives available.',
+      'RESET must be rejected when the player has no Lives.',
+    );
+
+    const [noLifeSnapshot, noLifeProgressSnapshot, noLifeOperationSnapshot,
+      noLifeSessionsSnapshot] = await Promise.all([
+      lifeRef.get(),
+      progressRef.get(),
+      noLifeOperationRef.get(),
+      sessionsRef.get(),
+    ]);
+    assert.strictEqual(noLifeSnapshot.data().lives, 0,
+      'A rejected zero-Life RESET must not change the Life count.');
+    assert.strictEqual(
+      noLifeProgressSnapshot.data().activeGameSessionId,
+      first.sessionId,
+      'A rejected zero-Life RESET must preserve the active session.',
+    );
+    assert.strictEqual(noLifeOperationSnapshot.exists, false,
+      'A rejected zero-Life RESET must not persist a successful operation record.');
+    assert.strictEqual(noLifeSessionsSnapshot.size, 1,
+      'A rejected zero-Life RESET must not create another session.');
+
     console.log('Firestore restart idempotency integration tests passed.');
   } finally {
     await db.recursiveDelete(userRef);
