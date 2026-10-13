@@ -1,6 +1,7 @@
 const assert = require('assert');
 const {
   createRestartOperationContext,
+  restartFingerprintMatches,
 } = require('./restart_idempotency');
 
 const base = {
@@ -40,3 +41,20 @@ assert.throws(
 );
 
 console.log('Restart idempotency helper tests passed.');
+
+const storedOperation = { requestFingerprint: first.requestFingerprint };
+assert.strictEqual(
+  restartFingerprintMatches(storedOperation, retry.requestFingerprint),
+  true,
+  'An identical retry payload must match the stored operation.',
+);
+assert.strictEqual(
+  restartFingerprintMatches(storedOperation, changedBoard.requestFingerprint),
+  false,
+  'A changed payload must be rejected for an existing operation key.',
+);
+assert.strictEqual(
+  restartFingerprintMatches({}, first.requestFingerprint),
+  false,
+  'An operation without a stored fingerprint must not be treated as a match.',
+);
