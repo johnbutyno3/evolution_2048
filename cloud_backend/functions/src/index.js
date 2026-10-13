@@ -466,7 +466,9 @@ exports.completeChapter = onCall(async (request) => {
     const existing = await tx.get(receipt);
     if (existing.exists) return existing.data().result;
     const ref = sessionRef(uid, sessionId);
-    const [sessionSnap, progressSnap] = await Promise.all([tx.get(ref), tx.get(progressRef)]);
+    const [sessionSnap, progressSnap, toolsSnap, memberSnap] = await Promise.all([
+      tx.get(ref), tx.get(progressRef), tx.get(toolsRef(uid)), tx.get(membershipRef(uid)),
+    ]);
     if (!sessionSnap.exists) throw new HttpsError('not-found', 'Game session was not found.');
     const session = sessionSnap.data();
     if (session.status !== 'active' || session.chapterIndex !== chapterIndex) {
@@ -493,6 +495,25 @@ exports.completeChapter = onCall(async (request) => {
         details: error.details || {},
       });
     }
+    const memberData = memberSnap.data() || {};
+    const membership = domain.normalizeMembership(memberData.type || memberData.membership);
+    const expiresAtMillis = memberData.expiresAt && typeof memberData.expiresAt.toMillis === 'function'
+      ? memberData.expiresAt.toMillis()
+      : (Number.isFinite(memberData.expiresAtMillis) ? memberData.expiresAtMillis : null);
+    const golden = domain.isGoldenMembership(membership, expiresAtMillis);
+    const inventoryData = toolsSnap.data() || { inventory: {} };
+    const inventory = { ...(inventoryData.inventory || {}) };
+    for (const [toolType, count] of Object.entries(replay.toolUsage)) {
+      if (count <= 0 || (golden && toolType === 'timeRewind')) continue;
+      const available = Number.isSafeInteger(inventory[toolType]) && inventory[toolType] >= 0
+        ? inventory[toolType] : 0;
+      if (available < count) {
+        throw new HttpsError('failed-precondition', 'Insufficient tool inventory for replay.', {
+          toolType, available, used: count,
+        });
+      }
+      inventory[toolType] = available - count;
+    }
     const highestValue = replay.highestValue;
     const score = replay.score;
     const chapterNames = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'];
@@ -508,6 +529,7 @@ exports.completeChapter = onCall(async (request) => {
       chapterIndex < 5 ? chapterIndex + 1 : 5,
     ));
     const result = { success: true, unlockedChapterIndex, chapterProgress };
+    tx.set(toolsRef(uid), { inventory, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(ref, {
       status: 'completed', completedAt: FieldValue.serverTimestamp(),
       highestValue, score, replayEventCount: replay.eventCount,
