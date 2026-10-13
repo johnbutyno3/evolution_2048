@@ -6,6 +6,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const crypto = require('node:crypto');
 const domain = require('./domain');
+const { validateReplay } = require('./replay');
 
 initializeApp();
 setGlobalOptions({ region: 'us-central1', enforceAppCheck: true });
@@ -19,8 +20,10 @@ function requireAuth(request) {
 }
 function requestId(data) {
   const value = data && data.requestId;
+  // Legacy clients do not yet send requestId. Generate one for compatibility;
+  // clients should migrate to stable IDs to make network retries idempotent.
   if (typeof value === 'string' && /^[A-Za-z0-9_-]{8,128}$/.test(value)) return value;
-  throw new HttpsError('invalid-argument', 'A valid requestId is required.');
+  return crypto.randomUUID();
 }
 function playerRef(uid) { return db.collection('users').doc(uid); }
 function lifeRef(uid) { return playerRef(uid).collection('wallet').doc('life'); }
@@ -366,13 +369,15 @@ exports.completeChapter = onCall(async (request) => {
   let chapterIndex;
   try { chapterIndex = domain.validateChapterIndex(data.chapterIndex); }
   catch (error) { callableError(error); }
-  const rid = requestId(data);
   if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(sessionId)) {
     throw new HttpsError('invalid-argument', 'Session ID is invalid.');
   }
-  const highestValue = domain.validateCreatureValue(data.highestValue);
-  const score = domain.requireInteger(data.score, 'score');
-  const receipt = playerRef(uid).collection('operation_receipts').doc('complete_' + rid);
+  if (!data.replayLog || typeof data.replayLog !== 'object') {
+    throw new HttpsError('invalid-argument', 'A replayLog is required.');
+  }
+  // A completion receipt is keyed by the server-issued session ID, so repeated
+  // completion calls cannot award progression twice even when the client retries.
+  const receipt = playerRef(uid).collection('operation_receipts').doc('complete_' + sessionId);
   const progressRef = playerRef(uid).collection('progress').doc('game');
   return db.runTransaction(async (tx) => {
     const existing = await tx.get(receipt);
@@ -387,11 +392,26 @@ exports.completeChapter = onCall(async (request) => {
     if (session.expiresAt && session.expiresAt.toMillis() <= Date.now()) {
       throw new HttpsError('failed-precondition', 'Game session has expired.');
     }
-    const requiredTarget = 2 ** domain.CHAPTER_STAGE_COUNTS[chapterIndex];
-    if (highestValue < requiredTarget) {
-      throw new HttpsError('failed-precondition', 'Chapter target has not been reached.');
-    }
     const progress = progressSnap.data() || {};
+    if (progress.activeGameSessionId !== sessionId) {
+      throw new HttpsError('failed-precondition', 'Session is not the active player session.');
+    }
+    let replay;
+    try {
+      replay = validateReplay({
+        replayLog: data.replayLog,
+        chapterIndex,
+        expectedInitialTiles: session.initialTiles,
+        requireCompletion: true,
+      });
+    } catch (error) {
+      throw new HttpsError('failed-precondition', 'Replay validation failed.', {
+        reason: error.message,
+        details: error.details || {},
+      });
+    }
+    const highestValue = replay.highestValue;
+    const score = replay.score;
     const chapterNames = ['ocean', 'land', 'sky', 'history', 'tech', 'universe'];
     const chapterKey = chapterNames[chapterIndex];
     const chapterProgress = { ...(progress.chapterProgress || {}) };
@@ -404,13 +424,17 @@ exports.completeChapter = onCall(async (request) => {
       Number.isInteger(progress.unlockedChapterIndex) ? progress.unlockedChapterIndex : 0,
       chapterIndex < 5 ? chapterIndex + 1 : 5,
     ));
-    tx.set(ref, { status: 'completed', completedAt: FieldValue.serverTimestamp(), highestValue, score }, { merge: true });
+    const result = { success: true, unlockedChapterIndex, chapterProgress };
+    tx.set(ref, {
+      status: 'completed', completedAt: FieldValue.serverTimestamp(),
+      highestValue, score, replayEventCount: replay.eventCount,
+      toolUsage: replay.toolUsage, toolPenaltyTotal: replay.toolPenaltyTotal,
+    }, { merge: true });
     tx.set(progressRef, {
       chapterProgress, unlockedChapterIndex,
       activeGameSessionId: FieldValue.delete(), activeGameChapterIndex: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    const result = { success: true, unlockedChapterIndex, chapterProgress };
     tx.create(receipt, { result, createdAt: FieldValue.serverTimestamp() });
     return result;
   });
