@@ -1,7 +1,10 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const crypto = require('crypto');
-const { createRestartOperationContext } = require('./restart_idempotency');
+const {
+  createRestartOperationContext,
+  restartFingerprintMatches,
+} = require('./restart_idempotency');
 const { enforceSensitiveOperation } = require('./security_enforcement');
 const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
@@ -170,7 +173,7 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
       const operationSnapshot = await transaction.get(operationRef);
       if (operationSnapshot.exists) {
         const operation = operationSnapshot.data() || {};
-        if (operation.requestFingerprint !== requestFingerprint) {
+        if (!restartFingerprintMatches(operation, requestFingerprint)) {
           throw new HttpsError(
             'failed-precondition',
             'Restart operation ID was reused with different request data.',
