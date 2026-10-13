@@ -279,6 +279,35 @@ exports.consumeTool = onCall(async (request) => {
 });
 
 
+exports.discoverCreature = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const data = request.data || {};
+  let chapterKey;
+  let value;
+  try {
+    chapterKey = domain.normalizeChapterKey(data.chapterKey);
+    value = domain.validateCreatureValue(data.value);
+  } catch (error) { callableError(error); }
+  const chapterLimit = { ocean: 4096, land: 8192, sky: 16384, history: 32768, technology: 65536, space: 131072 };
+  // Collection discovery may record only creatures available by the player's
+  // highest unlocked chapter; a client cannot populate future chapters.
+  const progressRef = playerRef(uid).collection('progress').doc('game');
+  const collectionRef = playerRef(uid).collection('progress').doc('collection');
+  return db.runTransaction(async (tx) => {
+    const [progressSnap, collectionSnap] = await Promise.all([tx.get(progressRef), tx.get(collectionRef)]);
+    const progress = progressSnap.data() || {};
+    const chapterIndex = { ocean: 0, land: 1, sky: 2, history: 3, technology: 4, space: 5 }[chapterKey];
+    const unlocked = Number.isInteger(progress.unlockedChapterIndex) ? progress.unlockedChapterIndex : 0;
+    if (chapterIndex > unlocked) throw new HttpsError('permission-denied', 'Chapter is locked.');
+    if (value > chapterLimit[chapterKey]) throw new HttpsError('invalid-argument', 'Creature value exceeds this chapter limit.');
+    const collection = collectionSnap.data() || {};
+    const existing = Array.isArray(collection[chapterKey]) ? collection[chapterKey] : [];
+    const values = [...new Set([...existing.filter((v) => Number.isSafeInteger(v)), value])].sort((a, b) => a - b);
+    tx.set(collectionRef, { [chapterKey]: values, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { success: true, chapterKey, value, discoveredValues: values };
+  });
+});
+
 exports.ensurePlayerProfile = onCall(async (request) => {
   const uid = requireAuth(request);
   const ref = playerRef(uid);
