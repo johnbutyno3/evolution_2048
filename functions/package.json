@@ -6,7 +6,7 @@
   },
   "main": "bootstrap.js",
   "scripts": {
-    "test": "node security_audit.test.js && node callable_ownership.test.js"
+    "test": "node restart_idempotency.test.js && node security_audit.test.js && node callable_ownership.test.js"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",
