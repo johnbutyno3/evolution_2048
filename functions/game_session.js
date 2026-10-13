@@ -409,7 +409,7 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
       };
       transaction.create(operationRef, {
         action: 'restartGameSession',
-        operationId: effectiveOperationId,
+        operationId,
         requestFingerprint,
         result,
         createdAt: FieldValue.serverTimestamp(),
