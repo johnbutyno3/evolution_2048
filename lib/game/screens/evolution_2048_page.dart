@@ -616,6 +616,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // restartGameSession has now bound SaveManager to the replacement
           // session. Persist the visible new board again with that binding.
           await SaveManager.save(newEngine.createSaveData());
+          // Only clear the idempotency record after the replacement board is
+          // durable locally. If the process dies before this point, startup
+          // can retry the exact same server operation safely.
+          await PlayerProgressService.instance.finalizePendingRestartOperation();
           if (!mounted || generation != _gameSessionGeneration) return;
           _engine.toolManager.refreshFromSavedProgress();
           unawaited(_refreshMountedToolInventory(generation));
