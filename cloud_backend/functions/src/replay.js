@@ -130,6 +130,9 @@ function validateReplay({ replayLog, chapterIndex, expectedInitialTiles, require
       if (event.spawnIndex === -1 && event.spawnValue === -1) {
         if (board.some((v) => v === null) && !board.includes(target)) invalid('Successful move must spawn a tile.');
       } else {
+        if (!Object.hasOwn(event, 'spawnIndex') || !Object.hasOwn(event, 'spawnValue')) {
+          invalid('Successful move must include spawn data or the explicit -1/-1 final-move marker.');
+        }
         spawn(board, event);
         maxTile = highest(board, maxTile);
       }
