@@ -416,8 +416,8 @@ class PlayerProgressService {
 
     final requestPayload = <String, dynamic>{
       'chapterIndex': chapterIndex,
-      if (replaySessionId != null) 'replaySessionId': replaySessionId,
-      if (replayLog != null) 'replayLog': replayLog,
+      'replaySessionId': ?replaySessionId,
+      'replayLog': ?replayLog,
       'initialTiles': initialTiles,
     };
     final payloadJson = jsonEncode(requestPayload);
