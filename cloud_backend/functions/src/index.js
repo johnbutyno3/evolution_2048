@@ -115,11 +115,18 @@ exports.consumeLife = onCall(async (request) => {
 exports.refundLife = onCall(async (request) => {
   const uid = requireAuth(request);
   await ensureWallet(uid);
-  const receipt = playerRef(uid).collection('operation_receipts').doc('refund_chapter_completion');
+  const progressRef = playerRef(uid).collection('progress').doc('game');
   return db.runTransaction(async (tx) => {
-    const [receiptSnap, lifeSnap, memberSnap] = await Promise.all([
-      tx.get(receipt), tx.get(lifeRef(uid)), tx.get(membershipRef(uid)),
+    const [progressSnap, lifeSnap, memberSnap] = await Promise.all([
+      tx.get(progressRef), tx.get(lifeRef(uid)), tx.get(membershipRef(uid)),
     ]);
+    const progress = progressSnap.data() || {};
+    const completedSessionId = progress.lastCompletedSessionId;
+    if (typeof completedSessionId !== 'string' || !completedSessionId) {
+      throw new HttpsError('failed-precondition', 'No completed chapter is eligible for a life refund.');
+    }
+    const receipt = playerRef(uid).collection('operation_receipts').doc('refund_chapter_completion_' + completedSessionId);
+    const receiptSnap = await tx.get(receipt);
     const memberData = memberSnap.data() || {};
     const membership = domain.normalizeMembership(memberData.type || memberData.membership);
     const expiresAtMillis = memberData.expiresAt && typeof memberData.expiresAt.toMillis === 'function'
@@ -129,9 +136,8 @@ exports.refundLife = onCall(async (request) => {
     if (domain.isGoldenMembership(membership, expiresAtMillis)) {
       return domain.createLifeResponse({ lives: lifeData.lives, membership, expiresAtMillis });
     }
-    // The client invokes this on chapter completion. Apply at most one refund
-    // per account to prevent repeated calls from minting lives. The receipt is
-    // intentionally account-scoped, matching the current client contract.
+    // One refund per server-completed session. Retries are idempotent, while
+    // later chapter completions can still refund their own entry Life.
     if (!receiptSnap.exists) {
       const lives = Number.isSafeInteger(lifeData.lives) && lifeData.lives >= 0
         ? lifeData.lives : domain.NORMAL_LIFE_CAP;
@@ -491,6 +497,7 @@ exports.completeChapter = onCall(async (request) => {
     }, { merge: true });
     tx.set(progressRef, {
       chapterProgress, unlockedChapterIndex,
+      lastCompletedSessionId: sessionId,
       activeGameSessionId: FieldValue.delete(), activeGameChapterIndex: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
