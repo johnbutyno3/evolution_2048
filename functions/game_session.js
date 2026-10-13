@@ -131,7 +131,32 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
   }
 
   const uid = request.auth.uid;
-  const newSessionId = crypto.randomUUID();
+  const operationId = request.data?.operationId;
+  if (operationId != null &&
+      (typeof operationId !== 'string' ||
+       !/^[A-Za-z0-9_-]{12,128}$/.test(operationId))) {
+    throw new HttpsError('invalid-argument', 'Invalid restart operation ID.');
+  }
+  // A client retry must resolve to the same session and Life charge.
+  // Older clients that do not send operationId remain compatible, but new
+  // clients always provide one.
+  const effectiveOperationId = operationId || crypto.randomUUID();
+  const operationDocId = crypto.createHash('sha256')
+    .update(`${uid}:restartGameSession:${effectiveOperationId}`)
+    .digest('hex');
+  const requestFingerprint = crypto.createHash('sha256')
+    .update(JSON.stringify({
+      chapterIndex,
+      initialTiles,
+      replaySessionId: request.data?.replaySessionId ?? null,
+      replayLog: request.data?.replayLog ?? null,
+    }))
+    .digest('hex');
+  const operationRef = db.collection('users').doc(uid)
+    .collection('game_session_operations').doc(operationDocId);
+  const newSessionId = crypto.createHash('sha256')
+    .update(`${uid}:restart-session:${effectiveOperationId}`)
+    .digest('hex').slice(0, 32);
   const startedAt = new Date();
   const expiresAt = new Date(startedAt.getTime() + GAME_SESSION_TTL_MS);
   const newSessionRef = gameSessionRef(uid, newSessionId);
@@ -144,6 +169,21 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
 
   try {
     return await db.runTransaction(async (transaction) => {
+      // Read the idempotency record before any writes. A lost response or
+      // repeated callable request returns the original result without another
+      // Life deduction or replacement session.
+      const operationSnapshot = await transaction.get(operationRef);
+      if (operationSnapshot.exists) {
+        const operation = operationSnapshot.data() || {};
+        if (operation.requestFingerprint !== requestFingerprint) {
+          throw new HttpsError(
+            'failed-precondition',
+            'Restart operation ID was reused with different request data.',
+          );
+        }
+        return operation.result;
+      }
+
       const progressSnapshot = await transaction.get(progress);
       const currentProgress = progressSnapshot.data() || {};
       const oldSessionId = currentProgress.activeGameSessionId;
@@ -365,13 +405,21 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
           : null,
       });
 
-      return {
+      const result = {
         sessionId: newSessionId,
         chapterIndex,
         targetValue: TARGETS[chapterIndex],
         expiresAt: expiresAt.toISOString(),
         ...lifeResponse(nextLives, nextRegenStart, membershipState),
       };
+      transaction.create(operationRef, {
+        action: 'restartGameSession',
+        operationId: effectiveOperationId,
+        requestFingerprint,
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return result;
     });
   } catch (error) {
     if (error?.securityReason) {
