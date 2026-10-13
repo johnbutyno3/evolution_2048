@@ -1,0 +1,105 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Admin status is written only by trusted server code. Clients cannot
+    // mutate their own root user document, so this field cannot self-escalate.
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /users/{uid} {
+      allow read: if owns(uid) || isAdmin();
+      allow create, update, delete: if false;
+
+      match /progress/{documentId} {
+        allow read: if owns(uid) || isAdmin();
+        allow create, update, delete: if false;
+      }
+
+      match /wallet/{documentId} {
+        allow read: if owns(uid);
+        allow write: if false;
+      }
+
+      match /membership/{documentId} {
+        allow read: if owns(uid);
+        allow write: if false;
+      }
+
+      match /purchases/{documentId} {
+        allow read: if owns(uid);
+        allow write: if false;
+      }
+
+      match /game_sessions/{sessionId} {
+        allow read, write: if false;
+      }
+
+      match /operation_receipts/{receiptId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'uid', 'message', 'category', 'appVersion', 'createdAt'
+        ])
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 5000;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /config/{documentId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /shop_config/{documentId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /player_names/{documentId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /player_ids/{documentId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /purchase_transactions/{documentId} {
+      allow read, write: if false;
+    }
+
+    match /security_events/{documentId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /security_risk_scores/{uid} {
+      allow read, write: if false;
+    }
+
+    match /security_enforcement/{uid} {
+      allow read, write: if false;
+    }
+
+    // No catch-all allow: unlisted paths are denied by default.
+  }
+}
