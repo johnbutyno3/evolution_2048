@@ -373,11 +373,18 @@ class PlayerProgressService {
   /// Coalesces rapid repeated RESET calls into one in-flight server operation.
   /// A second tap while the first restart is pending observes the same result,
   /// so it cannot issue a second Life-consuming callable request.
+  Future<Map<String, dynamic>?> loadPendingRestartRequest() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    return SaveManager.loadPendingRestartOperation(user.uid);
+  }
+
   Future<bool> restartGameSession(
     int chapterIndex, {
     Map<String, dynamic>? replayLog,
     String? replaySessionId,
     required List<dynamic> initialTiles,
+    Map<String, dynamic>? recoveryPayload,
   }) {
     final pending = _pendingRestartSession;
     if (pending != null) return pending;
@@ -387,6 +394,7 @@ class PlayerProgressService {
       replayLog: replayLog,
       replaySessionId: replaySessionId,
       initialTiles: initialTiles,
+      recoveryPayload: recoveryPayload,
     );
     _pendingRestartSession = operation;
     return operation.whenComplete(() {
@@ -401,6 +409,7 @@ class PlayerProgressService {
     Map<String, dynamic>? replayLog,
     String? replaySessionId,
     required List<dynamic> initialTiles,
+    Map<String, dynamic>? recoveryPayload,
   }) async {
     final user = _auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
@@ -414,12 +423,14 @@ class PlayerProgressService {
       await pendingStart;
     }
 
-    final requestPayload = <String, dynamic>{
-      'chapterIndex': chapterIndex,
-      'replaySessionId': ?replaySessionId,
-      'replayLog': ?replayLog,
-      'initialTiles': initialTiles,
-    };
+    final requestPayload = recoveryPayload == null
+        ? <String, dynamic>{
+            'chapterIndex': chapterIndex,
+            'replaySessionId': ?replaySessionId,
+            'replayLog': ?replayLog,
+            'initialTiles': initialTiles,
+          }
+        : Map<String, dynamic>.from(recoveryPayload);
     final payloadJson = jsonEncode(requestPayload);
     var uncertainOperationId = _uncertainRestartOperationId;
     var uncertainPayloadJson = _uncertainRestartPayloadJson;
