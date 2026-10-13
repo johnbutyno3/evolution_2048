@@ -103,7 +103,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     )..addStatusListener(_handleCompletionAnimationStatus);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_initializeGameplaySession());
+      unawaited(_initializeOrRecoverPendingReset());
       AudioManager.instance.initialize().then((_) {
         if (mounted) AudioManager.instance.playChapterMusic(_engine.chapter);
       });
@@ -139,6 +139,46 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!_engine.gameOver && !_engine.chapterComplete) _engine.startGameTimer();
     _startUiRefreshTimer();
     if (mounted) setState(() {});
+  }
+
+  /// Reconcile a RESET that may have committed just before the app process
+  /// was terminated. The persisted operation ID and exact payload are the only
+  /// safe retry identity; do not create a fresh session while that outcome is
+  /// still uncertain.
+  Future<void> _initializeOrRecoverPendingReset() async {
+    if (!mounted) return;
+    final pending = await PlayerProgressService.instance
+        .loadPendingRestartRequest()
+        .catchError((_) => null);
+    if (!mounted) return;
+
+    final operationId = pending?['operationId'];
+    final payloadJson = pending?['payloadJson'];
+    if (operationId is String && payloadJson is String) {
+      try {
+        final decoded = jsonDecode(payloadJson);
+        if (decoded is Map) {
+          final payload = Map<String, dynamic>.from(
+            decoded.map((key, value) => MapEntry(key.toString(), value)),
+          );
+          final tiles = payload['initialTiles'];
+          if (payload['chapterIndex'] == _chapterNumber - 1 &&
+              tiles is List &&
+              tiles.length == 16) {
+            // _reset() reloads this same pending record and reuses its exact
+            // operation ID/payload. It intentionally skips optimistic Life
+            // consumption because the original request may already have
+            // committed on the server.
+            await _reset();
+            return;
+          }
+        }
+      } catch (error) {
+        debugPrint('Unable to inspect pending RESET recovery: $error');
+      }
+    }
+
+    await _initializeGameplaySession();
   }
 
   Future<void> _initializeGameplaySession() async {
