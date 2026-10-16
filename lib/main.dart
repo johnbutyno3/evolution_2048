@@ -81,11 +81,26 @@ class Rebirth2048App extends StatelessWidget {
       return const OnboardingPage();
     }
 
-    if (FirebaseAuth.instance.currentUser == null) {
-      return const LoginRegisterPage();
-    }
+    // Firebase Auth restores a persisted session asynchronously. Reading
+    // currentUser only once can route a returning player to LoginRegisterPage
+    // before that restoration finishes. React to the first auth-state event
+    // instead, and do not present the game until the account state is known.
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    return const HomePage();
+        if (snapshot.hasError || snapshot.data == null) {
+          return const LoginRegisterPage();
+        }
+
+        return const HomePage();
+      },
+    );
   }
 
   @override
