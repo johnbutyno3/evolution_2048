@@ -140,6 +140,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _enter(BuildContext context, int index) async {
     if (_enterInProgress) return;
+    // Do not open a chargeable game session using an unverified placeholder
+    // Life balance after a failed backend read.
+    if (!LifeManager.hasAuthoritativeState) return;
     if (!_progress.isChapterUnlocked(index)) return;
     _enterInProgress = true;
     try {
@@ -284,7 +287,9 @@ class _HomePageState extends State<HomePage> {
                           Text(
                             LifeManager.isGoldenMember
                                 ? '${l.life}: ∞'
-                                : '${l.life}: ${LifeManager.lifeCount}',
+                                : LifeManager.hasAuthoritativeState
+                                    ? '${l.life}: ${LifeManager.lifeCount}'
+                                    : '${l.life}: --',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
