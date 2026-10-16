@@ -15,6 +15,7 @@ class LifeManager {
       FirebaseFunctions.instanceFor(region: 'us-central1');
 
   static int _lifeCount = normalCap;
+  static bool _hasAuthoritativeState = false;
   static bool _infiniteLives = false;
   static String _membership = 'general';
   static String _lifeMode = 'normal';
@@ -40,6 +41,9 @@ class LifeManager {
   /// rejected immediately; otherwise the server response is authoritative and
   /// replaces this value.
   static bool optimisticConsumeLife() {
+    // Never charge from the placeholder balance before the server has
+    // confirmed this account's actual life state.
+    if (!_hasAuthoritativeState) return false;
     if (_infiniteLives) return true;
     if (_lifeCount <= 0) return false;
 
@@ -118,18 +122,22 @@ class LifeManager {
     _nextLifeAtMillis = preserveOptimisticLife
         ? localNextLifeAtMillis
         : nextLifeAtMillis as int?;
+    _hasAuthoritativeState = true;
   }
 
   /// Clears account-scoped local state before Firebase sign-out.
   /// The next account must never inherit the previous account's Life display.
   static void clearCachedState() {
     _lifeStateGeneration++;
+    _hasAuthoritativeState = false;
     _lifeCount = normalCap;
     _infiniteLives = false;
     _membership = 'general';
     _lifeMode = 'normal';
     _nextLifeAtMillis = null;
   }
+
+  static bool get hasAuthoritativeState => _hasAuthoritativeState;
 
   static bool get isGoldenMember => _lifeMode == 'golden';
 
