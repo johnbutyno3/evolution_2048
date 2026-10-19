@@ -11,6 +11,14 @@ class GoldManager {
   );
   static int? _cachedBalance;
   static int? _cachedLifetimeSpent;
+  // Keep an operation ID after an ambiguous failure so a user retry in this
+  // process replays the same server transaction instead of spending twice.
+  static final Map<int, String> _pendingSpendOperationIds = <int, String>{};
+
+  static String _newOperationId() => List<int>.generate(
+        24,
+        (_) => math.Random.secure().nextInt(256),
+      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
 
   static Future<void> initialize() async {
     await refresh();
@@ -24,6 +32,7 @@ class GoldManager {
   static void clearCachedState() {
     _cachedBalance = null;
     _cachedLifetimeSpent = null;
+    _pendingSpendOperationIds.clear();
   }
 
   static void applyServerState(Map<String, dynamic> data) {
@@ -61,14 +70,13 @@ class GoldManager {
   static Future<bool> spend(int amount) async {
     if (amount <= 0) return false;
 
+    final operationId = _pendingSpendOperationIds.putIfAbsent(
+      amount,
+      _newOperationId,
+    );
+
     try {
       final callable = _functions.httpsCallable('spendGold');
-      // The same payload is used for retries of this invocation so the server
-      // can safely return the original result without deducting Gold twice.
-      final operationId = List<int>.generate(
-        24,
-        (_) => math.Random.secure().nextInt(256),
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
       final result = await callable.call(<String, dynamic>{
         'amount': amount,
         'operationId': operationId,
@@ -81,12 +89,15 @@ class GoldManager {
         _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
             ? spent.toInt()
             : lifetimeSpent + amount;
+        _pendingSpendOperationIds.remove(amount);
         return true;
       }
     } on FirebaseFunctionsException {
+      // Keep the ID: the server may have committed before the response failed.
       return false;
     }
 
+    // Keep the ID if the response shape is unexpected as well.
     return false;
   }
 }
