@@ -189,7 +189,12 @@ class PlayerProgressService {
     // intentional exception: it must wait for the failed start before retrying.
     final pendingStart = _pendingStartSession;
     if (pendingStart != null) {
-      if (!retryAfterPendingFailure) return true;
+      if (!retryAfterPendingFailure) {
+        // A second caller must not treat a different locally-created board as
+        // the board owned by the pending server session. Returning true here
+        // lets the caller bind an uncharged replacement board to that session.
+        return false;
+      }
       final pendingResult = await pendingStart;
       if (pendingResult) return true;
     }
@@ -438,6 +443,11 @@ class PlayerProgressService {
           return true;
         }
       }
+    } catch (error, stackTrace) {
+      // Keep unexpected client/runtime errors visible in Chrome's Flutter
+      // console instead of letting the game screen silently swallow them.
+      print('restartGameSession unexpected failure: $error');
+      print(stackTrace);
     }
     return false;
   }
