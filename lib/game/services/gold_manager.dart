@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_functions/cloud_functions.dart';
 
 /// Client facade for the server-authoritative Gold wallet.
@@ -61,7 +63,16 @@ class GoldManager {
 
     try {
       final callable = _functions.httpsCallable('spendGold');
-      final result = await callable.call(<String, dynamic>{'amount': amount});
+      // The same payload is used for retries of this invocation so the server
+      // can safely return the original result without deducting Gold twice.
+      final operationId = List<int>.generate(
+        24,
+        (_) => math.Random.secure().nextInt(256),
+      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+      final result = await callable.call(<String, dynamic>{
+        'amount': amount,
+        'operationId': operationId,
+      });
       final data = result.data;
       final value = data is Map ? data['balance'] : null;
       if (value is num && value.toInt() >= 0) {
