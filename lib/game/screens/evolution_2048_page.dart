@@ -900,7 +900,13 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }).catchError((_) async {
         if (!mounted) return;
         newEngine.stopGameTimer();
+        await newEngine.flushLocalSave();
         await LifeManager.refreshFromServer().catchError((_) {});
+        ToolManager.restoreSessionUsageFromReplayLog(
+          previousEngine.createSaveData()['replayLog'],
+        );
+        await SaveManager.save(previousEngine.createSaveData());
+        previousEngine.toolManager.refreshFromSavedProgress();
         _engine = previousEngine;
         _startUiRefreshTimer();
         _focusNode.requestFocus();
