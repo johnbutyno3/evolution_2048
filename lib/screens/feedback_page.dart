@@ -23,7 +23,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     super.dispose();
   }
 
-  String _localizedType(AppLocalizations l10n, String type) {
+  String _localizedType(QaFeedbackStrings l10n, String type) {
     switch (type) {
       case 'Question':
         return l10n.feedbackQuestion;
