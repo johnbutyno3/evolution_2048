@@ -70,8 +70,16 @@ exports.purchaseTool = onCall(async (request) => {
 
   const type = request.data?.toolType;
   const amount = request.data?.amount;
+  const operationId = request.data?.operationId;
   validateToolType(type);
   validateToolAmount(amount);
+  if (typeof operationId !== 'string' ||
+      !/^[A-Za-z0-9_-]{16,128}$/.test(operationId)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid operationId is required for an idempotent tool purchase.',
+    );
+  }
   const membershipSnapshot = await membershipRef(request.auth.uid).get();
   const membership = resolveMembership(membershipSnapshot.data() || {});
   const membershipType = membership.type;
@@ -105,39 +113,73 @@ exports.purchaseTool = onCall(async (request) => {
     throw new HttpsError('failed-precondition', 'Tool price is unavailable.');
   }
 
-  const walletRef = goldWalletRef(request.auth.uid);
-  const toolsRef = toolInventoryRef(request.auth.uid);
+  const uid = request.auth.uid;
+  const walletRef = goldWalletRef(uid);
+  const toolsRef = toolInventoryRef(uid);
+  const receiptRef = db.collection('users').doc(uid)
+    .collection('tool_purchase_operations').doc(operationId);
   return db.runTransaction(async (transaction) => {
+    const receiptSnapshot = await transaction.get(receiptRef);
+    if (receiptSnapshot.exists) {
+      const receipt = receiptSnapshot.data() || {};
+      if (receipt.toolType !== type || receipt.amount !== amount) {
+        throw new HttpsError(
+          'already-exists',
+          'operationId was already used with a different tool purchase.',
+        );
+      }
+      return {
+        balance: receipt.balance,
+        toolType: receipt.toolType,
+        uses: receipt.uses,
+        operationId,
+        replayed: true,
+      };
+    }
+
     const walletSnapshot = await transaction.get(walletRef);
     const toolsSnapshot = await transaction.get(toolsRef);
     const balance = walletSnapshot.data()?.balance ?? 0;
     const inventory = toolsSnapshot.data() || {};
     const currentUses = inventory[type] ?? 0;
+    const lifetimeSpent = walletSnapshot.data()?.lifetimeSpent ?? 0;
 
     if (!Number.isSafeInteger(balance) || balance < price ||
+        !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0 ||
+        lifetimeSpent > MAX_SAFE_INTEGER - price ||
         !Number.isSafeInteger(currentUses) || currentUses < 0 ||
         currentUses > MAX_SAFE_INTEGER - amount) {
-      if (balance < price) {
-        await recordSecurityEvent({
-          uid: request.auth.uid,
-          action: 'purchase_tool',
-          reason: 'insufficient_gold',
-          details: { toolType: type, amount, price },
-        });
-      }
       throw new HttpsError('failed-precondition', 'Tool purchase is unavailable.');
     }
 
+    const nextBalance = balance - price;
+    const nextUses = currentUses + amount;
+    const nextLifetimeSpent = lifetimeSpent + price;
     transaction.set(walletRef, {
-      balance: balance - price,
-      lifetimeSpent: (walletSnapshot.data()?.lifetimeSpent ?? 0) + price,
+      balance: nextBalance,
+      lifetimeSpent: nextLifetimeSpent,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     transaction.set(toolsRef, {
-      [type]: currentUses + amount,
+      [type]: nextUses,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+    transaction.create(receiptRef, {
+      operationId,
+      toolType: type,
+      amount,
+      price,
+      balance: nextBalance,
+      uses: nextUses,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
-    return { balance: balance - price, toolType: type, uses: currentUses + amount };
+    return {
+      balance: nextBalance,
+      toolType: type,
+      uses: nextUses,
+      operationId,
+      replayed: false,
+    };
   });
 });
