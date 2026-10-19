@@ -192,6 +192,33 @@ exports.listSupportMessages = onCall(async (request) => {
   };
 });
 
+exports.setSupportCaseStatusAdmin = onCall(async (request) => {
+  const { uid, isAdmin } = await requireIdentity(request);
+  if (!isAdmin) {
+    throw new HttpsError('permission-denied', 'Admin access is required.');
+  }
+
+  const ref = caseRef(request.data?.caseId);
+  const status = request.data?.status;
+  if (status !== 'open' && status !== 'closed') {
+    throw new HttpsError('invalid-argument', 'Status must be open or closed.');
+  }
+
+  const snapshot = await ref.get();
+  if (!snapshot.exists) {
+    throw new HttpsError('not-found', 'Support case was not found.');
+  }
+
+  await ref.update({
+    status,
+    updatedAt: FieldValue.serverTimestamp(),
+    statusChangedAt: FieldValue.serverTimestamp(),
+    statusChangedBy: uid,
+  });
+
+  return { caseId: ref.id, status };
+});
+
 exports.listSupportCasesAdmin = onCall(async (request) => {
   const { isAdmin } = await requireIdentity(request);
   if (!isAdmin) {
