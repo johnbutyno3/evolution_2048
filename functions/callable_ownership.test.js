@@ -38,6 +38,7 @@ const requiredOwners = {
   purchaseTool: 'tool_inventory_defaults.js',
   adminSetAllToolsEnabled: 'admin_test.js',
   adminGetTestAccountState: 'admin_test.js',
+  adminRecoverAccountSecurity: 'admin_test.js',
 };
 
 for (const [callableName, expectedOwner] of Object.entries(requiredOwners)) {
