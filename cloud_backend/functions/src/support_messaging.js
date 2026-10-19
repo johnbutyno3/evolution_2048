@@ -93,37 +93,40 @@ exports.sendSupportMessage = onCall(async (request) => {
   const { uid, isAdmin } = await requireIdentity(request);
   const ref = caseRef(request.data?.caseId);
   const message = normalizeMessage(request.data?.message);
-  const snapshot = await ref.get();
-
-  if (!snapshot.exists) {
-    throw new HttpsError('not-found', 'Support case was not found.');
-  }
-
-  const supportCase = snapshot.data() || {};
-  if (!isAdmin && supportCase.uid !== uid) {
-    throw new HttpsError('permission-denied', 'This support case belongs to another account.');
-  }
-  if (supportCase.status === 'closed') {
-    throw new HttpsError('failed-precondition', 'This support case is closed.');
-  }
-
   const messageRef = ref.collection('messages').doc();
   const now = FieldValue.serverTimestamp();
-  const batch = db.batch();
-  batch.create(messageRef, {
-    messageId: messageRef.id,
-    senderUid: uid,
-    senderRole: isAdmin ? 'admin' : 'player',
-    text: message,
-    createdAt: now,
+
+  // Validate status and append the message in one transaction. This prevents
+  // a player message racing with an admin close operation and landing after
+  // the case has already been closed.
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) {
+      throw new HttpsError('not-found', 'Support case was not found.');
+    }
+
+    const supportCase = snapshot.data() || {};
+    if (!isAdmin && supportCase.uid !== uid) {
+      throw new HttpsError('permission-denied', 'This support case belongs to another account.');
+    }
+    if (supportCase.status === 'closed') {
+      throw new HttpsError('failed-precondition', 'This support case is closed.');
+    }
+
+    transaction.create(messageRef, {
+      messageId: messageRef.id,
+      senderUid: uid,
+      senderRole: isAdmin ? 'admin' : 'player',
+      text: message,
+      createdAt: now,
+    });
+    transaction.update(ref, {
+      updatedAt: now,
+      lastMessageAt: now,
+      lastMessageSender: isAdmin ? 'admin' : 'player',
+      messageCount: FieldValue.increment(1),
+    });
   });
-  batch.update(ref, {
-    updatedAt: now,
-    lastMessageAt: now,
-    lastMessageSender: isAdmin ? 'admin' : 'player',
-    messageCount: FieldValue.increment(1),
-  });
-  await batch.commit();
 
   return { caseId: ref.id, messageId: messageRef.id };
 });
