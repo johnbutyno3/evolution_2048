@@ -24,6 +24,7 @@ const db = getFirestore();
 Object.assign(exports, require('./profile'));
 Object.assign(exports, require('./life'));
 Object.assign(exports, require('./admin_test'));
+Object.assign(exports, require('./support_messaging'));
 Object.assign(exports, require('./tool_inventory_defaults'));
 
 const MAX_CHAPTER_INDEX = 5;
