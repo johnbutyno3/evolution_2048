@@ -6,8 +6,8 @@
   },
   "main": "src/bootstrap.js",
   "scripts": {
-    "check": "node --check src/bootstrap.js && node --check src/index.js && node --check src/game_session.js && node --check src/game_session_helpers.js && node --check src/life.js && node --check src/profile.js && node --check src/admin_test.js && node --check src/tool_inventory_defaults.js && node --check src/replay_validator.js && node --check src/security_audit.js && node --check src/security_enforcement.js && node --check src/admin_notifications.js",
-    "test": "node src/security_audit.test.js && node src/callable_ownership.test.js && node src/callable_contract.test.js"
+    "check": "node --check src/bootstrap.js && node --check src/index.js && node --check src/game_session.js && node --check src/game_session_helpers.js && node --check src/life.js && node --check src/profile.js && node --check src/admin_test.js && node --check src/tool_inventory_defaults.js && node --check src/replay_validator.js && node --check src/security_audit.js && node --check src/security_enforcement.js && node --check src/admin_notifications.js && node --check src/support_messaging.js",
+    "test": "node src/security_audit.test.js && node src/callable_ownership.test.js && node src/callable_contract.test.js && node src/support_messaging.test.js"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",
