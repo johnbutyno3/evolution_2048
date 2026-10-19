@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../l10n/app_localizations.dart';
+import '../l10n/qa_feedback_strings.dart';
 
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});
@@ -36,7 +36,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     }
   }
 
-  Future<void> _send(AppLocalizations l10n) async {
+  Future<void> _send(QaFeedbackStrings l10n) async {
     final message = _controller.text.trim();
     final user = FirebaseAuth.instance.currentUser;
 
@@ -80,7 +80,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = QaFeedbackStrings.of(context);
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
