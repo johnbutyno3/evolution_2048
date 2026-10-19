@@ -1,48 +1,32 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class QAPage extends StatelessWidget {
   const QAPage({super.key});
 
-  static const _items = [
-    (
-      'How do I play Rebirth 2048?',
-      'Swipe or use the keyboard to move life forms. Matching life forms evolve into the next stage. Reach the chapter target to progress.'
-    ),
-    (
-      'What happens when I discover a creature?',
-      'A discovered creature is permanently recorded in your Creature Collection and will remain unlocked after replaying or restarting.'
-    ),
-    (
-      'What are Lives?',
-      'Lives allow you to continue playing after a game ends. Membership benefits may change the available life rules.'
-    ),
-    (
-      'What is Gold?',
-      'Gold is the in-game currency used for eligible shop purchases such as Lives and Evolution Tools.'
-    ),
-    (
-      'What do the Evolution Tools do?',
-      'UNDO rewinds a move, REMOVE removes a selected life form, SWAP exchanges positions, and DUPLICATE creates a copy of a selected life form.'
-    ),
-    (
-      'How do I report a problem?',
-      'Open Contact / Feedback from your Personal page and choose Bug Report. You can describe the problem and send it to the game team.'
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final items = [
+      (l10n.qaQuestion1, l10n.qaAnswer1),
+      (l10n.qaQuestion2, l10n.qaAnswer2),
+      (l10n.qaQuestion3, l10n.qaAnswer3),
+      (l10n.qaQuestion4, l10n.qaAnswer4),
+      (l10n.qaQuestion5, l10n.qaAnswer5),
+      (l10n.qaQuestion6, l10n.qaAnswer6),
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Q&A')),
+      appBar: AppBar(title: Text(l10n.qaTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Frequently Asked Questions',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          Text(
+            l10n.qaHeading,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          for (final item in _items)
+          for (final item in items)
             Card(
               margin: const EdgeInsets.only(bottom: 10),
               child: ExpansionTile(
