@@ -84,6 +84,9 @@ class GoldManager {
     } on FirebaseFunctionsException {
       // Keep the ID: the server may have committed before the response failed.
       return false;
+    } on StateError {
+      // Authentication is required before a retry key can be persisted.
+      return false;
     }
 
     // Keep the ID if the response shape is unexpected as well.
