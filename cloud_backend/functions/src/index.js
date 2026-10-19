@@ -221,10 +221,40 @@ exports.spendGold = onCall(async (request) => {
   await enforceSensitiveOperation(request.auth.uid, 'spend_gold');
 
   const amount = request.data?.amount;
+  const operationId = request.data?.operationId;
   validateGoldAmount(amount);
+  if (typeof operationId !== 'string' ||
+      !/^[A-Za-z0-9_-]{16,128}$/.test(operationId)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid operationId is required for an idempotent Gold spend.',
+    );
+  }
 
-  const walletRef = goldWalletRef(request.auth.uid);
+  const uid = request.auth.uid;
+  const walletRef = goldWalletRef(uid);
+  const receiptRef = db.collection('users').doc(uid)
+    .collection('gold_spend_operations').doc(operationId);
+
   return db.runTransaction(async (transaction) => {
+    // Read the receipt first so a retried request returns its original result.
+    const receiptSnapshot = await transaction.get(receiptRef);
+    if (receiptSnapshot.exists) {
+      const receipt = receiptSnapshot.data() || {};
+      if (receipt.amount !== amount) {
+        throw new HttpsError(
+          'already-exists',
+          'operationId was already used with a different amount.',
+        );
+      }
+      return {
+        balance: receipt.balance,
+        lifetimeSpent: receipt.lifetimeSpent,
+        operationId,
+        replayed: true,
+      };
+    }
+
     const snapshot = await transaction.get(walletRef);
     const balance = snapshot.data()?.balance ?? 0;
     const lifetimeSpent = snapshot.data()?.lifetimeSpent ?? 0;
@@ -232,33 +262,33 @@ exports.spendGold = onCall(async (request) => {
     if (!Number.isSafeInteger(balance) || balance < 0 ||
       !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0 ||
       lifetimeSpent > MAX_SAFE_INTEGER - amount) {
-      await recordSecurityEvent({
-        uid: request.auth.uid,
-        action: 'spend_gold',
-        severity: 'high',
-        reason: 'invalid_wallet_state',
-        details: { amount },
-      });
       throw new HttpsError('internal', 'Gold wallet data is invalid.');
     }
     if (balance < amount) {
-      await recordSecurityEvent({
-        uid: request.auth.uid,
-        action: 'spend_gold',
-        reason: 'insufficient_gold',
-        details: { amount, balance },
-      });
       throw new HttpsError('failed-precondition', 'Not enough Gold.');
     }
 
     const nextBalance = balance - amount;
+    const nextLifetimeSpent = lifetimeSpent + amount;
     transaction.set(walletRef, {
       balance: nextBalance,
-      lifetimeSpent: lifetimeSpent + amount,
+      lifetimeSpent: nextLifetimeSpent,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+    transaction.create(receiptRef, {
+      operationId,
+      amount,
+      balance: nextBalance,
+      lifetimeSpent: nextLifetimeSpent,
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
-    return { balance: nextBalance, lifetimeSpent: lifetimeSpent + amount };
+    return {
+      balance: nextBalance,
+      lifetimeSpent: nextLifetimeSpent,
+      operationId,
+      replayed: false,
+    };
   });
 });
 
