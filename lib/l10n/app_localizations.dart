@@ -955,35 +955,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to set up your profile.'**
   String get profileSetupFailed;
-  String get qaTitle;
-  String get qaHeading;
-  String get qaQuestion1;
-  String get qaAnswer1;
-  String get qaQuestion2;
-  String get qaAnswer2;
-  String get qaQuestion3;
-  String get qaAnswer3;
-  String get qaQuestion4;
-  String get qaAnswer4;
-  String get qaQuestion5;
-  String get qaAnswer5;
-  String get qaQuestion6;
-  String get qaAnswer6;
-  String get feedbackTitle;
-  String get feedbackHeading;
-  String get feedbackDescription;
-  String get feedbackType;
-  String get feedbackQuestion;
-  String get feedbackSuggestion;
-  String get feedbackBugReport;
-  String get feedbackOther;
-  String get feedbackMessage;
-  String get feedbackSend;
-  String get feedbackSending;
-  String get feedbackSent;
-  String get feedbackSendFailed;
-  String get feedbackEmpty;
-  String get feedbackSignInRequired;
+
 }
 
 class _AppLocalizationsDelegate
