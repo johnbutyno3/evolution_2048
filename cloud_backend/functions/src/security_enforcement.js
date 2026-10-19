@@ -1,5 +1,4 @@
 const { initializeApp, getApps } = require('firebase-admin/app');
-const { getAuth } = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { HttpsError } = require('firebase-functions/v2/https');
 
@@ -96,17 +95,18 @@ async function enforceSensitiveOperation(uid, operation) {
 }
 
 /**
- * Locks the account after a confirmed critical anti-cheat event. This function
- * is intended to be called by trusted server code only; Firestore rules must
- * prevent clients from writing this document.
+ * Restricts sensitive gameplay/economy operations after a confirmed critical
+ * event. Keep Firebase Authentication enabled so the owner can still sign in
+ * and use the support/appeal callables. Firestore rules must prevent clients
+ * from writing this enforcement document.
  */
 async function applyCriticalRestriction(uid, reason) {
   if (typeof uid !== 'string' || uid.length === 0) {
     throw new Error('A valid uid is required.');
   }
 
-  // Persist the server-side lock first so protected callables remain blocked
-  // even if Firebase Auth account disabling temporarily fails.
+  // Persist the server-side restriction. Do not disable Firebase Auth: doing
+  // so would block the owner from signing in and appealing the restriction.
   await enforcementRef(uid).set({
     status: 'locked',
     reason: typeof reason === 'string' && reason.length > 0
@@ -116,7 +116,6 @@ async function applyCriticalRestriction(uid, reason) {
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
 
-  await getAuth().updateUser(uid, { disabled: true });
 
   return { status: 'locked' };
 }
