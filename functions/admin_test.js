@@ -245,6 +245,67 @@ exports.adminGetSecurityEvents = onCall(async (request) => {
   };
 });
 
+/**
+ * Explicit admin recovery for a previously restricted account.
+ * Keeps risk scores and security events intact for later investigation.
+ * This does not disable any server-side validation; it only clears the
+ * explicit enforcement gate after an administrator confirms recovery.
+ */
+exports.adminRecoverAccountSecurity = onCall(async (request) => {
+  const adminUid = await requireAdmin(request);
+  const uid = validateTargetUid(request.data?.uid);
+  const reason = request.data?.reason;
+
+  if (request.data?.confirm !== true ||
+      typeof reason !== 'string' ||
+      reason.trim().length < 8 ||
+      reason.trim().length > 500) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Security recovery requires explicit confirmation and a reason (8-500 characters).',
+    );
+  }
+
+  const enforcementRef = db.collection('security_enforcement').doc(uid);
+  const riskRef = db.collection('security_risk_scores').doc(uid);
+  const [authUser, enforcementSnapshot, riskSnapshot] = await Promise.all([
+    getAuth().getUser(uid),
+    enforcementRef.get(),
+    riskRef.get(),
+  ]);
+  const previous = enforcementSnapshot.data() || {};
+  const risk = riskSnapshot.data() || {};
+
+  // Enable Auth first. If the following Firestore write fails, the explicit
+  // enforcement gate still blocks sensitive operations (fail closed).
+  await getAuth().updateUser(uid, { disabled: false });
+  await enforcementRef.set({
+    status: 'active',
+    previousStatus: previous.status || 'active',
+    previousReason: previous.reason || null,
+    reason: null,
+    restrictedUntil: null,
+    recoveredAt: FieldValue.serverTimestamp(),
+    recoveredBy: adminUid,
+    recoveryReason: reason.trim(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return {
+    ok: true,
+    uid,
+    authWasDisabled: authUser.disabled === true,
+    authDisabled: false,
+    previousEnforcementStatus: previous.status || 'active',
+    previousEnforcementReason: previous.reason || null,
+    riskScorePreserved: Number.isFinite(Number(risk.riskScoreTotal))
+      ? Number(risk.riskScoreTotal)
+      : 0,
+    securityEventsPreserved: true,
+    recoveredBy: adminUid,
+  };
+});
+
 exports.adminResetSecurityState = onCall(async (request) => {
   const adminUid = await requireAdmin(request);
   const uid = validateTargetUid(request.data?.uid);
