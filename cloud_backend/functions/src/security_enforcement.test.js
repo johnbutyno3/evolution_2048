@@ -156,10 +156,8 @@ async function expectPermissionDenied(callback) {
     'transaction_reuse_detected',
   );
   assert.deepStrictEqual(restriction, { status: 'locked' });
-  assert.deepStrictEqual(lastDisabledUser, {
-    uid: 'restriction-write',
-    data: { disabled: true },
-  });
+  assert.strictEqual(lastDisabledUser, null,
+    'A restricted player must retain Firebase Authentication for support appeals.');
   assert.ok(lastEnforcementWrite);
   assert.strictEqual(lastEnforcementWrite.status, 'locked');
   assert.strictEqual(lastEnforcementWrite.reason, 'transaction_reuse_detected');
