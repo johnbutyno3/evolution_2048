@@ -556,7 +556,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _focusNode.requestFocus();
         _restartInProgress = false;
         if (mounted) setState(() {});
-      }).catchError((_) async {
+      }).catchError((Object error, StackTrace stackTrace) async {
+        debugPrint('RESET completion failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
         if (!mounted || generation != _gameSessionGeneration) return;
         newEngine.stopGameTimer();
         // Clear the optimistic replacement snapshot before restoring the old
