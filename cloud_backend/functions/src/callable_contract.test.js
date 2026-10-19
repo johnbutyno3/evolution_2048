@@ -85,3 +85,18 @@ assert.match(toolPurchase, /transaction\.get\(receiptRef\)/);
 assert.match(toolPurchase, /transaction\.create\(receiptRef/);
 assert.match(toolPurchase, /receipt\.toolType !== type \|\| receipt\.amount !== amount/);
 console.log('Idempotency safety contract OK: Gold spend and tool purchase receipts are transactionally enforced.');
+
+
+const indexConfig = JSON.parse(
+  fs.readFileSync(path.join(repoRoot, 'firestore.indexes.json'), 'utf8'),
+);
+const securityEventIndex = indexConfig.indexes.find((index) =>
+  index.collectionGroup === 'security_events' &&
+  index.fields.some((field) => field.fieldPath === 'uid' && field.order === 'ASCENDING') &&
+  index.fields.some((field) => field.fieldPath === 'timestamp' && field.order === 'DESCENDING'),
+);
+assert.ok(
+  securityEventIndex,
+  'Admin security event history requires a composite index on uid ASCENDING, timestamp DESCENDING.',
+);
+console.log('Firestore index contract OK: admin security event history has its composite index.');
