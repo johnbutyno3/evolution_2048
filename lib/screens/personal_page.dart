@@ -889,7 +889,12 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _audio.initialize();
+    _loadAudioSettings();
+  }
+
+  Future<void> _loadAudioSettings() async {
+    await _audio.initialize();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -936,8 +941,11 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           SwitchListTile(
             title: Text(AppLocalizations.of(context)!.vibration),
-            value: true,
-            onChanged: null,
+            value: SaveManager.vibrationEnabled,
+            onChanged: (value) async {
+              await SaveManager.saveVibrationEnabled(value);
+              if (mounted) setState(() {});
+            },
           ),
           ListTile(
             title: Text(AppLocalizations.of(context)!.language),

@@ -460,4 +460,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileSetupFailed => 'Unable to set up your profile.';
+
 }

@@ -446,4 +446,5 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get profileSetupFailed => '建立玩家資料失敗，請再試一次。';
+
 }

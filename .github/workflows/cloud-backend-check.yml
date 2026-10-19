@@ -1,0 +1,29 @@
+name: Cloud Backend Check
+
+on:
+  push:
+    branches:
+      - backend-rebuild-20261019
+  pull_request:
+    branches:
+      - feature/chapter1-spec-implementation
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloud_backend/functions
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install
+      - name: Check JavaScript syntax
+        run: npm run check
+      - name: Run backend tests
+        run: npm test

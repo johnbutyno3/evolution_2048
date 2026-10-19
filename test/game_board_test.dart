@@ -48,6 +48,65 @@ void main() {
       expect(board.tileAt(0, 1)?.value, 4096);
     });
 
+
+    test('moves tiles right and up without changing their values', () {
+      final rightBoard = GameBoard();
+      rightBoard.setTile(0, 0, GameTile(value: 2));
+      expect(rightBoard.moveRight(), isTrue);
+      expect(rightBoard.tileAt(0, 3)?.value, 2);
+      expect(rightBoard.tileAt(0, 0), isNull);
+
+      final upBoard = GameBoard();
+      upBoard.setTile(3, 2, GameTile(value: 4));
+      expect(upBoard.moveUp(), isTrue);
+      expect(upBoard.tileAt(0, 2)?.value, 4);
+      expect(upBoard.tileAt(3, 2), isNull);
+    });
+
+    test('returns false when a move cannot change the board', () {
+      final board = GameBoard();
+      board.setTile(0, 0, GameTile(value: 2));
+
+      expect(board.moveLeft(), isFalse);
+      expect(board.tileAt(0, 0)?.value, 2);
+      expect(board.emptyPositions, hasLength(15));
+    });
+
+    test('reports a full board and reset clears merge metadata', () {
+      final board = GameBoard();
+      for (var row = 0; row < 4; row++) {
+        for (var column = 0; column < 4; column++) {
+          board.setTile(row, column, GameTile(value: 2));
+        }
+      }
+
+      expect(board.isFull, isTrue);
+      expect(board.emptyPositions, isEmpty);
+
+      expect(board.moveLeft(), isTrue);
+      expect(board.lastMergeScore, greaterThan(0));
+      expect(board.lastMergedValues, isNotEmpty);
+
+      board.reset();
+
+      expect(board.isFull, isFalse);
+      expect(board.emptyPositions, hasLength(16));
+      expect(board.lastMergeScore, 0);
+      expect(board.lastMergedValues, isEmpty);
+      expect(board.tiles.every((tile) => tile == null), isTrue);
+    });
+
+    test('does not allow equal final-stage tiles to merge or count as a merge', () {
+      final board = GameBoard();
+      board.setTile(0, 0, GameTile(value: 4096));
+      board.setTile(0, 1, GameTile(value: 4096));
+
+      expect(board.hasAvailableMerge, isFalse);
+      expect(board.moveLeft(), isFalse);
+      expect(board.lastMergeScore, 0);
+      expect(board.lastMergedValues, isEmpty);
+    });
+
     test('reports 2048 and 4096 milestones', () {
       final board = GameBoard();
       board.setTile(0, 0, GameTile(value: 2048));

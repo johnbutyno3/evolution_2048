@@ -754,13 +754,36 @@ class GameEngine {
 
     _newEvolutionValuesThisMove.clear();
 
+    // Keep the last successful move's UNDO snapshot intact unless this move
+    // actually changes the board. _savePreviousState captures the current
+    // board before attempting the move, so retain the existing snapshot to
+    // restore it when the attempted move is invalid.
+    final oldPreviousBoard = _previousBoard == null
+        ? null
+        : List<int?>.from(_previousBoard!);
+    final oldPreviousScore = _previousScore;
+    final oldPreviousHasReached2048 = _previousHasReached2048;
+    final oldPreviousHasReached4096 = _previousHasReached4096;
+    final oldPreviousHasReached8192 = _previousHasReached8192;
+    final oldPreviousHasReached16384 = _previousHasReached16384;
+    final oldPreviousGameOver = _previousGameOver;
+    final oldPreviousChapterComplete = _previousChapterComplete;
+    final oldHasPreviousState = _hasPreviousState;
+
     _savePreviousState();
 
     final changed = move();
 
     if (!changed) {
-      _hasPreviousState = false;
-      _previousBoard = null;
+      _previousBoard = oldPreviousBoard;
+      _previousScore = oldPreviousScore;
+      _previousHasReached2048 = oldPreviousHasReached2048;
+      _previousHasReached4096 = oldPreviousHasReached4096;
+      _previousHasReached8192 = oldPreviousHasReached8192;
+      _previousHasReached16384 = oldPreviousHasReached16384;
+      _previousGameOver = oldPreviousGameOver;
+      _previousChapterComplete = oldPreviousChapterComplete;
+      _hasPreviousState = oldHasPreviousState;
 
       gameOver = _isGameOver();
 

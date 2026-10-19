@@ -49,7 +49,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
-  Future<bool>? _restartFuture;
+  Future<void>? _restartFuture;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -519,10 +519,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       replaySessionId: replaySessionId,
       initialTiles: initialTiles,
     );
-    _restartFuture = restartFuture;
 
-    unawaited(
-      restartFuture.then((restarted) async {
+    final restartCompletion = restartFuture.then<void>((restarted) async {
         if (!mounted || generation != _gameSessionGeneration) return;
 
         if (restarted) {
@@ -561,6 +559,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }).catchError((_) async {
         if (!mounted || generation != _gameSessionGeneration) return;
         newEngine.stopGameTimer();
+        // Clear the optimistic replacement snapshot before restoring the old
+        // board. Otherwise a failed restart can leave the rejected board in
+        // local storage and resurrect it on the next entry.
+        await newEngine.flushLocalSave();
         await LifeManager.refreshFromServer().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           oldEngine.createSaveData()['replayLog'],
@@ -573,8 +575,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _focusNode.requestFocus();
         _restartInProgress = false;
         if (mounted) setState(() {});
-      }),
-    );
+      });
+    _restartFuture = restartCompletion;
+    unawaited(restartCompletion);
 
     return true;
   }
@@ -882,6 +885,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ToolManager.restoreSessionUsageFromReplayLog(
           previousEngine.createSaveData()['replayLog'],
         );
+        await SaveManager.save(previousEngine.createSaveData());
         previousEngine.toolManager.refreshFromSavedProgress();
         _engine = previousEngine;
         if (mounted) {
@@ -897,8 +901,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }).catchError((_) async {
         if (!mounted) return;
         newEngine.stopGameTimer();
+        await newEngine.flushLocalSave();
         await LifeManager.refreshFromServer().catchError((_) {});
+        ToolManager.restoreSessionUsageFromReplayLog(
+          previousEngine.createSaveData()['replayLog'],
+        );
+        await SaveManager.save(previousEngine.createSaveData());
+        previousEngine.toolManager.refreshFromSavedProgress();
         _engine = previousEngine;
+
+        // The asynchronous rollback must finish even if this page was
+        // disposed, but UI timers/focus/setState must not run after disposal.
+        if (!mounted) return;
         _startUiRefreshTimer();
         _focusNode.requestFocus();
         setState(() {});

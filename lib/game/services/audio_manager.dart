@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'audio_preferences.dart';
 
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
@@ -142,11 +143,24 @@ class AudioManager {
 
     final initialization = _initializePlayers();
     _initializationFuture = initialization;
-    await initialization;
+    try {
+      await initialization;
+    } finally {
+      // If native audio initialization failed, allow a later call to retry.
+      if (!_initialized && identical(_initializationFuture, initialization)) {
+        _initializationFuture = null;
+      }
+    }
   }
 
   Future<void> _initializePlayers() async {
     try {
+      final preferences = await AudioPreferences.load();
+      _musicEnabled = preferences.musicEnabled;
+      _sfxEnabled = preferences.sfxEnabled;
+      _musicVolume = preferences.musicVolume;
+      _sfxVolume = preferences.sfxVolume;
+
       // ----------------------------------------------------------
       // BGM
       // ----------------------------------------------------------
@@ -363,7 +377,7 @@ class AudioManager {
   // ============================================================
 
   Future<void> setMusicVolume(double volume) async {
-    _musicVolume = volume.clamp(0.0, 1.0);
+    _musicVolume = await AudioPreferences.saveMusicVolume(volume);
 
     try {
       await _bgmPlayer.setVolume(_musicVolume);
@@ -373,7 +387,7 @@ class AudioManager {
   }
 
   Future<void> setSfxVolume(double volume) async {
-    _sfxVolume = volume.clamp(0.0, 1.0);
+    _sfxVolume = await AudioPreferences.saveSfxVolume(volume);
 
     try {
       final sfxPlayers = [
@@ -394,6 +408,7 @@ class AudioManager {
 
   Future<void> setMusicEnabled(bool enabled) async {
     _musicEnabled = enabled;
+    await AudioPreferences.saveMusicEnabled(enabled);
 
     if (!enabled) {
       await _bgmPlayer.stop();
@@ -410,6 +425,7 @@ class AudioManager {
 
   Future<void> setSfxEnabled(bool enabled) async {
     _sfxEnabled = enabled;
+    await AudioPreferences.saveSfxEnabled(enabled);
   }
 
   // ============================================================

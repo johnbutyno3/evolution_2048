@@ -955,6 +955,7 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to set up your profile.'**
   String get profileSetupFailed;
+
 }
 
 class _AppLocalizationsDelegate

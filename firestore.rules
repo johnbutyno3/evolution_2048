@@ -90,6 +90,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Support conversations are read/written only through authenticated
+    // callable functions, including for accounts restricted from gameplay.
+    match /support_cases/{caseId} {
+      allow read, write: if false;
+      match /messages/{messageId} {
+        allow read, write: if false;
+      }
+    }
+
     match /feedback/{feedbackId} {
       // Players may submit their own feedback, but feedback is immutable
       // from the client after creation. Admins manage the records.

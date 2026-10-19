@@ -1,5 +1,7 @@
 import 'package:cloud_functions/cloud_functions.dart';
 
+import 'pending_operation_store.dart';
+
 /// Client facade for the server-authoritative Gold wallet.
 class GoldManager {
   GoldManager._();
@@ -9,7 +11,6 @@ class GoldManager {
   );
   static int? _cachedBalance;
   static int? _cachedLifetimeSpent;
-
   static Future<void> initialize() async {
     await refresh();
   }
@@ -58,24 +59,37 @@ class GoldManager {
 
   static Future<bool> spend(int amount) async {
     if (amount <= 0) return false;
-
     try {
-      final callable = _functions.httpsCallable('spendGold');
-      final result = await callable.call(<String, dynamic>{'amount': amount});
-      final data = result.data;
-      final value = data is Map ? data['balance'] : null;
-      if (value is num && value.toInt() >= 0) {
-        _cachedBalance = value.toInt();
-        final spent = data is Map ? data['lifetimeSpent'] : null;
-        _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
-            ? spent.toInt()
-            : lifetimeSpent + amount;
-        return true;
-      }
-    } on FirebaseFunctionsException {
+      return await PendingOperationStore.runExclusive(
+        'gold_spend',
+        '$amount',
+        () async {
+          try {
+            final operationId = await PendingOperationStore.getOrCreate('gold_spend', '$amount');
+            final result = await _functions.httpsCallable('spendGold').call({
+              'amount': amount,
+              'operationId': operationId,
+            });
+            final data = result.data;
+            final value = data is Map ? data['balance'] : null;
+            if (value is! num || value.toInt() < 0) return false;
+            _cachedBalance = value.toInt();
+            final spent = data is Map ? data['lifetimeSpent'] : null;
+            _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
+                ? spent.toInt()
+                : lifetimeSpent + amount;
+            await PendingOperationStore.complete('gold_spend', '$amount');
+            return true;
+          } on FirebaseFunctionsException {
+            // The server may have committed before the response failed.
+            // Preserve the ID so a retry replays the original receipt.
+            return false;
+          }
+        },
+      );
+    } on StateError {
       return false;
     }
-
-    return false;
   }
 }
+

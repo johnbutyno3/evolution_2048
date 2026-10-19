@@ -12,6 +12,7 @@ class SaveManager {
   static const String _playerIdKey = 'rebirth_2048_player_id_v1';
   static const String _avatarIndexKey = 'rebirth_2048_avatar_index_v1';
   static const String _localeKey = 'rebirth_2048_locale_v1';
+  static const String _vibrationEnabledKey = 'rebirth_2048_vibration_enabled_v1';
   static SharedPreferences? _preferences;
   static final ValueNotifier<String> localeCodeNotifier = ValueNotifier('en');
 
@@ -183,6 +184,15 @@ class SaveManager {
     final raw = _preferences!.getString(_saveKey);
     _cachedSave = _decode(raw);
     localeCodeNotifier.value = localeCode;
+  }
+
+  static bool get vibrationEnabled {
+    return _preferences?.getBool(_vibrationEnabledKey) ?? true;
+  }
+
+  static Future<void> saveVibrationEnabled(bool enabled) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setBool(_vibrationEnabledKey, enabled);
   }
 
   static String get localeCode {
