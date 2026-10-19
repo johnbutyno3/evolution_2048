@@ -20,6 +20,16 @@ void main() {
     expect(SaveManager.localeCodeNotifier.value, 'en');
   });
 
+  test('vibration preference defaults on and persists changes', () async {
+    expect(SaveManager.vibrationEnabled, isTrue);
+
+    await SaveManager.saveVibrationEnabled(false);
+    expect(SaveManager.vibrationEnabled, isFalse);
+
+    await SaveManager.saveVibrationEnabled(true);
+    expect(SaveManager.vibrationEnabled, isTrue);
+  });
+
   test('profile name is trimmed and empty names do not count as a profile', () async {
     await SaveManager.saveProfile(name: '  Ocean Explorer  ');
 
