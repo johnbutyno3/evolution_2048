@@ -592,6 +592,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     final wasChapterComplete = _engine.chapterComplete;
+
+    // Pause first so pauseGameTimer() commits the current elapsed duration.
+    // A snapshot captured before pausing contains stale _gameElapsedSeconds
+    // and can overwrite the fresh snapshot queued by pauseGameTimer().
+    _engine.pauseGameTimer();
     final saveData = _engine.createSaveData();
     final sessionId = saveData['gameSessionId'] is String
         ? saveData['gameSessionId'] as String
@@ -601,7 +606,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? Map<String, dynamic>.from(replayLog)
         : null;
 
-    _engine.pauseGameTimer();
     _stopUiRefreshTimer();
 
     if (!wasChapterComplete) {
