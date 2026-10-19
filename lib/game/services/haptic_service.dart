@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'save_manager.dart';
+
 class HapticService {
   HapticService._();
 
@@ -8,6 +10,8 @@ class HapticService {
       MethodChannel('rebirth_2048/haptics');
 
   static Future<void> evolutionImpact() async {
+    if (!SaveManager.vibrationEnabled) return;
+
     if (defaultTargetPlatform == TargetPlatform.android) {
       try {
         await _androidChannel.invokeMethod<void>('evolutionImpact');
