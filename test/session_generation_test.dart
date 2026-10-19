@@ -36,6 +36,53 @@ void main() {
     expect(SaveManager.gameSessionId, isNull);
   });
 
+  test('saved chapter snapshot can be restored and cleared without resurrection', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await SaveManager.initialize();
+
+    const sessionId = 'session-1234567890123456';
+    await SaveManager.setGameSessionId(sessionId);
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'gameSessionId': sessionId,
+      'tiles': List<dynamic>.filled(16, null),
+      'gameOver': false,
+      'chapterComplete': false,
+      'score': 24,
+    });
+
+    expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 24);
+    expect(SaveManager.unfinishedChapter, 'ocean');
+
+    await SaveManager.clearChapter('ocean');
+
+    expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
+    expect(SaveManager.unfinishedChapter, isNull);
+  });
+
+  test('a snapshot bound to a stale session cannot overwrite current save', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await SaveManager.initialize();
+
+    const currentSession = 'current-session-123456';
+    const staleSession = 'stale-session-1234567';
+    await SaveManager.setGameSessionId(currentSession);
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'gameSessionId': currentSession,
+      'tiles': List<dynamic>.filled(16, null),
+      'score': 100,
+    });
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'gameSessionId': staleSession,
+      'tiles': List<dynamic>.filled(16, null),
+      'score': 1,
+    });
+
+    expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 100);
+  });
+
   test('current queued session binding writes SaveManager', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await SaveManager.initialize();
