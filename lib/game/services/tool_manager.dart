@@ -182,6 +182,9 @@ class ToolManager {
         _ => error.message ?? 'Tool purchase failed (${error.code}).',
       };
       return false;
+    } on StateError {
+      _lastPurchaseError = 'Please sign in again.';
+      return false;
     }
   }
 
