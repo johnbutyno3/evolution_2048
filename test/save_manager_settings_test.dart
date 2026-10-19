@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rebirth_2048/game/services/audio_preferences.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -55,13 +56,23 @@ void main() {
     expect(SaveManager.avatarIndex, 12);
   });
 
-  test('audio preference keys retain defaults when unset', () async {
-    final preferences = await SharedPreferences.getInstance();
+  test('audio preferences load defaults and persist toggles and volumes', () async {
+    final defaults = await AudioPreferences.load();
+    expect(defaults.musicEnabled, isTrue);
+    expect(defaults.sfxEnabled, isTrue);
+    expect(defaults.musicVolume, 0.35);
+    expect(defaults.sfxVolume, 0.55);
 
-    expect(preferences.getBool('rebirth_2048_music_enabled_v1'), isNull);
-    expect(preferences.getBool('rebirth_2048_sfx_enabled_v1'), isNull);
-    expect(preferences.getDouble('rebirth_2048_music_volume_v1'), isNull);
-    expect(preferences.getDouble('rebirth_2048_sfx_volume_v1'), isNull);
+    await AudioPreferences.saveMusicEnabled(false);
+    await AudioPreferences.saveSfxEnabled(false);
+    expect(await AudioPreferences.saveMusicVolume(1.5), 1.0);
+    expect(await AudioPreferences.saveSfxVolume(-0.5), 0.0);
+
+    final restored = await AudioPreferences.load();
+    expect(restored.musicEnabled, isFalse);
+    expect(restored.sfxEnabled, isFalse);
+    expect(restored.musicVolume, 1.0);
+    expect(restored.sfxVolume, 0.0);
   });
 
   test('onboarding completion persists', () async {
