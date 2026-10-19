@@ -49,7 +49,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
-  Future<bool>? _restartFuture;
+  Future<void>? _restartFuture;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -519,10 +519,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       replaySessionId: replaySessionId,
       initialTiles: initialTiles,
     );
-    _restartFuture = restartFuture;
 
-    unawaited(
-      restartFuture.then((restarted) async {
+    final restartCompletion = restartFuture.then<void>((restarted) async {
         if (!mounted || generation != _gameSessionGeneration) return;
 
         if (restarted) {
@@ -577,8 +575,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _focusNode.requestFocus();
         _restartInProgress = false;
         if (mounted) setState(() {});
-      }),
-    );
+      });
+    _restartFuture = restartCompletion;
+    unawaited(restartCompletion);
 
     return true;
   }
