@@ -30,7 +30,7 @@ class AudioPreferences {
       musicVolume: (preferences.getDouble(musicVolumeKey) ?? 0.35)
           .clamp(0.0, 1.0).toDouble(),
       sfxVolume: (preferences.getDouble(sfxVolumeKey) ?? 0.55)
-          .clamp(0.0, 1.0),
+          .clamp(0.0, 1.0).toDouble(),
     );
   }
 
@@ -52,7 +52,7 @@ class AudioPreferences {
   }
 
   static Future<double> saveSfxVolume(double value) async {
-    final normalized = value.clamp(0.0, 1.0);
+    final normalized = value.clamp(0.0, 1.0).toDouble();
     final preferences = await SharedPreferences.getInstance();
     await preferences.setDouble(sfxVolumeKey, normalized);
     return normalized;
