@@ -936,8 +936,11 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           SwitchListTile(
             title: Text(AppLocalizations.of(context)!.vibration),
-            value: true,
-            onChanged: null,
+            value: SaveManager.vibrationEnabled,
+            onChanged: (value) async {
+              await SaveManager.saveVibrationEnabled(value);
+              if (mounted) setState(() {});
+            },
           ),
           ListTile(
             title: Text(AppLocalizations.of(context)!.language),
