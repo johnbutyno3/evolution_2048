@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/chapter1-spec-implementation
+      - backend-rebuild-20261019
   pull_request:
     branches:
       - feature/chapter1-spec-implementation
@@ -27,3 +28,6 @@ jobs:
 
       - name: Analyze
         run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
