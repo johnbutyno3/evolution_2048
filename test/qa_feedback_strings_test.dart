@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:rebirth_2048/l10n/qa_feedback_strings.dart';
 
 void main() {
@@ -8,6 +9,7 @@ void main() {
       MaterialApp(
         locale: const Locale('zh'),
         supportedLocales: const [Locale('en'), Locale('zh')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: Builder(
           builder: (context) {
             final strings = QaFeedbackStrings.of(context);
