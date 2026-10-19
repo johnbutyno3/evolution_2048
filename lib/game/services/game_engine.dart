@@ -759,9 +759,8 @@ class GameEngine {
     final changed = move();
 
     if (!changed) {
-      _hasPreviousState = false;
-      _previousBoard = null;
-
+      // An invalid swipe does not change the board, so preserve the last
+      // successful move's UNDO snapshot.
       gameOver = _isGameOver();
 
       if (gameOver) {
