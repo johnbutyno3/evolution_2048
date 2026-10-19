@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - backend-rebuild-20261019
+      - fix/game-state-root-cause-20261019
   pull_request:
     branches:
       - feature/chapter1-spec-implementation
