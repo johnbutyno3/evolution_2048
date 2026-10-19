@@ -19,13 +19,20 @@ class ToolManager {
     region: 'us-central1',
   );
   static final Map<GameToolType, int> _serverUses = {};
-  // Usage that belongs to the currently active local game session but has
-  // not yet been settled against the account inventory on the server.
-  // This must survive BACK/re-entry and must not be overwritten by a plain
-  // account-inventory refresh.
   static final Map<GameToolType, int> _sessionUses = {};
+  // Retain the operation ID after an ambiguous network failure. A retry of
+  // the same purchase in this process then replays the same server transaction.
+  static final Map<String, String> _pendingPurchaseOperationIds = {};
   static bool _allToolsEnabledForTest = false;
   static String? _lastPurchaseError;
+
+  static String _newOperationId() => List<int>.generate(
+        24,
+        (_) => math.Random.secure().nextInt(256),
+      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+
+  static String _purchaseKey(GameToolType type, int amount) =>
+      '${type.name}:$amount';
 
   static String? get lastPurchaseError => _lastPurchaseError;
 
@@ -36,6 +43,7 @@ class ToolManager {
   static void clearCachedInventory() {
     _serverUses.clear();
     _sessionUses.clear();
+    _pendingPurchaseOperationIds.clear();
     _allToolsEnabledForTest = false;
     _lastPurchaseError = null;
   }
@@ -51,13 +59,7 @@ class ToolManager {
 
     for (final type in toolsForChapter(chapter)) {
       final gameTool = _gameToolForType(type);
-      // Inventory is server-authoritative. Never synthesize a tool use
-      // from GameTool.maxUses here: a missing/failed inventory read must not
-      // silently grant a use. New accounts receive the initial C1 UNDO from
-      // the server inventory initializer, which is synchronized before any
-      // flow that requires authoritative tool state.
       final initialUses = _serverUses[type] ?? 0;
-
       _tools.add(ToolState(tool: gameTool, uses: initialUses));
     }
   }
@@ -92,10 +94,6 @@ class ToolManager {
   }
 
   /// Refreshes the server inventory.
-  ///
-  /// Callers that are allowed to wait for inventory synchronization may await
-  /// this future. Game entry itself can still use [unawaited] so network
-  /// latency never blocks the local-first game flow.
   static Future<void> refreshInventory() {
     return _refreshInventoryFromServer();
   }
@@ -110,10 +108,6 @@ class ToolManager {
       final inventory = data['inventory'];
       if (inventory is! Map) return;
 
-      // Firebase is authoritative for inventory. Replace the account-scoped
-      // snapshot instead of merging into the previous in-memory values.
-      // Otherwise a previous session can leave a stale use count visible
-      // until the next purchase/consumption.
       final serverSnapshot = <GameToolType, int>{};
       for (final type in GameToolType.values) {
         final raw = inventory[type.name];
@@ -127,15 +121,12 @@ class ToolManager {
     }
   }
 
-  /// Clears the optimistic usage overlay when a brand-new game session is
-  /// created. The previous session will have been settled by the server.
+  /// Clears the optimistic usage overlay when a brand-new game session is created.
   static void clearSessionUsage() {
     _sessionUses.clear();
   }
 
-  /// Rebuilds the usage overlay from the persisted replay log of the active
-  /// local session. The account inventory itself remains server-authoritative;
-  /// the overlay represents uses that are still pending session settlement.
+  /// Rebuilds the usage overlay from the persisted replay log of the active session.
   static void restoreSessionUsageFromReplayLog(dynamic replayLog) {
     _sessionUses.clear();
     if (replayLog is! Map) return;
@@ -161,16 +152,15 @@ class ToolManager {
 
   static Future<bool> purchase(GameToolType type, int amount) async {
     _lastPurchaseError = null;
-    // Refresh the wallet immediately before purchase so an admin grant or a
-    // recent Gold transaction is not hidden behind an old client cache.
     await GoldManager.refresh();
 
+    final key = _purchaseKey(type, amount);
+    final operationId = _pendingPurchaseOperationIds.putIfAbsent(
+      key,
+      _newOperationId,
+    );
+
     try {
-      // Reuse this key for SDK-level retries of the same purchase call.
-      final operationId = List<int>.generate(
-        24,
-        (_) => math.Random.secure().nextInt(256),
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
       final result = await _functions.httpsCallable('purchaseTool').call({
         'toolType': type.name,
         'amount': amount,
@@ -182,21 +172,18 @@ class ToolManager {
       final uses = data['uses'];
       final balance = data['balance'];
 
-      // The purchase callable is atomic: Gold deduction and tool inventory
-      // grant are committed together. Accept the result only when both
-      // authoritative values are present, then refresh the complete inventory
-      // so every tool state reflects the same server snapshot.
       if (uses is! num || balance is! num) {
         _lastPurchaseError = 'Server returned an invalid purchase result.';
         return false;
       }
       _serverUses[type] = uses.toInt();
       GoldManager.applyServerState(data);
+      _pendingPurchaseOperationIds.remove(key);
       await refreshInventory();
       return true;
     } on FirebaseFunctionsException catch (error) {
-      // Re-read the authoritative wallet after a rejected purchase so a
-      // stale client cache cannot continue displaying an incorrect balance.
+      // The server may have committed before the response failed. Keep the
+      // operation ID so the next attempt cannot charge Gold twice.
       await GoldManager.refresh();
       _lastPurchaseError = switch (error.code) {
         'failed-precondition' => error.message ?? 'Purchase precondition failed.',
@@ -209,18 +196,11 @@ class ToolManager {
     }
   }
 
-  /// Consumes a tool locally.
-  ///
-  /// Gameplay never waits for Firebase for an individual tool use. The local
-  /// replay log is the authoritative input for the eventual server validation
-  /// when the game session ends.
+  /// Consumes a tool locally; server validates the replay log at settlement.
   bool consumeLocal(GameToolType type) {
     final tool = getTool(type);
     if (tool == null) return false;
 
-    // GOLDEN UNDO is unlimited even when the authoritative inventory has
-    // never contained a purchased UNDO. Check membership before the normal
-    // inventory gate so a stale/empty local inventory cannot block it.
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
       tool.usesRemaining = _unlimitedUses;
       return true;
@@ -229,9 +209,6 @@ class ToolManager {
     if (!tool.canUse) return false;
 
     tool.usesRemaining -= 1;
-    // The account inventory is not settled until the active session is
-    // restarted/completed. Track this use separately so a Firebase inventory
-    // refresh cannot resurrect the tool during BACK/re-entry.
     _sessionUses[type] = (_sessionUses[type] ?? 0) + 1;
     return true;
   }
@@ -283,5 +260,4 @@ class ToolManager {
       GameChapter.universe => [GameToolType.timeRewind],
     };
   }
-
 }
