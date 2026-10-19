@@ -142,46 +142,48 @@ class ToolManager {
 
   static Future<bool> purchase(GameToolType type, int amount) async {
     _lastPurchaseError = null;
-    await GoldManager.refresh();
-
     final key = _purchaseKey(type, amount);
     try {
-      final operationId = await PendingOperationStore.getOrCreate(
+      return await PendingOperationStore.runExclusive(
         'tool_purchase',
         key,
+        () async {
+          await GoldManager.refresh();
+          try {
+            final operationId = await PendingOperationStore.getOrCreate('tool_purchase', key);
+            final result = await _functions.httpsCallable('purchaseTool').call({
+              'toolType': type.name,
+              'amount': amount,
+              'operationId': operationId,
+            });
+            final data = result.data is Map
+                ? Map<String, dynamic>.from(result.data as Map)
+                : <String, dynamic>{};
+            final uses = data['uses'];
+            final balance = data['balance'];
+            if (uses is! num || balance is! num) {
+              _lastPurchaseError = 'Server returned an invalid purchase result.';
+              return false;
+            }
+            _serverUses[type] = uses.toInt();
+            GoldManager.applyServerState(data);
+            await PendingOperationStore.complete('tool_purchase', key);
+            await refreshInventory();
+            return true;
+          } on FirebaseFunctionsException catch (error) {
+            // Preserve the ID after ambiguous failures to prevent duplicate charges.
+            await GoldManager.refresh();
+            _lastPurchaseError = switch (error.code) {
+              'failed-precondition' => error.message ?? 'Purchase precondition failed.',
+              'permission-denied' => error.message ?? 'Account operation is restricted.',
+              'unauthenticated' => 'Please sign in again.',
+              'invalid-argument' => error.message ?? 'Invalid purchase request.',
+              _ => error.message ?? 'Tool purchase failed (${error.code}).',
+            };
+            return false;
+          }
+        },
       );
-      final result = await _functions.httpsCallable('purchaseTool').call({
-        'toolType': type.name,
-        'amount': amount,
-        'operationId': operationId,
-      });
-      final data = result.data is Map
-          ? Map<String, dynamic>.from(result.data as Map)
-          : <String, dynamic>{};
-      final uses = data['uses'];
-      final balance = data['balance'];
-
-      if (uses is! num || balance is! num) {
-        _lastPurchaseError = 'Server returned an invalid purchase result.';
-        return false;
-      }
-      _serverUses[type] = uses.toInt();
-      GoldManager.applyServerState(data);
-      await PendingOperationStore.complete('tool_purchase', key);
-      await refreshInventory();
-      return true;
-    } on FirebaseFunctionsException catch (error) {
-      // The server may have committed before the response failed. Keep the
-      // operation ID so the next attempt cannot charge Gold twice.
-      await GoldManager.refresh();
-      _lastPurchaseError = switch (error.code) {
-        'failed-precondition' => error.message ?? 'Purchase precondition failed.',
-        'permission-denied' => error.message ?? 'Account operation is restricted.',
-        'unauthenticated' => 'Please sign in again.',
-        'invalid-argument' => error.message ?? 'Invalid purchase request.',
-        _ => error.message ?? 'Tool purchase failed (${error.code}).',
-      };
-      return false;
     } on StateError {
       _lastPurchaseError = 'Please sign in again.';
       return false;
