@@ -59,37 +59,37 @@ class GoldManager {
 
   static Future<bool> spend(int amount) async {
     if (amount <= 0) return false;
-
     try {
-      final operationId = await PendingOperationStore.getOrCreate(
+      return await PendingOperationStore.runExclusive(
         'gold_spend',
         '$amount',
+        () async {
+          try {
+            final operationId = await PendingOperationStore.getOrCreate('gold_spend', '$amount');
+            final result = await _functions.httpsCallable('spendGold').call({
+              'amount': amount,
+              'operationId': operationId,
+            });
+            final data = result.data;
+            final value = data is Map ? data['balance'] : null;
+            if (value is! num || value.toInt() < 0) return false;
+            _cachedBalance = value.toInt();
+            final spent = data is Map ? data['lifetimeSpent'] : null;
+            _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
+                ? spent.toInt()
+                : lifetimeSpent + amount;
+            await PendingOperationStore.complete('gold_spend', '$amount');
+            return true;
+          } on FirebaseFunctionsException {
+            // The server may have committed before the response failed.
+            // Preserve the ID so a retry replays the original receipt.
+            return false;
+          }
+        },
       );
-      final callable = _functions.httpsCallable('spendGold');
-      final result = await callable.call(<String, dynamic>{
-        'amount': amount,
-        'operationId': operationId,
-      });
-      final data = result.data;
-      final value = data is Map ? data['balance'] : null;
-      if (value is num && value.toInt() >= 0) {
-        _cachedBalance = value.toInt();
-        final spent = data is Map ? data['lifetimeSpent'] : null;
-        _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
-            ? spent.toInt()
-            : lifetimeSpent + amount;
-        await PendingOperationStore.complete('gold_spend', '$amount');
-        return true;
-      }
-    } on FirebaseFunctionsException {
-      // Keep the ID: the server may have committed before the response failed.
-      return false;
     } on StateError {
-      // Authentication is required before a retry key can be persisted.
       return false;
     }
-
-    // Keep the ID if the response shape is unexpected as well.
-    return false;
   }
 }
+}}
