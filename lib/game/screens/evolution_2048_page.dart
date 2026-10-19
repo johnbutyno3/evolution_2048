@@ -909,6 +909,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         await SaveManager.save(previousEngine.createSaveData());
         previousEngine.toolManager.refreshFromSavedProgress();
         _engine = previousEngine;
+
+        // The asynchronous rollback must finish even if this page was
+        // disposed, but UI timers/focus/setState must not run after disposal.
+        if (!mounted) return;
         _startUiRefreshTimer();
         _focusNode.requestFocus();
         setState(() {});
