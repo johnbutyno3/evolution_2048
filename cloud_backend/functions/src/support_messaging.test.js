@@ -15,6 +15,7 @@ for (const callable of [
   'listMySupportCases',
   'listSupportMessages',
   'listSupportCasesAdmin',
+  'setSupportCaseStatusAdmin',
 ]) {
   assert.match(
     source,
