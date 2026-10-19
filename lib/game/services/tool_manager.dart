@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
-
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'life_manager.dart';
 import 'gold_manager.dart';
+import 'pending_operation_store.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -20,16 +19,8 @@ class ToolManager {
   );
   static final Map<GameToolType, int> _serverUses = {};
   static final Map<GameToolType, int> _sessionUses = {};
-  // Retain the operation ID after an ambiguous network failure. A retry of
-  // the same purchase in this process then replays the same server transaction.
-  static final Map<String, String> _pendingPurchaseOperationIds = {};
   static bool _allToolsEnabledForTest = false;
   static String? _lastPurchaseError;
-
-  static String _newOperationId() => List<int>.generate(
-        24,
-        (_) => math.Random.secure().nextInt(256),
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
 
   static String _purchaseKey(GameToolType type, int amount) =>
       '${type.name}:$amount';
@@ -43,7 +34,6 @@ class ToolManager {
   static void clearCachedInventory() {
     _serverUses.clear();
     _sessionUses.clear();
-    _pendingPurchaseOperationIds.clear();
     _allToolsEnabledForTest = false;
     _lastPurchaseError = null;
   }
@@ -155,12 +145,11 @@ class ToolManager {
     await GoldManager.refresh();
 
     final key = _purchaseKey(type, amount);
-    final operationId = _pendingPurchaseOperationIds.putIfAbsent(
-      key,
-      _newOperationId,
-    );
-
     try {
+      final operationId = await PendingOperationStore.getOrCreate(
+        'tool_purchase',
+        key,
+      );
       final result = await _functions.httpsCallable('purchaseTool').call({
         'toolType': type.name,
         'amount': amount,
@@ -178,7 +167,7 @@ class ToolManager {
       }
       _serverUses[type] = uses.toInt();
       GoldManager.applyServerState(data);
-      _pendingPurchaseOperationIds.remove(key);
+      await PendingOperationStore.complete('tool_purchase', key);
       await refreshInventory();
       return true;
     } on FirebaseFunctionsException catch (error) {
