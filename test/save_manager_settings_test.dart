@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rebirth_2048/game/services/audio_manager.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -51,6 +52,25 @@ void main() {
 
     await SaveManager.saveAvatarIndex(12);
     expect(SaveManager.avatarIndex, 12);
+  });
+
+  test('audio toggles and volume controls persist clamped values', () async {
+    final audio = AudioManager.instance;
+
+    await audio.setMusicEnabled(false);
+    await audio.setSfxEnabled(false);
+    await audio.setMusicVolume(1.5);
+    await audio.setSfxVolume(-0.5);
+
+    final preferences = await SharedPreferences.getInstance();
+    expect(audio.musicEnabled, isFalse);
+    expect(audio.sfxEnabled, isFalse);
+    expect(audio.musicVolume, 1.0);
+    expect(audio.sfxVolume, 0.0);
+    expect(preferences.getBool('rebirth_2048_music_enabled_v1'), isFalse);
+    expect(preferences.getBool('rebirth_2048_sfx_enabled_v1'), isFalse);
+    expect(preferences.getDouble('rebirth_2048_music_volume_v1'), 1.0);
+    expect(preferences.getDouble('rebirth_2048_sfx_volume_v1'), 0.0);
   });
 
   test('onboarding completion persists', () async {
