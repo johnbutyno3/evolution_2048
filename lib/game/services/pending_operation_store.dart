@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,7 @@ class PendingOperationStore {
   PendingOperationStore._();
 
   static String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+  static final Map<String, Future<void>> _operationTails = {};
 
   static String _storageKey(String namespace, String operationKey, String uid) =>
       'pending_operation_v1:$uid:$namespace:$operationKey';
@@ -17,6 +19,32 @@ class PendingOperationStore {
         24,
         (_) => math.Random.secure().nextInt(256),
       ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+
+  /// Serializes identical operation slots so concurrent taps cannot share one
+  /// idempotency key. Failed ambiguous calls retain their key for a later retry.
+  static Future<T> runExclusive<T>(
+    String namespace,
+    String operationKey,
+    Future<T> Function() action,
+  ) async {
+    final uid = _uid;
+    if (uid == null || uid.isEmpty) {
+      throw StateError('An authenticated user is required for this operation.');
+    }
+    final lockKey = '$uid:$namespace:$operationKey';
+    final previous = _operationTails[lockKey] ?? Future<void>.value();
+    final release = Completer<void>();
+    _operationTails[lockKey] = release.future;
+    await previous;
+    try {
+      return await action();
+    } finally {
+      if (identical(_operationTails[lockKey], release.future)) {
+        _operationTails.remove(lockKey);
+      }
+      release.complete();
+    }
+  }
 
   static Future<String> getOrCreate(
     String namespace,
