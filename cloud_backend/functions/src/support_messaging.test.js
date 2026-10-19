@@ -31,6 +31,17 @@ assert.match(source, /if \(!isAdmin\)/);
 assert.match(source, /This support case belongs to another account/);
 assert.match(source, /MAX_MESSAGE_LENGTH = 4000/);
 assert.match(source, /MAX_SUBJECT_LENGTH = 160/);
+const sendStart = source.indexOf('exports.sendSupportMessage = onCall(');
+const sendEnd = source.indexOf('exports.listMySupportCases = onCall(', sendStart);
+assert.notEqual(sendStart, -1, 'sendSupportMessage callable must exist.');
+assert.notEqual(sendEnd, -1, 'sendSupportMessage callable boundary must exist.');
+const sendCallable = source.slice(sendStart, sendEnd);
+assert.match(sendCallable, /db\.runTransaction\(async \(transaction\)/,
+  'Case status validation and message append must be atomic.');
+assert.match(sendCallable, /transaction\.get\(ref\)/);
+assert.match(sendCallable, /transaction\.create\(messageRef/);
+assert.match(sendCallable, /supportCase\.status === 'closed'/);
+
 assert.doesNotMatch(source, /enforceSensitiveOperation\(/,
   'Support callables must remain available when gameplay operations are locked.');
 assert.match(rules, /match \/support_cases\/\{caseId\}/);
