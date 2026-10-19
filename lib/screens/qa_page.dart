@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../l10n/app_localizations.dart';
+import '../l10n/qa_feedback_strings.dart';
 
 class QAPage extends StatelessWidget {
   const QAPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = QaFeedbackStrings.of(context);
     final items = [
       (l10n.qaQuestion1, l10n.qaAnswer1),
       (l10n.qaQuestion2, l10n.qaAnswer2),
