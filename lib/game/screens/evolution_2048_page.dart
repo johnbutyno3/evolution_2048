@@ -885,6 +885,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ToolManager.restoreSessionUsageFromReplayLog(
           previousEngine.createSaveData()['replayLog'],
         );
+        await SaveManager.save(previousEngine.createSaveData());
         previousEngine.toolManager.refreshFromSavedProgress();
         _engine = previousEngine;
         if (mounted) {
