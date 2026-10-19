@@ -561,6 +561,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }).catchError((_) async {
         if (!mounted || generation != _gameSessionGeneration) return;
         newEngine.stopGameTimer();
+        // Clear the optimistic replacement snapshot before restoring the old
+        // board. Otherwise a failed restart can leave the rejected board in
+        // local storage and resurrect it on the next entry.
+        await newEngine.flushLocalSave();
         await LifeManager.refreshFromServer().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           oldEngine.createSaveData()['replayLog'],
