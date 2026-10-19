@@ -889,7 +889,12 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _audio.initialize();
+    _loadAudioSettings();
+  }
+
+  Future<void> _loadAudioSettings() async {
+    await _audio.initialize();
+    if (mounted) setState(() {});
   }
 
   @override
