@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
@@ -165,9 +166,15 @@ class ToolManager {
     await GoldManager.refresh();
 
     try {
+      // Reuse this key for SDK-level retries of the same purchase call.
+      final operationId = List<int>.generate(
+        24,
+        (_) => math.Random.secure().nextInt(256),
+      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
       final result = await _functions.httpsCallable('purchaseTool').call({
         'toolType': type.name,
         'amount': amount,
+        'operationId': operationId,
       });
       final data = result.data is Map
           ? Map<String, dynamic>.from(result.data as Map)
