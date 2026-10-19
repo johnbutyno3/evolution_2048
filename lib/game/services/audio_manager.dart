@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
@@ -147,6 +148,14 @@ class AudioManager {
 
   Future<void> _initializePlayers() async {
     try {
+      final preferences = await SharedPreferences.getInstance();
+      _musicEnabled = preferences.getBool('rebirth_2048_music_enabled_v1') ?? true;
+      _sfxEnabled = preferences.getBool('rebirth_2048_sfx_enabled_v1') ?? true;
+      _musicVolume = (preferences.getDouble('rebirth_2048_music_volume_v1') ?? 0.35)
+          .clamp(0.0, 1.0);
+      _sfxVolume = (preferences.getDouble('rebirth_2048_sfx_volume_v1') ?? 0.55)
+          .clamp(0.0, 1.0);
+
       // ----------------------------------------------------------
       // BGM
       // ----------------------------------------------------------
@@ -364,6 +373,8 @@ class AudioManager {
 
   Future<void> setMusicVolume(double volume) async {
     _musicVolume = volume.clamp(0.0, 1.0);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setDouble('rebirth_2048_music_volume_v1', _musicVolume);
 
     try {
       await _bgmPlayer.setVolume(_musicVolume);
@@ -374,6 +385,8 @@ class AudioManager {
 
   Future<void> setSfxVolume(double volume) async {
     _sfxVolume = volume.clamp(0.0, 1.0);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setDouble('rebirth_2048_sfx_volume_v1', _sfxVolume);
 
     try {
       final sfxPlayers = [
@@ -394,6 +407,8 @@ class AudioManager {
 
   Future<void> setMusicEnabled(bool enabled) async {
     _musicEnabled = enabled;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool('rebirth_2048_music_enabled_v1', enabled);
 
     if (!enabled) {
       await _bgmPlayer.stop();
@@ -410,6 +425,8 @@ class AudioManager {
 
   Future<void> setSfxEnabled(bool enabled) async {
     _sfxEnabled = enabled;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool('rebirth_2048_sfx_enabled_v1', enabled);
   }
 
   // ============================================================
