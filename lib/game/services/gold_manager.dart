@@ -1,6 +1,6 @@
-import 'dart:math' as math;
-
 import 'package:cloud_functions/cloud_functions.dart';
+
+import 'pending_operation_store.dart';
 
 /// Client facade for the server-authoritative Gold wallet.
 class GoldManager {
@@ -11,15 +11,6 @@ class GoldManager {
   );
   static int? _cachedBalance;
   static int? _cachedLifetimeSpent;
-  // Keep an operation ID after an ambiguous failure so a user retry in this
-  // process replays the same server transaction instead of spending twice.
-  static final Map<int, String> _pendingSpendOperationIds = <int, String>{};
-
-  static String _newOperationId() => List<int>.generate(
-        24,
-        (_) => math.Random.secure().nextInt(256),
-      ).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
-
   static Future<void> initialize() async {
     await refresh();
   }
@@ -32,7 +23,6 @@ class GoldManager {
   static void clearCachedState() {
     _cachedBalance = null;
     _cachedLifetimeSpent = null;
-    _pendingSpendOperationIds.clear();
   }
 
   static void applyServerState(Map<String, dynamic> data) {
@@ -70,12 +60,11 @@ class GoldManager {
   static Future<bool> spend(int amount) async {
     if (amount <= 0) return false;
 
-    final operationId = _pendingSpendOperationIds.putIfAbsent(
-      amount,
-      _newOperationId,
-    );
-
     try {
+      final operationId = await PendingOperationStore.getOrCreate(
+        'gold_spend',
+        '$amount',
+      );
       final callable = _functions.httpsCallable('spendGold');
       final result = await callable.call(<String, dynamic>{
         'amount': amount,
@@ -89,7 +78,7 @@ class GoldManager {
         _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
             ? spent.toInt()
             : lifetimeSpent + amount;
-        _pendingSpendOperationIds.remove(amount);
+        await PendingOperationStore.complete('gold_spend', '$amount');
         return true;
       }
     } on FirebaseFunctionsException {
