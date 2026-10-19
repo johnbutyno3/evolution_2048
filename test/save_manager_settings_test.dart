@@ -4,6 +4,8 @@ import 'package:rebirth_2048/game/services/save_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await SaveManager.initialize();
