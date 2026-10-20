@@ -94,12 +94,34 @@ class Rebirth2048App extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasError || snapshot.data == null) {
+        if (snapshot.hasError) {
           return const LoginRegisterPage();
         }
 
+        final user = snapshot.data;
+        if (user == null) {
+          return FutureBuilder<void>(
+            future: SaveManager.bindAccount(null),
+            builder: (context, bindingSnapshot) {
+              if (bindingSnapshot.connectionState != ConnectionState.done) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (bindingSnapshot.hasError) {
+                return const Scaffold(
+                  body: Center(
+                    child: Text('Unable to clear account data safely.'),
+                  ),
+                );
+              }
+              return const LoginRegisterPage();
+            },
+          );
+        }
+
         return FutureBuilder<void>(
-          future: SaveManager.bindAccount(snapshot.data!.uid),
+          future: SaveManager.bindAccount(user.uid),
           builder: (context, bindingSnapshot) {
             if (bindingSnapshot.connectionState != ConnectionState.done) {
               return const Scaffold(
