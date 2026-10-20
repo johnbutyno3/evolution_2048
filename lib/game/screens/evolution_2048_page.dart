@@ -364,9 +364,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     PlayerProgressService progress,
     int generation,
   ) async {
+    // Any unresolved RESET for this account blocks normal session routing,
+    // even when the user opens a different chapter. Otherwise the app could
+    // charge a second Life while the prior chapter's outcome is ambiguous.
     final payload = await PendingOperationStore.findPendingPayload(
       'restart_game_session',
-      chapterIndex: _chapterNumber - 1,
     );
     if (payload == null) return null;
 
