@@ -58,19 +58,33 @@ class PlayerProfileService {
   }
 
   static Future<void> updateAvatarIndex(int index) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw const PlayerProfileException('Sign in before updating the profile.');
+    }
     final safeIndex = index.clamp(0, 53);
     final data = await _call(
       'updatePlayerAvatar',
       <String, dynamic>{'avatarIndex': safeIndex},
     );
 
+    if (FirebaseAuth.instance.currentUser?.uid != uid) {
+      throw const PlayerProfileException('Account changed during profile update.');
+    }
     final serverIndex = _safeAvatarIndex(data['avatarIndex']);
     await SaveManager.saveAvatarIndex(serverIndex);
   }
 
   static Future<String?> ensureProfile() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw const PlayerProfileException('Sign in before initializing the profile.');
+    }
     final data = await _call('ensurePlayerProfile', <String, dynamic>{});
 
+    if (FirebaseAuth.instance.currentUser?.uid != uid) {
+      throw const PlayerProfileException('Account changed during profile initialization.');
+    }
     final name = _stringValue(data, 'playerName');
     final playerId = _stringValue(data, 'playerId');
     final avatarIndex = _safeAvatarIndex(data['avatarIndex']);
@@ -101,11 +115,13 @@ class PlayerProfileService {
       return true;
     }
 
+    final uid = user.uid;
     final data = await _call(
       'updatePlayerProfile',
       <String, dynamic>{'playerName': trimmed},
     );
 
+    if (FirebaseAuth.instance.currentUser?.uid != uid) return false;
     final serverName = _stringValue(data, 'playerName');
     final playerId = _stringValue(data, 'playerId');
     final avatarIndex = _safeAvatarIndex(data['avatarIndex']);
