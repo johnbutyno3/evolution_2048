@@ -228,6 +228,23 @@ assert.match(
   /if \(_restartInProgress\) return; final mode = _toolMode/,
   'Gameplay tools must remain disabled while an ambiguous RESET is awaiting recovery.',
 );
+const backHandlerStart = gamePageSource.indexOf('Future<void> _handleSystemBack()');
+const backHandlerEnd = gamePageSource.indexOf('Future<void> _showResetMenu()', backHandlerStart);
+assert.ok(backHandlerStart >= 0 && backHandlerEnd > backHandlerStart);
+const backHandler = gamePageSource.slice(backHandlerStart, backHandlerEnd);
+const unresolvedBackCheck = backHandler.indexOf(
+  "PendingOperationStore.findPendingPayload(\n        'restart_game_session',",
+);
+const abandonOnBack = backHandler.indexOf('abandonGameSession(');
+assert.ok(
+  unresolvedBackCheck >= 0 && abandonOnBack > unresolvedBackCheck,
+  'Back navigation must check for unresolved RESET before any session abandon or save.',
+);
+assert.match(
+  backHandler,
+  /if \(unresolvedReset != null\) \{[\s\S]*?Navigator\.of\(context\)\.pop\(\);[\s\S]*?return;/,
+  'Leaving with an unresolved RESET must pop without running normal session settlement.',
+);
 console.log('RESET crash recovery contract OK: payload, operation ID, and board snapshot are persisted and replayed.');
 
 
