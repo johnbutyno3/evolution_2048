@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
 import 'package:rebirth_2048/services/session_generation.dart';
@@ -132,6 +133,77 @@ void main() {
     expect(SaveManager.profileName, 'Alice Local');
     expect(SaveManager.playerId, 'alice-player-id');
     expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 77);
+  });
+
+  test('legacy board migrates only when the authoritative session matches', () async {
+    const sessionId = 'legacy-session-123456789';
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'rebirth_2048_game_session_id_v1': sessionId,
+      'rebirth_2048_local_save_v1': jsonEncode(<String, dynamic>{
+        'version': 1,
+        'lastChapter': 'ocean',
+        'chapters': <String, dynamic>{
+          'ocean': <String, dynamic>{
+            'chapter': 'ocean',
+            'gameSessionId': sessionId,
+            'tiles': List<dynamic>.filled(16, null),
+            'score': 41,
+            'gameOver': false,
+            'chapterComplete': false,
+          },
+          'land': <String, dynamic>{
+            'chapter': 'land',
+            'gameSessionId': 'stale-other-session',
+            'tiles': List<dynamic>.filled(16, null),
+            'score': 8,
+          },
+        },
+      }),
+    });
+    await SaveManager.initialize();
+    await SaveManager.bindAccount('migration-account');
+
+    final migrated = await SaveManager.migrateLegacySnapshotIfSessionMatches(
+      serverSessionId: sessionId,
+      chapter: 'ocean',
+      isOwner: () => true,
+    );
+
+    expect(migrated, isTrue);
+    expect(SaveManager.gameSessionId, sessionId);
+    expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 41);
+    expect(SaveManager.loadCached(chapter: 'ocean')?['saveOwnerUid'], 'migration-account');
+    expect(SaveManager.loadCached(chapter: 'land'), isNull);
+    // Legacy data remains intact for safe recovery/audit.
+    expect(
+      SharedPreferences.getInstance().then((prefs) => prefs.getString('rebirth_2048_game_session_id_v1')),
+      completion(sessionId),
+    );
+  });
+
+  test('legacy board is not imported when the server session differs', () async {
+    const legacySession = 'legacy-session-123456789';
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'rebirth_2048_game_session_id_v1': legacySession,
+      'rebirth_2048_local_save_v1': jsonEncode(<String, dynamic>{
+        'chapter': 'ocean',
+        'gameSessionId': legacySession,
+        'tiles': List<dynamic>.filled(16, null),
+        'score': 41,
+      }),
+    });
+    await SaveManager.initialize();
+    await SaveManager.bindAccount('different-account');
+
+    final migrated = await SaveManager.migrateLegacySnapshotIfSessionMatches(
+      serverSessionId: 'authoritative-different-session',
+      chapter: 'ocean',
+      isOwner: () => true,
+    );
+
+    expect(migrated, isFalse);
+    expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
+    expect(SaveManager.gameSessionId, isNull);
   });
 
 }
