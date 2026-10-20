@@ -306,7 +306,7 @@ assert.match(
 );
 assert.match(
   nextChapterSource,
-  /await PendingOperationStore\.complete\('restart_game_session', operationKey\)/,
+  /await PendingOperationStore\.complete\(\s*'restart_game_session',\s*operationKey,\s*expectedUid:\s*_accountUidAtCreation/s,
   'A confirmed next-chapter transition must clear its pending recovery payload after saving.',
 );
 console.log('Next-chapter transition contract OK: durable idempotency payload precedes the backend request.');
