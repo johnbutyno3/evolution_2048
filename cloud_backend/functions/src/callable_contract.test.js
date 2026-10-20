@@ -183,6 +183,15 @@ assert.ok(
     resetCallableIndex > resetPayloadWriteIndex,
   'The full RESET request and board snapshot must be persisted before the backend call.',
 );
+const resetEngineSwapIndex = gamePageSource.indexOf(
+  '      _engine = newEngine;',
+  resetPayloadWriteIndex,
+);
+assert.ok(
+  resetEngineSwapIndex > resetPayloadWriteIndex &&
+    resetEngineSwapIndex < resetCallableIndex,
+  'The replacement board must not become active before its recovery payload is durable.',
+);
 assert.match(
   gamePageSource,
   /RESET blocked: an earlier reset still needs recovery/,
