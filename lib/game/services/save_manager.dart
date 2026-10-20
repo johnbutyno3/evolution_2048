@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SaveManager {
   SaveManager._();
 
+  static const String _legacySaveKey = 'rebirth_2048_local_save_v1';
+  static const String _legacySessionKey = 'rebirth_2048_game_session_id_v1';
   static const String _saveKeyPrefix = 'rebirth_2048_local_save_v1:';
   static const String _sessionKeyPrefix = 'rebirth_2048_game_session_id_v1:';
   static String? _accountUid;
@@ -50,6 +52,110 @@ class SaveManager {
       _accountLoaded = true;
     });
     await _saveQueue;
+  }
+
+  /// Imports the legacy global snapshot only when the server confirms that
+  /// its old session belongs to the current account. The old global keys are
+  /// preserved; only the matching active chapter is copied into the UID scope.
+  static Future<bool> migrateLegacySnapshotIfSessionMatches({
+    required String serverSessionId,
+    required String chapter,
+    required bool Function() isOwner,
+  }) async {
+    final ownerUid = _accountUid;
+    if (ownerUid == null || ownerUid.isEmpty || serverSessionId.isEmpty) {
+      return false;
+    }
+    _preferences ??= await SharedPreferences.getInstance();
+    var migrated = false;
+    final operation = _saveQueue.then<void>((_) async {
+      if (_accountUid != ownerUid || !isOwner()) return;
+      final targetKey = _saveKeyFor(ownerUid);
+      if (_preferences!.containsKey(targetKey)) return;
+      final legacySession = _preferences!.getString(_legacySessionKey);
+      if (legacySession != serverSessionId) return;
+      final legacyRoot = _decode(_preferences!.getString(_legacySaveKey));
+      if (legacyRoot == null) return;
+
+      Map<String, dynamic>? chapterSave;
+      final legacyChapters = legacyRoot['chapters'];
+      if (legacyChapters is Map && legacyChapters[chapter] is Map) {
+        chapterSave = Map<String, dynamic>.from(
+          (legacyChapters[chapter] as Map).map(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        );
+      } else if (legacyRoot['chapter'] == chapter) {
+        chapterSave = Map<String, dynamic>.from(legacyRoot);
+      }
+      if (chapterSave == null ||
+          chapterSave['gameSessionId'] != serverSessionId ||
+          chapterSave['gameOver'] == true ||
+          chapterSave['chapterComplete'] == true ||
+          chapterSave['tiles'] is! List ||
+          (chapterSave['tiles'] as List).length != 16 ||
+          !isOwner() ||
+          _accountUid != ownerUid) {
+        return;
+      }
+
+      chapterSave['saveOwnerUid'] = ownerUid;
+      final migratedRoot = <String, dynamic>{
+        'version': 1,
+        'savedAt': DateTime.now().millisecondsSinceEpoch,
+        'lastChapter': chapter,
+        'chapters': <String, dynamic>{chapter: chapterSave},
+      };
+      for (final key in ['toolUses', 'toolRewardsClaimed']) {
+        if (legacyRoot[key] != null) migratedRoot[key] = legacyRoot[key];
+      }
+      await _preferences!.setString(targetKey, jsonEncode(migratedRoot));
+      if (_accountUid != ownerUid || !isOwner()) {
+        await _preferences!.remove(targetKey);
+        return;
+      }
+      await _preferences!.setString(_sessionKeyFor(ownerUid), serverSessionId);
+      _cachedSave = migratedRoot;
+      migrated = true;
+    }, onError: (_, _) async {
+      // A failed queued write must not bypass the ownership checks.
+      if (_accountUid != ownerUid || !isOwner()) return;
+      final legacySession = _preferences!.getString(_legacySessionKey);
+      if (legacySession != serverSessionId ||
+          _preferences!.containsKey(_saveKeyFor(ownerUid))) return;
+      final legacyRoot = _decode(_preferences!.getString(_legacySaveKey));
+      if (legacyRoot == null) return;
+      final legacyChapters = legacyRoot['chapters'];
+      final rawChapter = legacyChapters is Map
+          ? legacyChapters[chapter]
+          : (legacyRoot['chapter'] == chapter ? legacyRoot : null);
+      if (rawChapter is! Map ||
+          rawChapter['gameSessionId'] != serverSessionId ||
+          rawChapter['gameOver'] == true ||
+          rawChapter['chapterComplete'] == true ||
+          rawChapter['tiles'] is! List ||
+          (rawChapter['tiles'] as List).length != 16) return;
+      final chapterSave = Map<String, dynamic>.from(
+        rawChapter.map((key, value) => MapEntry(key.toString(), value)),
+      )..['saveOwnerUid'] = ownerUid;
+      final migratedRoot = <String, dynamic>{
+        'version': 1,
+        'savedAt': DateTime.now().millisecondsSinceEpoch,
+        'lastChapter': chapter,
+        'chapters': <String, dynamic>{chapter: chapterSave},
+      };
+      await _preferences!.setString(_saveKeyFor(ownerUid), jsonEncode(migratedRoot));
+      if (_accountUid != ownerUid || !isOwner()) {
+        await _preferences!.remove(_saveKeyFor(ownerUid));
+        return;
+      }
+      await _preferences!.setString(_sessionKeyFor(ownerUid), serverSessionId);
+      _cachedSave = migratedRoot;
+      migrated = true;
+    });
+    _saveQueue = operation;
+    await operation;
+    return migrated;
   }
 
   /// Binds the local chapter snapshot to the server-owned game session.
