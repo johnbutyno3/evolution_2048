@@ -185,6 +185,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         if (!progress.loadedFromServer) return false;
       }
 
+      // Recover a RESET that may have committed on the server immediately
+      // before the app was killed. The durable request and replacement board
+      // are replayed with the same operation ID before normal session routing.
+      final recoveredPendingReset = await _recoverPendingReset(
+        progress,
+        generation,
+      );
+      if (recoveredPendingReset != null) return recoveredPendingReset;
+
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
 
@@ -348,6 +357,94 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return false;
     }
   }
+  /// Returns null when there is no pending RESET, otherwise whether recovery
+  /// succeeded. A failed pending reset blocks normal session creation so it
+  /// cannot charge a second Life or manufacture a different board.
+  Future<bool?> _recoverPendingReset(
+    PlayerProgressService progress,
+    int generation,
+  ) async {
+    final payload = await PendingOperationStore.findPendingPayload(
+      'restart_game_session',
+      chapterIndex: _chapterNumber - 1,
+    );
+    if (payload == null) return null;
+
+    final operationKey = payload['operationKey'];
+    final operationId = payload['operationId'];
+    final rawTiles = payload['initialTiles'];
+    final rawBoard = payload['replacementSave'];
+    if (operationKey is! String ||
+        operationId is! String ||
+        rawTiles is! List ||
+        rawTiles.length != GameEngine.boardSize * GameEngine.boardSize ||
+        rawBoard is! Map) {
+      debugPrint('Pending RESET record is incomplete; refusing a new charge.');
+      return false;
+    }
+
+    final chapterIndex = payload['chapterIndex'];
+    if (chapterIndex is! int || chapterIndex != _chapterNumber - 1) {
+      return false;
+    }
+    final replaySessionId = payload['replaySessionId'];
+    final replayLog = payload['replayLog'];
+    if (replaySessionId != null && replaySessionId is! String) return false;
+    if (replayLog != null && replayLog is! Map) return false;
+
+    try {
+      final restarted = await progress.restartGameSession(
+        chapterIndex,
+        replayLog: replayLog is Map
+            ? Map<String, dynamic>.from(replayLog)
+            : null,
+        replaySessionId: replaySessionId as String?,
+        initialTiles: List<dynamic>.from(rawTiles),
+      );
+      if (!restarted ||
+          !mounted ||
+          generation != _gameSessionGeneration) {
+        return false;
+      }
+
+      final recoveredEngine = GameEngine(
+        chapter: _engine.chapter,
+        forceNewBoard: true,
+        boardLifeActive: true,
+      );
+      if (!recoveredEngine.restoreFromSaveData(
+        Map<String, dynamic>.from(rawBoard),
+      )) {
+        debugPrint('Pending RESET board snapshot failed validation.');
+        return false;
+      }
+
+      // restartGameSession has rebound SaveManager to the server's original
+      // idempotent result. Re-serialize the exact saved board under that ID.
+      await recoveredEngine.flushLocalSave();
+      await SaveManager.save(recoveredEngine.createSaveData());
+      await PendingOperationStore.complete(
+        'restart_game_session',
+        operationKey,
+      );
+      if (!mounted || generation != _gameSessionGeneration) return false;
+
+      _engine.stopGameTimer();
+      _engine = recoveredEngine;
+      _engine.startGameTimer();
+      _startUiRefreshTimer();
+      _engine.toolManager.refreshFromSavedProgress();
+      setState(() {});
+      unawaited(_refreshMountedToolInventory(generation));
+      debugPrint('Recovered pending RESET operation $operationId.');
+      return true;
+    } catch (error, stackTrace) {
+      debugPrint('Pending RESET recovery failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return false;
+    }
+  }
+
   Future<void> _refreshMountedToolInventory(int generation) async {
     await ToolManager.refreshInventory();
     if (!mounted || generation != _gameSessionGeneration) return;
@@ -514,6 +611,41 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? List<dynamic>.from(newReplayData['initialTiles'] as List)
         : const <dynamic>[];
 
+    final resetOperationKey = [
+      (_chapterNumber - 1).toString(),
+      replaySessionId ?? 'no-session',
+      initialTiles.join(','),
+    ].join(':');
+
+    try {
+      await PendingOperationStore.savePendingPayload(
+        'restart_game_session',
+        resetOperationKey,
+        <String, dynamic>{
+          'chapterIndex': _chapterNumber - 1,
+          'replaySessionId': replaySessionId,
+          'replayLog': replay,
+          'initialTiles': initialTiles,
+          'replacementSave': newEngine.createSaveData(),
+        },
+      );
+    } catch (error, stackTrace) {
+      debugPrint('Could not persist pending RESET request: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      newEngine.stopGameTimer();
+      await newEngine.flushLocalSave();
+      await LifeManager.refreshFromServer().catchError((_) {});
+      ToolManager.restoreSessionUsageFromReplayLog(
+        oldEngine.createSaveData()['replayLog'],
+      );
+      await SaveManager.save(oldEngine.createSaveData());
+      oldEngine.startGameTimer();
+      _engine = oldEngine;
+      _restartInProgress = false;
+      if (mounted) setState(() {});
+      return false;
+    }
+
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
       replayLog: replay,
@@ -532,11 +664,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // restartGameSession has now bound SaveManager to the replacement
           // session. Persist the visible new board again with that binding.
           await SaveManager.save(newEngine.createSaveData());
-          final resetOperationKey = [
-            (_chapterNumber - 1).toString(),
-            replaySessionId ?? 'no-session',
-            initialTiles.join(','),
-          ].join(':');
           await PendingOperationStore.complete(
             'restart_game_session',
             resetOperationKey,
