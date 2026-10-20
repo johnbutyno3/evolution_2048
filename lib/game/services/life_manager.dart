@@ -210,8 +210,4 @@ class LifeManager {
     }
   }
 
-  static Future<void> refundChapterCompletionLife() async {
-    final result = await _functions.httpsCallable('refundLife').call();
-    applyServerState(Map<String, dynamic>.from(result.data as Map));
-  }
 }
