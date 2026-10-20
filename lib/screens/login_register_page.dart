@@ -44,6 +44,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
         throw StateError('Authenticated account disappeared before initialization.');
       }
       await SaveManager.bindAccount(user.uid);
+      await PlayerProgressService.instance.bindAccount(user.uid);
       // Do not force-refresh App Check here. A forced refresh can trigger a
       // debug-token exchange even when a valid cached token is already usable.
       // The callable client will obtain/reuse the App Check token as needed.
