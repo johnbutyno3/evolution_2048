@@ -136,7 +136,9 @@ class PendingOperationStore {
       if (raw == null || raw.isEmpty) continue;
       try {
         final decoded = jsonDecode(raw);
-        if (decoded is! Map) continue;
+        if (decoded is! Map) {
+          throw StateError('Pending operation payload is not a JSON object: $key');
+        }
         final payload = Map<String, dynamic>.from(decoded);
         if (chapterIndex != null && payload['chapterIndex'] != chapterIndex) {
           continue;
