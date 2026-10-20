@@ -178,6 +178,16 @@ assert.match(
   /RESET blocked: an earlier reset still needs recovery/,
   'A second RESET must not replace an unresolved operation payload.',
 );
+assert.match(
+  progressSource,
+  /_loadedFromServer && refreshedSessionId === previousSessionId/,
+  'A pending RESET may only be discarded after an authoritative refresh confirms no commit.',
+);
+assert.match(
+  progressSource,
+  /PendingOperationStore\.complete\([\s\S]*?operationKey/s,
+  'Confirmed non-committed RESET operations must clear their pending payload.',
+);
 console.log('RESET crash recovery contract OK: payload, operation ID, and board snapshot are persisted and replayed.');
 
 
