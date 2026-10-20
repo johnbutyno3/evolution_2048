@@ -601,6 +601,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // starts/continues the 40-minute regeneration countdown without waiting
     // for Firebase.
     if (!LifeManager.optimisticConsumeLife()) {
+      _restartInProgress = false;
       return false;
     }
 
