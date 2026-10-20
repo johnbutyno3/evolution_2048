@@ -629,21 +629,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       boardLifeActive: true,
     );
 
-    setState(() {
-      _engine = newEngine;
-      _evolutionValue = null;
-      _evolutionCreatureName = null;
-      _firstSwapIndex = null;
-      _dragStart = null;
-      _swipeHandled = false;
-      _toolMode = null;
-      _pressedToolMode = null;
-    });
-
-    _engine.startGameTimer();
-    _startUiRefreshTimer();
-    _focusNode.requestFocus();
-
+    // Build and durably record the replacement board before making it the
+    // active engine. If persistence fails or the process exits here, the old
+    // session snapshot has not been overwritten by the uncommitted board.
     final newReplayData = newEngine.createSaveData()['replayLog'];
     final initialTiles = newReplayData is Map && newReplayData['initialTiles'] is List
         ? List<dynamic>.from(newReplayData['initialTiles'] as List)
@@ -670,19 +658,29 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     } catch (error, stackTrace) {
       debugPrint('Could not persist pending RESET request: $error');
       debugPrintStack(stackTrace: stackTrace);
-      newEngine.stopGameTimer();
-      await newEngine.flushLocalSave();
       await LifeManager.refreshFromServer().catchError((_) {});
       ToolManager.restoreSessionUsageFromReplayLog(
         oldEngine.createSaveData()['replayLog'],
       );
-      await SaveManager.save(oldEngine.createSaveData());
       oldEngine.startGameTimer();
-      _engine = oldEngine;
       _restartInProgress = false;
       if (mounted) setState(() {});
       return false;
     }
+
+    setState(() {
+      _engine = newEngine;
+      _evolutionValue = null;
+      _evolutionCreatureName = null;
+      _firstSwapIndex = null;
+      _dragStart = null;
+      _swipeHandled = false;
+      _toolMode = null;
+      _pressedToolMode = null;
+    });
+    newEngine.startGameTimer();
+    _startUiRefreshTimer();
+    _focusNode.requestFocus();
 
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       _chapterNumber - 1,
