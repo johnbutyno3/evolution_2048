@@ -393,6 +393,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (replayLog != null && replayLog is! Map) return false;
 
     try {
+      final operationIdRestored =
+          await PendingOperationStore.restoreOperationId(
+        'restart_game_session',
+        operationKey,
+        operationId,
+      );
+      if (!operationIdRestored) {
+        debugPrint('Pending RESET operation ID conflicts with local storage.');
+        return false;
+      }
+
       final restarted = await progress.restartGameSession(
         chapterIndex,
         replayLog: replayLog is Map
