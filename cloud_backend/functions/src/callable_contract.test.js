@@ -313,6 +313,43 @@ console.log('Next-chapter transition contract OK: durable idempotency payload pr
 
 
 
+
+const mainSource = fs.readFileSync(path.join(repoRoot, 'lib/main.dart'), 'utf8');
+const loginSource = fs.readFileSync(
+  path.join(repoRoot, 'lib/screens/login_register_page.dart'),
+  'utf8',
+);
+const logoutSource = fs.readFileSync(
+  path.join(repoRoot, 'lib/screens/personal_page.dart'),
+  'utf8',
+);
+assert.match(
+  progressSource,
+  /Future<void> bindAccount\(String\? uid\)[\s\S]*?_sessionOperationGeneration\+\+[\s\S]*?_chapterProgress\.clear\(\)[\s\S]*?_activeGameSessionId = null/s,
+  'Account binding must invalidate in-flight operations and clear singleton progression state.',
+);
+assert.match(
+  mainSource,
+  /Future<void> _bindAccountData\(String\? uid\)[\s\S]*?SaveManager\.bindAccount\(uid\)[\s\S]*?PlayerProgressService\.instance\.bindAccount\(uid\)/s,
+  'The root Auth router must bind local saves and singleton progress together.',
+);
+assert.match(
+  mainSource,
+  /future: _bindAccountData\(null\)/,
+  'Auth-state sign-out must clear the bound account even when logout happens outside the Personal page.',
+);
+assert.match(
+  loginSource,
+  /SaveManager\.bindAccount\(user\.uid\)[\s\S]*?PlayerProgressService\.instance\.bindAccount\(user\.uid\)/s,
+  'Post-login navigation must bind progression state to the same UID as local saves.',
+);
+assert.match(
+  logoutSource,
+  /SaveManager\.bindAccount\(null\)[\s\S]*?PlayerProgressService\.instance\.bindAccount\(null\)/s,
+  'Logout must clear the singleton progression state as well as the save namespace.',
+);
+console.log('Account binding contract OK: UID changes invalidate singleton progress and session state.');
+
 const indexConfig = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'firestore.indexes.json'), 'utf8'),
 );
