@@ -412,11 +412,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         replaySessionId: replaySessionId as String?,
         initialTiles: List<dynamic>.from(rawTiles),
       );
-      if (!restarted ||
-          !mounted ||
-          generation != _gameSessionGeneration) {
-        return false;
+      if (!restarted) {
+        // PlayerProgressService clears the payload only after an authoritative
+        // refresh proves the restart did not commit. If it remains, the server
+        // outcome is ambiguous and we must keep blocking normal session creation.
+        final stillPending = await PendingOperationStore.findPendingPayload(
+          'restart_game_session',
+          chapterIndex: chapterIndex,
+        );
+        return stillPending == null ? null : false;
       }
+      if (!mounted || generation != _gameSessionGeneration) return false;
 
       final recoveredEngine = GameEngine(
         chapter: _engine.chapter,
