@@ -42,7 +42,27 @@ class PlayerProgressService {
   int? _activeGameChapterIndex;
   Future<bool>? _pendingStartSession;
   int _sessionOperationGeneration = 0;
+  String? _boundUid;
+  bool _hasBoundAccount = false;
   final SessionGeneration _sessionIdentityGeneration = SessionGeneration();
+
+  /// Clears singleton progress/session state whenever Firebase changes accounts.
+  /// The server remains authoritative; a new account must refresh its own data.
+  Future<void> bindAccount(String? uid) async {
+    final normalized = uid == null || uid.isEmpty ? null : uid;
+    if (_hasBoundAccount && _boundUid == normalized) return;
+
+    _hasBoundAccount = true;
+    _boundUid = normalized;
+    _sessionOperationGeneration++;
+    _sessionIdentityGeneration.begin();
+    _pendingStartSession = null;
+    _unlockedChapterIndex = 0;
+    _chapterProgress.clear();
+    _loadedFromServer = false;
+    _activeGameSessionId = null;
+    _activeGameChapterIndex = null;
+  }
 
   int get unlockedChapterIndex => _unlockedChapterIndex;
   int chapterHighestValue(int chapterIndex) =>
