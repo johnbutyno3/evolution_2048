@@ -566,6 +566,24 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!mounted || _completionAnimationPlaying || _restartInProgress) {
       return false;
     }
+    // Claim RESET before the first await so rapid taps cannot create multiple
+    // independent operation IDs. Never start another reset while an earlier
+    // ambiguous reset still needs startup recovery.
+    _restartInProgress = true;
+    try {
+      final pendingReset = await PendingOperationStore.findPendingPayload(
+        'restart_game_session',
+      );
+      if (pendingReset != null) {
+        debugPrint('RESET blocked: an earlier reset still needs recovery.');
+        _restartInProgress = false;
+        return false;
+      }
+    } catch (error) {
+      debugPrint('RESET blocked because pending operations could not be read: $error');
+      _restartInProgress = false;
+      return false;
+    }
 
     final oldEngine = _engine;
     final saveData = oldEngine.createSaveData();
