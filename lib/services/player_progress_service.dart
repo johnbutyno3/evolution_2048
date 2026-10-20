@@ -231,6 +231,7 @@ class PlayerProgressService {
       replaceActiveSession: replaceActiveSession,
       initialTiles: initialTiles,
       operationGeneration: operationGeneration,
+      userId: user.uid,
     );
     _pendingStartSession = pending;
     unawaited(pending.whenComplete(() {
@@ -247,6 +248,7 @@ class PlayerProgressService {
     required bool replaceActiveSession,
     required List<dynamic> initialTiles,
     required int operationGeneration,
+    required String userId,
   }) async {
     final previousSessionId = _activeGameSessionId;
     try {
@@ -258,13 +260,13 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != userId) return false;
         _activeGameSessionId = data['sessionId'] as String;
         // Restart creates a replacement board locally. Do not rebind the old
         // cached board to the new session: that would resurrect the previous
         // board when the player re-enters. The new GameEngine snapshot is
         // persisted separately by the caller after this session is accepted.
-        await SaveManager.setGameSessionId(_activeGameSessionId!, expectedUid: user.uid);
+        await SaveManager.setGameSessionId(_activeGameSessionId!, expectedUid: userId);
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
@@ -285,10 +287,10 @@ class PlayerProgressService {
         'message=${error.message}, details=${error.details}',
       );
       if (operationGeneration == _sessionOperationGeneration &&
-          _auth.currentUser?.uid == user.uid) {
+          _auth.currentUser?.uid == userId) {
         await refresh();
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != userId) return false;
         final serverSessionId = _activeGameSessionId;
         final startCommitted =
             serverSessionId != null &&
@@ -296,7 +298,7 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (startCommitted) {
-          await SaveManager.setGameSessionId(serverSessionId, expectedUid: user.uid);
+          await SaveManager.setGameSessionId(serverSessionId, expectedUid: userId);
           return true;
         }
       }
@@ -304,10 +306,10 @@ class PlayerProgressService {
       print('startGameSession verification failed: $error');
       try {
         if (operationGeneration == _sessionOperationGeneration &&
-          _auth.currentUser?.uid == user.uid) {
+          _auth.currentUser?.uid == userId) {
           await refresh();
           if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != userId) return false;
           final serverSessionId = _activeGameSessionId;
           final startCommitted =
               serverSessionId != null &&
