@@ -289,7 +289,7 @@ class SaveManager {
   }
 
   static Future<void> initialize() async {
-    _preferences ??= await SharedPreferences.getInstance();
+    _preferences = await SharedPreferences.getInstance();
     _accountLoaded = false;
     await bindAccount(_accountUid);
     localeCodeNotifier.value = localeCode;
