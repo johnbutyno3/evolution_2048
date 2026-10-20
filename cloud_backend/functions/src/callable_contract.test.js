@@ -94,6 +94,19 @@ assert.match(toolPurchase, /transaction\.create\(receiptRef/);
 assert.match(toolPurchase, /receipt\.toolType !== type \|\| receipt\.amount !== amount/);
 console.log('Idempotency safety contract OK: Gold spend and tool purchase receipts are transactionally enforced.');
 
+const restartSource = fs.readFileSync(path.join(sourceDir, 'game_session.js'), 'utf8');
+assert.match(restartSource, /createRestartOperationContext/);
+assert.match(restartSource, /transaction\.get\(operationRef\)/);
+assert.match(restartSource, /transaction\.create\(operationRef/);
+assert.match(restartSource, /restartFingerprintMatches/);
+const progressSource = fs.readFileSync(
+  path.join(repoRoot, 'lib/services/player_progress_service.dart'),
+  'utf8',
+);
+assert.match(progressSource, /'operationId': operationId/);
+assert.match(progressSource, /PendingOperationStore\.getOrCreate/);
+console.log('RESET idempotency contract OK: client key, server receipt, and payload fingerprint are wired.');
+
 
 const indexConfig = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'firestore.indexes.json'), 'utf8'),
