@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'profile_setup_page.dart';
 import '../services/player_profile_service.dart';
+import '../services/player_progress_service.dart';
 import '../game/services/audio_manager.dart';
 import '../game/services/save_manager.dart';
 import '../l10n/app_localizations.dart';
