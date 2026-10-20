@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'game/services/save_manager.dart';
+import 'services/player_progress_service.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/login_register_page.dart';
 import 'screens/onboarding_page.dart';
@@ -31,6 +32,11 @@ const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
 // Release builds use production App Check providers by default. Test APKs that
 // are sideloaded (and therefore cannot satisfy Play Integrity) must explicitly
 // opt into the debug provider with --dart-define=FIREBASE_APPCHECK_DEBUG=true.
+Future<void> _bindAccountData(String? uid) async {
+  await SaveManager.bindAccount(uid);
+  await PlayerProgressService.instance.bindAccount(uid);
+}
+
 const kFirebaseAppCheckDebug = bool.fromEnvironment(
   'FIREBASE_APPCHECK_DEBUG',
   defaultValue: false,
@@ -101,7 +107,7 @@ class Rebirth2048App extends StatelessWidget {
         final user = snapshot.data;
         if (user == null) {
           return FutureBuilder<void>(
-            future: SaveManager.bindAccount(null),
+            future: _bindAccountData(null),
             builder: (context, bindingSnapshot) {
               if (bindingSnapshot.connectionState != ConnectionState.done) {
                 return const Scaffold(
@@ -121,7 +127,7 @@ class Rebirth2048App extends StatelessWidget {
         }
 
         return FutureBuilder<void>(
-          future: SaveManager.bindAccount(user.uid),
+          future: _bindAccountData(user.uid),
           builder: (context, bindingSnapshot) {
             if (bindingSnapshot.connectionState != ConnectionState.done) {
               return const Scaffold(
