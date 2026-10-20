@@ -47,7 +47,9 @@ class GoldManager {
       final callable = _functions.httpsCallable('getGoldBalance');
       final result = await callable.call();
       if (_cacheGeneration != generation ||
-          FirebaseAuth.instance.currentUser?.uid != uid) return null;
+          FirebaseAuth.instance.currentUser?.uid != uid) {
+        return null;
+      }
       final data = result.data;
       final value = data is Map ? data['balance'] : null;
       if (value is num && value.toInt() >= 0) {
@@ -80,7 +82,9 @@ class GoldManager {
         '$amount',
         () async {
           if (_cacheGeneration != generation ||
-              FirebaseAuth.instance.currentUser?.uid != uid) return false;
+              FirebaseAuth.instance.currentUser?.uid != uid) {
+            return false;
+          }
           try {
             final operationId = await PendingOperationStore.getOrCreate('gold_spend', '$amount');
             final result = await _functions.httpsCallable('spendGold').call({
@@ -88,7 +92,9 @@ class GoldManager {
               'operationId': operationId,
             });
             if (_cacheGeneration != generation ||
-                FirebaseAuth.instance.currentUser?.uid != uid) return false;
+                FirebaseAuth.instance.currentUser?.uid != uid) {
+            return false;
+          }
             final data = result.data;
             final value = data is Map ? data['balance'] : null;
             if (value is! num || value.toInt() < 0) return false;
