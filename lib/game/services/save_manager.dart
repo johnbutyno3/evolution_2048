@@ -467,6 +467,18 @@ class SaveManager {
 
   static Future<void> clear() async {
     _preferences ??= await SharedPreferences.getInstance();
+
+    // Clear must be ordered after every previously queued autosave. Clearing
+    // the cache before those writes finish lets them recreate stale data, and
+    // removing the key outside the queue can be followed by an older write.
+    _saveQueue = _saveQueue.then(
+      (_) => _clearNow(),
+      onError: (_, _) => _clearNow(),
+    );
+    await _saveQueue;
+  }
+
+  static Future<void> _clearNow() async {
     _cachedSave = null;
     await _preferences!.remove(_saveKey);
   }
