@@ -36,4 +36,19 @@ void main() {
     expect(SaveManager.gameSessionId, currentSession);
     expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 120);
   });
+  test('a delayed clear cannot erase a newer session binding', () async {
+    const oldSession = 'old-session-clear-123456';
+    const newSession = 'new-session-bind-123456';
+
+    await SaveManager.setGameSessionId(oldSession);
+    final bindNew = SaveManager.setGameSessionId(newSession);
+    final clearOld = SaveManager.clearGameSessionId(
+      expectedSessionId: oldSession,
+    );
+
+    await Future.wait<void>(<Future<void>>[bindNew, clearOld]);
+
+    expect(SaveManager.gameSessionId, newSession);
+  });
+
 }
