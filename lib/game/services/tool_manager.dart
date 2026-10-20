@@ -98,7 +98,9 @@ class ToolManager {
     try {
       final result = await _functions.httpsCallable('getToolInventory').call();
       if (_inventoryGeneration != generation ||
-          FirebaseAuth.instance.currentUser?.uid != uid) return;
+          FirebaseAuth.instance.currentUser?.uid != uid) {
+        return;
+      }
       final data = result.data is Map
           ? Map<String, dynamic>.from(result.data as Map)
           : <String, dynamic>{};
@@ -160,10 +162,14 @@ class ToolManager {
         key,
         () async {
           if (_inventoryGeneration != generation ||
-              FirebaseAuth.instance.currentUser?.uid != uid) return false;
+              FirebaseAuth.instance.currentUser?.uid != uid) {
+            return false;
+          }
           await GoldManager.refresh();
           if (_inventoryGeneration != generation ||
-              FirebaseAuth.instance.currentUser?.uid != uid) return false;
+              FirebaseAuth.instance.currentUser?.uid != uid) {
+            return false;
+          }
           try {
             final operationId = await PendingOperationStore.getOrCreate('tool_purchase', key);
             final result = await _functions.httpsCallable('purchaseTool').call({
@@ -172,7 +178,9 @@ class ToolManager {
               'operationId': operationId,
             });
             if (_inventoryGeneration != generation ||
-                FirebaseAuth.instance.currentUser?.uid != uid) return false;
+                FirebaseAuth.instance.currentUser?.uid != uid) {
+            return false;
+          }
             final data = result.data is Map
                 ? Map<String, dynamic>.from(result.data as Map)
                 : <String, dynamic>{};
