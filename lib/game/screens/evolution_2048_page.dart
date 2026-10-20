@@ -686,6 +686,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       debugPrint('Could not persist pending RESET request: $error');
       debugPrintStack(stackTrace: stackTrace);
       await LifeManager.refreshFromServer().catchError((_) {});
+      if (!_ownsCurrentAccount) return false;
       ToolManager.restoreSessionUsageFromReplayLog(
         oldEngine.createSaveData()['replayLog'],
       );
@@ -770,11 +771,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         // Restore the previous local board and authoritative Life state.
         newEngine.stopGameTimer();
         await newEngine.flushLocalSave();
+        if (!_ownsCurrentAccount) return;
         await LifeManager.refreshFromServer().catchError((_) {});
+        if (!_ownsCurrentAccount) return;
         ToolManager.restoreSessionUsageFromReplayLog(
           oldEngine.createSaveData()['replayLog'],
         );
         await SaveManager.save(oldEngine.createSaveData());
+        if (!_ownsCurrentAccount) return;
         oldEngine.toolManager.refreshFromSavedProgress();
         oldEngine.startGameTimer();
         _engine = oldEngine;
@@ -1205,6 +1209,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           operationKey,
           expectedUid: _accountUidAtCreation,
         );
+        if (!_ownsCurrentAccount) return;
         if (!_ownsCurrentAccount) return;
         _engine.toolManager.refreshFromSavedProgress();
         unawaited(_refreshMountedToolInventory(generation));
