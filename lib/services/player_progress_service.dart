@@ -390,12 +390,12 @@ class PlayerProgressService {
 
     final operationGeneration = ++_sessionOperationGeneration;
     final previousSessionId = _activeGameSessionId;
+    final operationKey = [
+      chapterIndex.toString(),
+      replaySessionId ?? 'no-session',
+      initialTiles.join(','),
+    ].join(':');
     try {
-      final operationKey = [
-        chapterIndex.toString(),
-        replaySessionId ?? 'no-session',
-        initialTiles.join(','),
-      ].join(':');
       final result = await PendingOperationStore.runExclusive(
         'restart_game_session',
         operationKey,
@@ -459,12 +459,34 @@ class PlayerProgressService {
           await ToolManager.refreshInventory();
           return true;
         }
+        // A successful server refresh that still points at the prior session
+        // proves the transaction did not commit. Only then discard the pending
+        // retry record; an unavailable/stale refresh keeps it for recovery.
+        if (_loadedFromServer && refreshedSessionId == previousSessionId) {
+          await PendingOperationStore.complete(
+            'restart_game_session',
+            operationKey,
+          );
+        }
       }
     } catch (error, stackTrace) {
       // Keep unexpected client/runtime errors visible in Chrome's Flutter
       // console instead of letting the game screen silently swallow them.
       print('restartGameSession unexpected failure: $error');
       print(stackTrace);
+      try {
+        if (operationGeneration == _sessionOperationGeneration) {
+          await refresh();
+          if (_loadedFromServer && _activeGameSessionId == previousSessionId) {
+            await PendingOperationStore.complete(
+              'restart_game_session',
+              operationKey,
+            );
+          }
+        }
+      } catch (_) {
+        // Keep the pending payload when the authoritative state is unknown.
+      }
     }
     return false;
   }
