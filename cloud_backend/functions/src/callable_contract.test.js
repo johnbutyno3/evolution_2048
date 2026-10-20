@@ -180,7 +180,7 @@ assert.match(
 );
 assert.match(
   progressSource,
-  /_loadedFromServer && refreshedSessionId === previousSessionId/,
+  /_loadedFromServer && refreshedSessionId == previousSessionId/,
   'A pending RESET may only be discarded after an authoritative refresh confirms no commit.',
 );
 assert.match(
