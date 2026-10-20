@@ -573,7 +573,10 @@ class PlayerProgressService {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
       if (!unfinishedExit) {
-        unawaited(SaveManager.clearGameSessionId());
+        unawaited(SaveManager.clearGameSessionId(
+          expectedUid: userId,
+          expectedSessionId: requestedSessionId,
+        ));
       }
     }
 
@@ -586,7 +589,10 @@ class PlayerProgressService {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
       if (!unfinishedExit) {
-        unawaited(SaveManager.clearGameSessionId());
+        unawaited(SaveManager.clearGameSessionId(
+          expectedUid: userId,
+          expectedSessionId: settledSessionId,
+        ));
       }
     }
 
@@ -664,7 +670,10 @@ class PlayerProgressService {
         _loadedFromServer = true;
         _activeGameSessionId = null;
         _activeGameChapterIndex = null;
-        await SaveManager.clearGameSessionId();
+        await SaveManager.clearGameSessionId(
+          expectedUid: user.uid,
+          expectedSessionId: sessionId,
+        );
         await ToolManager.refreshInventory();
         return true;
       }
@@ -689,7 +698,10 @@ class PlayerProgressService {
         final completionCommitted = sessionClosed && chapterTargetReached;
 
         if (completionCommitted) {
-          await SaveManager.clearGameSessionId();
+          await SaveManager.clearGameSessionId(
+            expectedUid: user.uid,
+            expectedSessionId: sessionId,
+          );
           await ToolManager.refreshInventory();
           return true;
         }
@@ -710,7 +722,10 @@ class PlayerProgressService {
           final chapterTargetReached =
               chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
           if (sessionClosed && chapterTargetReached) {
-            await SaveManager.clearGameSessionId();
+            await SaveManager.clearGameSessionId(
+              expectedUid: user.uid,
+              expectedSessionId: sessionId,
+            );
             await ToolManager.refreshInventory();
             return true;
           }
