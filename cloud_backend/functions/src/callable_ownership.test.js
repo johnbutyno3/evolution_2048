@@ -32,7 +32,6 @@ const requiredOwners = {
   restartGameSession: 'game_session.js',
   abandonGameSession: 'game_session.js',
   getLifeState: 'life.js',
-  consumeLife: 'life.js',
   getToolInventory: 'tool_inventory_defaults.js',
   purchaseTool: 'tool_inventory_defaults.js',
   adminSetAllToolsEnabled: 'admin_test.js',
