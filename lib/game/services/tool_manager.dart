@@ -179,8 +179,8 @@ class ToolManager {
             });
             if (_inventoryGeneration != generation ||
                 FirebaseAuth.instance.currentUser?.uid != uid) {
-            return false;
-          }
+              return false;
+            }
             final data = result.data is Map
                 ? Map<String, dynamic>.from(result.data as Map)
                 : <String, dynamic>{};
@@ -191,12 +191,16 @@ class ToolManager {
               return false;
             }
             _serverUses[type] = uses.toInt();
-            GoldManager.applyServerState(data);
+            GoldManager.applyServerState(data, expectedUid: uid);
             await PendingOperationStore.complete('tool_purchase', key, expectedUid: uid);
             await refreshInventory();
             return _inventoryGeneration == generation &&
                 FirebaseAuth.instance.currentUser?.uid == uid;
           } on FirebaseFunctionsException catch (error) {
+            if (_inventoryGeneration != generation ||
+                FirebaseAuth.instance.currentUser?.uid != uid) {
+              return false;
+            }
             // Preserve the ID after ambiguous failures to prevent duplicate charges.
             await GoldManager.refresh();
             _lastPurchaseError = switch (error.code) {
