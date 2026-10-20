@@ -91,7 +91,8 @@ class PlayerProgressService {
           .doc(_progressDocument)
           .get(const GetOptions(source: Source.server));
 
-      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
+      if (_auth.currentUser?.uid != user.uid ||
+          !_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
           _activeGameSessionId != refreshOwnerSessionId) {
         return;
       }
@@ -171,7 +172,8 @@ class PlayerProgressService {
         );
       }
 
-      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
+      if (_auth.currentUser?.uid != user.uid ||
+          !_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
           _activeGameSessionId != refreshedSessionId) {
         return;
       }
