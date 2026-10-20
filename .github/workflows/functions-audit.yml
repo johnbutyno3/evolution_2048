@@ -28,10 +28,7 @@ jobs:
         run: npm install
 
       - name: Check JavaScript syntax
-        run: |
-          for file in *.js; do
-            node --check "$file"
-          done
+        run: npm run check
 
       - name: Run Functions tests
         run: npm test
