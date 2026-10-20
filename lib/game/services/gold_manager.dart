@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'pending_operation_store.dart';
 
@@ -11,6 +12,7 @@ class GoldManager {
   );
   static int? _cachedBalance;
   static int? _cachedLifetimeSpent;
+  static int _cacheGeneration = 0;
   static Future<void> initialize() async {
     await refresh();
   }
@@ -21,6 +23,7 @@ class GoldManager {
 
   /// Clears account-scoped Gold cache when Firebase authentication changes.
   static void clearCachedState() {
+    _cacheGeneration++;
     _cachedBalance = null;
     _cachedLifetimeSpent = null;
   }
@@ -37,9 +40,14 @@ class GoldManager {
   }
 
   static Future<int?> refresh() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return null;
+    final generation = _cacheGeneration;
     try {
       final callable = _functions.httpsCallable('getGoldBalance');
       final result = await callable.call();
+      if (_cacheGeneration != generation ||
+          FirebaseAuth.instance.currentUser?.uid != uid) return null;
       final data = result.data;
       final value = data is Map ? data['balance'] : null;
       if (value is num && value.toInt() >= 0) {
@@ -51,7 +59,11 @@ class GoldManager {
         return _cachedBalance;
       }
     } on FirebaseFunctionsException {
-      _cachedBalance = null;
+      if (_cacheGeneration == generation &&
+          FirebaseAuth.instance.currentUser?.uid == uid) {
+        _cachedBalance = null;
+        _cachedLifetimeSpent = null;
+      }
     }
 
     return null;
@@ -59,17 +71,24 @@ class GoldManager {
 
   static Future<bool> spend(int amount) async {
     if (amount <= 0) return false;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return false;
+    final generation = _cacheGeneration;
     try {
       return await PendingOperationStore.runExclusive(
         'gold_spend',
         '$amount',
         () async {
+          if (_cacheGeneration != generation ||
+              FirebaseAuth.instance.currentUser?.uid != uid) return false;
           try {
             final operationId = await PendingOperationStore.getOrCreate('gold_spend', '$amount');
             final result = await _functions.httpsCallable('spendGold').call({
               'amount': amount,
               'operationId': operationId,
             });
+            if (_cacheGeneration != generation ||
+                FirebaseAuth.instance.currentUser?.uid != uid) return false;
             final data = result.data;
             final value = data is Map ? data['balance'] : null;
             if (value is! num || value.toInt() < 0) return false;
