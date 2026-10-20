@@ -35,7 +35,9 @@ class LifeManager {
     String? expectedUid,
   }) {
     if (expectedUid != null &&
-        FirebaseAuth.instance.currentUser?.uid != expectedUid) return;
+        FirebaseAuth.instance.currentUser?.uid != expectedUid) {
+          return;
+        }
     _lifeStateGeneration++;
     _applyServerState(data);
   }
@@ -80,7 +82,9 @@ class LifeManager {
     final data = Map<String, dynamic>.from(result.data as Map);
 
     if (requestGeneration != _lifeStateGeneration ||
-        FirebaseAuth.instance.currentUser?.uid != uid) return;
+        FirebaseAuth.instance.currentUser?.uid != uid) {
+          return;
+        }
 
     if (fromRegeneration) {
       _applyServerState(data, preserveLocalRegeneration: true);
