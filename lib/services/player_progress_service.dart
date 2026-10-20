@@ -129,7 +129,8 @@ class PlayerProgressService {
       // The session generation is still checked immediately before the local
       // identity commit. This closes the window between parsing the response
       // and publishing the server session to the local state.
-      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
+      if (_auth.currentUser?.uid != user.uid ||
+          !_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
           _activeGameSessionId != refreshOwnerSessionId) {
         return;
       }
@@ -161,12 +162,14 @@ class PlayerProgressService {
       // the old session ID into SaveManager.
       if (refreshedSessionId == null) {
         await SaveManager.clearGameSessionIdIf(() =>
+            _auth.currentUser?.uid == user.uid &&
             _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
             _activeGameSessionId == refreshedSessionId);
       } else if (SaveManager.gameSessionId != refreshedSessionId) {
         await SaveManager.setGameSessionIdIf(
           refreshedSessionId,
           () =>
+              _auth.currentUser?.uid == user.uid &&
               _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
               _activeGameSessionId == refreshedSessionId,
         );
@@ -180,7 +183,8 @@ class PlayerProgressService {
 
       _loadedFromServer = true;
     } on FirebaseException {
-      if (_sessionIdentityGeneration.isCurrent(refreshGeneration) &&
+      if (_auth.currentUser?.uid == user.uid &&
+          _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
           _activeGameSessionId == refreshOwnerSessionId) {
         _loadedFromServer = false;
       }
