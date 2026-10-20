@@ -69,13 +69,17 @@ class SaveManager {
     _preferences ??= await SharedPreferences.getInstance();
     var migrated = false;
     final operation = _saveQueue.then<void>((_) async {
-      if (_accountUid != ownerUid || !isOwner()) return;
+      if (_accountUid != ownerUid || !isOwner()) {
+        return;
+      }
       final targetKey = _saveKeyFor(ownerUid);
       if (_preferences!.containsKey(targetKey)) return;
       final legacySession = _preferences!.getString(_legacySessionKey);
       if (legacySession != serverSessionId) return;
       final legacyRoot = _decode(_preferences!.getString(_legacySaveKey));
-      if (legacyRoot == null) return;
+      if (legacyRoot == null) {
+        return;
+      }
 
       Map<String, dynamic>? chapterSave;
       final legacyChapters = legacyRoot['chapters'];
