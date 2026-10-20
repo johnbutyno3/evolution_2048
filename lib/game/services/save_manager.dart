@@ -172,16 +172,21 @@ class SaveManager {
 
   /// Binds the local chapter snapshot to the server-owned game session.
   /// A local board may only be resumed when this ID matches the server ID.
-  static Future<void> setGameSessionId(String sessionId) async {
+  static Future<void> setGameSessionId(
+    String sessionId, {
+    String? expectedUid,
+  }) async {
     final ownerUid = _accountUid;
     final id = sessionId.trim();
-    if (id.isEmpty) return;
+    if (id.isEmpty || (expectedUid != null && expectedUid != ownerUid)) return;
     _preferences ??= await SharedPreferences.getInstance();
 
     // Keep direct session-binding writes in the same queue as autosaves and
     // clears. A session ID change must not race an older queued snapshot.
     _saveQueue = _saveQueue.then<void>((_) async {
-      if (_accountUid == ownerUid) await _preferences!.setString(_sessionKeyFor(ownerUid), id);
+      if (_accountUid == ownerUid && (expectedUid == null || expectedUid == ownerUid)) {
+        await _preferences!.setString(_sessionKeyFor(ownerUid), id);
+      }
     }, onError: (_, _) async {
       if (_accountUid == ownerUid) await _preferences!.setString(_sessionKeyFor(ownerUid), id);
     });
