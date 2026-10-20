@@ -49,6 +49,18 @@ assert.doesNotMatch(
 );
 console.log('Life refund safety contract OK: no public refundLife callable.');
 
+assert.doesNotMatch(
+  lifeSource,
+  /exports\.consumeLife\s*=\s*onCall\s*\(/,
+  'Life consumption must be atomic with authorized game-session creation or restart.',
+);
+assert.doesNotMatch(
+  fs.readFileSync(path.join(repoRoot, 'lib/game/services/life_manager.dart'), 'utf8'),
+  /httpsCallable\s*\(\s*['"]consumeLife['"]\s*\)/,
+  'Flutter must not use a second life-consumption path outside game sessions.',
+);
+console.log('Life consumption safety contract OK: no standalone consumeLife callable.');
+
 // Safety contract: accepting a client transaction ID must never itself grant
 // currency or membership. Until trusted provider verification exists, this
 // endpoint must only record a pending verification request.
