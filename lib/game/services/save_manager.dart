@@ -293,10 +293,29 @@ class SaveManager {
     await _preferences!.setString(_saveKeyFor(ownerUid), jsonEncode(updatedRoot));
   }
 
-  static Future<void> clearGameSessionId() async {
+  static Future<void> clearGameSessionId({
+    String? expectedUid,
+    String? expectedSessionId,
+  }) async {
     final ownerUid = _accountUid;
+    if (expectedUid != null && expectedUid != ownerUid) return;
+    final sessionIdToClear = expectedSessionId ?? gameSessionId;
+    if (sessionIdToClear == null || sessionIdToClear.isEmpty) return;
     _preferences ??= await SharedPreferences.getInstance();
-    _saveQueue = _saveQueue.then<void>((_) async { if (_accountUid == ownerUid) await _preferences!.remove(_sessionKeyFor(ownerUid)); }, onError: (_, _) async { if (_accountUid == ownerUid) await _preferences!.remove(_sessionKeyFor(ownerUid)); });
+    final key = _sessionKeyFor(ownerUid);
+    _saveQueue = _saveQueue.then<void>((_) async {
+      if (_accountUid == ownerUid &&
+          (expectedUid == null || expectedUid == ownerUid) &&
+          _preferences!.getString(key) == sessionIdToClear) {
+        await _preferences!.remove(key);
+      }
+    }, onError: (_, _) async {
+      if (_accountUid == ownerUid &&
+          (expectedUid == null || expectedUid == ownerUid) &&
+          _preferences!.getString(key) == sessionIdToClear) {
+        await _preferences!.remove(key);
+      }
+    });
     await _saveQueue;
   }
 
