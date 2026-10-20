@@ -7,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../game/services/life_manager.dart';
+import '../game/services/pending_operation_store.dart';
 import '../game/services/save_manager.dart';
 import '../game/services/tool_manager.dart';
 import 'session_generation.dart';
@@ -390,12 +391,28 @@ class PlayerProgressService {
     final operationGeneration = ++_sessionOperationGeneration;
     final previousSessionId = _activeGameSessionId;
     try {
-      final result = await _functions.httpsCallable('restartGameSession').call({
-        'chapterIndex': chapterIndex,
-        'replaySessionId': ?replaySessionId,
-        'replayLog': ?replayLog,
-        'initialTiles': initialTiles,
-      });
+      final operationKey = [
+        chapterIndex.toString(),
+        previousSessionId ?? 'no-session',
+        initialTiles.join(','),
+      ].join(':');
+      final result = await PendingOperationStore.runExclusive(
+        'restart_game_session',
+        operationKey,
+        () async {
+          final operationId = await PendingOperationStore.getOrCreate(
+            'restart_game_session',
+            operationKey,
+          );
+          return _functions.httpsCallable('restartGameSession').call({
+            'operationId': operationId,
+            'chapterIndex': chapterIndex,
+            'replaySessionId': ?replaySessionId,
+            'replayLog': ?replayLog,
+            'initialTiles': initialTiles,
+          });
+        },
+      );
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         if (operationGeneration != _sessionOperationGeneration) return false;
