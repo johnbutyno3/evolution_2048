@@ -785,17 +785,29 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }).catchError((Object error, StackTrace stackTrace) async {
         debugPrint('RESET completion failed: $error');
         debugPrintStack(stackTrace: stackTrace);
-        if (!mounted || generation != _gameSessionGeneration) return;
+        if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return;
+        final unresolvedReset = await PendingOperationStore.findPendingPayload(
+          'restart_game_session',
+        );
+        if (!_ownsCurrentAccount) return;
+        if (unresolvedReset != null) {
+          newEngine.stopGameTimer();
+          _restartInProgress = true;
+          if (mounted) setState(() {});
+          return;
+        }
         newEngine.stopGameTimer();
-        // Clear the optimistic replacement snapshot before restoring the old
-        // board. Otherwise a failed restart can leave the rejected board in
-        // local storage and resurrect it on the next entry.
+        // Roll back only after the service has authoritatively cleared the
+        // pending operation, proving the backend did not commit the RESET.
         await newEngine.flushLocalSave();
+        if (!_ownsCurrentAccount) return;
         await LifeManager.refreshFromServer().catchError((_) {});
+        if (!_ownsCurrentAccount) return;
         ToolManager.restoreSessionUsageFromReplayLog(
           oldEngine.createSaveData()['replayLog'],
         );
         await SaveManager.save(oldEngine.createSaveData());
+        if (!_ownsCurrentAccount) return;
         oldEngine.toolManager.refreshFromSavedProgress();
         oldEngine.startGameTimer();
         _engine = oldEngine;
@@ -1182,15 +1194,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     );
 
     final transitionFuture = restartFuture.then((started) async {
-      if (!mounted || generation != _gameSessionGeneration) return;
+      if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return;
       if (started) {
         await newEngine.flushLocalSave();
+        if (!_ownsCurrentAccount) return;
         await SaveManager.save(newEngine.createSaveData());
+        if (!_ownsCurrentAccount) return;
         await PendingOperationStore.complete(
           'restart_game_session',
           operationKey,
           expectedUid: _accountUidAtCreation,
         );
+        if (!_ownsCurrentAccount) return;
         _engine.toolManager.refreshFromSavedProgress();
         unawaited(_refreshMountedToolInventory(generation));
         _restartInProgress = false;
@@ -1220,9 +1235,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       newEngine.stopGameTimer();
       await newEngine.flushLocalSave();
+      if (!_ownsCurrentAccount) return;
       await LifeManager.refreshFromServer().catchError((_) {});
+      if (!_ownsCurrentAccount) return;
       ToolManager.restoreSessionUsageFromReplayLog(previousSave['replayLog']);
       await SaveManager.save(previousSave);
+      if (!_ownsCurrentAccount) return;
       previousEngine.toolManager.refreshFromSavedProgress();
       _engine = previousEngine;
       _restartInProgress = false;
