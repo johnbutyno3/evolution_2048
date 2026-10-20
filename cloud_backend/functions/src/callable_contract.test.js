@@ -188,6 +188,11 @@ assert.match(
   /PendingOperationStore\.complete\([\s\S]*?operationKey/s,
   'Confirmed non-committed RESET operations must clear their pending payload.',
 );
+assert.match(
+  gamePageSource,
+  /findPendingPayload\(\s*'restart_game_session',\s*\)/,
+  'Startup must detect an unresolved RESET even if the player opens another chapter.',
+);
 console.log('RESET crash recovery contract OK: payload, operation ID, and board snapshot are persisted and replayed.');
 
 
