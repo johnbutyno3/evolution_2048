@@ -89,6 +89,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
 
   Future<void> _membership(String mode) async {
     if (_uid.isEmpty) return;
+    final cacheUid = FirebaseAuth.instance.currentUser?.uid;
     setState(() { _busy = true; _message = ''; });
     try {
       final r = await _functions.httpsCallable('adminSetMembershipMode').call({
@@ -103,9 +104,12 @@ class _AdminTestPageState extends State<AdminTestPage> {
       });
       // Keep the already-mounted Home page cache in sync immediately.
       final lifeResult = await _functions.httpsCallable('getLifeState').call();
-      LifeManager.applyServerState(
-        Map<String, dynamic>.from(lifeResult.data as Map),
-      );
+      if (cacheUid != null && FirebaseAuth.instance.currentUser?.uid == cacheUid) {
+        LifeManager.applyServerState(
+          Map<String, dynamic>.from(lifeResult.data as Map),
+          expectedUid: cacheUid,
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
     } finally {
@@ -115,6 +119,7 @@ class _AdminTestPageState extends State<AdminTestPage> {
   }
 
   Future<void> _setGold() async {
+    final cacheUid = FirebaseAuth.instance.currentUser?.uid;
     final value = int.tryParse(_gold.text.trim());
     if (_uid.isEmpty || value == null || value < 0) {
       setState(() => _message = 'Enter a valid non-negative Gold amount.');
@@ -126,9 +131,12 @@ class _AdminTestPageState extends State<AdminTestPage> {
         'uid': _uid, 'balance': value,
       });
       final goldResult = await _functions.httpsCallable('getGoldBalance').call();
-      GoldManager.applyServerState(
-        Map<String, dynamic>.from(goldResult.data as Map),
-      );
+      if (cacheUid != null && FirebaseAuth.instance.currentUser?.uid == cacheUid) {
+        GoldManager.applyServerState(
+          Map<String, dynamic>.from(goldResult.data as Map),
+          expectedUid: cacheUid,
+        );
+      }
       if (mounted) setState(() => _message = 'Gold balance set to $value.');
     } catch (e) {
       if (mounted) setState(() => _message = e.toString());
