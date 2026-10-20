@@ -278,7 +278,7 @@ class PlayerProgressService {
         if (lifeState is Map) {
           LifeManager.applyServerState(
             Map<String, dynamic>.from(lifeState),
-            expectedUid: user.uid,
+            expectedUid: userId,
           );
         } else {
           await LifeManager.refreshFromServer();
