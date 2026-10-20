@@ -13,10 +13,12 @@ class AdminService {
   }
 
   static Future<bool> isAdmin() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     final ref = _userRef;
-    if (ref == null) return false;
+    if (uid == null || uid.isEmpty || ref == null) return false;
 
     final snapshot = await ref.get();
+    if (FirebaseAuth.instance.currentUser?.uid != uid) return false;
     return snapshot.data()?['isAdmin'] == true;
   }
 
