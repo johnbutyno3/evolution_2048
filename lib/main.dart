@@ -98,7 +98,24 @@ class Rebirth2048App extends StatelessWidget {
           return const LoginRegisterPage();
         }
 
-        return const HomePage();
+        return FutureBuilder<void>(
+          future: SaveManager.bindAccount(snapshot.data!.uid),
+          builder: (context, bindingSnapshot) {
+            if (bindingSnapshot.connectionState != ConnectionState.done) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (bindingSnapshot.hasError) {
+              return const Scaffold(
+                body: Center(
+                  child: Text('Unable to initialize account data safely.'),
+                ),
+              );
+            }
+            return const HomePage();
+          },
+        );
       },
     );
   }
