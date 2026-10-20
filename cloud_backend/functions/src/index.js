@@ -474,6 +474,14 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
     }
 
     const purchase = purchaseSnapshot.data();
+    if (purchase.transactionId != null &&
+        (purchase.transactionId !== transactionId ||
+         purchase.provider !== provider)) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Purchase intent is already bound to a different store transaction.',
+      );
+    }
     if (purchase.status !== 'pending') {
       return { purchaseId, status: purchase.status };
     }
