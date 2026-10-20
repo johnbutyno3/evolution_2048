@@ -116,6 +116,27 @@ assert.match(toolPurchase, /transaction\.create\(receiptRef/);
 assert.match(toolPurchase, /receipt\.toolType !== type \|\| receipt\.amount !== amount/);
 console.log('Idempotency safety contract OK: Gold spend and tool purchase receipts are transactionally enforced.');
 
+const saveManagerSource = fs.readFileSync(
+  path.join(repoRoot, 'lib/game/services/save_manager.dart'),
+  'utf8',
+);
+const clearStart = saveManagerSource.indexOf('static Future<void> clear() async {');
+const clearEnd = saveManagerSource.indexOf('\n  static Map<String, dynamic>? _decode', clearStart);
+assert.ok(clearStart >= 0 && clearEnd > clearStart);
+const clearMethod = saveManagerSource.slice(clearStart, clearEnd);
+assert.match(
+  clearMethod,
+  /_saveQueue = _saveQueue\.then\([\s\S]*?_clearNow\(\)/,
+  'SaveManager.clear must be serialized behind pending autosaves.',
+);
+assert.match(
+  clearMethod,
+  /static Future<void> _clearNow\(\) async \{[\s\S]*?_cachedSave = null;[\s\S]*?remove\(_saveKey\)/,
+  'The cache must only be cleared when the serialized clear operation executes.',
+);
+console.log('SaveManager clear contract OK: queued autosaves cannot overtake a clear.');
+
+
 const restartSource = fs.readFileSync(path.join(sourceDir, 'game_session.js'), 'utf8');
 assert.match(restartSource, /createRestartOperationContext/);
 assert.match(restartSource, /transaction\.get\(operationRef\)/);
