@@ -113,35 +113,3 @@ exports.getLifeState = onCall(async (request) => {
     return resolveServerState(transaction, request.auth.uid);
   });
 });
-
-exports.consumeLife = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Authentication is required.');
-  }
-
-  const uid = request.auth.uid;
-
-  return db.runTransaction(async (transaction) => {
-    const membershipSnapshot = await transaction.get(membershipRef(uid));
-    const membership = resolveMembership(membershipSnapshot.data() || {});
-    const current = await readAndRegenerate(transaction, uid, membership);
-
-    if (membership.infiniteLives) {
-      writeLifeState(transaction, uid, NORMAL_CAP, null);
-      return lifeResponse(NORMAL_CAP, null, membership);
-    }
-
-    if (current.lives <= 0) {
-      throw new HttpsError('failed-precondition', 'No lives available.');
-    }
-
-    const nextLives = current.lives - 1;
-    const regenStartMillis = nextLives < NORMAL_CAP
-      ? (current.regenStartMillis ?? Date.now())
-      : null;
-
-    writeLifeState(transaction, uid, nextLives, regenStartMillis);
-
-    return lifeResponse(nextLives, regenStartMillis, membership);
-  });
-});
