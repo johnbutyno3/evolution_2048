@@ -73,9 +73,13 @@ class SaveManager {
         return;
       }
       final targetKey = _saveKeyFor(ownerUid);
-      if (_preferences!.containsKey(targetKey)) return;
+      if (_preferences!.containsKey(targetKey)) {
+        return;
+      }
       final legacySession = _preferences!.getString(_legacySessionKey);
-      if (legacySession != serverSessionId) return;
+      if (legacySession != serverSessionId) {
+        return;
+      }
       final legacyRoot = _decode(_preferences!.getString(_legacySaveKey));
       if (legacyRoot == null) {
         return;
@@ -111,10 +115,14 @@ class SaveManager {
         'chapters': <String, dynamic>{chapter: chapterSave},
       };
       for (final key in ['toolUses', 'toolRewardsClaimed']) {
-        if (legacyRoot[key] != null) migratedRoot[key] = legacyRoot[key];
+        if (legacyRoot[key] != null) {
+          migratedRoot[key] = legacyRoot[key];
+        }
       }
       await _preferences!.setString(targetKey, jsonEncode(migratedRoot));
-      if (_accountUid != ownerUid || !isOwner()) return;
+      if (_accountUid != ownerUid || !isOwner()) {
+        return;
+      }
       await _preferences!.setString(_sessionKeyFor(ownerUid), serverSessionId);
       _cachedSave = migratedRoot;
       migrated = true;
@@ -123,9 +131,13 @@ class SaveManager {
       if (_accountUid != ownerUid || !isOwner()) return;
       final legacySession = _preferences!.getString(_legacySessionKey);
       if (legacySession != serverSessionId ||
-          _preferences!.containsKey(_saveKeyFor(ownerUid))) return;
+          _preferences!.containsKey(_saveKeyFor(ownerUid))) {
+        return;
+      }
       final legacyRoot = _decode(_preferences!.getString(_legacySaveKey));
-      if (legacyRoot == null) return;
+      if (legacyRoot == null) {
+        return;
+      }
       final legacyChapters = legacyRoot['chapters'];
       final rawChapter = legacyChapters is Map
           ? legacyChapters[chapter]
@@ -135,7 +147,9 @@ class SaveManager {
           rawChapter['gameOver'] == true ||
           rawChapter['chapterComplete'] == true ||
           rawChapter['tiles'] is! List ||
-          (rawChapter['tiles'] as List).length != 16) return;
+          (rawChapter['tiles'] as List).length != 16) {
+        return;
+      }
       final chapterSave = Map<String, dynamic>.from(
         rawChapter.map((key, value) => MapEntry(key.toString(), value)),
       )..['saveOwnerUid'] = ownerUid;
