@@ -34,8 +34,8 @@ class LifeManager {
     Map<String, dynamic> data, {
     String? expectedUid,
   }) {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-    if (expectedUid != null ? currentUid != expectedUid : currentUid != null) {
+    if (expectedUid != null &&
+        FirebaseAuth.instance.currentUser?.uid != expectedUid) {
           return;
         }
     _lifeStateGeneration++;
