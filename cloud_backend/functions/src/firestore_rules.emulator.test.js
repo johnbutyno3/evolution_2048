@@ -2,21 +2,13 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const {
-  after,
-  before,
-  test,
-} = require('node:test');
+const { after, before, test } = require('node:test');
 const {
   initializeTestEnvironment,
   assertFails,
   assertSucceeds,
 } = require('@firebase/rules-unit-testing');
-const {
-  doc,
-  getDoc,
-  setDoc,
-} = require('firebase/firestore');
+const { doc, getDoc, setDoc } = require('firebase/firestore');
 
 const repoRoot = path.resolve(__dirname, '../../..');
 let testEnv;
@@ -35,6 +27,9 @@ before(async () => {
     await setDoc(doc(db, 'users/bob'), { displayName: 'Bob', isAdmin: false });
     await setDoc(doc(db, 'users/alice/progress/chapter1'), { stage: 2 });
     await setDoc(doc(db, 'users/alice/wallet/main'), { gold: 100 });
+    await setDoc(doc(db, 'users/alice/membership/golden'), { active: true });
+    await setDoc(doc(db, 'users/alice/purchases/purchase-1'), { status: 'pending' });
+    await setDoc(doc(db, 'config/gameplay'), { enabled: true });
   });
 });
 
@@ -62,16 +57,14 @@ test('users cannot access another account profile, progress, wallet, or membersh
   await assertFails(getDoc(doc(db, 'users/alice/progress/chapter1')));
   await assertFails(getDoc(doc(db, 'users/alice/wallet/main')));
   await assertFails(getDoc(doc(db, 'users/alice/membership/golden')));
+  await assertFails(getDoc(doc(db, 'users/alice/purchases/purchase-1')));
 });
 
-test('authoritative sessions, reset receipts, purchases, and security records are server-only', async () => {
+test('authoritative sessions, reset receipts, purchase ledger, and security records are server-only', async () => {
   const db = testEnv.authenticatedContext('alice').firestore();
   const deniedPaths = [
     'users/alice/game_sessions/session-1',
     'users/alice/game_session_operations/reset-1',
-    'users/alice/wallet/main',
-    'users/alice/membership/golden',
-    'users/alice/purchases/purchase-1',
     'purchase_transactions/transaction-1',
     'security_events/event-1',
     'security_risk_scores/alice',
@@ -89,24 +82,36 @@ test('authoritative sessions, reset receipts, purchases, and security records ar
   }
 });
 
+test('users may read their own wallet, membership, and purchase status but cannot write them', async () => {
+  const db = testEnv.authenticatedContext('alice').firestore();
+  for (const documentPath of [
+    'users/alice/wallet/main',
+    'users/alice/membership/golden',
+    'users/alice/purchases/purchase-1',
+  ]) {
+    await assertSucceeds(getDoc(doc(db, documentPath)));
+    await assertFails(
+      setDoc(doc(db, documentPath), { forged: true }),
+      `authoritative write should be denied: ${documentPath}`,
+    );
+  }
+});
+
 test('feedback creation is limited to the authenticated UID and is immutable to clients', async () => {
-  const aliceDb = testEnv.authenticatedContext('alice').firestore();
+  const db = testEnv.authenticatedContext('alice').firestore();
   await assertSucceeds(
-    setDoc(doc(aliceDb, 'feedback/alice-feedback'), { uid: 'alice', message: 'help' }),
+    setDoc(doc(db, 'feedback/alice-feedback'), { uid: 'alice', message: 'help' }),
   );
   await assertFails(
-    setDoc(doc(aliceDb, 'feedback/forged-feedback'), { uid: 'bob', message: 'forged' }),
+    setDoc(doc(db, 'feedback/forged-feedback'), { uid: 'bob', message: 'forged' }),
   );
   await assertFails(
-    setDoc(doc(aliceDb, 'feedback/alice-feedback'), { uid: 'alice', message: 'changed' }),
+    setDoc(doc(db, 'feedback/alice-feedback'), { uid: 'alice', message: 'changed' }),
   );
 });
 
 test('signed-in clients can read shared config but cannot mutate it', async () => {
   const db = testEnv.authenticatedContext('alice').firestore();
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), 'config/gameplay'), { enabled: true });
-  });
   await assertSucceeds(getDoc(doc(db, 'config/gameplay')));
   await assertFails(setDoc(doc(db, 'config/gameplay'), { enabled: false }));
 });
