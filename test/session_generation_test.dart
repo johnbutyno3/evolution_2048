@@ -206,4 +206,33 @@ void main() {
     expect(SaveManager.gameSessionId, isNull);
   });
 
+  test('cached board from a superseded server session is never restored', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await SaveManager.initialize();
+    await SaveManager.bindAccount('stale-session-account');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'rebirth_2048_game_session_id_v1:stale-session-account',
+      'server-session-current',
+    );
+    await prefs.setString(
+      'rebirth_2048_local_save_v1:stale-session-account',
+      jsonEncode(<String, dynamic>{
+        'version': 1,
+        'lastChapter': 'ocean',
+        'chapters': <String, dynamic>{
+          'ocean': <String, dynamic>{
+            'chapter': 'ocean',
+            'gameSessionId': 'server-session-old',
+            'tiles': List<dynamic>.filled(16, null),
+            'score': 500,
+          },
+        },
+      }),
+    );
+    await SaveManager.initialize();
+
+    expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
+  });
+
 }
