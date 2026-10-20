@@ -136,6 +136,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   void _resumeGameplay() {
+    // An unresolved RESET freezes the board even when the app returns from
+    // the background. Do not restart elapsed gameplay time until the server
+    // outcome has been reconciled.
+    if (_restartInProgress) {
+      _engine.pauseGameTimer();
+      _startUiRefreshTimer();
+      if (mounted) setState(() {});
+      return;
+    }
     if (!_engine.gameOver && !_engine.chapterComplete) _engine.startGameTimer();
     _startUiRefreshTimer();
     if (mounted) setState(() {});
@@ -508,7 +517,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   void _handleDragEnd(DragEndDetails details) { _dragStart = null; _swipeHandled = false; }
 
   void _move(String direction) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
+    // Final guard for every movement source, including future callers that do
+    // not pass through the keyboard/gesture entry-point checks.
+    if (_restartInProgress || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
     bool changed;
     switch (direction) { case 'up': changed = _engine.moveUp(); break; case 'down': changed = _engine.moveDown(); break; case 'left': changed = _engine.moveLeft(); break; case 'right': changed = _engine.moveRight(); break; default: changed = false; }
     if (!changed) return;
