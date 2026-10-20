@@ -19,6 +19,7 @@ class GameEngine {
     bool boardLifeActive = false,
   }) : _random = random ?? Random(),
        _chapter = chapter {
+    _saveOwnerUid = SaveManager.accountUid;
     _autoSaveEnabled = false;
     _initializeTools();
     _replayRecorder = ReplayRecorder(chapter: _chapter.name);
@@ -174,6 +175,7 @@ class GameEngine {
   final Random _random;
   GameChapter _chapter;
   bool _autoSaveEnabled = false;
+  late final String? _saveOwnerUid;
   Future<void> _saveQueue = Future<void>.value();
 
   late GameBoard _board;
@@ -265,6 +267,7 @@ class GameEngine {
   Map<String, dynamic> createSaveData() {
     return <String, dynamic>{
       'chapter': _chapter.name,
+      'saveOwnerUid': _saveOwnerUid,
       // Capture the session binding with the snapshot itself. SaveManager
       // uses this to reject an old engine snapshot after a restart has moved
       // the global session ID to the replacement session.
