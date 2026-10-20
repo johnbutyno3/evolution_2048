@@ -14,17 +14,15 @@ void main() {
     const oldSession = 'old-session-123456789';
     const currentSession = 'current-session-123456';
 
-    await SaveManager.setGameSessionId(oldSession);
+    await SaveManager.setGameSessionId(currentSession);
     await SaveManager.save(<String, dynamic>{
       'chapter': 'ocean',
-      'gameSessionId': oldSession,
+      'gameSessionId': currentSession,
       'tiles': <int?>[2, null, null, null, ...List<int?>.filled(12, null)],
       'score': 120,
       'gameOver': false,
       'chapterComplete': false,
     });
-
-    await SaveManager.setGameSessionId(currentSession);
 
     await SaveManager.save(<String, dynamic>{
       'chapter': 'ocean',
