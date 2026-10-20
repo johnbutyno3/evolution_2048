@@ -26,6 +26,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Idempotency receipts are server-only; they must never be client-forged.
+    match /users/{userId}/game_session_operations/{operationId} {
+      allow read, write: if false;
+    }
+
     // Game sessions are created and completed only by Cloud Functions.
     // The client must never read or mutate session state directly.
     match /users/{userId}/game_sessions/{sessionId} {
