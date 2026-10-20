@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// Local-first life presentation with server verification.
 ///
@@ -29,7 +30,12 @@ class LifeManager {
   /// Applies an authoritative life payload returned by a server mutation.
   /// Any in-flight regeneration read becomes stale and may no longer
   /// overwrite this newer mutation result.
-  static void applyServerState(Map<String, dynamic> data) {
+  static void applyServerState(
+    Map<String, dynamic> data, {
+    String? expectedUid,
+  }) {
+    if (expectedUid != null &&
+        FirebaseAuth.instance.currentUser?.uid != expectedUid) return;
     _lifeStateGeneration++;
     _applyServerState(data);
   }
@@ -61,6 +67,11 @@ class LifeManager {
   /// that existed when it started, so an older response can never overwrite a
   /// newer local mutation or server mutation.
   static Future<void> refreshFromServer({bool fromRegeneration = false}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      clearCachedState();
+      return;
+    }
     final requestGeneration = fromRegeneration
         ? _lifeStateGeneration
         : ++_lifeStateGeneration;
@@ -68,7 +79,8 @@ class LifeManager {
     final result = await _functions.httpsCallable('getLifeState').call();
     final data = Map<String, dynamic>.from(result.data as Map);
 
-    if (requestGeneration != _lifeStateGeneration) return;
+    if (requestGeneration != _lifeStateGeneration ||
+        FirebaseAuth.instance.currentUser?.uid != uid) return;
 
     if (fromRegeneration) {
       _applyServerState(data, preserveLocalRegeneration: true);
