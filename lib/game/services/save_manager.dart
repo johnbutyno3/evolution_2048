@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'gold_manager.dart';
+import 'life_manager.dart';
+import 'tool_manager.dart';
+
 class SaveManager {
   SaveManager._();
 
@@ -42,6 +46,12 @@ class SaveManager {
     final normalized = uid == null || uid.isEmpty ? null : uid;
     if (_accountLoaded && _accountUid == normalized && _preferences != null) return;
     _preferences ??= await SharedPreferences.getInstance();
+    final accountChanged = _accountLoaded && _accountUid != normalized;
+    if (accountChanged) {
+      LifeManager.clearCachedState();
+      GoldManager.clearCachedState();
+      ToolManager.clearCachedInventory();
+    }
     _saveQueue = _saveQueue.then<void>((_) async {
       _accountUid = normalized;
       _cachedSave = _decode(_preferences!.getString(_saveKeyFor(normalized)));
