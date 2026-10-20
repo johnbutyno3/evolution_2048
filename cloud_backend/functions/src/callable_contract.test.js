@@ -148,6 +148,16 @@ assert.match(pendingStoreSource, /findPendingPayload/);
 assert.match(pendingStoreSource, /restoreOperationId/);
 assert.match(pendingStoreSource, /_payloadStorageKey/);
 assert.match(
+  pendingStoreSource,
+  /Pending operation payload is corrupted/,
+  'Corrupt pending RESET data must block new session creation rather than be ignored.',
+);
+assert.match(
+  pendingStoreSource,
+  /Pending operation payload is not a JSON object/,
+  'A non-object pending record must fail closed.',
+);
+assert.match(
   gamePageSource,
   /_recoverPendingReset/,
   'Startup must attempt recovery before routing to a new game session.',
