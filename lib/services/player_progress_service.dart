@@ -140,6 +140,20 @@ class PlayerProgressService {
       _activeGameSessionId = refreshedSessionId;
       _activeGameChapterIndex = refreshedChapterIndex;
 
+      // Migrate the legacy global board only when its stored session ID
+      // exactly matches this account's authoritative active server session.
+      // This prevents guessing the owner of an old local snapshot.
+      if (refreshedSessionId != null && refreshedChapterIndex != null) {
+        await SaveManager.migrateLegacySnapshotIfSessionMatches(
+          serverSessionId: refreshedSessionId,
+          chapter: _chapterNames[refreshedChapterIndex],
+          isOwner: () =>
+              _auth.currentUser?.uid == user.uid &&
+              _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
+              _activeGameSessionId == refreshedSessionId,
+        );
+      }
+
       // The queue itself is guarded as well. RESET can begin after the
       // in-memory commit above but before SharedPreferences executes this
       // write; queue-time ownership prevents that stale refresh from writing
