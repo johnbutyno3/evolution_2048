@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
+import 'package:rebirth_2048/game/services/life_manager.dart';
+import 'package:rebirth_2048/game/services/gold_manager.dart';
 import 'package:rebirth_2048/services/session_generation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -238,6 +240,35 @@ void main() {
     await SaveManager.initialize();
 
     expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
+  });
+
+  test('switching bound UID clears previous account economy caches', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await SaveManager.initialize();
+    await SaveManager.bindAccount('cache-account-a');
+
+    LifeManager.applyServerState(<String, dynamic>{
+      'lives': 2,
+      'infiniteLives': false,
+      'membership': 'general',
+      'lifeMode': 'normal',
+      'nextLifeAtMillis': 123456,
+    });
+    GoldManager.applyServerState(<String, dynamic>{
+      'balance': 250,
+      'lifetimeSpent': 30,
+    });
+    expect(LifeManager.lifeCount, 2);
+    expect(LifeManager.hasAuthoritativeState, isTrue);
+    expect(GoldManager.balance, 250);
+
+    await SaveManager.bindAccount('cache-account-b');
+
+    expect(LifeManager.lifeCount, LifeManager.normalCap);
+    expect(LifeManager.hasAuthoritativeState, isFalse);
+    expect(LifeManager.isGoldenMember, isFalse);
+    expect(GoldManager.balance, 0);
+    expect(GoldManager.lifetimeSpent, 0);
   });
 
 }
