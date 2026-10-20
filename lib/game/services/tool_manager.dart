@@ -171,7 +171,14 @@ class ToolManager {
             return false;
           }
           try {
-            final operationId = await PendingOperationStore.getOrCreate('tool_purchase', key);
+            final operationId = await PendingOperationStore.getOrCreate(
+              'tool_purchase',
+              key,
+            );
+            if (_inventoryGeneration != generation ||
+                FirebaseAuth.instance.currentUser?.uid != uid) {
+              return false;
+            }
             final result = await _functions.httpsCallable('purchaseTool').call({
               'toolType': type.name,
               'amount': amount,
