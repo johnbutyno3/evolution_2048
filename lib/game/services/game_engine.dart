@@ -22,7 +22,10 @@ class GameEngine {
     _saveOwnerUid = SaveManager.accountUid;
     _autoSaveEnabled = false;
     _initializeTools();
-    _replayRecorder = ReplayRecorder(chapter: _chapter.name);
+    _replayRecorder = ReplayRecorder(
+      chapter: _chapter.name,
+      saveOwnerUid: _saveOwnerUid,
+    );
     reset();
     _boardLifeActive = boardLifeActive;
 
