@@ -97,6 +97,8 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await SaveManager.initialize();
     await SaveManager.bindAccount('account-a');
+    await SaveManager.saveProfile(name: 'Alice Local');
+    await SaveManager.savePlayerId('alice-player-id');
 
     const sessionA = 'account-a-session-123456';
     await SaveManager.setGameSessionId(sessionA);
@@ -111,6 +113,8 @@ void main() {
 
     await SaveManager.bindAccount('account-b');
     expect(SaveManager.gameSessionId, isNull);
+    expect(SaveManager.profileName, isNull);
+    expect(SaveManager.playerId, isNull);
     expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
 
     // A delayed autosave from account A is rejected after account B takes over.
@@ -125,6 +129,8 @@ void main() {
 
     await SaveManager.bindAccount('account-a');
     expect(SaveManager.gameSessionId, sessionA);
+    expect(SaveManager.profileName, 'Alice Local');
+    expect(SaveManager.playerId, 'alice-player-id');
     expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 77);
   });
 
