@@ -1,13 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SaveManager {
   SaveManager._();
 
-  static const String _legacySaveKey = 'rebirth_2048_local_save_v1';
   static const String _saveKeyPrefix = 'rebirth_2048_local_save_v1:';
   static const String _sessionKeyPrefix = 'rebirth_2048_game_session_id_v1:';
   static String? _accountUid;
@@ -90,7 +88,7 @@ class SaveManager {
     });
     _saveQueue = operation;
     await operation;
-    return isOwner();
+    return _accountUid == ownerUid && isOwner();
   }
 
   static Future<void> rebindCachedGameSession({
@@ -178,19 +176,20 @@ class SaveManager {
         }
       },
       onError: (_, _) async {
-        if (isOwner()) {
-          await _preferences!.remove('rebirth_2048_game_session_id_v1');
+        if (_accountUid == ownerUid && isOwner()) {
+          await _preferences!.remove(_sessionKeyFor(ownerUid));
         }
       },
     );
     _saveQueue = operation;
     await operation;
-    return isOwner();
+    return _accountUid == ownerUid && isOwner();
   }
 
   static Future<void> initialize() async {
     _preferences ??= await SharedPreferences.getInstance();
-    await bindAccount(FirebaseAuth.instance.currentUser?.uid);
+    _accountLoaded = false;
+    await bindAccount(_accountUid);
     localeCodeNotifier.value = localeCode;
   }
 
