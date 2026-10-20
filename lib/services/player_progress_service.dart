@@ -393,7 +393,7 @@ class PlayerProgressService {
     try {
       final operationKey = [
         chapterIndex.toString(),
-        previousSessionId ?? 'no-session',
+        replaySessionId ?? previousSessionId ?? 'no-session',
         initialTiles.join(','),
       ].join(':');
       final result = await PendingOperationStore.runExclusive(
