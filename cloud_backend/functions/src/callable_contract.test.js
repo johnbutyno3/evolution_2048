@@ -350,6 +350,37 @@ assert.match(
 );
 console.log('Account binding contract OK: UID changes invalidate singleton progress and session state.');
 
+
+const saveManagerSource = fs.readFileSync(
+  path.join(repoRoot, 'lib/game/services/save_manager.dart'),
+  'utf8',
+);
+assert.match(
+  saveManagerSource,
+  /getString\(key\) == sessionIdToClear/,
+  'Queued cleanup must not erase a session ID that has already been replaced.',
+);
+assert.match(
+  gamePageSource,
+  /bool get _ownsCurrentAccount[\s\S]*?FirebaseAuth\.instance\.currentUser\?\.uid == _accountUidAtCreation[\s\S]*?SaveManager\.accountUid == _accountUidAtCreation/s,
+  'Game-page asynchronous actions must verify both Firebase UID and SaveManager ownership.',
+);
+const restartMethodStart = progressSource.indexOf('Future<bool> restartGameSession(');
+const abandonMethodStart = progressSource.indexOf('Future<void> abandonGameSession(', restartMethodStart);
+assert.ok(restartMethodStart >= 0 && abandonMethodStart > restartMethodStart);
+const restartMethodSource = progressSource.slice(restartMethodStart, abandonMethodStart);
+assert.match(
+  restartMethodSource,
+  /getOrCreate\([\s\S]*?operationGeneration != _sessionOperationGeneration[\s\S]*?_auth\.currentUser\?\.uid != user\.uid[\s\S]*?restartGameSession/s,
+  'Restart must recheck UID/generation after awaiting its idempotency key and before the callable.',
+);
+assert.match(
+  gamePageSource,
+  /RESET completion failed:[\s\S]*?findPendingPayload\([\s\S]*?restart_game_session[\s\S]*?if \(unresolvedReset != null\)/s,
+  'An ambiguous RESET exception must preserve the pending payload and fail closed instead of rolling back blindly.',
+);
+console.log('Account/session race contract OK: stale session cleanup and ambiguous RESET cannot cross account boundaries.');
+
 const indexConfig = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'firestore.indexes.json'), 'utf8'),
 );
