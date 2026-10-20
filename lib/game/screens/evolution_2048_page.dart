@@ -485,6 +485,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (_restartInProgress) return KeyEventResult.handled;
     if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return KeyEventResult.handled;
     final direction = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowUp => 'up', LogicalKeyboardKey.arrowDown => 'down',
@@ -494,11 +495,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _move(direction); return KeyEventResult.handled;
   }
   void _handleDragStart(DragStartDetails details) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
+    if (_restartInProgress || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
     _dragStart = details.localPosition; _swipeHandled = false;
   }
   void _handleDragUpdate(DragUpdateDetails details) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null || _swipeHandled || _dragStart == null) return;
+    if (_restartInProgress || _gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null || _swipeHandled || _dragStart == null) return;
     final delta = details.localPosition - _dragStart!;
     if (delta.distance < _swipeThreshold) return;
     final direction = delta.dx.abs() > delta.dy.abs() ? (delta.dx < 0 ? 'left' : 'right') : (delta.dy < 0 ? 'up' : 'down');
@@ -712,9 +713,31 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           return;
         }
 
-        // Server rejected the optimistic restart. Restore the previous local
-        // board and let the authoritative Life refresh settle the optimistic
-        // decrement.
+        // A false result is safe to roll back only when the service has
+        // authoritatively cleared the pending request. If the payload remains,
+        // the server outcome is ambiguous: preserve the replacement snapshot,
+        // freeze gameplay, and let startup retry the same operation ID.
+        final unresolvedReset = await PendingOperationStore.findPendingPayload(
+          'restart_game_session',
+        );
+        if (unresolvedReset != null) {
+          newEngine.stopGameTimer();
+          _restartInProgress = true;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'RESET is awaiting server confirmation. Leave this screen and reopen this chapter to retry safely.',
+                ),
+              ),
+            );
+            setState(() {});
+          }
+          return;
+        }
+
+        // The service has confirmed that the transaction did not commit.
+        // Restore the previous local board and authoritative Life state.
         newEngine.stopGameTimer();
         await newEngine.flushLocalSave();
         await LifeManager.refreshFromServer().catchError((_) {});
@@ -829,7 +852,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<void> _startTool(String mode) async {
     // Gameplay is local-first. A tool must not become unclickable merely
     // because the Firebase session response is still in flight.
-    if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
+    if (_restartInProgress || !_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
     if (!toolState.canUse) { if (!mounted) return; if (mode == 'rewind') { await _showToolUnavailable('UNDO'); return; } Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) async { await ToolManager.refreshInventory(); if (!mounted) return; _engine.toolManager.refreshFromSavedProgress(); setState(() {}); }); return; }
@@ -843,7 +866,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     ])));
   }
   Future<void> _selectToolTile(int index) async {
-    final mode = _toolMode; if (mode == null) return; final tile = _engine.board.tiles[index]; final row = index ~/ 4; final column = index % 4;
+    if (_restartInProgress) return; final mode = _toolMode; if (mode == null) return; final tile = _engine.board.tiles[index]; final row = index ~/ 4; final column = index % 4;
     if (mode == 'duplicate') { if (_firstSwapIndex == null) { if (tile == null) return; setState(() => _firstSwapIndex = index); return; } final first = _firstSwapIndex!; if (first == index || tile != null) return; if (_engine.useDuplicate(first ~/ 4, first % 4, row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
     if (tile == null) return;
     if (mode == 'revive') { if (_engine.useRevive(row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
