@@ -25,6 +25,39 @@ class SaveManager {
 
   /// Binds the local chapter snapshot to the server-owned game session.
   /// A local board may only be resumed when this ID matches the server ID.
+  /// Stores a restart operation before sending it to the server. This survives
+  /// app process termination so an ambiguous retry can reuse the same key.
+  static Future<Map<String, dynamic>?> loadPendingRestartOperation(
+    String uid,
+  ) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    final raw = _preferences!.getString(_pendingRestartKey(uid));
+    return _decode(raw);
+  }
+
+  static Future<void> setPendingRestartOperation(
+    String uid, {
+    required String operationId,
+    required String payloadJson,
+  }) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.setString(
+      _pendingRestartKey(uid),
+      jsonEncode({
+        'operationId': operationId,
+        'payloadJson': payloadJson,
+      }),
+    );
+  }
+
+  static Future<void> clearPendingRestartOperation(String uid) async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.remove(_pendingRestartKey(uid));
+  }
+
+  static String _pendingRestartKey(String uid) =>
+      'rebirth_2048_pending_restart_v1_$uid';
+
   static Future<void> setGameSessionId(String sessionId) async {
     final id = sessionId.trim();
     if (id.isEmpty) return;

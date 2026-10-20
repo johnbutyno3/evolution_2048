@@ -36,3 +36,13 @@ jobs:
 
       - name: Run Functions tests
         run: npm test
+
+      - name: Set up Java for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Run Firestore transaction integration tests
+        working-directory: .
+        run: npx --yes firebase-tools@latest emulators:exec --project demo-rebirth-2048 --only firestore "cd functions && npm run test:emulator"
