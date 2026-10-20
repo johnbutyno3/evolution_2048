@@ -2,6 +2,7 @@ import 'dart:async';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'life_manager.dart';
 import 'gold_manager.dart';
 import 'pending_operation_store.dart';
@@ -19,6 +20,7 @@ class ToolManager {
   );
   static final Map<GameToolType, int> _serverUses = {};
   static final Map<GameToolType, int> _sessionUses = {};
+  static int _inventoryGeneration = 0;
   static bool _allToolsEnabledForTest = false;
   static String? _lastPurchaseError;
 
@@ -32,6 +34,7 @@ class ToolManager {
   /// Clears account-scoped cached inventory when the authenticated user changes.
   /// Inventory must never leak from a previous Firebase account.
   static void clearCachedInventory() {
+    _inventoryGeneration++;
     _serverUses.clear();
     _sessionUses.clear();
     _allToolsEnabledForTest = false;
@@ -89,8 +92,13 @@ class ToolManager {
   }
 
   static Future<void> _refreshInventoryFromServer() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+    final generation = _inventoryGeneration;
     try {
       final result = await _functions.httpsCallable('getToolInventory').call();
+      if (_inventoryGeneration != generation ||
+          FirebaseAuth.instance.currentUser?.uid != uid) return;
       final data = result.data is Map
           ? Map<String, dynamic>.from(result.data as Map)
           : <String, dynamic>{};
@@ -141,6 +149,9 @@ class ToolManager {
   }
 
   static Future<bool> purchase(GameToolType type, int amount) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return false;
+    final generation = _inventoryGeneration;
     _lastPurchaseError = null;
     final key = _purchaseKey(type, amount);
     try {
@@ -148,7 +159,11 @@ class ToolManager {
         'tool_purchase',
         key,
         () async {
+          if (_inventoryGeneration != generation ||
+              FirebaseAuth.instance.currentUser?.uid != uid) return false;
           await GoldManager.refresh();
+          if (_inventoryGeneration != generation ||
+              FirebaseAuth.instance.currentUser?.uid != uid) return false;
           try {
             final operationId = await PendingOperationStore.getOrCreate('tool_purchase', key);
             final result = await _functions.httpsCallable('purchaseTool').call({
@@ -156,6 +171,8 @@ class ToolManager {
               'amount': amount,
               'operationId': operationId,
             });
+            if (_inventoryGeneration != generation ||
+                FirebaseAuth.instance.currentUser?.uid != uid) return false;
             final data = result.data is Map
                 ? Map<String, dynamic>.from(result.data as Map)
                 : <String, dynamic>{};
@@ -167,9 +184,10 @@ class ToolManager {
             }
             _serverUses[type] = uses.toInt();
             GoldManager.applyServerState(data);
-            await PendingOperationStore.complete('tool_purchase', key);
+            await PendingOperationStore.complete('tool_purchase', key, expectedUid: uid);
             await refreshInventory();
-            return true;
+            return _inventoryGeneration == generation &&
+                FirebaseAuth.instance.currentUser?.uid == uid;
           } on FirebaseFunctionsException catch (error) {
             // Preserve the ID after ambiguous failures to prevent duplicate charges.
             await GoldManager.refresh();
