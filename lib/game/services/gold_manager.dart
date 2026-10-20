@@ -97,6 +97,10 @@ class GoldManager {
               'gold_spend',
               '$amount',
             );
+            if (_cacheGeneration != generation ||
+                FirebaseAuth.instance.currentUser?.uid != uid) {
+              return false;
+            }
             final result = await _functions.httpsCallable('spendGold').call({
               'amount': amount,
               'operationId': operationId,
