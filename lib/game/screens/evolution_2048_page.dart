@@ -11,6 +11,7 @@ import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
 import '../services/save_manager.dart';
+import '../services/pending_operation_store.dart';
 import '../services/audio_manager.dart';
 import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
@@ -531,6 +532,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // restartGameSession has now bound SaveManager to the replacement
           // session. Persist the visible new board again with that binding.
           await SaveManager.save(newEngine.createSaveData());
+          final resetOperationKey = [
+            (_chapterNumber - 1).toString(),
+            replaySessionId ?? 'no-session',
+            initialTiles.join(','),
+          ].join(':');
+          await PendingOperationStore.complete(
+            'restart_game_session',
+            resetOperationKey,
+          );
           if (!mounted || generation != _gameSessionGeneration) return;
           _engine.toolManager.refreshFromSavedProgress();
           unawaited(_refreshMountedToolInventory(generation));
