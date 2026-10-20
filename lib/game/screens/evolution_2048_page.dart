@@ -3,6 +3,7 @@
 import '../../services/creature_collection_service.dart';
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -30,6 +31,7 @@ class Evolution2048Page extends StatefulWidget {
 class _Evolution2048PageState extends State<Evolution2048Page>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late GameEngine _engine;
+  late final String? _accountUidAtCreation;
   final FocusNode _focusNode = FocusNode();
   Offset? _dragStart;
   bool _swipeHandled = false;
@@ -95,6 +97,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   @override
   void initState() {
     super.initState();
+    _accountUidAtCreation = FirebaseAuth.instance.currentUser?.uid;
     _engine = GameEngine(chapter: widget.initialChapter ?? GameChapter.ocean);
     WidgetsBinding.instance.addObserver(this);
     _completionAnimationController = AnimationController(
@@ -120,6 +123,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _focusNode.dispose();
     super.dispose();
   }
+
+  bool get _ownsCurrentAccount =>
+      _accountUidAtCreation != null &&
+      FirebaseAuth.instance.currentUser?.uid == _accountUidAtCreation &&
+      SaveManager.accountUid == _accountUidAtCreation;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -238,7 +246,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // recover the session when necessary.
           unawaited(
             progress.resumeGameSession(_chapterNumber - 1).then((_) {
-              if (!mounted || generation != _gameSessionGeneration) return;
+              if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return;
               _engine.toolManager.refreshFromSavedProgress();
               setState(() {});
             }).catchError((_) {}),
@@ -583,7 +591,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<bool> _reset() async {
-    if (!mounted || _completionAnimationPlaying || _restartInProgress) {
+    if (!mounted || !_ownsCurrentAccount || _completionAnimationPlaying || _restartInProgress) {
       return false;
     }
     // Claim RESET before the first await so rapid taps cannot create multiple
@@ -594,6 +602,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final pendingReset = await PendingOperationStore.findPendingPayload(
         'restart_game_session',
       );
+      if (!_ownsCurrentAccount) return false;
       if (pendingReset != null) {
         debugPrint('RESET blocked: an earlier reset still needs recovery.');
         _restartInProgress = false;
@@ -667,7 +676,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           'replacementSave': newEngine.createSaveData(),
         },
       );
+      if (!_ownsCurrentAccount) {
+        newEngine.stopGameTimer();
+        return false;
+      }
     } catch (error, stackTrace) {
+      if (!_ownsCurrentAccount) return false;
       debugPrint('Could not persist pending RESET request: $error');
       debugPrintStack(stackTrace: stackTrace);
       await LifeManager.refreshFromServer().catchError((_) {});
@@ -702,7 +716,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     );
 
     final restartCompletion = restartFuture.then<void>((restarted) async {
-        if (!mounted || generation != _gameSessionGeneration) return;
+        if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return;
 
         if (restarted) {
           // Persist the replacement board after the new server session ID is
@@ -1060,7 +1074,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
-    if (!mounted || _restartInProgress) return;
+    if (!mounted || !_ownsCurrentAccount || _restartInProgress) return;
     _restartInProgress = true;
 
     final previousEngine = _engine;
@@ -1101,7 +1115,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           'replacementSave': newEngine.createSaveData(),
         },
       );
+      if (!_ownsCurrentAccount) {
+        newEngine.stopGameTimer();
+        return;
+      }
     } catch (error) {
+      if (!_ownsCurrentAccount) return;
       debugPrint('Next-chapter transition could not be persisted: $error');
       _restartInProgress = false;
       if (mounted) {
