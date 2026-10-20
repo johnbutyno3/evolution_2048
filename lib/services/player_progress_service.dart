@@ -260,7 +260,9 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != userId) return false;
+            _auth.currentUser?.uid != userId) {
+          return false;
+        }
         _activeGameSessionId = data['sessionId'] as String;
         // Restart creates a replacement board locally. Do not rebind the old
         // cached board to the new session: that would resurrect the previous
@@ -290,7 +292,9 @@ class PlayerProgressService {
           _auth.currentUser?.uid == userId) {
         await refresh();
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != userId) return false;
+            _auth.currentUser?.uid != userId) {
+          return false;
+        }
         final serverSessionId = _activeGameSessionId;
         final startCommitted =
             serverSessionId != null &&
@@ -309,7 +313,9 @@ class PlayerProgressService {
           _auth.currentUser?.uid == userId) {
           await refresh();
           if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != userId) return false;
+            _auth.currentUser?.uid != userId) {
+          return false;
+        }
           final serverSessionId = _activeGameSessionId;
           final startCommitted =
               serverSessionId != null &&
@@ -364,7 +370,9 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
         _activeGameSessionId = data['sessionId'] as String;
         await SaveManager.setGameSessionId(_activeGameSessionId!);
         final returnedChapter = data['chapterIndex'];
@@ -444,7 +452,9 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['sessionId'] is String) {
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
 
         _activeGameSessionId = data['sessionId'] as String;
         await SaveManager.setGameSessionId(_activeGameSessionId!);
@@ -478,7 +488,9 @@ class PlayerProgressService {
           _auth.currentUser?.uid == user.uid) {
         await refresh();
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
         final refreshedSessionId = _activeGameSessionId;
         final restartCommitted =
             refreshedSessionId != null &&
@@ -614,7 +626,9 @@ class PlayerProgressService {
       final data = result.data;
       if (data is Map && data['unlockedChapterIndex'] is num) {
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
         _unlockedChapterIndex =
             (data['unlockedChapterIndex'] as num).toInt().clamp(0, 5);
         _loadedFromServer = true;
@@ -633,7 +647,9 @@ class PlayerProgressService {
           _auth.currentUser?.uid == user.uid) {
         await refresh();
         if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
 
         final sessionClosed =
             _activeGameSessionId == null &&
@@ -655,7 +671,9 @@ class PlayerProgressService {
         try {
           await refresh();
           if (operationGeneration != _sessionOperationGeneration ||
-            _auth.currentUser?.uid != user.uid) return false;
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
           final sessionClosed =
               _activeGameSessionId == null &&
               _activeGameChapterIndex == null;
