@@ -28,7 +28,14 @@ class GoldManager {
     _cachedLifetimeSpent = null;
   }
 
-  static void applyServerState(Map<String, dynamic> data) {
+  static void applyServerState(
+    Map<String, dynamic> data, {
+    String? expectedUid,
+  }) {
+    if (expectedUid != null &&
+        FirebaseAuth.instance.currentUser?.uid != expectedUid) {
+      return;
+    }
     final balance = data['balance'];
     if (balance is num && balance.toInt() >= 0) {
       _cachedBalance = balance.toInt();
@@ -86,15 +93,18 @@ class GoldManager {
             return false;
           }
           try {
-            final operationId = await PendingOperationStore.getOrCreate('gold_spend', '$amount');
+            final operationId = await PendingOperationStore.getOrCreate(
+              'gold_spend',
+              '$amount',
+            );
             final result = await _functions.httpsCallable('spendGold').call({
               'amount': amount,
               'operationId': operationId,
             });
             if (_cacheGeneration != generation ||
                 FirebaseAuth.instance.currentUser?.uid != uid) {
-            return false;
-          }
+              return false;
+            }
             final data = result.data;
             final value = data is Map ? data['balance'] : null;
             if (value is! num || value.toInt() < 0) return false;
