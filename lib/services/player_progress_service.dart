@@ -544,6 +544,9 @@ class PlayerProgressService {
     Map<String, dynamic>? replayLog,
     bool unfinishedExit = false,
   }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final userId = user.uid;
     final requestedSessionId = sessionId ?? _activeGameSessionId;
     if (requestedSessionId != null &&
         _activeGameSessionId == requestedSessionId) {
@@ -555,6 +558,7 @@ class PlayerProgressService {
     }
 
     await _awaitPendingStartSession();
+    if (_auth.currentUser?.uid != userId) return;
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
 
@@ -573,6 +577,7 @@ class PlayerProgressService {
         'unfinishedExit': unfinishedExit,
       });
 
+      if (_auth.currentUser?.uid != userId) return;
       final data = result.data;
       final chapterProgress = data is Map ? data['chapterProgress'] : null;
       if (chapterProgress is Map) {
@@ -591,6 +596,7 @@ class PlayerProgressService {
         _loadedFromServer = true;
       }
     } on FirebaseFunctionsException catch (error) {
+      if (_auth.currentUser?.uid != userId) return;
       print(
         'abandonGameSession failed: code='
         '${error.code}, message=${error.message}, '
