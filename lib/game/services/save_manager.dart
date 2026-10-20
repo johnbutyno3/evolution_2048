@@ -14,6 +14,7 @@ class SaveManager {
   static String _storageAccount(String? uid) => uid == null || uid.isEmpty ? 'anonymous' : uid;
   static String _saveKeyFor(String? uid) => '$_saveKeyPrefix${_storageAccount(uid)}';
   static String _sessionKeyFor(String? uid) => '$_sessionKeyPrefix${_storageAccount(uid)}';
+  static String _userKey(String key) => '$key:${_storageAccount(_accountUid)}';
   static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
   static const String _profileNameKey = 'rebirth_2048_profile_name_v1';
   static const String _playerIdKey = 'rebirth_2048_player_id_v1';
@@ -224,26 +225,26 @@ class SaveManager {
   }
 
   static String? get profileName {
-    return _preferences?.getString(_profileNameKey);
+    return _preferences?.getString(_userKey(_profileNameKey));
   }
 
   static String? get playerId {
-    return _preferences?.getString(_playerIdKey);
+    return _preferences?.getString(_userKey(_playerIdKey));
   }
 
   static Future<void> savePlayerId(String playerId) async {
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setString(_playerIdKey, playerId.trim());
+    await _preferences!.setString(_userKey(_playerIdKey), playerId.trim());
   }
 
   static int get avatarIndex {
-    final value = _preferences?.getInt(_avatarIndexKey) ?? 0;
+    final value = _preferences?.getInt(_userKey(_avatarIndexKey)) ?? 0;
     return value.clamp(0, 53);
   }
 
   static Future<void> saveAvatarIndex(int index) async {
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setInt(_avatarIndexKey, index.clamp(0, 53));
+    await _preferences!.setInt(_userKey(_avatarIndexKey), index.clamp(0, 53));
   }
 
   static bool get hasProfile {
@@ -253,7 +254,7 @@ class SaveManager {
 
   static Future<void> saveProfile({required String name}) async {
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setString(_profileNameKey, name.trim());
+    await _preferences!.setString(_userKey(_profileNameKey), name.trim());
   }
 
   /// Returns the chapter containing the local unfinished board, if any.
