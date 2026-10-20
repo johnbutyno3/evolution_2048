@@ -1161,6 +1161,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         operationKey,
         expectedUid: _accountUidAtCreation,
       );
+      if (!_ownsCurrentAccount) return;
       _restartInProgress = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1209,7 +1210,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           operationKey,
           expectedUid: _accountUidAtCreation,
         );
-        if (!_ownsCurrentAccount) return;
         if (!_ownsCurrentAccount) return;
         _engine.toolManager.refreshFromSavedProgress();
         unawaited(_refreshMountedToolInventory(generation));
