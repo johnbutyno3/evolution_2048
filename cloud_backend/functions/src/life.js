@@ -145,31 +145,3 @@ exports.consumeLife = onCall(async (request) => {
     return lifeResponse(nextLives, regenStartMillis, membership);
   });
 });
-
-exports.refundLife = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError('unauthenticated', 'Authentication is required.');
-  }
-
-  const uid = request.auth.uid;
-
-  return db.runTransaction(async (transaction) => {
-    const membershipSnapshot = await transaction.get(membershipRef(uid));
-    const membership = resolveMembership(membershipSnapshot.data() || {});
-    const current = await readAndRegenerate(transaction, uid, membership);
-
-    if (membership.infiniteLives) {
-      writeLifeState(transaction, uid, NORMAL_CAP, null);
-      return lifeResponse(NORMAL_CAP, null, membership);
-    }
-
-    const nextLives = Math.min(NORMAL_CAP, Math.max(0, current.lives + 1));
-    const regenStartMillis = nextLives >= NORMAL_CAP
-      ? null
-      : (current.regenStartMillis ?? Date.now());
-
-    writeLifeState(transaction, uid, nextLives, regenStartMillis);
-
-    return lifeResponse(nextLives, regenStartMillis, membership);
-  });
-});
