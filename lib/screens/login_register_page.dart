@@ -9,6 +9,7 @@ import 'home_page.dart';
 import 'profile_setup_page.dart';
 import '../services/player_profile_service.dart';
 import '../game/services/audio_manager.dart';
+import '../game/services/save_manager.dart';
 import '../l10n/app_localizations.dart';
 
 class LoginRegisterPage extends StatefulWidget {
@@ -38,6 +39,11 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
 
   Future<void> _continueAfterAuth() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw StateError('Authenticated account disappeared before initialization.');
+      }
+      await SaveManager.bindAccount(user.uid);
       // Do not force-refresh App Check here. A forced refresh can trigger a
       // debug-token exchange even when a valid cached token is already usable.
       // The callable client will obtain/reuse the App Check token as needed.
