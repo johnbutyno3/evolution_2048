@@ -168,6 +168,7 @@ class PersonalPage extends StatelessWidget {
     // Change the local save namespace before any next account can enter.
     // Old GameEngine snapshots carry their creator UID and will be rejected.
     await SaveManager.bindAccount(null);
+    await PlayerProgressService.instance.bindAccount(null);
 
     if (!context.mounted) return;
 
