@@ -257,6 +257,40 @@ assert.match(
 );
 console.log('RESET crash recovery contract OK: payload, operation ID, and board snapshot are persisted and replayed.');
 
+const nextChapterStart = gamePageSource.indexOf(
+  'Future<void> _startChapter(GameChapter chapter',
+);
+const nextChapterEnd = gamePageSource.indexOf('\n  @override\n  Widget build', nextChapterStart);
+assert.ok(nextChapterStart >= 0 && nextChapterEnd > nextChapterStart);
+const nextChapterSource = gamePageSource.slice(nextChapterStart, nextChapterEnd);
+const nextChapterPayloadIndex = nextChapterSource.indexOf(
+  "await PendingOperationStore.savePendingPayload(",
+);
+const nextChapterCallableIndex = nextChapterSource.indexOf(
+  "PlayerProgressService.instance.restartGameSession(",
+);
+assert.ok(
+  nextChapterPayloadIndex >= 0 && nextChapterCallableIndex > nextChapterPayloadIndex,
+  'Next-chapter transition must persist its operation ID and replacement board before the callable.',
+);
+assert.match(
+  nextChapterSource,
+  /'replacementSave': newEngine\.createSaveData\(\)/,
+  'Next-chapter recovery must retain the exact replacement board.',
+);
+assert.match(
+  nextChapterSource,
+  /if \(unresolved != null\) \{[\s\S]*?_restartInProgress = true/,
+  'An ambiguous next-chapter transition must freeze rather than roll back the visible board.',
+);
+assert.match(
+  nextChapterSource,
+  /await PendingOperationStore\.complete\('restart_game_session', operationKey\)/,
+  'A confirmed next-chapter transition must clear its pending recovery payload after saving.',
+);
+console.log('Next-chapter transition contract OK: durable idempotency payload precedes the backend request.');
+
+
 
 const indexConfig = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'firestore.indexes.json'), 'utf8'),
