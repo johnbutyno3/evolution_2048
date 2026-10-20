@@ -290,6 +290,10 @@ class PlayerProgressService {
         // board when the player re-enters. The new GameEngine snapshot is
         // persisted separately by the caller after this session is accepted.
         await SaveManager.setGameSessionId(_activeGameSessionId!, expectedUid: userId);
+        if (operationGeneration != _sessionOperationGeneration ||
+            _auth.currentUser?.uid != userId) {
+          return false;
+        }
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
@@ -464,6 +468,10 @@ class PlayerProgressService {
             'restart_game_session',
             operationKey,
           );
+          if (operationGeneration != _sessionOperationGeneration ||
+              _auth.currentUser?.uid != user.uid) {
+            throw StateError('Account or session changed before restart request.');
+          }
           return _functions.httpsCallable('restartGameSession').call({
             'operationId': operationId,
             'chapterIndex': chapterIndex,
@@ -567,6 +575,8 @@ class PlayerProgressService {
     final user = _auth.currentUser;
     if (user == null) return;
     final userId = user.uid;
+    final operationGeneration = _sessionOperationGeneration;
+    final identityGeneration = _sessionIdentityGeneration.current;
     final requestedSessionId = sessionId ?? _activeGameSessionId;
     if (requestedSessionId != null &&
         _activeGameSessionId == requestedSessionId) {
@@ -581,7 +591,9 @@ class PlayerProgressService {
     }
 
     await _awaitPendingStartSession();
-    if (_auth.currentUser?.uid != userId) return;
+    if (_auth.currentUser?.uid != userId ||
+        operationGeneration != _sessionOperationGeneration ||
+        !_sessionIdentityGeneration.isCurrent(identityGeneration)) return;
     final settledSessionId = sessionId ?? _activeGameSessionId;
     if (settledSessionId == null) return;
 
@@ -603,7 +615,9 @@ class PlayerProgressService {
         'unfinishedExit': unfinishedExit,
       });
 
-      if (_auth.currentUser?.uid != userId) return;
+      if (_auth.currentUser?.uid != userId ||
+          operationGeneration != _sessionOperationGeneration ||
+          !_sessionIdentityGeneration.isCurrent(identityGeneration)) return;
       final data = result.data;
       final chapterProgress = data is Map ? data['chapterProgress'] : null;
       if (chapterProgress is Map) {
@@ -622,7 +636,9 @@ class PlayerProgressService {
         _loadedFromServer = true;
       }
     } on FirebaseFunctionsException catch (error) {
-      if (_auth.currentUser?.uid != userId) return;
+      if (_auth.currentUser?.uid != userId ||
+          operationGeneration != _sessionOperationGeneration ||
+          !_sessionIdentityGeneration.isCurrent(identityGeneration)) return;
       print(
         'abandonGameSession failed: code='
         '${error.code}, message=${error.message}, '
@@ -674,7 +690,15 @@ class PlayerProgressService {
           expectedUid: user.uid,
           expectedSessionId: sessionId,
         );
+        if (operationGeneration != _sessionOperationGeneration ||
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
         await ToolManager.refreshInventory();
+        if (operationGeneration != _sessionOperationGeneration ||
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
         return true;
       }
     } on FirebaseFunctionsException catch (error) {
