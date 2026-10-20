@@ -93,4 +93,39 @@ void main() {
     );
     expect(SaveManager.gameSessionId, 'current-session');
   });
+  test('account-scoped saves stay isolated and stale engine snapshots cannot cross accounts', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await SaveManager.initialize();
+    await SaveManager.bindAccount('account-a');
+
+    const sessionA = 'account-a-session-123456';
+    await SaveManager.setGameSessionId(sessionA);
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'saveOwnerUid': 'account-a',
+      'gameSessionId': sessionA,
+      'tiles': List<dynamic>.filled(16, null),
+      'score': 77,
+    });
+    expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 77);
+
+    await SaveManager.bindAccount('account-b');
+    expect(SaveManager.gameSessionId, isNull);
+    expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
+
+    // A delayed autosave from account A is rejected after account B takes over.
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'saveOwnerUid': 'account-a',
+      'gameSessionId': sessionA,
+      'tiles': List<dynamic>.filled(16, null),
+      'score': 999,
+    });
+    expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
+
+    await SaveManager.bindAccount('account-a');
+    expect(SaveManager.gameSessionId, sessionA);
+    expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 77);
+  });
+
 }
