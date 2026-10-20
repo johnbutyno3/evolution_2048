@@ -217,6 +217,7 @@ class PlayerProgressService {
         return false;
       }
       final pendingResult = await pendingStart;
+      if (_auth.currentUser?.uid != user.uid) return false;
       if (pendingResult) return true;
     }
 
@@ -422,6 +423,7 @@ class PlayerProgressService {
     final pendingStart = _pendingStartSession;
     if (pendingStart != null) {
       await pendingStart;
+      if (_auth.currentUser?.uid != user.uid) return false;
     }
 
     final operationGeneration = ++_sessionOperationGeneration;
