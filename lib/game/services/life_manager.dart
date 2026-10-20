@@ -193,21 +193,4 @@ class LifeManager {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  /// Legacy explicit server consume API. Normal game entry now uses the
-  /// local-first session flow instead of waiting for this call.
-  static Future<bool> consumeLife() async {
-    try {
-      final result = await _functions.httpsCallable('consumeLife').call();
-      applyServerState(Map<String, dynamic>.from(result.data as Map));
-      return true;
-    } on FirebaseFunctionsException catch (error) {
-      if (error.code == 'failed-precondition' &&
-          error.message == 'No lives available.') {
-        await refreshFromServer();
-        return false;
-      }
-      rethrow;
-    }
-  }
-
 }
