@@ -406,6 +406,14 @@ class SaveManager {
     return null;
   }
 
+  static bool _matchesActiveSession(Map<String, dynamic> snapshot) {
+    final savedId = snapshot['gameSessionId'];
+    final currentId = gameSessionId;
+    final hasSavedId = savedId is String && savedId.isNotEmpty;
+    if (hasSavedId) return savedId == currentId;
+    return currentId == null;
+  }
+
   static Map<String, dynamic>? loadCached({String? chapter}) {
     final root = _cachedSave;
     if (root == null) {
@@ -432,7 +440,7 @@ class SaveManager {
             result['toolRewardsClaimed'] = root['toolRewardsClaimed'];
           }
 
-          return result;
+          return _matchesActiveSession(result) ? result : null;
         }
 
         return null;
@@ -457,12 +465,13 @@ class SaveManager {
             result['toolRewardsClaimed'] = root['toolRewardsClaimed'];
           }
 
-          return result;
+          return _matchesActiveSession(result) ? result : null;
         }
       }
     }
 
-    return Map<String, dynamic>.from(root);
+    final result = Map<String, dynamic>.from(root);
+    return _matchesActiveSession(result) ? result : null;
   }
 
   static Future<void> save(Map<String, dynamic> data) {
