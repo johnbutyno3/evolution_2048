@@ -212,6 +212,22 @@ assert.match(
   /findPendingPayload\(\s*'restart_game_session',\s*\)/,
   'Startup must detect an unresolved RESET even if the player opens another chapter.',
 );
+const resetAmbiguousIndex = gamePageSource.indexOf(
+  'final unresolvedReset = await PendingOperationStore.findPendingPayload(',
+);
+const resetRollbackIndex = gamePageSource.indexOf(
+  'await SaveManager.save(oldEngine.createSaveData());',
+  resetAmbiguousIndex,
+);
+assert.ok(
+  resetAmbiguousIndex >= 0 && resetRollbackIndex > resetAmbiguousIndex,
+  'RESET must check for an unresolved operation before restoring the old board after a false result.',
+);
+assert.match(
+  gamePageSource,
+  /if \(_restartInProgress\) return; final mode = _toolMode/,
+  'Gameplay tools must remain disabled while an ambiguous RESET is awaiting recovery.',
+);
 console.log('RESET crash recovery contract OK: payload, operation ID, and board snapshot are persisted and replayed.');
 
 
