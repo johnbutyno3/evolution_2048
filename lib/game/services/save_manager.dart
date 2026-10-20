@@ -110,10 +110,7 @@ class SaveManager {
         if (legacyRoot[key] != null) migratedRoot[key] = legacyRoot[key];
       }
       await _preferences!.setString(targetKey, jsonEncode(migratedRoot));
-      if (_accountUid != ownerUid || !isOwner()) {
-        await _preferences!.remove(targetKey);
-        return;
-      }
+      if (_accountUid != ownerUid || !isOwner()) return;
       await _preferences!.setString(_sessionKeyFor(ownerUid), serverSessionId);
       _cachedSave = migratedRoot;
       migrated = true;
@@ -145,10 +142,7 @@ class SaveManager {
         'chapters': <String, dynamic>{chapter: chapterSave},
       };
       await _preferences!.setString(_saveKeyFor(ownerUid), jsonEncode(migratedRoot));
-      if (_accountUid != ownerUid || !isOwner()) {
-        await _preferences!.remove(_saveKeyFor(ownerUid));
-        return;
-      }
+      if (_accountUid != ownerUid || !isOwner()) return;
       await _preferences!.setString(_sessionKeyFor(ownerUid), serverSessionId);
       _cachedSave = migratedRoot;
       migrated = true;
