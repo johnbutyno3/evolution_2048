@@ -162,6 +162,22 @@ assert.match(
   /PendingOperationStore\.complete\([\s\S]*?resetOperationKey/s,
   'RESET recovery data must be cleared only after the replacement snapshot is saved.',
 );
+const resetPayloadWriteIndex = gamePageSource.indexOf(
+  'await PendingOperationStore.savePendingPayload(',
+);
+const resetCallableIndex = gamePageSource.indexOf(
+  'final restartFuture = PlayerProgressService.instance.restartGameSession(',
+);
+assert.ok(
+  resetPayloadWriteIndex >= 0 &&
+    resetCallableIndex > resetPayloadWriteIndex,
+  'The full RESET request and board snapshot must be persisted before the backend call.',
+);
+assert.match(
+  gamePageSource,
+  /RESET blocked: an earlier reset still needs recovery/,
+  'A second RESET must not replace an unresolved operation payload.',
+);
 console.log('RESET crash recovery contract OK: payload, operation ID, and board snapshot are persisted and replayed.');
 
 
