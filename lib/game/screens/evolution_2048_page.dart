@@ -462,8 +462,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       await PendingOperationStore.complete(
         'restart_game_session',
         operationKey,
+        expectedUid: _accountUidAtCreation,
       );
-      if (!mounted || generation != _gameSessionGeneration) return false;
+      if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return false;
 
       _engine.stopGameTimer();
       _engine = recoveredEngine;
@@ -723,14 +724,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // bound. This prevents the old cached board from being restored on
           // the next entry and makes RESET durable immediately.
           await newEngine.flushLocalSave();
+          if (!_ownsCurrentAccount) return;
           // restartGameSession has now bound SaveManager to the replacement
           // session. Persist the visible new board again with that binding.
           await SaveManager.save(newEngine.createSaveData());
+          if (!_ownsCurrentAccount) return;
           await PendingOperationStore.complete(
             'restart_game_session',
             resetOperationKey,
+            expectedUid: _accountUidAtCreation,
           );
-          if (!mounted || generation != _gameSessionGeneration) return;
+          if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return;
           _engine.toolManager.refreshFromSavedProgress();
           unawaited(_refreshMountedToolInventory(generation));
           _restartInProgress = false;
@@ -745,6 +749,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         final unresolvedReset = await PendingOperationStore.findPendingPayload(
           'restart_game_session',
         );
+        if (!_ownsCurrentAccount) return;
         if (unresolvedReset != null) {
           newEngine.stopGameTimer();
           _restartInProgress = true;
@@ -1135,7 +1140,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     if (!LifeManager.optimisticConsumeLife()) {
-      await PendingOperationStore.complete('restart_game_session', operationKey);
+      await PendingOperationStore.complete(
+        'restart_game_session',
+        operationKey,
+        expectedUid: _accountUidAtCreation,
+      );
       _restartInProgress = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1177,7 +1186,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (started) {
         await newEngine.flushLocalSave();
         await SaveManager.save(newEngine.createSaveData());
-        await PendingOperationStore.complete('restart_game_session', operationKey);
+        await PendingOperationStore.complete(
+          'restart_game_session',
+          operationKey,
+          expectedUid: _accountUidAtCreation,
+        );
         _engine.toolManager.refreshFromSavedProgress();
         unawaited(_refreshMountedToolInventory(generation));
         _restartInProgress = false;
@@ -1190,6 +1203,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final unresolved = await PendingOperationStore.findPendingPayload(
         'restart_game_session',
       );
+      if (!_ownsCurrentAccount) return;
       if (unresolved != null) {
         newEngine.stopGameTimer();
         _restartInProgress = true;
@@ -1225,10 +1239,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }).catchError((Object error, StackTrace stackTrace) async {
       debugPrint('Next-chapter transition failed: $error');
       debugPrintStack(stackTrace: stackTrace);
-      if (!mounted || generation != _gameSessionGeneration) return;
+      if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return;
       final unresolved = await PendingOperationStore.findPendingPayload(
         'restart_game_session',
       );
+      if (!_ownsCurrentAccount) return;
       if (unresolved != null) {
         newEngine.stopGameTimer();
         _restartInProgress = true;
