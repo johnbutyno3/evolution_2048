@@ -789,6 +789,33 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (!mounted) return;
     }
 
+    // If RESET is still ambiguous, leaving this screen must not abandon or
+    // overwrite either possible server session. The next entry will replay the
+    // durable operation ID and reconcile the result.
+    try {
+      final unresolvedReset = await PendingOperationStore.findPendingPayload(
+        'restart_game_session',
+      );
+      if (unresolvedReset != null) {
+        _engine.stopGameTimer();
+        _stopUiRefreshTimer();
+        _allowSystemPop = true;
+        Navigator.of(context).pop();
+        _handlingSystemBack = false;
+        return;
+      }
+    } catch (error) {
+      // A corrupt/unreadable operation record is also ambiguous. Do not mutate
+      // session state while its outcome cannot be established.
+      debugPrint('Leaving game with unresolved RESET record: $error');
+      _engine.stopGameTimer();
+      _stopUiRefreshTimer();
+      _allowSystemPop = true;
+      Navigator.of(context).pop();
+      _handlingSystemBack = false;
+      return;
+    }
+
     final wasChapterComplete = _engine.chapterComplete;
 
     // Pause first so pauseGameTimer() commits the current elapsed duration.
