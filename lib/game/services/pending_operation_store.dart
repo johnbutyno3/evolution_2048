@@ -155,8 +155,12 @@ class PendingOperationStore {
     return null;
   }
 
-  static Future<void> complete(String namespace, String operationKey) async {
-    final uid = _uid;
+  static Future<void> complete(
+    String namespace,
+    String operationKey, {
+    String? expectedUid,
+  }) async {
+    final uid = expectedUid ?? _uid;
     if (uid == null || uid.isEmpty) return;
     final preferences = await SharedPreferences.getInstance();
     // Remove the recovery payload first. If the process is killed between
