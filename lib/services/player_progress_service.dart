@@ -327,8 +327,16 @@ class PlayerProgressService {
             serverSessionId != previousSessionId &&
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
+        if (operationGeneration != _sessionOperationGeneration ||
+            _auth.currentUser?.uid != userId) {
+          return false;
+        }
         if (startCommitted) {
           await SaveManager.setGameSessionId(serverSessionId, expectedUid: userId);
+          if (operationGeneration != _sessionOperationGeneration ||
+              _auth.currentUser?.uid != userId) {
+            return false;
+          }
           return true;
         }
       }
@@ -348,8 +356,16 @@ class PlayerProgressService {
               serverSessionId != previousSessionId &&
               _activeGameChapterIndex == chapterIndex;
           await LifeManager.refreshFromServer();
+          if (operationGeneration != _sessionOperationGeneration ||
+              _auth.currentUser?.uid != userId) {
+            return false;
+          }
           if (startCommitted) {
-            await SaveManager.setGameSessionId(serverSessionId);
+            await SaveManager.setGameSessionId(serverSessionId, expectedUid: userId);
+            if (operationGeneration != _sessionOperationGeneration ||
+                _auth.currentUser?.uid != userId) {
+              return false;
+            }
             return true;
           }
         }
@@ -400,7 +416,11 @@ class PlayerProgressService {
           return false;
         }
         _activeGameSessionId = data['sessionId'] as String;
-        await SaveManager.setGameSessionId(_activeGameSessionId!);
+        await SaveManager.setGameSessionId(_activeGameSessionId!, expectedUid: user.uid);
+        if (operationGeneration != _sessionOperationGeneration ||
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
@@ -489,7 +509,11 @@ class PlayerProgressService {
         }
 
         _activeGameSessionId = data['sessionId'] as String;
-        await SaveManager.setGameSessionId(_activeGameSessionId!);
+        await SaveManager.setGameSessionId(_activeGameSessionId!, expectedUid: user.uid);
+        if (operationGeneration != _sessionOperationGeneration ||
+            _auth.currentUser?.uid != user.uid) {
+          return false;
+        }
         _activeGameChapterIndex = chapterIndex;
 
         final lifeState = <String, dynamic>{
