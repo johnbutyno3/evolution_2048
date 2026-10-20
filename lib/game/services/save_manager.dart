@@ -15,6 +15,7 @@ class SaveManager {
   static String _saveKeyFor(String? uid) => '$_saveKeyPrefix${_storageAccount(uid)}';
   static String _sessionKeyFor(String? uid) => '$_sessionKeyPrefix${_storageAccount(uid)}';
   static String _userKey(String key) => '$key:${_storageAccount(_accountUid)}';
+  static String _userKeyFor(String key, String? uid) => '$key:${_storageAccount(uid)}';
   static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
   static const String _profileNameKey = 'rebirth_2048_profile_name_v1';
   static const String _playerIdKey = 'rebirth_2048_player_id_v1';
@@ -233,8 +234,10 @@ class SaveManager {
   }
 
   static Future<void> savePlayerId(String playerId) async {
+    final ownerUid = _accountUid;
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setString(_userKey(_playerIdKey), playerId.trim());
+    if (_accountUid != ownerUid) return;
+    await _preferences!.setString(_userKeyFor(_playerIdKey, ownerUid), playerId.trim());
   }
 
   static int get avatarIndex {
@@ -243,8 +246,10 @@ class SaveManager {
   }
 
   static Future<void> saveAvatarIndex(int index) async {
+    final ownerUid = _accountUid;
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setInt(_userKey(_avatarIndexKey), index.clamp(0, 53));
+    if (_accountUid != ownerUid) return;
+    await _preferences!.setInt(_userKeyFor(_avatarIndexKey, ownerUid), index.clamp(0, 53));
   }
 
   static bool get hasProfile {
@@ -253,8 +258,10 @@ class SaveManager {
   }
 
   static Future<void> saveProfile({required String name}) async {
+    final ownerUid = _accountUid;
     _preferences ??= await SharedPreferences.getInstance();
-    await _preferences!.setString(_userKey(_profileNameKey), name.trim());
+    if (_accountUid != ownerUid) return;
+    await _preferences!.setString(_userKeyFor(_profileNameKey, ownerUid), name.trim());
   }
 
   /// Returns the chapter containing the local unfinished board, if any.
