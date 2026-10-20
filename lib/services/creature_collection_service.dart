@@ -47,10 +47,12 @@ class CreatureCollectionService {
   }
 
   static Future<Set<int>> loadDiscovered(String chapterKey) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     final ref = _ref;
-    if (ref == null) return {};
+    if (uid == null || ref == null) return {};
 
     final snapshot = await ref.get();
+    if (FirebaseAuth.instance.currentUser?.uid != uid) return {};
     final data = snapshot.data();
     final normalizedKey = normalizeChapterKey(chapterKey);
 
@@ -75,16 +77,19 @@ class CreatureCollectionService {
       return value >= 2 && value <= 4096 && (value & (value - 1)) == 0;
     }).toList();
 
-    if (valid.isEmpty || FirebaseAuth.instance.currentUser == null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (valid.isEmpty || uid == null || uid.isEmpty) return;
 
     final callable = _functions.httpsCallable('discoverCreature');
     final normalizedKey = normalizeChapterKey(chapterKey);
 
     for (final value in valid) {
+      if (FirebaseAuth.instance.currentUser?.uid != uid) return;
       await callable.call(<String, dynamic>{
         'chapterKey': normalizedKey,
         'value': value,
       });
+      if (FirebaseAuth.instance.currentUser?.uid != uid) return;
     }
   }
 }
