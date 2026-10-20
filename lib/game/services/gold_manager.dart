@@ -97,7 +97,7 @@ class GoldManager {
             _cachedLifetimeSpent = spent is num && spent.toInt() >= 0
                 ? spent.toInt()
                 : lifetimeSpent + amount;
-            await PendingOperationStore.complete('gold_spend', '$amount');
+            await PendingOperationStore.complete('gold_spend', '$amount', expectedUid: uid);
             return true;
           } on FirebaseFunctionsException {
             // The server may have committed before the response failed.
