@@ -1060,25 +1060,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
-    if (!mounted) return;
-
-    if (!LifeManager.optimisticConsumeLife()) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to start the next chapter. Please check your Life.'),
-          ),
-        );
-      }
-      return;
-    }
+    if (!mounted || _restartInProgress) return;
+    _restartInProgress = true;
 
     final previousEngine = _engine;
-
-    // Chapter completion settles the old session. The next chapter starts
-    // with a fresh session-use overlay.
-    ToolManager.clearSessionUsage();
-
+    final previousSave = previousEngine.createSaveData();
+    final previousReplay = previousSave['replayLog'];
+    final replayLog = previousReplay is Map
+        ? Map<String, dynamic>.from(previousReplay)
+        : null;
+    final replaySessionId = previousSave['gameSessionId'] is String
+        ? previousSave['gameSessionId'] as String
+        : null;
     final newEngine = GameEngine(
       chapter: chapter,
       forceNewBoard: true,
@@ -1088,7 +1081,57 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final initialTiles = previewReplay is Map && previewReplay['initialTiles'] is List
         ? List<dynamic>.from(previewReplay['initialTiles'] as List)
         : const <dynamic>[];
+    final operationKey = [
+      chapter.index.toString(),
+      replaySessionId ?? 'no-session',
+      initialTiles.join(','),
+    ].join(':');
 
+    // Persist the exact chapter-transition request and replacement board before
+    // consuming a Life or making the new board visible.
+    try {
+      await PendingOperationStore.savePendingPayload(
+        'restart_game_session',
+        operationKey,
+        {
+          'chapterIndex': chapter.index,
+          'replaySessionId': replaySessionId,
+          'replayLog': replayLog,
+          'initialTiles': initialTiles,
+          'replacementSave': newEngine.createSaveData(),
+        },
+      );
+    } catch (error) {
+      debugPrint('Next-chapter transition could not be persisted: $error');
+      _restartInProgress = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to save the next chapter transition. Please try again.'),
+          ),
+        );
+        setState(() {});
+      }
+      return;
+    }
+
+    if (!LifeManager.optimisticConsumeLife()) {
+      await PendingOperationStore.complete('restart_game_session', operationKey);
+      _restartInProgress = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to start the next chapter. Please check your Life.'),
+          ),
+        );
+        setState(() {});
+      }
+      return;
+    }
+
+    final generation = ++_gameSessionGeneration;
+    ToolManager.clearSessionUsage();
+    _engine.stopGameTimer();
     setState(() {
       _engine = newEngine;
       _toolMode = null;
@@ -1098,77 +1141,96 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _evolutionValue = null;
       _evolutionCreatureName = null;
     });
-    _engine.startGameTimer();
+    newEngine.startGameTimer();
     _startUiRefreshTimer();
     unawaited(AudioManager.instance.playChapterMusic(chapter));
     _focusNode.requestFocus();
 
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       chapter.index,
+      replayLog: replayLog,
+      replaySessionId: replaySessionId,
       initialTiles: initialTiles,
     );
 
-    unawaited(
-      restartFuture.then((started) async {
-        if (!mounted) return;
-        if (started) {
-          _engine.toolManager.refreshFromSavedProgress();
-          unawaited(_refreshMountedToolInventory(_gameSessionGeneration));
-          return;
-        }
-
-        // The local transition was optimistic. If the authoritative server
-        // rejects it, do not leave the player on an unbound chapter board.
-        newEngine.stopGameTimer();
+    final transitionFuture = restartFuture.then((started) async {
+      if (!mounted || generation != _gameSessionGeneration) return;
+      if (started) {
         await newEngine.flushLocalSave();
-        await LifeManager.refreshFromServer().catchError((_) {});
-        ToolManager.restoreSessionUsageFromReplayLog(
-          previousEngine.createSaveData()['replayLog'],
-        );
-        await SaveManager.save(previousEngine.createSaveData());
-        previousEngine.toolManager.refreshFromSavedProgress();
-        _engine = previousEngine;
+        await SaveManager.save(newEngine.createSaveData());
+        await PendingOperationStore.complete('restart_game_session', operationKey);
+        _engine.toolManager.refreshFromSavedProgress();
+        unawaited(_refreshMountedToolInventory(generation));
+        _restartInProgress = false;
+        if (mounted) setState(() {});
+        return;
+      }
+
+      // Do not roll back when the server outcome is unknown. Startup recovery
+      // must replay the same operation ID and exact replacement board.
+      final unresolved = await PendingOperationStore.findPendingPayload(
+        'restart_game_session',
+      );
+      if (unresolved != null) {
+        newEngine.stopGameTimer();
+        _restartInProgress = true;
         if (mounted) {
-          _startUiRefreshTimer();
-          _focusNode.requestFocus();
-          setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Unable to start the next chapter. Please try again.'),
+              content: Text('The next chapter is awaiting server confirmation. Reopen that chapter to retry safely.'),
             ),
           );
+          setState(() {});
         }
-      }).catchError((_) async {
-        if (!mounted) return;
-        newEngine.stopGameTimer();
-        await newEngine.flushLocalSave();
-        await LifeManager.refreshFromServer().catchError((_) {});
-        ToolManager.restoreSessionUsageFromReplayLog(
-          previousEngine.createSaveData()['replayLog'],
-        );
-        await SaveManager.save(previousEngine.createSaveData());
-        previousEngine.toolManager.refreshFromSavedProgress();
-        _engine = previousEngine;
+        return;
+      }
 
-        // The asynchronous rollback must finish even if this page was
-        // disposed, but UI timers/focus/setState must not run after disposal.
-        if (!mounted) return;
+      newEngine.stopGameTimer();
+      await newEngine.flushLocalSave();
+      await LifeManager.refreshFromServer().catchError((_) {});
+      ToolManager.restoreSessionUsageFromReplayLog(previousSave['replayLog']);
+      await SaveManager.save(previousSave);
+      previousEngine.toolManager.refreshFromSavedProgress();
+      _engine = previousEngine;
+      _restartInProgress = false;
+      if (mounted) {
         _startUiRefreshTimer();
         _focusNode.requestFocus();
         setState(() {});
-      }),
-    );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to start the next chapter. Please try again.'),
+          ),
+        );
+      }
+    }).catchError((Object error, StackTrace stackTrace) async {
+      debugPrint('Next-chapter transition failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted || generation != _gameSessionGeneration) return;
+      final unresolved = await PendingOperationStore.findPendingPayload(
+        'restart_game_session',
+      );
+      if (unresolved != null) {
+        newEngine.stopGameTimer();
+        _restartInProgress = true;
+        if (mounted) setState(() {});
+        return;
+      }
+      newEngine.stopGameTimer();
+      await LifeManager.refreshFromServer().catchError((_) {});
+      ToolManager.restoreSessionUsageFromReplayLog(previousSave['replayLog']);
+      await SaveManager.save(previousSave);
+      previousEngine.toolManager.refreshFromSavedProgress();
+      _engine = previousEngine;
+      _restartInProgress = false;
+      if (!mounted) return;
+      _startUiRefreshTimer();
+      _focusNode.requestFocus();
+      setState(() {});
+    });
+    _restartFuture = transitionFuture;
+    unawaited(transitionFuture);
   }
-  String _toolLabel(GameToolType type) => switch (type) { GameToolType.revive => 'REMOVE', GameToolType.timeRewind => 'UNDO', GameToolType.positionSwap => 'SWAP', GameToolType.duplicate => 'DUPLICATE' };
-  String _toolModeForType(GameToolType type) => switch (type) { GameToolType.revive => 'revive', GameToolType.timeRewind => 'rewind', GameToolType.positionSwap => 'swap', GameToolType.duplicate => 'duplicate' };
-  String _toolImagePath(String mode, {required bool pressed}) => switch (mode) { 'rewind' => pressed ? 'assets/tools/tool_undo_pressed.png' : 'assets/tools/tool_undo.png', 'swap' => pressed ? 'assets/tools/tool_swap_pressed.png' : 'assets/tools/tool_swap.png', 'revive' => pressed ? 'assets/tools/tool_remove_pressed.png' : 'assets/tools/tool_remove.png', 'duplicate' => pressed ? 'assets/tools/tool_duplicate_pressed.png' : 'assets/tools/tool_duplicate.png', _ => '' };
-  Widget _buildToolButton(GameToolType type) {
-    final mode = _toolModeForType(type); final matching = _engine.toolManager.tools.where((state) => state.tool.type == type); final state = matching.isEmpty ? null : matching.first; final unlocked = state != null; final enabled = unlocked && state.canUse && switch (type) { GameToolType.revive => _engine.canUseRevive, GameToolType.timeRewind => _engine.canUseTimeRewind, GameToolType.positionSwap => _engine.canUsePositionSwap, GameToolType.duplicate => _engine.canUseDuplicate };
-    final selected = _toolMode == mode; final pressed = _pressedToolMode == mode; final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35); final canOpenShop = unlocked && !state.canUse; final canTap = selected || enabled || canOpenShop || mode == 'rewind';
-    return GestureDetector(behavior: HitTestBehavior.opaque, onTapDown: canTap ? (_) { if (mounted) setState(() => _pressedToolMode = mode); } : null, onTapUp: canTap ? (_) { if (!mounted) return; setState(() => _pressedToolMode = null); if (selected) { unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel)); setState(() { _toolMode = null; _firstSwapIndex = null; _pressedToolMode = null; }); _focusNode.requestFocus(); } else { unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect)); unawaited(_startTool(mode)); } } : null, onTapCancel: canTap ? () { if (mounted) setState(() => _pressedToolMode = null); } : null, child: Opacity(opacity: opacity, child: SizedBox(height: 112, child: Stack(alignment: Alignment.center, children: [Column(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 76, height: 72, child: Image.asset(_toolImagePath(mode, pressed: pressed), fit: BoxFit.contain)), const SizedBox(height: 1), Text(selected ? 'CANCEL' : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)), const SizedBox(height: 1), Text(state == null ? '?' : (LifeManager.isGoldenMember && type == GameToolType.timeRewind ? '∞' : '${state.usesRemaining}'), style: const TextStyle(fontSize: 8))]), if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)), if (selected) const Positioned(top: 2, child: Text('CANCEL', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))) ]))));
-  }
-  Widget _buildEvolutionNotice() { final value = _evolutionValue ?? _engine.highestEvolutionValue; final name = _evolutionCreatureName ?? _creatureNameForValue(value); if (name.isEmpty) return const SizedBox.shrink(); return Container(width: double.infinity, margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.black.withValues(alpha: 0.68), border: Border.all(color: Colors.white.withValues(alpha: 0.45))), child: Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Colors.white))); }
-  String _formatDuration(Duration duration) { final totalSeconds = duration.inSeconds; final minutes = totalSeconds ~/ 60; final seconds = totalSeconds % 60; return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'; }
 
   @override
   Widget build(BuildContext context) {
