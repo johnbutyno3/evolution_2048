@@ -44,7 +44,7 @@ console.log(`Callable contract OK: ${frontendCallables.size} frontend callables 
 const lifeSource = fs.readFileSync(path.join(sourceDir, 'life.js'), 'utf8');
 assert.doesNotMatch(
   lifeSource,
-  /exports\\.refundLife\\s*=\\s*onCall\\s*\\(/,
+  /exports\.refundLife\s*=\s*onCall\s*\(/,
   'Life refunds must only occur in a server-authorized transactional game flow.',
 );
 console.log('Life refund safety contract OK: no public refundLife callable.');
