@@ -263,7 +263,7 @@ class PlayerProgressService {
         // cached board to the new session: that would resurrect the previous
         // board when the player re-enters. The new GameEngine snapshot is
         // persisted separately by the caller after this session is accepted.
-        await SaveManager.setGameSessionId(_activeGameSessionId!);
+        await SaveManager.setGameSessionId(_activeGameSessionId!, expectedUid: user.uid);
         final returnedChapter = data['chapterIndex'];
         _activeGameChapterIndex = returnedChapter is num
             ? returnedChapter.toInt().clamp(0, 5)
@@ -293,7 +293,7 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (startCommitted) {
-          await SaveManager.setGameSessionId(serverSessionId);
+          await SaveManager.setGameSessionId(serverSessionId, expectedUid: user.uid);
           return true;
         }
       }
@@ -475,7 +475,7 @@ class PlayerProgressService {
             _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
         if (restartCommitted) {
-          await SaveManager.setGameSessionId(refreshedSessionId);
+          await SaveManager.setGameSessionId(refreshedSessionId, expectedUid: user.uid);
           await ToolManager.refreshInventory();
           return true;
         }
