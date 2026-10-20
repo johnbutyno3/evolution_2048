@@ -278,6 +278,7 @@ class PlayerProgressService {
         if (lifeState is Map) {
           LifeManager.applyServerState(
             Map<String, dynamic>.from(lifeState),
+            expectedUid: user.uid,
           );
         } else {
           await LifeManager.refreshFromServer();
@@ -384,6 +385,7 @@ class PlayerProgressService {
         if (lifeState is Map) {
           LifeManager.applyServerState(
             Map<String, dynamic>.from(lifeState),
+            expectedUid: user.uid,
           );
         } else {
           await LifeManager.refreshFromServer();
@@ -473,7 +475,7 @@ class PlayerProgressService {
             lifeState['infiniteLives'] is bool &&
             lifeState['membership'] is String &&
             lifeState['lifeMode'] is String) {
-          LifeManager.applyServerState(lifeState);
+          LifeManager.applyServerState(lifeState, expectedUid: user.uid);
         } else {
           await LifeManager.refreshFromServer();
         }
