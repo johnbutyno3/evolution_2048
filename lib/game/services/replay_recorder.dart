@@ -9,9 +9,10 @@ import 'save_manager.dart';
 /// game engine. The server remains responsible for validating every event and
 /// replaying the complete attempt.
 class ReplayRecorder {
-  ReplayRecorder({required this.chapter});
+  ReplayRecorder({required this.chapter, this.saveOwnerUid});
 
   final String chapter;
+  final String? saveOwnerUid;
   ReplayLog? _log;
 
   ReplayLog? get log => _log?.copy();
@@ -130,6 +131,7 @@ class ReplayRecorder {
     final save = SaveManager.loadCached(chapter: chapter) ??
         <String, dynamic>{'chapter': chapter};
 
+    save['saveOwnerUid'] = saveOwnerUid;
     save['replayLog'] = current.toJson();
     SaveManager.save(save);
   }
