@@ -647,7 +647,9 @@ class PlayerProgressService {
 
       if (_auth.currentUser?.uid != userId ||
           operationGeneration != _sessionOperationGeneration ||
-          !_sessionIdentityGeneration.isCurrent(identityGeneration)) return;
+          !_sessionIdentityGeneration.isCurrent(identityGeneration)) {
+        return;
+      }
       final data = result.data;
       final chapterProgress = data is Map ? data['chapterProgress'] : null;
       if (chapterProgress is Map) {
