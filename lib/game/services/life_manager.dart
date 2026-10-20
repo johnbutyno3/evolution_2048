@@ -32,9 +32,10 @@ class LifeManager {
   /// overwrite this newer mutation result.
   static void applyServerState(
     Map<String, dynamic> data, {
-    required String expectedUid,
+    String? expectedUid,
   }) {
-    if (FirebaseAuth.instance.currentUser?.uid != expectedUid) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (expectedUid != null ? currentUid != expectedUid : currentUid != null) {
           return;
         }
     _lifeStateGeneration++;
