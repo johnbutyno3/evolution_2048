@@ -126,12 +126,12 @@ assert.ok(clearStart >= 0 && clearEnd > clearStart);
 const clearMethod = saveManagerSource.slice(clearStart, clearEnd);
 assert.match(
   clearMethod,
-  /_saveQueue = _saveQueue\.then\([\s\S]*?_clearNow\(\)/,
+  /_saveQueue = _saveQueue\.then\([\s\S]*?_clearNow\(ownerUid\)/,
   'SaveManager.clear must be serialized behind pending autosaves.',
 );
 assert.match(
   clearMethod,
-  /static Future<void> _clearNow\(\) async \{[\s\S]*?_cachedSave = null;[\s\S]*?remove\(_saveKey\)/,
+  /static Future<void> _clearNow\(String\? ownerUid\) async \{[\s\S]*?_accountUid != ownerUid[\s\S]*?_cachedSave = null;[\s\S]*?remove\(_saveKeyFor\(ownerUid\)\)/,
   'The cache must only be cleared when the serialized clear operation executes.',
 );
 console.log('SaveManager clear contract OK: queued autosaves cannot overtake a clear.');
