@@ -142,8 +142,12 @@ class PendingOperationStore {
           continue;
         }
         return payload;
-      } catch (_) {
-        // Ignore malformed records; never send a partial request to the server.
+      } catch (error) {
+        // A corrupted pending record is not equivalent to "no pending work".
+        // Fail closed so callers cannot create a new session and charge again.
+        throw StateError(
+          'Pending operation payload is corrupted: $key ($error)',
+        );
       }
     }
     return null;
