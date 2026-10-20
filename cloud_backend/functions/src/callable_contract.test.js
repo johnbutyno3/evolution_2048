@@ -41,6 +41,14 @@ assert.deepEqual(
 );
 console.log(`Callable contract OK: ${frontendCallables.size} frontend callables have backend exports.`);
 
+const lifeSource = fs.readFileSync(path.join(sourceDir, 'life.js'), 'utf8');
+assert.doesNotMatch(
+  lifeSource,
+  /exports\\.refundLife\\s*=\\s*onCall\\s*\\(/,
+  'Life refunds must only occur in a server-authorized transactional game flow.',
+);
+console.log('Life refund safety contract OK: no public refundLife callable.');
+
 // Safety contract: accepting a client transaction ID must never itself grant
 // currency or membership. Until trusted provider verification exists, this
 // endpoint must only record a pending verification request.
