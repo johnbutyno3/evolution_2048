@@ -225,6 +225,16 @@ assert.ok(
 );
 assert.match(
   gamePageSource,
+  /void _move\(String direction\) \{[\s\S]*?if \(_restartInProgress \|\|/,
+  'The core movement function must independently enforce the RESET interaction lock.',
+);
+assert.match(
+  gamePageSource,
+  /void _resumeGameplay\(\) \{[\s\S]*?if \(_restartInProgress\) \{[\s\S]*?_engine\.pauseGameTimer\(\)/,
+  'Resuming the app must not restart the gameplay timer while RESET is unresolved.',
+);
+assert.match(
+  gamePageSource,
   /if \(_restartInProgress\) return; final mode = _toolMode/,
   'Gameplay tools must remain disabled while an ambiguous RESET is awaiting recovery.',
 );
