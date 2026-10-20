@@ -127,7 +127,21 @@ const progressSource = fs.readFileSync(
 );
 assert.match(progressSource, /'operationId': operationId/);
 assert.match(progressSource, /PendingOperationStore\.getOrCreate/);
-console.log('RESET idempotency contract OK: client key, server receipt, and payload fingerprint are wired.');
+assert.match(
+  progressSource,
+  /replaySessionId \\?\\? 'no-session'/,
+  'RESET retries must derive the same client operation key when the session ID is absent.',
+);
+const gamePageSource = fs.readFileSync(
+  path.join(repoRoot, 'lib/game/screens/evolution_2048_page.dart'),
+  'utf8',
+);
+assert.match(
+  gamePageSource,
+  /replaySessionId \\?\\? 'no-session'/,
+  'RESET completion must clear the same operation key used by the request.',
+);
+console.log('RESET idempotency contract OK: stable client key, server receipt, and payload fingerprint are wired.');
 
 
 const indexConfig = JSON.parse(
