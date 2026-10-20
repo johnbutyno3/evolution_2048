@@ -351,10 +351,6 @@ assert.match(
 console.log('Account binding contract OK: UID changes invalidate singleton progress and session state.');
 
 
-const saveManagerSource = fs.readFileSync(
-  path.join(repoRoot, 'lib/game/services/save_manager.dart'),
-  'utf8',
-);
 assert.match(
   saveManagerSource,
   /getString\(key\) == sessionIdToClear/,
