@@ -5,6 +5,10 @@ const { enforceSensitiveOperation } = require('./security_enforcement');
 const { replayGame, allowedToolsForChapter } = require('./replay_validator');
 const { recordSecurityEvent: recordAuditEvent } = require('./security_audit');
 const {
+  createRestartOperationContext,
+  restartFingerprintMatches,
+} = require('./restart_idempotency');
+const {
   NORMAL_CAP,
   resolveMembership,
   intervalMs,
@@ -131,7 +135,24 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
   }
 
   const uid = request.auth.uid;
-  const newSessionId = crypto.randomUUID();
+  const operationId = request.data?.operationId || crypto.randomUUID();
+  let operationContext;
+  try {
+    operationContext = createRestartOperationContext({
+      uid,
+      operationId,
+      chapterIndex,
+      initialTiles,
+      replaySessionId: request.data?.replaySessionId ?? null,
+      replayLog: request.data?.replayLog ?? null,
+    });
+  } catch (error) {
+    throw new HttpsError('invalid-argument', error.message);
+  }
+  const { operationDocId, requestFingerprint, sessionId: newSessionId } =
+    operationContext;
+  const operationRef = db.collection('users').doc(uid)
+    .collection('game_session_operations').doc(operationDocId);
   const startedAt = new Date();
   const expiresAt = new Date(startedAt.getTime() + GAME_SESSION_TTL_MS);
   const newSessionRef = gameSessionRef(uid, newSessionId);
@@ -144,6 +165,18 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
 
   try {
     return await db.runTransaction(async (transaction) => {
+      const operationSnapshot = await transaction.get(operationRef);
+      if (operationSnapshot.exists) {
+        const operation = operationSnapshot.data() || {};
+        if (!restartFingerprintMatches(operation, requestFingerprint)) {
+          throw new HttpsError(
+            'failed-precondition',
+            'Restart operation ID was reused with different request data.',
+          );
+        }
+        return operation.result;
+      }
+
       const progressSnapshot = await transaction.get(progress);
       const currentProgress = progressSnapshot.data() || {};
       const oldSessionId = currentProgress.activeGameSessionId;
@@ -365,13 +398,21 @@ exports.restartGameSession = onCall({ minInstances: 1 }, async (request) => {
           : null,
       });
 
-      return {
+      const result = {
         sessionId: newSessionId,
         chapterIndex,
         targetValue: TARGETS[chapterIndex],
         expiresAt: expiresAt.toISOString(),
         ...lifeResponse(nextLives, nextRegenStart, membershipState),
       };
+      transaction.create(operationRef, {
+        action: 'restartGameSession',
+        operationId,
+        requestFingerprint,
+        result,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return result;
     });
   } catch (error) {
     if (error?.securityReason) {
