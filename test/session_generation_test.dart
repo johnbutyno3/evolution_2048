@@ -114,6 +114,11 @@ void main() {
 
     await SaveManager.bindAccount('account-b');
     expect(SaveManager.gameSessionId, isNull);
+    await SaveManager.setGameSessionId(
+      'late-account-a-session',
+      expectedUid: 'account-a',
+    );
+    expect(SaveManager.gameSessionId, isNull);
     expect(SaveManager.profileName, isNull);
     expect(SaveManager.playerId, isNull);
     expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
