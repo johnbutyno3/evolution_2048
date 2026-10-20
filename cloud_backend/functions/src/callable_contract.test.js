@@ -139,7 +139,30 @@ assert.ok(
   gamePageSource.includes("replaySessionId ?? 'no-session'"),
   'RESET completion must clear the same operation key used by the request.',
 );
-console.log('RESET idempotency contract OK: stable client key, server receipt, and payload fingerprint are wired.');
+const pendingStoreSource = fs.readFileSync(
+  path.join(repoRoot, 'lib/game/services/pending_operation_store.dart'),
+  'utf8',
+);
+assert.match(pendingStoreSource, /savePendingPayload/);
+assert.match(pendingStoreSource, /findPendingPayload/);
+assert.match(pendingStoreSource, /restoreOperationId/);
+assert.match(pendingStoreSource, /_payloadStorageKey/);
+assert.match(
+  gamePageSource,
+  /_recoverPendingReset/,
+  'Startup must attempt recovery before routing to a new game session.',
+);
+assert.match(
+  gamePageSource,
+  /'replacementSave': newEngine\.createSaveData\(\)/,
+  'RESET recovery must persist the exact replacement board snapshot before the callable.',
+);
+assert.match(
+  gamePageSource,
+  /PendingOperationStore\.complete\([\s\S]*?resetOperationKey/s,
+  'RESET recovery data must be cleared only after the replacement snapshot is saved.',
+);
+console.log('RESET crash recovery contract OK: payload, operation ID, and board snapshot are persisted and replayed.');
 
 
 const indexConfig = JSON.parse(
