@@ -187,7 +187,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final generation = _gameSessionGeneration;
     try {
       final progress = PlayerProgressService.instance;
-      if (!mounted || generation != _gameSessionGeneration) return false;
+      if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return false;
 
       // The server owns the active-session pointer. Hydrate it before deciding
       // whether this entry is a resume or a genuinely new game. The board
@@ -195,7 +195,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // session must be restored.
       if (!progress.loadedFromServer) {
         await progress.refresh();
-        if (!mounted || generation != _gameSessionGeneration) return false;
+        if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return false;
         // Without an authoritative session pointer we must not guess that
         // this is a new game. Guessing here can consume a Life and discard an
         // unfinished local board during a transient Firebase failure.
@@ -288,7 +288,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           _chapterNumber - 1,
           sessionId: pausedSessionId,
         );
-        if (!mounted || generation != _gameSessionGeneration) return false;
+        if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return false;
         if (!resumed) return false;
 
         final localEngine = GameEngine(
@@ -345,7 +345,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       unawaited(
         startedFuture.then((started) async {
-          if (!started || !mounted || generation != _gameSessionGeneration) {
+          if (!started || !mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) {
             if (mounted && generation == _gameSessionGeneration) {
               newEngine.stopGameTimer();
               await newEngine.flushLocalSave();
@@ -441,7 +441,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
         return stillPending == null ? null : false;
       }
-      if (!mounted || generation != _gameSessionGeneration) return false;
+      if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return false;
 
       final recoveredEngine = GameEngine(
         chapter: _engine.chapter,
@@ -484,7 +484,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _refreshMountedToolInventory(int generation) async {
     await ToolManager.refreshInventory();
-    if (!mounted || generation != _gameSessionGeneration) return;
+    if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) return;
     _engine.toolManager.refreshFromSavedProgress();
     setState(() {});
   }
