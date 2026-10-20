@@ -102,6 +102,24 @@ class PendingOperationStore {
     return operationId;
   }
 
+  /// Restores the operation ID embedded in a durable payload if the separate
+  /// key was lost. A conflicting existing key is treated as corruption.
+  static Future<bool> restoreOperationId(
+    String namespace,
+    String operationKey,
+    String operationId,
+  ) async {
+    final uid = _uid;
+    if (uid == null || uid.isEmpty || operationId.isEmpty) return false;
+    final preferences = await SharedPreferences.getInstance();
+    final key = _storageKey(namespace, operationKey, uid);
+    final existing = preferences.getString(key);
+    if (existing != null && existing.isNotEmpty) {
+      return existing == operationId;
+    }
+    return preferences.setString(key, operationId);
+  }
+
   /// Finds a pending payload for the signed-in account, optionally restricted
   /// to a chapter. The payload remains until the replacement board is saved.
   static Future<Map<String, dynamic>?> findPendingPayload(
@@ -135,7 +153,10 @@ class PendingOperationStore {
     final uid = _uid;
     if (uid == null || uid.isEmpty) return;
     final preferences = await SharedPreferences.getInstance();
-    await preferences.remove(_storageKey(namespace, operationKey, uid));
+    // Remove the recovery payload first. If the process is killed between
+    // writes, a saved board may leave an orphan key, but a payload can never
+    // survive after its idempotency key has been removed.
     await preferences.remove(_payloadStorageKey(namespace, operationKey, uid));
+    await preferences.remove(_storageKey(namespace, operationKey, uid));
   }
 }
