@@ -597,7 +597,9 @@ class PlayerProgressService {
     bool unfinishedExit = false,
   }) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      return;
+    }
     final userId = user.uid;
     final operationGeneration = _sessionOperationGeneration;
     final identityGeneration = _sessionIdentityGeneration.current;
@@ -617,9 +619,13 @@ class PlayerProgressService {
     await _awaitPendingStartSession();
     if (_auth.currentUser?.uid != userId ||
         operationGeneration != _sessionOperationGeneration ||
-        !_sessionIdentityGeneration.isCurrent(identityGeneration)) return;
+        !_sessionIdentityGeneration.isCurrent(identityGeneration)) {
+      return;
+    }
     final settledSessionId = sessionId ?? _activeGameSessionId;
-    if (settledSessionId == null) return;
+    if (settledSessionId == null) {
+      return;
+    }
 
     if (_activeGameSessionId == settledSessionId) {
       _activeGameSessionId = null;
