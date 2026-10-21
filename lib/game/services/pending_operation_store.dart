@@ -43,8 +43,11 @@ class PendingOperationStore {
     final previous = _operationTails[lockKey] ?? Future<void>.value();
     final release = Completer<void>();
     _operationTails[lockKey] = release.future;
-    await previous;
     try {
+      await previous;
+      if (_uid != uid) {
+        throw StateError('Account changed while waiting for the pending operation lock.');
+      }
       return await action();
     } finally {
       if (identical(_operationTails[lockKey], release.future)) {
@@ -63,6 +66,9 @@ class PendingOperationStore {
       throw StateError('An authenticated user is required for this operation.');
     }
     final preferences = await SharedPreferences.getInstance();
+    if (_uid != uid) {
+      throw StateError('Account changed while loading the operation ID.');
+    }
     final key = _storageKey(namespace, operationKey, uid);
     final existing = preferences.getString(key);
     if (existing != null && existing.isNotEmpty) return existing;
@@ -84,7 +90,13 @@ class PendingOperationStore {
       throw StateError('An authenticated user is required for this operation.');
     }
     final operationId = await getOrCreate(namespace, operationKey);
+    if (_uid != uid) {
+      throw StateError('Account changed while preparing the pending payload.');
+    }
     final preferences = await SharedPreferences.getInstance();
+    if (_uid != uid) {
+      throw StateError('Account changed before the pending payload could be stored.');
+    }
     final record = <String, dynamic>{
       ...payload,
       'namespace': namespace,
@@ -112,6 +124,7 @@ class PendingOperationStore {
     final uid = _uid;
     if (uid == null || uid.isEmpty || operationId.isEmpty) return false;
     final preferences = await SharedPreferences.getInstance();
+    if (_uid != uid) return false;
     final key = _storageKey(namespace, operationKey, uid);
     final existing = preferences.getString(key);
     if (existing != null && existing.isNotEmpty) {
@@ -129,6 +142,7 @@ class PendingOperationStore {
     final uid = _uid;
     if (uid == null || uid.isEmpty) return null;
     final preferences = await SharedPreferences.getInstance();
+    if (_uid != uid) return null;
     final prefix = 'pending_operation_v1:$uid:$namespace:';
     for (final key in preferences.getKeys()) {
       if (!key.startsWith(prefix) || !key.endsWith(':payload')) continue;
