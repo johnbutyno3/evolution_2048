@@ -170,6 +170,34 @@ assert.match(pendingStoreSource, /restoreOperationId/);
 assert.match(pendingStoreSource, /_payloadStorageKey/);
 assert.match(
   pendingStoreSource,
+  /await previous;[\\s\\S]*?_uid != uid[\\s\\S]*?Account changed while waiting for the pending operation lock/s,
+  'A queued operation must abort if auth changes before its action begins.',
+);
+assert.match(
+  pendingStoreSource,
+  /Account changed while loading the operation ID/,
+  'Operation IDs must not be read or created after an account switch during storage initialization.',
+);
+assert.match(
+  pendingStoreSource,
+  /Account changed before the pending payload could be stored/,
+  'A pending payload must never combine one account key with another account operation ID.',
+);
+assert.match(
+  pendingStoreSource,
+  /if \\(_uid != uid\\) return null/,
+  'Pending payload discovery must abort if the signed-in UID changes during storage access.',
+);
+const completeStart = pendingStoreSource.indexOf('static Future<void> complete(');
+assert.notEqual(completeStart, -1);
+const completeSource = pendingStoreSource.slice(completeStart);
+assert.match(
+  completeSource,
+  /remove\\(_storageKey\\([\\s\\S]*?remove\\(_payloadStorageKey/s,
+  'Completion must remove the idempotency key before the recovery payload so a crash cannot leave a reusable orphan key.',
+);
+assert.match(
+  pendingStoreSource,
   /Pending operation payload is corrupted/,
   'Corrupt pending RESET data must block new session creation rather than be ignored.',
 );
