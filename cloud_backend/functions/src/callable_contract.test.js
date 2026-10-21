@@ -196,6 +196,17 @@ assert.ok(
     completeSource.indexOf('remove(_payloadStorageKey('),
   'Completion must remove the idempotency key before the recovery payload so a crash cannot leave a reusable orphan key.',
 );
+assert.ok(
+  completeSource.includes('if (_uid != uid) {') &&
+    completeSource.indexOf('if (_uid != uid) {') <
+      completeSource.indexOf('remove(_storageKey('),
+  'Pending completion must verify the captured UID before removing either recovery key.',
+);
+assert.match(
+  gamePageSource,
+  /final payload = await PendingOperationStore\.findPendingPayload\([\s\S]*?if \(!mounted \|\| generation != _gameSessionGeneration \|\| !_ownsCurrentAccount\) \{\s*return false;\s*\}\s*if \(payload == null\) return null;/s,
+  'A RESET lookup interrupted by account switching must not be mistaken for no pending operation.',
+);
 assert.match(
   pendingStoreSource,
   /Pending operation payload is corrupted/,
