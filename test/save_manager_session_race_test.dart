@@ -8,6 +8,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await SaveManager.initialize();
+    await SaveManager.bindAccount(null);
   });
 
   test('a queued snapshot from the previous session cannot replace the current save', () async {
