@@ -441,6 +441,16 @@ class SaveManager {
   }
 
   static bool _matchesActiveSession(Map<String, dynamic> snapshot) {
+    // A session ID alone is not an ownership proof: reject snapshots stamped
+    // for another UID even if a stale/corrupt cache happens to reuse that ID.
+    final savedOwnerUid = snapshot['saveOwnerUid'];
+    if (savedOwnerUid != null && savedOwnerUid != _accountUid) {
+      return false;
+    }
+    if (_accountUid != null && savedOwnerUid != _accountUid) {
+      return false;
+    }
+
     final savedId = snapshot['gameSessionId'];
     final currentId = gameSessionId;
     final hasSavedId = savedId is String && savedId.isNotEmpty;
