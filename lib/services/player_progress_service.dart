@@ -670,7 +670,9 @@ class PlayerProgressService {
     } on FirebaseFunctionsException catch (error) {
       if (_auth.currentUser?.uid != userId ||
           operationGeneration != _sessionOperationGeneration ||
-          !_sessionIdentityGeneration.isCurrent(identityGeneration)) return;
+          !_sessionIdentityGeneration.isCurrent(identityGeneration)) {
+        return;
+      }
       print(
         'abandonGameSession failed: code='
         '${error.code}, message=${error.message}, '
