@@ -387,6 +387,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final payload = await PendingOperationStore.findPendingPayload(
       'restart_game_session',
     );
+    // Do not interpret an account switch during storage I/O as "no pending
+    // reset". Returning null would let the new page start a fresh charged game.
+    if (!mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) {
+      return false;
+    }
     if (payload == null) return null;
 
     final operationKey = payload['operationKey'];
