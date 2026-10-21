@@ -177,6 +177,10 @@ assert.ok(
   'Operation IDs must not be read or created after an account switch during storage initialization.',
 );
 assert.ok(
+  pendingStoreSource.includes('Account changed while saving the operation ID.'),
+  'An operation ID write must remain tied to the UID captured before asynchronous storage access.',
+);
+assert.ok(
   pendingStoreSource.includes('Account changed before the pending payload could be stored.'),
   'A pending payload must never combine one account key with another account operation ID.',
 );
