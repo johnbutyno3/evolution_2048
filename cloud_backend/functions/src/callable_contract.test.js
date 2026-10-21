@@ -208,6 +208,11 @@ assert.match(
   'A RESET lookup interrupted by account switching must not be mistaken for no pending operation.',
 );
 assert.match(
+  gamePageSource,
+  /Future<void> _handleSystemBack\(\)[\s\S]*?final unresolvedReset = await PendingOperationStore\.findPendingPayload\([\s\S]*?if \(!mounted \|\| !_ownsCurrentAccount\) \{\s*_handlingSystemBack = false;\s*return;\s*\}/s,
+  'System-back must stop if auth changes while checking unresolved RESET state.',
+);
+assert.match(
   pendingStoreSource,
   /Pending operation payload is corrupted/,
   'Corrupt pending RESET data must block new session creation rather than be ignored.',
