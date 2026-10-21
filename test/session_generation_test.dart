@@ -142,6 +142,39 @@ void main() {
     expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 77);
   });
 
+  test('cached snapshot stamped for another UID is rejected even when session IDs match', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await SaveManager.initialize();
+    await SaveManager.bindAccount('account-a');
+    final prefs = await SharedPreferences.getInstance();
+    const sessionId = 'shared-session-123456';
+    await prefs.setString(
+      'rebirth_2048_game_session_id_v1:account-a',
+      sessionId,
+    );
+    await prefs.setString(
+      'rebirth_2048_local_save_v1:account-a',
+      jsonEncode(<String, dynamic>{
+        'version': 1,
+        'lastChapter': 'ocean',
+        'chapters': <String, dynamic>{
+          'ocean': <String, dynamic>{
+            'chapter': 'ocean',
+            'saveOwnerUid': 'account-b',
+            'gameSessionId': sessionId,
+            'tiles': List<dynamic>.filled(16, null),
+            'score': 999,
+          },
+        },
+      }),
+    );
+
+    await SaveManager.bindAccount('account-b');
+    await SaveManager.bindAccount('account-a');
+
+    expect(SaveManager.loadCached(chapter: 'ocean'), isNull);
+  });
+
   test('legacy board migrates only when the authoritative session matches', () async {
     const sessionId = 'legacy-session-123456789';
     SharedPreferences.setMockInitialValues(<String, Object>{
