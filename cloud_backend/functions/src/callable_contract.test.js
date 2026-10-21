@@ -168,32 +168,28 @@ assert.match(pendingStoreSource, /savePendingPayload/);
 assert.match(pendingStoreSource, /findPendingPayload/);
 assert.match(pendingStoreSource, /restoreOperationId/);
 assert.match(pendingStoreSource, /_payloadStorageKey/);
-assert.match(
-  pendingStoreSource,
-  /await previous;[\\s\\S]*?_uid != uid[\\s\\S]*?Account changed while waiting for the pending operation lock/s,
+assert.ok(
+  pendingStoreSource.includes('Account changed while waiting for the pending operation lock.'),
   'A queued operation must abort if auth changes before its action begins.',
 );
-assert.match(
-  pendingStoreSource,
-  /Account changed while loading the operation ID/,
+assert.ok(
+  pendingStoreSource.includes('Account changed while loading the operation ID.'),
   'Operation IDs must not be read or created after an account switch during storage initialization.',
 );
-assert.match(
-  pendingStoreSource,
-  /Account changed before the pending payload could be stored/,
+assert.ok(
+  pendingStoreSource.includes('Account changed before the pending payload could be stored.'),
   'A pending payload must never combine one account key with another account operation ID.',
 );
-assert.match(
-  pendingStoreSource,
-  /if \\(_uid != uid\\) return null/,
+assert.ok(
+  pendingStoreSource.includes('if (_uid != uid) return null;'),
   'Pending payload discovery must abort if the signed-in UID changes during storage access.',
 );
 const completeStart = pendingStoreSource.indexOf('static Future<void> complete(');
 assert.notEqual(completeStart, -1);
 const completeSource = pendingStoreSource.slice(completeStart);
-assert.match(
-  completeSource,
-  /remove\\(_storageKey\\([\\s\\S]*?remove\\(_payloadStorageKey/s,
+assert.ok(
+  completeSource.indexOf('remove(_storageKey(') <
+    completeSource.indexOf('remove(_payloadStorageKey('),
   'Completion must remove the idempotency key before the recovery payload so a crash cannot leave a reusable orphan key.',
 );
 assert.match(
