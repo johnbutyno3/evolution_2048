@@ -177,10 +177,11 @@ class PendingOperationStore {
     final uid = expectedUid ?? _uid;
     if (uid == null || uid.isEmpty) return;
     final preferences = await SharedPreferences.getInstance();
-    // Remove the recovery payload first. If the process is killed between
-    // writes, a saved board may leave an orphan key, but a payload can never
-    // survive after its idempotency key has been removed.
-    await preferences.remove(_payloadStorageKey(namespace, operationKey, uid));
+    // Remove the idempotency key first. If the process is killed between
+    // writes, the payload survives and startup can restore the exact operation
+    // ID before retrying. Removing the payload first could leave an orphan key
+    // that a later operation accidentally reuses after the board was saved.
     await preferences.remove(_storageKey(namespace, operationKey, uid));
+    await preferences.remove(_payloadStorageKey(namespace, operationKey, uid));
   }
 }
