@@ -51,4 +51,45 @@ void main() {
     expect(SaveManager.gameSessionId, newSession);
   });
 
+  test('account switching isolates snapshots and rejects a delayed old-account save', () async {
+    const accountA = 'account-a-uid';
+    const accountB = 'account-b-uid';
+    const sessionA = 'session-account-a-12345';
+    const sessionB = 'session-account-b-12345';
+
+    await SaveManager.bindAccount(accountA);
+    await SaveManager.setGameSessionId(sessionA, expectedUid: accountA);
+    final snapshotA = <String, dynamic>{
+      'saveOwnerUid': accountA,
+      'chapter': 'ocean',
+      'gameSessionId': sessionA,
+      'tiles': <int?>[2, null, null, null, ...List<int?>.filled(12, null)],
+      'score': 111,
+      'gameOver': false,
+      'chapterComplete': false,
+    };
+    await SaveManager.save(snapshotA);
+
+    await SaveManager.bindAccount(accountB);
+    await SaveManager.setGameSessionId(sessionB, expectedUid: accountB);
+    final snapshotB = <String, dynamic>{
+      'saveOwnerUid': accountB,
+      'chapter': 'ocean',
+      'gameSessionId': sessionB,
+      'tiles': <int?>[4, null, null, null, ...List<int?>.filled(12, null)],
+      'score': 222,
+      'gameOver': false,
+      'chapterComplete': false,
+    };
+    await SaveManager.save(snapshotB);
+
+    // A disposed engine may flush a snapshot after B has signed in.
+    await SaveManager.save(snapshotA);
+    expect(SaveManager.accountUid, accountB);
+    expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 222);
+
+    await SaveManager.bindAccount(accountA);
+    expect(SaveManager.loadCached(chapter: 'ocean')?['score'], 111);
+  });
+
 }
