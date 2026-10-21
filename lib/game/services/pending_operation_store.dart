@@ -65,6 +65,14 @@ class PendingOperationStore {
     if (uid == null || uid.isEmpty) {
       throw StateError('An authenticated user is required for this operation.');
     }
+    return _getOrCreateForUid(namespace, operationKey, uid);
+  }
+
+  static Future<String> _getOrCreateForUid(
+    String namespace,
+    String operationKey,
+    String uid,
+  ) async {
     final preferences = await SharedPreferences.getInstance();
     if (_uid != uid) {
       throw StateError('Account changed while loading the operation ID.');
@@ -75,6 +83,9 @@ class PendingOperationStore {
 
     final operationId = _newOperationId();
     await preferences.setString(key, operationId);
+    if (_uid != uid) {
+      throw StateError('Account changed while saving the operation ID.');
+    }
     return operationId;
   }
 
@@ -89,7 +100,7 @@ class PendingOperationStore {
     if (uid == null || uid.isEmpty) {
       throw StateError('An authenticated user is required for this operation.');
     }
-    final operationId = await getOrCreate(namespace, operationKey);
+    final operationId = await _getOrCreateForUid(namespace, operationKey, uid);
     if (_uid != uid) {
       throw StateError('Account changed while preparing the pending payload.');
     }
@@ -110,6 +121,9 @@ class PendingOperationStore {
     );
     if (!stored) {
       throw StateError('Could not persist the pending operation payload.');
+    }
+    if (_uid != uid) {
+      throw StateError('Account changed after the pending payload was stored.');
     }
     return operationId;
   }
