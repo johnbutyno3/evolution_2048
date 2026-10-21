@@ -837,7 +837,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final pendingRestart = _restartFuture;
     if (_restartInProgress && pendingRestart != null) {
       await pendingRestart;
-      if (!mounted) return;
+      if (!mounted || !_ownsCurrentAccount) {
+        _handlingSystemBack = false;
+        return;
+      }
     }
 
     // If RESET is still ambiguous, leaving this screen must not abandon or
@@ -847,6 +850,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final unresolvedReset = await PendingOperationStore.findPendingPayload(
         'restart_game_session',
       );
+      if (!mounted || !_ownsCurrentAccount) {
+        _handlingSystemBack = false;
+        return;
+      }
       if (unresolvedReset != null) {
         _engine.stopGameTimer();
         _stopUiRefreshTimer();
