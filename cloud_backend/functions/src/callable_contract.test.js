@@ -96,7 +96,7 @@ assert.match(
 );
 assert.match(
   purchaseCallable,
-  /provider,\s*transactionId,\s*createdAt:\s*FieldValue\.serverTimestamp\(\)/,
+  /provider,\s*transactionId,\s*productId:\s*purchase\.productId,\s*createdAt:\s*FieldValue\.serverTimestamp\(\)/,
   'Transaction reservation must persist provider and exact transaction ID for replay checks.',
 );
 assert.match(
@@ -123,6 +123,22 @@ assert.match(
   purchaseCallable,
   /existing\.transactionId !== transactionId/,
   'A reserved transaction must match the exact submitted transaction ID.',
+);
+
+assert.match(
+  purchaseCallable,
+  /existing\.productId !== purchase\.productId/,
+  'A reserved transaction must remain bound to the product originally associated with its purchase intent.',
+);
+assert.match(
+  purchaseCallable,
+  /productId: purchase\.productId/,
+  'Transaction reservations must persist the expected product ID for trusted provider verification.',
+);
+assert.match(
+  purchaseCallable,
+  /typeof purchase\.productId !== 'string' \|\| purchase\.productId\.length === 0/,
+  'Purchase verification must fail closed when the intent has no valid product binding.',
 );
 
 assert.match(
