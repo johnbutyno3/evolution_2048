@@ -509,7 +509,7 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     success: 'simulated_granted',
     cancelled: 'cancelled',
     pending: 'pending',
-    replay: 'simulated_replay_checked',
+    replay: 'simulated_granted',
   };
   const status = statusByScenario[scenario];
 
@@ -532,7 +532,7 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     const membershipSnapshot = await transaction.get(membershipDocumentRef);
     const wallet = walletSnapshot.data() || {};
     const membership = membershipSnapshot.data() || {};
-    const isGrantScenario = scenario === 'success';
+    const isGrantScenario = scenario === 'success' || scenario === 'replay';
 
     if (isGrantScenario && product.type === 'gold') {
       const balance = wallet.balance ?? 0;
@@ -612,7 +612,7 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     status: transactionOutcome.replayed ? 'simulated_replay_rejected' : status,
     simulated: true,
     replayed: transactionOutcome.replayed,
-    grantsApplied: scenario === 'success' && !transactionOutcome.replayed,
+    grantsApplied: (scenario === 'success' || scenario === 'replay') && !transactionOutcome.replayed,
   };
 });
 
