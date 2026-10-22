@@ -307,8 +307,8 @@ const backHandlerStart = gamePageSource.indexOf('Future<void> _handleSystemBack(
 const backHandlerEnd = gamePageSource.indexOf('Future<void> _showResetMenu()', backHandlerStart);
 assert.ok(backHandlerStart >= 0 && backHandlerEnd > backHandlerStart);
 const backHandler = gamePageSource.slice(backHandlerStart, backHandlerEnd);
-const unresolvedBackCheck = backHandler.indexOf(
-  "PendingOperationStore.findPendingPayload(\n        'restart_game_session',",
+const unresolvedBackCheck = backHandler.search(
+  /PendingOperationStore\.findPendingPayload\(\s*'restart_game_session',/,
 );
 const abandonOnBack = backHandler.indexOf('abandonGameSession(');
 assert.ok(
