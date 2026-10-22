@@ -25,11 +25,27 @@ const cancellationStart = source.indexOf(
   simulatorStart,
 );
 assert.ok(cancellationStart > simulatorStart);
+const expiryStart = source.indexOf(
+  'exports.simulateGoldenExpiryForDevelopment = onCall(',
+  cancellationStart,
+);
 const verifierStart = source.indexOf(
   'exports.submitPurchaseForVerification = onCall(',
-  simulatorStart,
+  expiryStart,
 );
-const cancellation = source.slice(cancellationStart, verifierStart);
+const cancellation = source.slice(cancellationStart, expiryStart);
+assert.ok(expiryStart > cancellationStart);
+const expiry = source.slice(expiryStart, verifierStart);
+assert.match(expiry, /FUNCTIONS_EMULATOR !== 'true'/);
+assert.match(expiry, /!process\\.env\\.FIRESTORE_EMULATOR_HOST/);
+assert.match(expiry, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
+assert.match(expiry, /purchase\\.simulated !== true/);
+assert.match(expiry, /purchase\\.membershipType !== 'golden'/);
+assert.match(expiry, /expiryMillis > now/);
+assert.match(expiry, /membership\\.premiumLifetime === true/);
+assert.match(expiry, /type: fallbackToPremium \\? 'premium' : 'general'/);
+assert.match(expiry, /status: 'simulated_expired'/);
+assert.doesNotMatch(expiry, /premiumLifetime: false/);
 assert.match(cancellation, /FUNCTIONS_EMULATOR !== 'true'/);
 assert.match(cancellation, /!process\.env\.FIRESTORE_EMULATOR_HOST/);
 assert.match(cancellation, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
@@ -41,7 +57,7 @@ assert.match(cancellation, /cancellationEffectiveAt: expiresAt/);
 assert.match(cancellation, /benefitsRemainUntilExpiry: true/);
 assert.doesNotMatch(cancellation, /goldenActive: false|premiumLifetime: false/);
 
-assert.ok(simulatorStart >= 0 && verifierStart > cancellationStart);
+assert.ok(simulatorStart >= 0 && verifierStart > expiryStart);
 
 const simulator = source.slice(simulatorStart, cancellationStart);
 assert.match(simulator, /FUNCTIONS_EMULATOR !== 'true'/);
