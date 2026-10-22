@@ -1228,11 +1228,12 @@ exports.completeChapter = onCall(async (request) => {
       }
 
       const delta = totalUses - settledUses;
+      const settledMembership = resolveMembership(
+        membershipSnapshot.data() || {},
+      );
       const goldenUnlimitedUndo =
-        membershipSnapshot.data()?.type === 'golden' &&
-        toolType === 'timeRewind' &&
-        (membershipSnapshot.data()?.expiresAt == null ||
-          membershipSnapshot.data()?.expiresAt?.toMillis?.() > Date.now());
+        settledMembership.infiniteLives &&
+        toolType === 'timeRewind';
 
       if (delta === 0 || goldenUnlimitedUndo) continue;
 
@@ -1272,15 +1273,11 @@ exports.completeChapter = onCall(async (request) => {
     // duplicate completion/refund races. First apply the same elapsed-time
     // regeneration rules used by the normal Life engine, then add the
     // completion refund.
-    const membershipData = membershipSnapshot.data() || {};
-    const membershipType = MEMBERSHIP_TYPES.has(membershipData.type)
-      ? membershipData.type
-      : null;
-    const membershipExpiresAt = membershipData.expiresAt ?? null;
-    const membershipActive = membershipType !== null &&
-      (membershipExpiresAt === null ||
-        (typeof membershipExpiresAt.toMillis === 'function' &&
-          membershipExpiresAt.toMillis() > Date.now()));
+    const resolvedMembership = resolveMembership(
+      membershipSnapshot.data() || {},
+    );
+    const membershipType = resolvedMembership.type;
+    const membershipActive = resolvedMembership.active;
     const lifeData = lifeSnapshot.data() || {};
     let refundedLives = Number.isSafeInteger(lifeData.lives)
       ? Math.max(0, lifeData.lives)
