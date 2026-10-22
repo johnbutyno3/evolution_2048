@@ -127,6 +127,11 @@ assert.match(
 
 assert.match(
   purchaseCallable,
+  /transactionId\.trim\(\)\.length === 0 \|\| transactionId\.length > 512/,
+  'Purchase transaction IDs must reject whitespace-only and oversized input.',
+);
+assert.match(
+  purchaseCallable,
   /typeof transactionId !== 'string' \|\| transactionId\.length === 0/,
   'Purchase transaction IDs must be non-empty strings before reservation.',
 );
