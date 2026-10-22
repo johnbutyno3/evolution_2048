@@ -563,6 +563,26 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
       const expiry = isGolden
         ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         : null;
+      // A successful simulated Golden billing cycle includes the product rule
+      // of 1,500 Gold. The transaction reservation makes this grant idempotent.
+      if (isGolden) {
+        const balance = wallet.balance ?? 0;
+        const lifetimeGranted = wallet.lifetimeGranted ?? 0;
+        const lifetimeSpent = wallet.lifetimeSpent ?? 0;
+        const cycleGold = 1500;
+        if (!Number.isSafeInteger(balance) || balance < 0 ||
+            !Number.isSafeInteger(lifetimeGranted) || lifetimeGranted < 0 ||
+            !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0 ||
+            balance > MAX_SAFE_INTEGER - cycleGold ||
+            lifetimeGranted > MAX_SAFE_INTEGER - cycleGold) {
+          throw new HttpsError('failed-precondition', 'Gold wallet state is invalid.');
+        }
+        transaction.set(walletRef, {
+          balance: balance + cycleGold,
+          lifetimeGranted: lifetimeGranted + cycleGold,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
       transaction.set(membershipDocumentRef, {
         type: isGolden ? 'golden' : 'premium',
         goldenActive: isGolden,
