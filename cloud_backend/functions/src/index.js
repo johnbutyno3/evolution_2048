@@ -484,26 +484,19 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
     .collection('purchase_transactions')
     .doc(transactionKey(transactionId));
 
-  return db.runTransaction(async (transaction) => {
+  // Keep external audit writes outside the Firestore transaction callback:
+  // Firestore may retry that callback, which must remain side-effect free.
+  const outcome = await db.runTransaction(async (transaction) => {
     const purchaseSnapshot = await transaction.get(purchaseRef);
     if (!purchaseSnapshot.exists) {
-      await recordSecurityEvent({
-        uid,
-        action: 'submit_purchase_for_verification',
-        reason: 'purchase_intent_not_found',
-        details: { purchaseId, provider },
-      });
-      throw new HttpsError('not-found', 'Purchase intent was not found.');
+      return { error: 'purchase_intent_not_found' };
     }
 
     const purchase = purchaseSnapshot.data();
     if (purchase.transactionId != null &&
         (purchase.transactionId !== transactionId ||
          purchase.provider !== provider)) {
-      throw new HttpsError(
-        'failed-precondition',
-        'Purchase intent is already bound to a different store transaction.',
-      );
+      return { error: 'purchase_intent_rebound' };
     }
     if (purchase.status !== 'pending') {
       return { purchaseId, status: purchase.status };
@@ -516,17 +509,7 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
           existing.uid !== uid ||
           existing.provider !== provider ||
           existing.transactionId !== transactionId) {
-        await recordSecurityEvent({
-          uid,
-          action: 'submit_purchase_for_verification',
-          severity: 'high',
-          reason: 'transaction_reuse_detected',
-          details: { purchaseId, provider },
-        });
-        throw new HttpsError(
-          'already-exists',
-          'Transaction has already been associated with another purchase or provider.',
-        );
+        return { error: 'transaction_reuse_detected' };
       }
 
       return { purchaseId, status: purchase.status };
@@ -547,6 +530,36 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
 
     return { purchaseId, status: 'pending' };
   });
+
+  if (outcome.error === 'purchase_intent_not_found') {
+    await recordSecurityEvent({
+      uid,
+      action: 'submit_purchase_for_verification',
+      reason: 'purchase_intent_not_found',
+      details: { purchaseId, provider },
+    });
+    throw new HttpsError('not-found', 'Purchase intent was not found.');
+  }
+  if (outcome.error === 'purchase_intent_rebound') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Purchase intent is already bound to a different store transaction.',
+    );
+  }
+  if (outcome.error === 'transaction_reuse_detected') {
+    await recordSecurityEvent({
+      uid,
+      action: 'submit_purchase_for_verification',
+      severity: 'high',
+      reason: 'transaction_reuse_detected',
+      details: { purchaseId, provider },
+    });
+    throw new HttpsError(
+      'already-exists',
+      'Transaction has already been associated with another purchase or provider.',
+    );
+  }
+  return outcome;
 });
 
 async function consumeLifeInTransaction(transaction, uid, membershipSnapshot = null) {
