@@ -72,4 +72,23 @@ const legacyLifetimePremium = resolveMembership({
 assert.equal(legacyLifetimePremium.type, 'premium');
 assert.equal(legacyLifetimePremium.premiumLifetime, true);
 
-console.log('Membership entitlement tests passed: Golden expiry preserves independent Premium.');
+
+const goldenWithMalformedExpiry = resolveMembership({
+  type: 'golden',
+  goldenActive: true,
+  goldenExpiresAt: 'not-a-valid-expiry',
+  premiumLifetime: false,
+}, now);
+assert.equal(goldenWithMalformedExpiry.active, false);
+assert.equal(goldenWithMalformedExpiry.type, null);
+assert.equal(goldenWithMalformedExpiry.infiniteLives, false);
+
+const premiumWithMalformedExpiry = resolveMembership({
+  type: 'premium',
+  premiumLifetime: false,
+  premiumExpiresAt: 'not-a-valid-expiry',
+}, now);
+assert.equal(premiumWithMalformedExpiry.active, false);
+assert.equal(premiumWithMalformedExpiry.type, null);
+
+console.log('Membership entitlement tests passed: malformed expiries fail closed and Golden expiry preserves independent Premium.');
