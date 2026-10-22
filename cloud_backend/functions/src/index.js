@@ -392,7 +392,7 @@ async function loadPurchasableProduct(productId) {
     throw new HttpsError('failed-precondition', 'Product is not available.');
   }
 
-  if (typeof product.priceUsd !== 'number' || product.priceUsd <= 0) {
+  if (typeof product.priceUsd !== 'number' || !Number.isFinite(product.priceUsd) || product.priceUsd <= 0) {
     throw new HttpsError('failed-precondition', 'Product price is invalid.');
   }
 
