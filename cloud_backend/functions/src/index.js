@@ -167,7 +167,7 @@ exports.grantMembership = onCall(async (request) => {
 
   const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
   const targetMembershipRef = membershipRef(uid);
-  await db.runTransaction(async (transaction) => {
+  const transactionOutcome = await db.runTransaction(async (transaction) => {
     const currentSnapshot = await transaction.get(targetMembershipRef);
     const current = currentSnapshot.data() || {};
     const hasExplicitPremiumState =
@@ -475,8 +475,6 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     'success',
     'cancelled',
     'pending',
-    'refunded',
-    'expired',
     'replay',
   ]);
   if (typeof productId !== 'string' || !allowedScenarios.has(scenario)) {
@@ -489,7 +487,12 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
   const product = await loadPurchasableProduct(productId);
   const uid = request.auth.uid;
   const purchaseId = crypto.randomUUID();
-  const transactionId = `SIMULATED_${scenario.toUpperCase()}_${crypto.randomUUID()}`;
+  // The replay scenario intentionally reuses a stable transaction key so a
+  // second call proves idempotency rather than granting the product twice.
+  const transactionId = scenario === 'replay'
+    ? `SIMULATED_REPLAY_${crypto.createHash('sha256')
+      .update(`${uid}:${productId}`).digest('hex')}`
+    : `SIMULATED_${scenario.toUpperCase()}_${crypto.randomUUID()}`;
   const purchaseRef = db.collection('users').doc(uid)
     .collection('purchases').doc(purchaseId);
   const transactionRef = db.collection('purchase_transactions')
@@ -502,16 +505,21 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     success: 'simulated_granted',
     cancelled: 'cancelled',
     pending: 'pending',
-    refunded: 'simulated_refunded',
-    expired: 'simulated_expired',
-    replay: 'simulated_granted',
+    replay: 'simulated_replay_checked',
   };
   const status = statusByScenario[scenario];
 
   await db.runTransaction(async (transaction) => {
     const transactionSnapshot = await transaction.get(transactionRef);
     if (transactionSnapshot.exists) {
-      throw new HttpsError('already-exists', 'Simulated transaction already exists.');
+      const existing = transactionSnapshot.data();
+      if (existing.uid !== uid ||
+          existing.provider !== 'simulator' ||
+          existing.productId !== productId ||
+          existing.transactionId !== transactionId) {
+        throw new HttpsError('already-exists', 'Simulated transaction binding mismatch.');
+      }
+      return { replayed: true, originalPurchaseId: existing.purchaseId };
     }
 
     const walletRef = goldWalletRef(uid);
@@ -520,7 +528,7 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     const membershipSnapshot = await transaction.get(membershipDocumentRef);
     const wallet = walletSnapshot.data() || {};
     const membership = membershipSnapshot.data() || {};
-    const isGrantScenario = scenario === 'success' || scenario === 'replay';
+    const isGrantScenario = scenario === 'success';
 
     if (isGrantScenario && product.type === 'gold') {
       const balance = wallet.balance ?? 0;
@@ -579,15 +587,17 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
       currency: product.currency,
       simulationScenario: scenario,
     });
+    return { replayed: false, originalPurchaseId: purchaseId };
   });
 
   return {
-    purchaseId,
+    purchaseId: transactionOutcome.originalPurchaseId,
     productId,
     scenario,
-    status,
+    status: transactionOutcome.replayed ? 'simulated_replay_rejected' : status,
     simulated: true,
-    grantsApplied: scenario === 'success' || scenario === 'replay',
+    replayed: transactionOutcome.replayed,
+    grantsApplied: scenario === 'success' && !transactionOutcome.replayed,
   };
 });
 
