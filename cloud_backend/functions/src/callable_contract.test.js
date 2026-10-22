@@ -124,6 +124,18 @@ assert.match(
   /existing\.transactionId !== transactionId/,
   'A reserved transaction must match the exact submitted transaction ID.',
 );
+
+assert.match(
+  purchaseCallable,
+  /typeof transactionId !== 'string' \|\| transactionId\.length === 0/,
+  'Purchase transaction IDs must be non-empty strings before reservation.',
+);
+assert.doesNotMatch(
+  purchaseCallable,
+  /transactionId\.trim\(\)/,
+  'Store transaction identifiers must not be silently normalized before ownership/replay binding.',
+);
+
 console.log('Purchase verification safety contract OK: client submission remains pending only.');
 
 // Guard the core server idempotency invariants against accidental removal.
