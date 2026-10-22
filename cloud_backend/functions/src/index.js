@@ -167,7 +167,7 @@ exports.grantMembership = onCall(async (request) => {
 
   const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
   const targetMembershipRef = membershipRef(uid);
-  const transactionOutcome = await db.runTransaction(async (transaction) => {
+  await db.runTransaction(async (transaction) => {
     const currentSnapshot = await transaction.get(targetMembershipRef);
     const current = currentSnapshot.data() || {};
     const hasExplicitPremiumState =
@@ -404,6 +404,10 @@ async function loadPurchasableProduct(productId) {
   return {
     productId,
     type: product.type,
+    membershipType: product.type === 'membership' &&
+      ['premium', 'golden'].includes(product.membershipType)
+      ? product.membershipType
+      : null,
     amount: product.type === 'gold' ? product.amount : null,
     currency: typeof product.currency === 'string'
       ? product.currency
@@ -549,16 +553,27 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     }
 
     if (isGrantScenario && product.type === 'membership') {
-      const expiry = new Date(Date.now() +
-        (productId.toLowerCase().includes('golden') ? 30 : 36500) * 24 * 60 * 60 * 1000);
-      const isGolden = productId.toLowerCase().includes('golden');
+      if (!['premium', 'golden'].includes(product.membershipType)) {
+        throw new HttpsError(
+          'failed-precondition',
+          'The product must declare membershipType as premium or golden before it can be simulated.',
+        );
+      }
+      const isGolden = product.membershipType === 'golden';
+      const expiry = isGolden
+        ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        : null;
       transaction.set(membershipDocumentRef, {
         type: isGolden ? 'golden' : 'premium',
         goldenActive: isGolden,
         goldenExpiresAt: isGolden ? expiry : (membership.goldenExpiresAt ?? null),
-        premiumLifetime: isGolden ? (membership.premiumLifetime === true) : true,
-        premiumExpiresAt: isGolden ? (membership.premiumExpiresAt ?? null) : null,
-        expiresAt: isGolden ? expiry : null,
+        premiumLifetime: isGolden
+          ? membership.premiumLifetime === true
+          : true,
+        premiumExpiresAt: isGolden
+          ? (membership.premiumExpiresAt ?? null)
+          : null,
+        expiresAt: expiry,
         simulated: true,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
