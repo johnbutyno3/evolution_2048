@@ -197,6 +197,29 @@ assert.match(
   'Transaction-reuse security events must be recorded after the transaction callback finishes.',
 );
 
+// The mock purchase callable must be impossible to invoke in deployed Functions.
+const simulatorStart = indexSource.indexOf(
+  'exports.simulatePurchaseForDevelopment = onCall(',
+);
+const simulatorEnd = indexSource.indexOf(
+  '\\nexports.submitPurchaseForVerification = onCall(',
+  simulatorStart,
+);
+assert.ok(simulatorStart >= 0 && simulatorEnd > simulatorStart);
+const simulatorCallable = indexSource.slice(simulatorStart, simulatorEnd);
+assert.match(simulatorCallable, /FUNCTIONS_EMULATOR !== 'true'/);
+assert.match(simulatorCallable, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
+assert.match(simulatorCallable, /simulated: true/);
+assert.match(simulatorCallable, /transactionSnapshot\.exists/);
+assert.match(simulatorCallable, /transactionOutcome\.replayed/);
+assert.doesNotMatch(
+  simulatorCallable,
+  /exports\.submitPurchaseForVerification|httpsCallable|request\.data\??\.verified/,
+  'The development simulator must not route around real verification or trust client verification flags.',
+);
+assert.match(simulatorCallable, /'success'[\s\S]*?'cancelled'[\s\S]*?'pending'[\s\S]*?'replay'/);
+console.log('Purchase simulator contract OK: emulator-only, explicitly enabled, and replay-aware.');
+
 console.log('Purchase verification safety contract OK: client submission remains pending only.');
 
 // Guard the core server idempotency invariants against accidental removal.
