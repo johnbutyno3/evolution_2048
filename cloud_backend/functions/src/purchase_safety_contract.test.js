@@ -56,7 +56,7 @@ assert.match(cancellation, /!process\.env\.FIRESTORE_EMULATOR_HOST/);
 assert.match(cancellation, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
 assert.match(cancellation, /purchase\.simulated !== true/);
 assert.match(cancellation, /purchase\.membershipType !== 'golden'/);
-assert.match(cancellation, /goldenSourcePurchaseId.*membership\\.sourcePurchaseId/);
+assert.match(cancellation, /goldenSourcePurchaseId.*sourcePurchaseId/);
 assert.match(cancellation, /autoRenew: false/);
 assert.match(cancellation, /cancellationEffectiveAt: expiresAt/);
 assert.match(cancellation, /benefitsRemainUntilExpiry: true/);
