@@ -39,10 +39,11 @@ function resolveMembership(data, nowMillis = Date.now()) {
     data?.goldenActive === true;
   const goldenExpiresAt = data?.goldenExpiresAt ??
     (legacyType === 'golden' ? legacyExpiresAt : null);
+  // Golden is a recurring subscription, never a perpetual entitlement.
+  // Missing/invalid expiry must fail closed rather than grant infinite lives.
   const goldenActive = goldenCandidate &&
-    (data?.goldenActive === true && goldenExpiresAt == null
-      ? true
-      : goldenExpiresAt != null && isActiveUntil(goldenExpiresAt, nowMillis));
+    goldenExpiresAt != null &&
+    isActiveUntil(goldenExpiresAt, nowMillis);
 
   const type = goldenActive ? 'golden' : premiumActive ? 'premium' : null;
   const expiresAt = goldenActive
