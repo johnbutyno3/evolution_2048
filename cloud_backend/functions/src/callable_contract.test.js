@@ -202,7 +202,7 @@ const simulatorStart = indexSource.indexOf(
   'exports.simulatePurchaseForDevelopment = onCall(',
 );
 const simulatorEnd = indexSource.indexOf(
-  '\\nexports.submitPurchaseForVerification = onCall(',
+  'exports.submitPurchaseForVerification = onCall(',
   simulatorStart,
 );
 assert.ok(simulatorStart >= 0 && simulatorEnd > simulatorStart);
