@@ -6,6 +6,14 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, 'index.js'), 'utf8');
 
+const productLoaderStart = source.indexOf('async function loadPurchasableProduct(');
+const transactionKeyStart = source.indexOf('function transactionKey(', productLoaderStart);
+assert.ok(productLoaderStart >= 0 && transactionKeyStart > productLoaderStart);
+const productLoader = source.slice(productLoaderStart, transactionKeyStart);
+assert.match(productLoader, /!Number\.isFinite\(product\.priceUsd\)/);
+assert.match(productLoader, /!Number\.isSafeInteger\(product\.amount\)/);
+assert.match(productLoader, /Invalid membership product type/);
+
 const intentStart = source.indexOf('exports.createPurchaseIntent = onCall(');
 const simulatorStartForIntent = source.indexOf(
   'exports.simulatePurchaseForDevelopment = onCall(',
