@@ -146,6 +146,25 @@ assert.doesNotMatch(
   'Store transaction identifiers must not be silently normalized before ownership/replay binding.',
 );
 
+const purchaseTransactionStart = purchaseCallable.indexOf(
+  'const outcome = await db.runTransaction',
+);
+const purchaseTransactionEnd = purchaseCallable.indexOf('\n  });', purchaseTransactionStart);
+assert.ok(
+  purchaseTransactionStart >= 0 && purchaseTransactionEnd > purchaseTransactionStart,
+  'Purchase reservation must use an explicit Firestore transaction.',
+);
+assert.doesNotMatch(
+  purchaseCallable.slice(purchaseTransactionStart, purchaseTransactionEnd),
+  /recordSecurityEvent\s*\(/,
+  'Firestore transaction callbacks must not perform external audit writes because callbacks can be retried.',
+);
+assert.match(
+  purchaseCallable.slice(purchaseTransactionEnd),
+  /if \(outcome\.error === 'transaction_reuse_detected'\)[\s\S]*?recordSecurityEvent\s*\(/,
+  'Transaction-reuse security events must be recorded after the transaction callback finishes.',
+);
+
 console.log('Purchase verification safety contract OK: client submission remains pending only.');
 
 // Guard the core server idempotency invariants against accidental removal.
