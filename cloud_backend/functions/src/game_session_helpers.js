@@ -3,24 +3,62 @@ const GENERAL_INTERVAL_MS = 40 * 60 * 1000;
 const PREMIUM_INTERVAL_MS = 40 * 60 * 1000;
 const MEMBERSHIP_TYPES = new Set(['premium', 'golden']);
 
-function resolveMembership(data) {
-  const type = MEMBERSHIP_TYPES.has(data?.type) ? data.type : null;
-  const expiresAt = data?.expiresAt ?? null;
-  let active = false;
+function toMillis(value) {
+  if (value == null) return null;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  return null;
+}
 
-  if (type !== null) {
-    if (expiresAt === null) {
-      active = true;
-    } else if (typeof expiresAt.toMillis === 'function') {
-      active = expiresAt.toMillis() > Date.now();
-    }
-  }
+function isActiveUntil(value, nowMillis) {
+  const expiresAtMillis = toMillis(value);
+  return expiresAtMillis === null || expiresAtMillis > nowMillis;
+}
+
+function resolveMembership(data, nowMillis = Date.now()) {
+  const legacyType = MEMBERSHIP_TYPES.has(data?.type) ? data.type : null;
+  const legacyExpiresAt = data?.expiresAt ?? null;
+
+  // Keep independently purchased lifetime Premium separate from a Golden
+  // subscription so expiration/revocation of Golden cannot erase Premium.
+  const hasExplicitPremiumState =
+    typeof data?.premiumLifetime === 'boolean' ||
+    Object.prototype.hasOwnProperty.call(data || {}, 'premiumExpiresAt');
+  const premiumLifetime = data?.premiumLifetime === true ||
+    (!hasExplicitPremiumState &&
+      legacyType === 'premium' &&
+      legacyExpiresAt == null);
+  const premiumExpiresAt = data?.premiumExpiresAt ??
+    (!hasExplicitPremiumState && legacyType === 'premium'
+      ? legacyExpiresAt
+      : null);
+  const premiumActive = premiumLifetime ||
+    (premiumExpiresAt != null && isActiveUntil(premiumExpiresAt, nowMillis));
+
+  const goldenCandidate = legacyType === 'golden' ||
+    data?.goldenActive === true;
+  const goldenExpiresAt = data?.goldenExpiresAt ??
+    (legacyType === 'golden' ? legacyExpiresAt : null);
+  const goldenActive = goldenCandidate &&
+    (data?.goldenActive === true && goldenExpiresAt == null
+      ? true
+      : goldenExpiresAt != null && isActiveUntil(goldenExpiresAt, nowMillis));
+
+  const type = goldenActive ? 'golden' : premiumActive ? 'premium' : null;
+  const expiresAt = goldenActive
+    ? goldenExpiresAt
+    : premiumActive && !premiumLifetime
+      ? premiumExpiresAt
+      : null;
+  const active = type !== null;
 
   return {
     active,
-    type: active ? type : null,
-    expiresAt: active ? expiresAt : null,
-    infiniteLives: active && type === 'golden',
+    type,
+    expiresAt,
+    premiumLifetime: premiumLifetime,
+    goldenActive,
+    infiniteLives: goldenActive,
     noAds: active,
   };
 }
