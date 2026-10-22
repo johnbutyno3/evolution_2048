@@ -104,6 +104,16 @@ assert.match(
   /purchase\.provider !== provider/,
   'A purchase intent cannot be rebound to another store provider.',
 );
+assert.match(
+  purchaseCallable,
+  /existing\.provider !== provider/,
+  'A reserved transaction cannot be replayed under a different store provider.',
+);
+assert.match(
+  purchaseCallable,
+  /existing\.transactionId !== transactionId/,
+  'A reserved transaction must match the exact submitted transaction ID.',
+);
 console.log('Purchase verification safety contract OK: client submission remains pending only.');
 
 // Guard the core server idempotency invariants against accidental removal.
