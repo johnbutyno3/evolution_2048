@@ -43,7 +43,7 @@ assert.doesNotMatch(cancellation, /goldenActive: false|premiumLifetime: false/);
 
 assert.ok(simulatorStart >= 0 && verifierStart > cancellationStart);
 
-const simulator = source.slice(simulatorStart, verifierStart);
+const simulator = source.slice(simulatorStart, cancellationStart);
 assert.match(simulator, /FUNCTIONS_EMULATOR !== 'true'/);
 assert.match(simulator, /!process\.env\.FIRESTORE_EMULATOR_HOST/);
 assert.match(simulator, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
