@@ -461,7 +461,8 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
   const transactionId = request.data?.transactionId;
 
   if (typeof purchaseId !== 'string' || purchaseId.length === 0 ||
-      typeof transactionId !== 'string' || transactionId.length === 0 ||
+      typeof transactionId !== 'string' ||
+      transactionId.trim().length === 0 || transactionId.length > 512 ||
       !PURCHASE_PROVIDERS.has(provider)) {
     await recordSecurityEvent({
       uid: request.auth.uid,
