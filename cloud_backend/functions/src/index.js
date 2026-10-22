@@ -508,10 +508,9 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
          purchase.provider !== provider)) {
       return { error: 'purchase_intent_rebound' };
     }
-    if (purchase.status !== 'pending') {
-      return { purchaseId, status: purchase.status };
-    }
-
+    // Check the global transaction reservation before returning any terminal
+    // purchase status. Otherwise a different transaction could be submitted
+    // against an already-processed purchase and bypass replay/mismatch checks.
     const transactionSnapshot = await transaction.get(transactionRef);
     if (transactionSnapshot.exists) {
       const existing = transactionSnapshot.data();
@@ -523,7 +522,21 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
         return { error: 'transaction_reuse_detected' };
       }
 
+      // The purchase and reservation must agree; do not silently accept a
+      // partially-written or tampered purchase record.
+      if (purchase.transactionId !== transactionId ||
+          purchase.provider !== provider) {
+        return { error: 'purchase_intent_rebound' };
+      }
+
       return { purchaseId, status: purchase.status };
+    }
+
+    // A terminal purchase must already have its exact reservation. Never
+    // create a new transaction reservation for a completed/rejected/refunded
+    // purchase, even if the client presents a plausible transaction ID.
+    if (purchase.status !== 'pending') {
+      return { error: 'terminal_purchase_without_reservation' };
     }
 
     transaction.create(transactionRef, {
