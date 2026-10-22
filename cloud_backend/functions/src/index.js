@@ -900,7 +900,7 @@ exports.simulateRefundForDevelopment = onCall(async (request) => {
         membershipRevoked: purchase.membershipRevoked === true,
       };
     }
-    if (purchase.status !== 'simulated_granted') {
+    if (!['simulated_granted', 'simulated_expired'].includes(purchase.status)) {
       return { error: 'not_an_unrefunded_simulated_purchase' };
     }
 
@@ -945,8 +945,10 @@ exports.simulateRefundForDevelopment = onCall(async (request) => {
     }
 
     let membershipRevoked = false;
-    const ownsGolden = purchase.productType === 'membership' &&
+    const ownsGolden = purchase.status === 'simulated_granted' &&
+      purchase.productType === 'membership' &&
       purchase.membershipType === 'golden' &&
+      membership.type === 'golden' && membership.goldenActive === true &&
       (membership.goldenSourcePurchaseId || membership.sourcePurchaseId) === purchaseId;
     const ownsPremium = purchase.productType === 'membership' &&
       purchase.membershipType === 'premium' &&
