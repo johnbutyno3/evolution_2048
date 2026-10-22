@@ -127,6 +127,11 @@ assert.match(
 
 assert.match(
   purchaseCallable,
+  /purchaseId\.trim\(\)\.length === 0 \|\| purchaseId\.length > 128/,
+  'Purchase intent IDs must reject blank and oversized values before Firestore path construction.',
+);
+assert.match(
+  purchaseCallable,
   /transactionId\.trim\(\)\.length === 0 \|\| transactionId\.length > 512/,
   'Purchase transaction IDs must reject whitespace-only and oversized input.',
 );
