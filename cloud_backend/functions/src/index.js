@@ -509,7 +509,7 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
   };
   const status = statusByScenario[scenario];
 
-  await db.runTransaction(async (transaction) => {
+  const transactionOutcome = await db.runTransaction(async (transaction) => {
     const transactionSnapshot = await transaction.get(transactionRef);
     if (transactionSnapshot.exists) {
       const existing = transactionSnapshot.data();
