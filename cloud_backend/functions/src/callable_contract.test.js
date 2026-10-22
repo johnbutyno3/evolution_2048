@@ -168,6 +168,33 @@ assert.match(
 console.log('Purchase verification safety contract OK: client submission remains pending only.');
 
 // Guard the core server idempotency invariants against accidental removal.
+const goldBalanceStart = indexSource.indexOf('exports.getGoldBalance = onCall(');
+const goldBalanceEnd = indexSource.indexOf('\nexports.spendGold = onCall(', goldBalanceStart);
+assert.ok(goldBalanceStart >= 0 && goldBalanceEnd > goldBalanceStart);
+const goldBalanceCallable = indexSource.slice(goldBalanceStart, goldBalanceEnd);
+const goldBalanceTransactionStart = goldBalanceCallable.indexOf(
+  'const outcome = await db.runTransaction',
+);
+const goldBalanceTransactionEnd = goldBalanceCallable.indexOf(
+  '\n  });',
+  goldBalanceTransactionStart,
+);
+assert.ok(
+  goldBalanceTransactionStart >= 0 &&
+    goldBalanceTransactionEnd > goldBalanceTransactionStart,
+  'Gold balance reads must validate wallet data in a Firestore transaction.',
+);
+assert.doesNotMatch(
+  goldBalanceCallable.slice(goldBalanceTransactionStart, goldBalanceTransactionEnd),
+  /recordSecurityEvent\s*\(/,
+  'Gold balance transaction callbacks must not write external audit records.',
+);
+assert.match(
+  goldBalanceCallable.slice(goldBalanceTransactionEnd),
+  /outcome\.error === 'invalid_wallet_state'[\s\S]*?recordSecurityEvent\s*\(/,
+  'Invalid wallet state must be audited after the transaction finishes.',
+);
+
 const goldSpendStart = indexSource.indexOf('exports.spendGold = onCall(');
 const goldSpendEnd = indexSource.indexOf('\nasync function grantGoldToUser', goldSpendStart);
 assert.notEqual(goldSpendStart, -1, 'Gold spend callable must exist.');
