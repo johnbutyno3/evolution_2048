@@ -206,21 +206,16 @@ exports.getGoldBalance = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
 
-  const walletRef = goldWalletRef(request.auth.uid);
-  return db.runTransaction(async (transaction) => {
+  const uid = request.auth.uid;
+  const walletRef = goldWalletRef(uid);
+  const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(walletRef);
     const balance = snapshot.data()?.balance ?? 0;
     const lifetimeSpent = snapshot.data()?.lifetimeSpent ?? 0;
 
     if (!Number.isSafeInteger(balance) || balance < 0 ||
         !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0) {
-      await recordSecurityEvent({
-        uid: request.auth.uid,
-        action: 'get_gold_balance',
-        severity: 'high',
-        reason: 'invalid_wallet_state',
-      });
-      throw new HttpsError('internal', 'Gold wallet data is invalid.');
+      return { error: 'invalid_wallet_state' };
     }
 
     if (!snapshot.exists) {
@@ -234,6 +229,18 @@ exports.getGoldBalance = onCall(async (request) => {
 
     return { balance, lifetimeSpent };
   });
+
+  if (outcome.error === 'invalid_wallet_state') {
+    await recordSecurityEvent({
+      uid,
+      action: 'get_gold_balance',
+      severity: 'high',
+      reason: 'invalid_wallet_state',
+    });
+    throw new HttpsError('internal', 'Gold wallet data is invalid.');
+  }
+
+  return outcome;
 });
 
 exports.spendGold = onCall(async (request) => {
