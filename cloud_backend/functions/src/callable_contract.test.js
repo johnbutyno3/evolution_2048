@@ -96,6 +96,16 @@ assert.match(
 );
 assert.match(
   purchaseCallable,
+  /provider,\s*transactionId,\s*createdAt:\s*FieldValue\.serverTimestamp\(\)/,
+  'Transaction reservation must persist provider and exact transaction ID for replay checks.',
+);
+assert.match(
+  purchaseCallable,
+  /status:\s*'pending'/,
+  'Unverified purchases must remain pending and cannot be treated as granted.',
+);
+assert.match(
+  purchaseCallable,
   /purchase\.transactionId !== transactionId/,
   'A purchase intent cannot be rebound to another store transaction.',
 );
