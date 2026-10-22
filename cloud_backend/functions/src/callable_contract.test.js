@@ -76,6 +76,16 @@ const purchaseCallable = indexSource.slice(purchaseStart, purchaseEnd);
 assert.match(purchaseCallable, /status:\s*'pending'/);
 assert.doesNotMatch(
   purchaseCallable,
+  /request\.data\??\.verified|request\.data\??\.isVerified|verified\s*===\s*true/,
+  'Client-provided verification flags must never be treated as trusted store verification.',
+);
+assert.doesNotMatch(
+  purchaseCallable,
+  /grantGoldToUser\s*\(|membershipRef\([^)]*\)\.set\s*\(/,
+  'Purchase submission must not directly grant currency or membership.',
+);
+assert.doesNotMatch(
+  purchaseCallable,
   /grantGoldToUser\s*\(|membershipRef\([^)]*\)\.set\s*\(/,
   'Client-submitted transaction IDs must not grant Gold or membership.',
 );
