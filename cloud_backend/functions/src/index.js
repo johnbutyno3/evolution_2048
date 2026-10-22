@@ -920,22 +920,26 @@ exports.simulateRefundForDevelopment = onCall(async (request) => {
 
     let goldRevoked = 0;
     let goldUnrecovered = 0;
+    if (!Number.isSafeInteger(purchase.goldGranted) || purchase.goldGranted < 0) {
+      return { error: 'invalid_purchase_gold_grant' };
+    }
     if (purchase.goldGranted > 0) {
       const balance = wallet.balance ?? 0;
       const lifetimeGranted = wallet.lifetimeGranted ?? 0;
       const lifetimeSpent = wallet.lifetimeSpent ?? 0;
-      if (!Number.isSafeInteger(purchase.goldGranted) || purchase.goldGranted < 0 ||
-          !Number.isSafeInteger(balance) || balance < 0 ||
+      const lifetimeRevoked = wallet.lifetimeRevoked ?? 0;
+      if (!Number.isSafeInteger(balance) || balance < 0 ||
           !Number.isSafeInteger(lifetimeGranted) || lifetimeGranted < 0 ||
-          !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0) {
+          !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0 ||
+          !Number.isSafeInteger(lifetimeRevoked) || lifetimeRevoked < 0 ||
+          lifetimeRevoked > MAX_SAFE_INTEGER - Math.min(balance, purchase.goldGranted)) {
         return { error: 'invalid_gold_wallet_or_grant' };
       }
       goldRevoked = Math.min(balance, purchase.goldGranted);
       goldUnrecovered = purchase.goldGranted - goldRevoked;
       transaction.set(walletRef, {
         balance: balance - goldRevoked,
-        lifetimeRevoked: (Number.isSafeInteger(wallet.lifetimeRevoked) &&
-          wallet.lifetimeRevoked >= 0 ? wallet.lifetimeRevoked : 0) + goldRevoked,
+        lifetimeRevoked: lifetimeRevoked + goldRevoked,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
     }
