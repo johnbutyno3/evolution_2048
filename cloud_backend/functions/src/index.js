@@ -500,6 +500,9 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
     }
 
     const purchase = purchaseSnapshot.data();
+    if (typeof purchase.productId !== 'string' || purchase.productId.length === 0) {
+      return { error: 'purchase_product_binding_invalid' };
+    }
     if (purchase.transactionId != null &&
         (purchase.transactionId !== transactionId ||
          purchase.provider !== provider)) {
@@ -515,7 +518,8 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
       if (existing.purchaseId !== purchaseId ||
           existing.uid !== uid ||
           existing.provider !== provider ||
-          existing.transactionId !== transactionId) {
+          existing.transactionId !== transactionId ||
+          existing.productId !== purchase.productId) {
         return { error: 'transaction_reuse_detected' };
       }
 
@@ -527,6 +531,7 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
       purchaseId,
       provider,
       transactionId,
+      productId: purchase.productId,
       createdAt: FieldValue.serverTimestamp(),
     });
     transaction.update(purchaseRef, {
@@ -551,6 +556,19 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
     throw new HttpsError(
       'failed-precondition',
       'Purchase intent is already bound to a different store transaction.',
+    );
+  }
+  if (outcome.error === 'purchase_product_binding_invalid') {
+    await recordSecurityEvent({
+      uid,
+      action: 'submit_purchase_for_verification',
+      severity: 'high',
+      reason: 'purchase_verification_mismatch',
+      details: { purchaseId, provider },
+    });
+    throw new HttpsError(
+      'failed-precondition',
+      'Purchase intent has no valid product binding.',
     );
   }
   if (outcome.error === 'transaction_reuse_detected') {
