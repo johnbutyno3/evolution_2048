@@ -462,10 +462,11 @@ exports.createPurchaseIntent = onCall(async (request) => {
  // both emulator detection and an explicit opt-in environment flag are required.
 exports.simulatePurchaseForDevelopment = onCall(async (request) => {
   if (process.env.FUNCTIONS_EMULATOR !== 'true' ||
+      !process.env.FIRESTORE_EMULATOR_HOST ||
       process.env.ENABLE_PURCHASE_SIMULATOR !== 'true') {
     throw new HttpsError(
       'failed-precondition',
-      'Purchase simulation is only available when explicitly enabled in the local emulator.',
+      'Purchase simulation requires the Functions and Firestore emulators plus explicit local opt-in.',
     );
   }
   if (!request.auth) {
