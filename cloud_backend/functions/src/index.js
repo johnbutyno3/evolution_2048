@@ -460,7 +460,8 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
   const provider = request.data?.provider;
   const transactionId = request.data?.transactionId;
 
-  if (typeof purchaseId !== 'string' || purchaseId.length === 0 ||
+  if (typeof purchaseId !== 'string' ||
+      purchaseId.trim().length === 0 || purchaseId.length > 128 ||
       typeof transactionId !== 'string' ||
       transactionId.trim().length === 0 || transactionId.length > 512 ||
       !PURCHASE_PROVIDERS.has(provider)) {
