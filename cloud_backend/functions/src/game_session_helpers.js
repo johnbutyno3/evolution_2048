@@ -12,7 +12,7 @@ function toMillis(value) {
 
 function isActiveUntil(value, nowMillis) {
   const expiresAtMillis = toMillis(value);
-  return expiresAtMillis === null || expiresAtMillis > nowMillis;
+  return expiresAtMillis !== null && expiresAtMillis > nowMillis;
 }
 
 function resolveMembership(data, nowMillis = Date.now()) {
