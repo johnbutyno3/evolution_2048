@@ -447,6 +447,9 @@ exports.createPurchaseIntent = onCall(async (request) => {
     grantedAt: null,
     amount: product.amount,
     currency: product.currency,
+    priceUsd: product.priceUsd,
+    productType: product.type,
+    membershipType: product.membershipType,
   });
 
   return {
@@ -513,6 +516,11 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
     replay: 'simulated_granted',
   };
   const status = statusByScenario[scenario];
+  const simulatedGoldenCycleGold =
+    product.type === 'membership' && product.membershipType === 'golden' &&
+    (scenario === 'success' || scenario === 'replay')
+      ? 1500
+      : 0;
 
   const transactionOutcome = await db.runTransaction(async (transaction) => {
     const transactionSnapshot = await transaction.get(transactionRef);
@@ -621,6 +629,12 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
       grantedAt: isGrantScenario ? FieldValue.serverTimestamp() : null,
       amount: product.amount,
       currency: product.currency,
+      priceUsd: product.priceUsd,
+      productType: product.type,
+      membershipType: product.membershipType,
+      goldGranted: isGrantScenario
+        ? (product.type === 'gold' ? product.amount : simulatedGoldenCycleGold)
+        : 0,
       simulationScenario: scenario,
     });
     return { replayed: false, originalPurchaseId: purchaseId };
