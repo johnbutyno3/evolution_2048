@@ -29,13 +29,18 @@ const expiryStart = source.indexOf(
   'exports.simulateGoldenExpiryForDevelopment = onCall(',
   cancellationStart,
 );
+const refundStart = source.indexOf(
+  'exports.simulateRefundForDevelopment = onCall(',
+  expiryStart,
+);
 const verifierStart = source.indexOf(
   'exports.submitPurchaseForVerification = onCall(',
-  expiryStart,
+  refundStart,
 );
 const cancellation = source.slice(cancellationStart, expiryStart);
 assert.ok(expiryStart > cancellationStart);
-const expiry = source.slice(expiryStart, verifierStart);
+const expiry = source.slice(expiryStart, refundStart);
+const refund = source.slice(refundStart, verifierStart);
 assert.match(expiry, /FUNCTIONS_EMULATOR !== 'true'/);
 assert.match(expiry, /!process\\.env\\.FIRESTORE_EMULATOR_HOST/);
 assert.match(expiry, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
@@ -57,7 +62,7 @@ assert.match(cancellation, /cancellationEffectiveAt: expiresAt/);
 assert.match(cancellation, /benefitsRemainUntilExpiry: true/);
 assert.doesNotMatch(cancellation, /goldenActive: false|premiumLifetime: false/);
 
-assert.ok(simulatorStart >= 0 && verifierStart > expiryStart);
+assert.ok(simulatorStart >= 0 && refundStart > expiryStart && verifierStart > refundStart);
 
 const simulator = source.slice(simulatorStart, cancellationStart);
 assert.match(simulator, /FUNCTIONS_EMULATOR !== 'true'/);
@@ -68,6 +73,8 @@ assert.match(simulator, /priceUsd: product\.priceUsd/);
 assert.match(simulator, /productType: product\.type/);
 assert.match(simulator, /membershipType: product\.membershipType/);
 assert.match(simulator, /goldGranted: isGrantScenario/);
+assert.match(simulator, /goldenSourcePurchaseId: isGolden/);
+assert.match(simulator, /premiumSourcePurchaseId: isGolden/);
 assert.match(simulator, /simulatedGoldenCycleGold/);
 assert.match(simulator, /transactionSnapshot\.exists/);
 assert.match(simulator, /existing\.provider !== 'simulator'/);
@@ -75,6 +82,19 @@ assert.doesNotMatch(
   simulator,
   /exports\.submitPurchaseForVerification|request\.data\??\.verified/,
 );
+
+assert.match(refund, /FUNCTIONS_EMULATOR !== 'true'/);
+assert.match(refund, /!process\\.env\\.FIRESTORE_EMULATOR_HOST/);
+assert.match(refund, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
+assert.match(refund, /purchase\\.simulated !== true/);
+assert.match(refund, /purchase\\.status !== 'simulated_granted'/);
+assert.match(refund, /reservation\\.purchaseId !== purchaseId/);
+assert.match(refund, /Math\\.min\\(balance, purchase\\.goldGranted\\)/);
+assert.match(refund, /goldUnrecovered = purchase\\.goldGranted - goldRevoked/);
+assert.match(refund, /status: 'simulated_refunded'/);
+assert.match(refund, /premiumSourcePurchaseId !== purchaseId/);
+assert.match(refund, /goldenSourcePurchaseId \\|\\| membership\\.sourcePurchaseId/);
+assert.doesNotMatch(refund, /balance: balance - purchase\\.goldGranted/);
 
 const verifier = source.slice(verifierStart);
 assert.match(verifier, /PURCHASE_PROVIDERS\.has\(provider\)/);
