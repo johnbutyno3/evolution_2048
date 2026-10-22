@@ -510,7 +510,10 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
     const transactionSnapshot = await transaction.get(transactionRef);
     if (transactionSnapshot.exists) {
       const existing = transactionSnapshot.data();
-      if (existing.purchaseId !== purchaseId || existing.uid !== uid) {
+      if (existing.purchaseId !== purchaseId ||
+          existing.uid !== uid ||
+          existing.provider !== provider ||
+          existing.transactionId !== transactionId) {
         await recordSecurityEvent({
           uid,
           action: 'submit_purchase_for_verification',
@@ -520,7 +523,7 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
         });
         throw new HttpsError(
           'already-exists',
-          'Transaction has already been associated with another purchase.',
+          'Transaction has already been associated with another purchase or provider.',
         );
       }
 
