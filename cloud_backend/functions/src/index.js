@@ -604,6 +604,12 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
           : null,
         expiresAt: expiry,
         sourcePurchaseId: purchaseId,
+        goldenSourcePurchaseId: isGolden
+          ? purchaseId
+          : (membership.goldenSourcePurchaseId ?? null),
+        premiumSourcePurchaseId: isGolden
+          ? (membership.premiumSourcePurchaseId ?? null)
+          : purchaseId,
         autoRenew: isGolden,
         simulated: true,
         updatedAt: FieldValue.serverTimestamp(),
@@ -692,7 +698,7 @@ exports.simulateGoldenCancellationForDevelopment = onCall(async (request) => {
         purchase.status !== 'simulated_granted') {
       return { error: 'not_an_active_simulated_golden_purchase' };
     }
-    if (membership.sourcePurchaseId !== purchaseId ||
+    if ((membership.goldenSourcePurchaseId || membership.sourcePurchaseId) !== purchaseId ||
         membership.type !== 'golden' || membership.goldenActive !== true) {
       return { error: 'membership_source_mismatch' };
     }
@@ -773,7 +779,7 @@ exports.simulateGoldenExpiryForDevelopment = onCall(async (request) => {
         purchase.status !== 'simulated_granted') {
       return { error: 'not_a_simulated_golden_purchase' };
     }
-    if (membership.sourcePurchaseId !== purchaseId ||
+    if ((membership.goldenSourcePurchaseId || membership.sourcePurchaseId) !== purchaseId ||
         membership.type !== 'golden' || membership.goldenActive !== true) {
       return { error: 'membership_source_mismatch' };
     }
@@ -841,6 +847,167 @@ exports.simulateGoldenExpiryForDevelopment = onCall(async (request) => {
         ? outcome.expiresAt.toISOString()
         : outcome.expiresAt),
   };
+});
+
+// Development-only refund simulation. Gold clawback is capped by the current
+// aggregate balance; any shortfall is recorded instead of making the wallet negative.
+// Since Gold is fungible, this does not claim to identify which purchase's units remain.
+exports.simulateRefundForDevelopment = onCall(async (request) => {
+  if (process.env.FUNCTIONS_EMULATOR !== 'true' ||
+      !process.env.FIRESTORE_EMULATOR_HOST ||
+      process.env.ENABLE_PURCHASE_SIMULATOR !== 'true') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Refund simulation requires the emulators and explicit local opt-in.',
+    );
+  }
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase');
+
+  const purchaseId = request.data?.purchaseId;
+  if (typeof purchaseId !== 'string' || purchaseId.trim().length === 0 ||
+      purchaseId.length > 128) {
+    throw new HttpsError('invalid-argument', 'A valid purchaseId is required.');
+  }
+
+  const uid = request.auth.uid;
+  const purchaseRef = db.collection('users').doc(uid)
+    .collection('purchases').doc(purchaseId);
+  const walletRef = goldWalletRef(uid);
+  const currentMembershipRef = membershipRef(uid);
+  const outcome = await db.runTransaction(async (transaction) => {
+    const purchaseSnapshot = await transaction.get(purchaseRef);
+    const walletSnapshot = await transaction.get(walletRef);
+    const membershipSnapshot = await transaction.get(currentMembershipRef);
+    if (!purchaseSnapshot.exists) return { error: 'purchase_not_found' };
+
+    const purchase = purchaseSnapshot.data() || {};
+    const wallet = walletSnapshot.data() || {};
+    const membership = membershipSnapshot.data() || {};
+    if (purchase.simulated !== true || purchase.provider !== 'simulator' ||
+        purchase.status !== 'simulated_granted' ||
+        typeof purchase.transactionId !== 'string' ||
+        typeof purchase.productId !== 'string') {
+      return { error: 'not_an_unrefunded_simulated_purchase' };
+    }
+
+    const reservedTransactionRef = db.collection('purchase_transactions')
+      .doc(transactionKey(purchase.transactionId));
+    const reservedSnapshot = await transaction.get(reservedTransactionRef);
+    if (!reservedSnapshot.exists) return { error: 'transaction_reservation_missing' };
+    const reservation = reservedSnapshot.data() || {};
+    if (reservation.uid !== uid ||
+        reservation.purchaseId !== purchaseId ||
+        reservation.provider !== 'simulator' ||
+        reservation.productId !== purchase.productId ||
+        reservation.transactionId !== purchase.transactionId ||
+        reservation.simulated !== true) {
+      return { error: 'transaction_reservation_mismatch' };
+    }
+
+    let goldRevoked = 0;
+    let goldUnrecovered = 0;
+    if (purchase.goldGranted > 0) {
+      const balance = wallet.balance ?? 0;
+      const lifetimeGranted = wallet.lifetimeGranted ?? 0;
+      const lifetimeSpent = wallet.lifetimeSpent ?? 0;
+      if (!Number.isSafeInteger(purchase.goldGranted) || purchase.goldGranted < 0 ||
+          !Number.isSafeInteger(balance) || balance < 0 ||
+          !Number.isSafeInteger(lifetimeGranted) || lifetimeGranted < 0 ||
+          !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0) {
+        return { error: 'invalid_gold_wallet_or_grant' };
+      }
+      goldRevoked = Math.min(balance, purchase.goldGranted);
+      goldUnrecovered = purchase.goldGranted - goldRevoked;
+      transaction.set(walletRef, {
+        balance: balance - goldRevoked,
+        lifetimeRevoked: (Number.isSafeInteger(wallet.lifetimeRevoked) &&
+          wallet.lifetimeRevoked >= 0 ? wallet.lifetimeRevoked : 0) + goldRevoked,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    let membershipRevoked = false;
+    const ownsGolden = purchase.productType === 'membership' &&
+      purchase.membershipType === 'golden' &&
+      (membership.goldenSourcePurchaseId || membership.sourcePurchaseId) === purchaseId;
+    const ownsPremium = purchase.productType === 'membership' &&
+      purchase.membershipType === 'premium' &&
+      membership.premiumSourcePurchaseId === purchaseId;
+
+    if (ownsGolden) {
+      const premiumExpiresAt = membership.premiumExpiresAt || null;
+      const premiumExpiryMillis = premiumExpiresAt?.toMillis?.() ??
+        (premiumExpiresAt instanceof Date ? premiumExpiresAt.getTime() :
+          (typeof premiumExpiresAt === 'number' ? premiumExpiresAt : NaN));
+      const hasLifetimePremium = membership.premiumLifetime === true &&
+        membership.premiumSourcePurchaseId !== purchaseId;
+      const hasValidTimedPremium = Number.isFinite(premiumExpiryMillis) &&
+        premiumExpiryMillis > Date.now();
+      const keepPremium = hasLifetimePremium || hasValidTimedPremium;
+      transaction.set(currentMembershipRef, {
+        type: keepPremium ? 'premium' : 'general',
+        goldenActive: false,
+        goldenSourcePurchaseId: null,
+        goldenRefundedAt: FieldValue.serverTimestamp(),
+        expiresAt: hasLifetimePremium ? null :
+          (hasValidTimedPremium ? premiumExpiresAt : null),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      membershipRevoked = true;
+    } else if (ownsPremium) {
+      const premiumExpiresAt = membership.premiumExpiresAt || null;
+      const premiumExpiryMillis = premiumExpiresAt?.toMillis?.() ??
+        (premiumExpiresAt instanceof Date ? premiumExpiresAt.getTime() :
+          (typeof premiumExpiresAt === 'number' ? premiumExpiresAt : NaN));
+      const hasValidGolden = membership.goldenActive === true &&
+        Number.isFinite(
+          (membership.goldenExpiresAt || membership.expiresAt)?.toMillis?.() ??
+          ((membership.goldenExpiresAt || membership.expiresAt) instanceof Date
+            ? (membership.goldenExpiresAt || membership.expiresAt).getTime()
+            : NaN),
+        ) &&
+        ((membership.goldenExpiresAt || membership.expiresAt)?.toMillis?.() ??
+          (membership.goldenExpiresAt || membership.expiresAt).getTime()) > Date.now();
+      const hasValidTimedPremium = Number.isFinite(premiumExpiryMillis) &&
+        premiumExpiryMillis > Date.now();
+      transaction.set(currentMembershipRef, {
+        premiumLifetime: false,
+        premiumSourcePurchaseId: null,
+        type: hasValidGolden ? 'golden' :
+          (hasValidTimedPremium ? 'premium' : 'general'),
+        expiresAt: hasValidGolden
+          ? (membership.goldenExpiresAt || membership.expiresAt)
+          : (hasValidTimedPremium ? premiumExpiresAt : null),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      membershipRevoked = true;
+    }
+
+    transaction.update(purchaseRef, {
+      status: 'simulated_refunded',
+      refundedAt: FieldValue.serverTimestamp(),
+      goldRevoked,
+      goldUnrecovered,
+      membershipRevoked,
+    });
+    transaction.update(reservedTransactionRef, {
+      status: 'simulated_refunded',
+      refundedAt: FieldValue.serverTimestamp(),
+    });
+
+    return { refunded: true, goldRevoked, goldUnrecovered, membershipRevoked };
+  });
+
+  if (outcome.error) {
+    throw new HttpsError(
+      outcome.error === 'purchase_not_found' ? 'not-found' : 'failed-precondition',
+      outcome.error,
+    );
+  }
+  return { purchaseId, simulated: true, ...outcome };
 });
 
 exports.submitPurchaseForVerification = onCall(async (request) => {
