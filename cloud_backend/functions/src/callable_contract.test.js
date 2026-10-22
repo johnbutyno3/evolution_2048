@@ -125,6 +125,22 @@ assert.match(
   'A reserved transaction must match the exact submitted transaction ID.',
 );
 
+assert.ok(
+  purchaseCallable.indexOf('const transactionSnapshot = await transaction.get(transactionRef);') <
+    purchaseCallable.indexOf("if (purchase.status !== 'pending')"),
+  'A terminal purchase status must not bypass global transaction replay checks.',
+);
+assert.match(
+  purchaseCallable,
+  /terminal_purchase_without_reservation/,
+  'A terminal purchase without its original reservation must fail closed.',
+);
+assert.match(
+  purchaseCallable,
+  /purchase\.transactionId !== transactionId \|\|\s*purchase\.provider !== provider/,
+  'An existing reservation must agree with the purchase record before returning its status.',
+);
+
 assert.match(
   purchaseCallable,
   /existing\.productId !== purchase\.productId/,
