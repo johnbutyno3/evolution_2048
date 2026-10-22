@@ -45,6 +45,15 @@ assert.equal(expiredGoldenWithoutPremium.active, false);
 assert.equal(expiredGoldenWithoutPremium.type, null);
 assert.equal(expiredGoldenWithoutPremium.noAds, false);
 
+const goldenWithoutExpiry = resolveMembership({
+  type: 'golden',
+  goldenActive: true,
+  premiumLifetime: false,
+}, now);
+assert.equal(goldenWithoutExpiry.active, false);
+assert.equal(goldenWithoutExpiry.type, null);
+assert.equal(goldenWithoutExpiry.infiniteLives, false);
+
 const expiringPremiumFallback = resolveMembership({
   type: 'golden',
   goldenActive: true,
