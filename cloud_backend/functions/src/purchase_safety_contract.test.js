@@ -20,6 +20,23 @@ assert.match(purchaseIntent, /membershipType: product\.membershipType/);
 const simulatorStart = source.indexOf(
   'exports.simulatePurchaseForDevelopment = onCall(',
 );
+const cancellationStart = source.indexOf(
+  'exports.simulateGoldenCancellationForDevelopment = onCall(',
+  simulatorStart,
+);
+assert.ok(cancellationStart > simulatorStart);
+const cancellation = source.slice(cancellationStart, verifierStart);
+assert.match(cancellation, /FUNCTIONS_EMULATOR !== 'true'/);
+assert.match(cancellation, /!process\.env\.FIRESTORE_EMULATOR_HOST/);
+assert.match(cancellation, /ENABLE_PURCHASE_SIMULATOR !== 'true'/);
+assert.match(cancellation, /purchase\.simulated !== true/);
+assert.match(cancellation, /purchase\.membershipType !== 'golden'/);
+assert.match(cancellation, /membership\.sourcePurchaseId !== purchaseId/);
+assert.match(cancellation, /autoRenew: false/);
+assert.match(cancellation, /cancellationEffectiveAt: expiresAt/);
+assert.match(cancellation, /benefitsRemainUntilExpiry: true/);
+assert.doesNotMatch(cancellation, /goldenActive: false|premiumLifetime: false/);
+
 const verifierStart = source.indexOf(
   'exports.submitPurchaseForVerification = onCall(',
   simulatorStart,
