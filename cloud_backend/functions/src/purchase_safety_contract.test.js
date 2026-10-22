@@ -25,6 +25,10 @@ const cancellationStart = source.indexOf(
   simulatorStart,
 );
 assert.ok(cancellationStart > simulatorStart);
+const verifierStart = source.indexOf(
+  'exports.submitPurchaseForVerification = onCall(',
+  simulatorStart,
+);
 const cancellation = source.slice(cancellationStart, verifierStart);
 assert.match(cancellation, /FUNCTIONS_EMULATOR !== 'true'/);
 assert.match(cancellation, /!process\.env\.FIRESTORE_EMULATOR_HOST/);
@@ -37,11 +41,7 @@ assert.match(cancellation, /cancellationEffectiveAt: expiresAt/);
 assert.match(cancellation, /benefitsRemainUntilExpiry: true/);
 assert.doesNotMatch(cancellation, /goldenActive: false|premiumLifetime: false/);
 
-const verifierStart = source.indexOf(
-  'exports.submitPurchaseForVerification = onCall(',
-  simulatorStart,
-);
-assert.ok(simulatorStart >= 0 && verifierStart > simulatorStart);
+assert.ok(simulatorStart >= 0 && verifierStart > cancellationStart);
 
 const simulator = source.slice(simulatorStart, verifierStart);
 assert.match(simulator, /FUNCTIONS_EMULATOR !== 'true'/);
