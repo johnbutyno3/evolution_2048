@@ -603,6 +603,8 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
           ? (membership.premiumExpiresAt ?? null)
           : null,
         expiresAt: expiry,
+        sourcePurchaseId: purchaseId,
+        autoRenew: isGolden,
         simulated: true,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
@@ -651,6 +653,86 @@ exports.simulatePurchaseForDevelopment = onCall(async (request) => {
   };
 });
 
+
+// Development-only cancellation for a simulated Golden subscription. Benefits
+// remain active through the recorded paid-through date; this only disables renewal.
+exports.simulateGoldenCancellationForDevelopment = onCall(async (request) => {
+  if (process.env.FUNCTIONS_EMULATOR !== 'true' ||
+      !process.env.FIRESTORE_EMULATOR_HOST ||
+      process.env.ENABLE_PURCHASE_SIMULATOR !== 'true') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Subscription simulation requires the emulators and explicit local opt-in.',
+    );
+  }
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase');
+
+  const purchaseId = request.data?.purchaseId;
+  if (typeof purchaseId !== 'string' || purchaseId.trim().length === 0 ||
+      purchaseId.length > 128) {
+    throw new HttpsError('invalid-argument', 'A valid purchaseId is required.');
+  }
+
+  const uid = request.auth.uid;
+  const purchaseRef = db.collection('users').doc(uid)
+    .collection('purchases').doc(purchaseId);
+  const currentMembershipRef = membershipRef(uid);
+  const outcome = await db.runTransaction(async (transaction) => {
+    const purchaseSnapshot = await transaction.get(purchaseRef);
+    const membershipSnapshot = await transaction.get(currentMembershipRef);
+    if (!purchaseSnapshot.exists) return { error: 'purchase_not_found' };
+    const purchase = purchaseSnapshot.data() || {};
+    const membership = membershipSnapshot.data() || {};
+    if (purchase.simulated !== true || purchase.provider !== 'simulator' ||
+        purchase.productType !== 'membership' ||
+        purchase.membershipType !== 'golden' ||
+        purchase.status !== 'simulated_granted') {
+      return { error: 'not_an_active_simulated_golden_purchase' };
+    }
+    if (membership.sourcePurchaseId !== purchaseId ||
+        membership.type !== 'golden' || membership.goldenActive !== true) {
+      return { error: 'membership_source_mismatch' };
+    }
+    if (membership.autoRenew === false) {
+      return { alreadyCancelled: true, expiresAt: membership.goldenExpiresAt || null };
+    }
+    const expiresAt = membership.goldenExpiresAt || membership.expiresAt || null;
+    transaction.update(currentMembershipRef, {
+      autoRenew: false,
+      cancelledAt: FieldValue.serverTimestamp(),
+      cancellationEffectiveAt: expiresAt,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(purchaseRef, {
+      subscriptionAutoRenew: false,
+      subscriptionCancelledAt: FieldValue.serverTimestamp(),
+      subscriptionCancellationEffectiveAt: expiresAt,
+    });
+    return { alreadyCancelled: false, expiresAt };
+  });
+
+  if (outcome.error) {
+    throw new HttpsError(
+      outcome.error === 'purchase_not_found' ? 'not-found' : 'failed-precondition',
+      outcome.error,
+    );
+  }
+  return {
+    purchaseId,
+    simulated: true,
+    autoRenew: false,
+    alreadyCancelled: outcome.alreadyCancelled,
+    benefitsRemainUntilExpiry: true,
+    expiresAt: outcome.expiresAt?.toDate
+      ? outcome.expiresAt.toDate().toISOString()
+      : (outcome.expiresAt instanceof Date
+        ? outcome.expiresAt.toISOString()
+        : outcome.expiresAt),
+  };
+});
 exports.submitPurchaseForVerification = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError(
