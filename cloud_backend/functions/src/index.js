@@ -887,9 +887,20 @@ exports.simulateRefundForDevelopment = onCall(async (request) => {
     const wallet = walletSnapshot.data() || {};
     const membership = membershipSnapshot.data() || {};
     if (purchase.simulated !== true || purchase.provider !== 'simulator' ||
-        purchase.status !== 'simulated_granted' ||
         typeof purchase.transactionId !== 'string' ||
         typeof purchase.productId !== 'string') {
+      return { error: 'not_a_simulated_purchase' };
+    }
+    if (purchase.status === 'simulated_refunded') {
+      return {
+        refunded: true,
+        alreadyRefunded: true,
+        goldRevoked: purchase.goldRevoked ?? 0,
+        goldUnrecovered: purchase.goldUnrecovered ?? 0,
+        membershipRevoked: purchase.membershipRevoked === true,
+      };
+    }
+    if (purchase.status !== 'simulated_granted') {
       return { error: 'not_an_unrefunded_simulated_purchase' };
     }
 
