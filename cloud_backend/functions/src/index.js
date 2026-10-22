@@ -454,6 +454,143 @@ exports.createPurchaseIntent = onCall(async (request) => {
   };
 });
 
+// Development-only purchase simulator. It is unavailable in deployed Functions:
+ // both emulator detection and an explicit opt-in environment flag are required.
+exports.simulatePurchaseForDevelopment = onCall(async (request) => {
+  if (process.env.FUNCTIONS_EMULATOR !== 'true' ||
+      process.env.ENABLE_PURCHASE_SIMULATOR !== 'true') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Purchase simulation is only available when explicitly enabled in the local emulator.',
+    );
+  }
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase');
+
+  const productId = request.data?.productId;
+  const scenario = request.data?.scenario;
+  const allowedScenarios = new Set([
+    'success',
+    'cancelled',
+    'pending',
+    'refunded',
+    'expired',
+    'replay',
+  ]);
+  if (typeof productId !== 'string' || !allowedScenarios.has(scenario)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'A valid productId and simulation scenario are required.',
+    );
+  }
+
+  const product = await loadPurchasableProduct(productId);
+  const uid = request.auth.uid;
+  const purchaseId = crypto.randomUUID();
+  const transactionId = `SIMULATED_${scenario.toUpperCase()}_${crypto.randomUUID()}`;
+  const purchaseRef = db.collection('users').doc(uid)
+    .collection('purchases').doc(purchaseId);
+  const transactionRef = db.collection('purchase_transactions')
+    .doc(transactionKey(transactionId));
+
+  // This callable intentionally never invokes the real store verification path.
+  // Simulated purchase records are visibly marked and can never be accepted by
+  // production because this export refuses to run outside the emulator.
+  const statusByScenario = {
+    success: 'simulated_granted',
+    cancelled: 'cancelled',
+    pending: 'pending',
+    refunded: 'simulated_refunded',
+    expired: 'simulated_expired',
+    replay: 'simulated_granted',
+  };
+  const status = statusByScenario[scenario];
+
+  await db.runTransaction(async (transaction) => {
+    const transactionSnapshot = await transaction.get(transactionRef);
+    if (transactionSnapshot.exists) {
+      throw new HttpsError('already-exists', 'Simulated transaction already exists.');
+    }
+
+    const walletRef = goldWalletRef(uid);
+    const membershipDocumentRef = membershipRef(uid);
+    const walletSnapshot = await transaction.get(walletRef);
+    const membershipSnapshot = await transaction.get(membershipDocumentRef);
+    const wallet = walletSnapshot.data() || {};
+    const membership = membershipSnapshot.data() || {};
+    const isGrantScenario = scenario === 'success' || scenario === 'replay';
+
+    if (isGrantScenario && product.type === 'gold') {
+      const balance = wallet.balance ?? 0;
+      const lifetimeGranted = wallet.lifetimeGranted ?? 0;
+      const lifetimeSpent = wallet.lifetimeSpent ?? 0;
+      if (!Number.isSafeInteger(balance) || balance < 0 ||
+          !Number.isSafeInteger(lifetimeGranted) || lifetimeGranted < 0 ||
+          !Number.isSafeInteger(lifetimeSpent) || lifetimeSpent < 0 ||
+          balance > MAX_SAFE_INTEGER - product.amount ||
+          lifetimeGranted > MAX_SAFE_INTEGER - product.amount) {
+        throw new HttpsError('failed-precondition', 'Gold wallet state is invalid.');
+      }
+      transaction.set(walletRef, {
+        balance: balance + product.amount,
+        lifetimeGranted: lifetimeGranted + product.amount,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    if (isGrantScenario && product.type === 'membership') {
+      const expiry = new Date(Date.now() +
+        (productId.toLowerCase().includes('golden') ? 30 : 36500) * 24 * 60 * 60 * 1000);
+      const isGolden = productId.toLowerCase().includes('golden');
+      transaction.set(membershipDocumentRef, {
+        type: isGolden ? 'golden' : 'premium',
+        goldenActive: isGolden,
+        goldenExpiresAt: isGolden ? expiry : (membership.goldenExpiresAt ?? null),
+        premiumLifetime: isGolden ? (membership.premiumLifetime === true) : true,
+        premiumExpiresAt: isGolden ? (membership.premiumExpiresAt ?? null) : null,
+        expiresAt: isGolden ? expiry : null,
+        simulated: true,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    transaction.create(transactionRef, {
+      uid,
+      purchaseId,
+      provider: 'simulator',
+      transactionId,
+      productId,
+      status,
+      simulated: true,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(purchaseRef, {
+      productId,
+      provider: 'simulator',
+      transactionId,
+      status,
+      simulated: true,
+      createdAt: FieldValue.serverTimestamp(),
+      verifiedAt: null,
+      grantedAt: isGrantScenario ? FieldValue.serverTimestamp() : null,
+      amount: product.amount,
+      currency: product.currency,
+      simulationScenario: scenario,
+    });
+  });
+
+  return {
+    purchaseId,
+    productId,
+    scenario,
+    status,
+    simulated: true,
+    grantsApplied: scenario === 'success' || scenario === 'replay',
+  };
+});
+
 exports.submitPurchaseForVerification = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError(
