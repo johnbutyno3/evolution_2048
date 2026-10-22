@@ -166,12 +166,33 @@ exports.grantMembership = onCall(async (request) => {
   }
 
   const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
-  await membershipRef(uid).set({
-    type,
-    expiresAt,
-    grantedBy: request.auth.uid,
-    updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
+  const targetMembershipRef = membershipRef(uid);
+  await db.runTransaction(async (transaction) => {
+    const currentSnapshot = await transaction.get(targetMembershipRef);
+    const current = currentSnapshot.data() || {};
+    const hasExplicitPremiumState =
+      typeof current.premiumLifetime === 'boolean' ||
+      Object.prototype.hasOwnProperty.call(current, 'premiumExpiresAt');
+    const premiumLifetime = current.premiumLifetime === true ||
+      (!hasExplicitPremiumState &&
+        current.type === 'premium' &&
+        current.expiresAt == null);
+
+    const next = {
+      type,
+      expiresAt,
+      premiumLifetime,
+      grantedBy: request.auth.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (type === 'golden') {
+      next.goldenActive = true;
+      next.goldenExpiresAt = expiresAt;
+    } else {
+      next.premiumExpiresAt = expiresAt;
+    }
+    transaction.set(targetMembershipRef, next, { merge: true });
+  });
 
   return {
     uid,
