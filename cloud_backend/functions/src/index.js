@@ -733,6 +733,116 @@ exports.simulateGoldenCancellationForDevelopment = onCall(async (request) => {
         : outcome.expiresAt),
   };
 });
+
+// Development-only expiry settlement for a simulated Golden subscription.
+// This applies the membership fallback only after its paid-through date.
+exports.simulateGoldenExpiryForDevelopment = onCall(async (request) => {
+  if (process.env.FUNCTIONS_EMULATOR !== 'true' ||
+      !process.env.FIRESTORE_EMULATOR_HOST ||
+      process.env.ENABLE_PURCHASE_SIMULATOR !== 'true') {
+    throw new HttpsError(
+      'failed-precondition',
+      'Subscription simulation requires the emulators and explicit local opt-in.',
+    );
+  }
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  await enforceSensitiveOperation(request.auth.uid, 'purchase');
+
+  const purchaseId = request.data?.purchaseId;
+  if (typeof purchaseId !== 'string' || purchaseId.trim().length === 0 ||
+      purchaseId.length > 128) {
+    throw new HttpsError('invalid-argument', 'A valid purchaseId is required.');
+  }
+
+  const uid = request.auth.uid;
+  const purchaseRef = db.collection('users').doc(uid)
+    .collection('purchases').doc(purchaseId);
+  const currentMembershipRef = membershipRef(uid);
+  const now = Date.now();
+  const outcome = await db.runTransaction(async (transaction) => {
+    const purchaseSnapshot = await transaction.get(purchaseRef);
+    const membershipSnapshot = await transaction.get(currentMembershipRef);
+    if (!purchaseSnapshot.exists) return { error: 'purchase_not_found' };
+    const purchase = purchaseSnapshot.data() || {};
+    const membership = membershipSnapshot.data() || {};
+    if (purchase.simulated !== true || purchase.provider !== 'simulator' ||
+        purchase.productType !== 'membership' ||
+        purchase.membershipType !== 'golden' ||
+        purchase.status !== 'simulated_granted') {
+      return { error: 'not_a_simulated_golden_purchase' };
+    }
+    if (membership.sourcePurchaseId !== purchaseId ||
+        membership.type !== 'golden' || membership.goldenActive !== true) {
+      return { error: 'membership_source_mismatch' };
+    }
+    const expiry = membership.goldenExpiresAt || membership.expiresAt;
+    const expiryMillis = expiry?.toMillis?.() ??
+      (expiry instanceof Date ? expiry.getTime() :
+        (typeof expiry === 'number' ? expiry : NaN));
+    if (!Number.isFinite(expiryMillis)) {
+      return { error: 'golden_expiry_missing' };
+    }
+    if (expiryMillis > now) {
+      return {
+        error: 'golden_not_expired',
+        expiresAt: expiry,
+      };
+    }
+
+    const premiumExpiresAt = membership.premiumExpiresAt || null;
+    const premiumExpiryMillis = premiumExpiresAt?.toMillis?.() ??
+      (premiumExpiresAt instanceof Date ? premiumExpiresAt.getTime() :
+        (typeof premiumExpiresAt === 'number' ? premiumExpiresAt : NaN));
+    const hasLifetimePremium = membership.premiumLifetime === true;
+    const hasValidTimedPremium = Number.isFinite(premiumExpiryMillis) &&
+      premiumExpiryMillis > now;
+    const fallbackToPremium = hasLifetimePremium || hasValidTimedPremium;
+
+    transaction.update(currentMembershipRef, {
+      type: fallbackToPremium ? 'premium' : 'general',
+      goldenActive: false,
+      goldenExpiredAt: FieldValue.serverTimestamp(),
+      expiresAt: hasLifetimePremium ? null :
+        (hasValidTimedPremium ? premiumExpiresAt : null),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(purchaseRef, {
+      status: 'simulated_expired',
+      subscriptionExpiredAt: FieldValue.serverTimestamp(),
+      subscriptionAutoRenew: false,
+    });
+    return {
+      expired: true,
+      fallbackToPremium,
+      hasLifetimePremium,
+      hasValidTimedPremium,
+      expiresAt: expiry,
+    };
+  });
+
+  if (outcome.error) {
+    throw new HttpsError(
+      outcome.error === 'purchase_not_found' ? 'not-found' : 'failed-precondition',
+      outcome.error,
+    );
+  }
+  return {
+    purchaseId,
+    simulated: true,
+    expired: true,
+    membershipType: outcome.fallbackToPremium ? 'premium' : 'general',
+    retainedIndependentPremium: outcome.hasLifetimePremium,
+    retainedValidTimedPremium: outcome.hasValidTimedPremium,
+    expiresAt: outcome.expiresAt?.toDate
+      ? outcome.expiresAt.toDate().toISOString()
+      : (outcome.expiresAt instanceof Date
+        ? outcome.expiresAt.toISOString()
+        : outcome.expiresAt),
+  };
+});
+
 exports.submitPurchaseForVerification = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError(
