@@ -397,15 +397,19 @@ async function loadPurchasableProduct(productId) {
   }
 
   if (product.type === 'gold' &&
-      (!Number.isInteger(product.amount) || product.amount <= 0)) {
+      (!Number.isSafeInteger(product.amount) || product.amount <= 0)) {
     throw new HttpsError('failed-precondition', 'Product amount is invalid.');
+  }
+
+  if (product.type === 'membership' &&
+      !['premium', 'golden'].includes(product.membershipType)) {
+    throw new HttpsError('failed-precondition', 'Invalid membership product type.');
   }
 
   return {
     productId,
     type: product.type,
-    membershipType: product.type === 'membership' &&
-      ['premium', 'golden'].includes(product.membershipType)
+    membershipType: product.type === 'membership'
       ? product.membershipType
       : null,
     amount: product.type === 'gold' ? product.amount : null,
