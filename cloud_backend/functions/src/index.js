@@ -597,6 +597,19 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
       'Transaction has already been associated with another purchase or provider.',
     );
   }
+  if (outcome.error === 'terminal_purchase_without_reservation') {
+    await recordSecurityEvent({
+      uid,
+      action: 'submit_purchase_for_verification',
+      severity: 'high',
+      reason: 'purchase_verification_mismatch',
+      details: { purchaseId, provider },
+    });
+    throw new HttpsError(
+      'failed-precondition',
+      'Finalized purchase record is missing its original transaction reservation.',
+    );
+  }
   return outcome;
 });
 
