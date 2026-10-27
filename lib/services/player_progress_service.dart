@@ -387,6 +387,11 @@ class PlayerProgressService {
     try {
       final result = await _functions.httpsCallable('restartGameSession').call({
         'chapterIndex': chapterIndex,
+        // Bind this reset to the session it is replacing. If two reset
+        // requests race, only the first can replace/charge that session.
+        // A lost response is recovered by refresh() below, not by charging
+        // another replacement session.
+        'sessionId': ?previousSessionId,
         'replaySessionId': ?replaySessionId,
         'replayLog': ?replayLog,
         'initialTiles': initialTiles,
