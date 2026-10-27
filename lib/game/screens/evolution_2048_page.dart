@@ -345,8 +345,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       unawaited(
         startedFuture.then((started) async {
-          if (!started || !mounted || generation != _gameSessionGeneration || !_ownsCurrentAccount) {
-            if (mounted && generation == _gameSessionGeneration) {
+          if (!started) {
+            if (mounted &&
+                generation == _gameSessionGeneration &&
+                _ownsCurrentAccount) {
               newEngine.stopGameTimer();
               await newEngine.flushLocalSave();
               ToolManager.restoreSessionUsageFromReplayLog(
@@ -360,11 +362,24 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             }
             return;
           }
-          // startGameSession has now bound SaveManager to the new server
-          // session. Persist the visible board again with that binding so
-          // re-entry cannot fall back to the previous snapshot.
+
+          // The server may commit the session after this page has been popped.
+          // Persist the snapshot as soon as the session ID is bound even when
+          // the widget is no longer mounted; otherwise the server retains an
+          // active, charged session with no resumable local board.
+          if (FirebaseAuth.instance.currentUser?.uid != _accountUidAtCreation ||
+              SaveManager.accountUid != _accountUidAtCreation ||
+              generation != _gameSessionGeneration) {
+            return;
+          }
           await newEngine.flushLocalSave();
           await SaveManager.save(newEngine.createSaveData());
+
+          if (!mounted ||
+              generation != _gameSessionGeneration ||
+              !_ownsCurrentAccount) {
+            return;
+          }
           unawaited(_refreshMountedToolInventory(generation));
         }).catchError((_) {}),
       );
