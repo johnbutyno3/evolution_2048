@@ -71,6 +71,31 @@ Deno.serve(async (req: Request) => {
     // Until a trusted verification flow restores an entitlement, expose FREE.
     const effectiveTier = membership.status === "revoked" ? "FREE" : membership.tier;
 
+    // Daily reward is attempted only after the server confirms an active account
+    // and membership row. The database RPC is idempotent by account-local date.
+    let goldBalance = Number(wallet.balance);
+    let dailyGold: Record<string, unknown> = {
+      claimed: false,
+      reason: "NOT_ELIGIBLE",
+    };
+    const dailyClaimResult = await service.rpc("claim_daily_gold", {
+      p_user_id: user.id,
+    });
+    if (dailyClaimResult.error) {
+      console.error("daily_gold_claim_failed", {
+        userId: user.id,
+        code: dailyClaimResult.error.code,
+      });
+      return jsonResponse({ error: "ACCOUNT_SNAPSHOT_UNAVAILABLE" }, 503);
+    }
+    if (dailyClaimResult.data && typeof dailyClaimResult.data === "object") {
+      dailyGold = dailyClaimResult.data as Record<string, unknown>;
+      const claimBalance = dailyGold["gold"];
+      if (typeof claimBalance === "number" || typeof claimBalance === "string") {
+        goldBalance = Number(claimBalance);
+      }
+    }
+
     const tools: Record<string, number> = {
       UNDO: 0,
       REMOVE: 0,
@@ -93,7 +118,8 @@ Deno.serve(async (req: Request) => {
         status: membership.status,
         verifiedAt: membership.verified_at,
       },
-      gold: Number(wallet.balance),
+      gold: goldBalance,
+      dailyGold,
       lives: {
         count: Number(lifeWallet.life_count),
         unlimited: effectiveTier === "PREMIUM" || effectiveTier === "GOLDEN",
