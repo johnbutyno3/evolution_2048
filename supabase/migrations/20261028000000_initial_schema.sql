@@ -218,6 +218,9 @@ create policy profiles_select_own on public.profiles
 create policy profiles_update_own on public.profiles
   for update to authenticated using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
+-- Column grants prevent a player from editing account_status or server metadata.
+revoke update on public.profiles from authenticated;
+grant update (display_name, locale_code) on public.profiles to authenticated;
 
 create policy memberships_select_own on public.memberships
   for select to authenticated using (user_id = (select auth.uid()));
@@ -237,7 +240,16 @@ create policy purchase_transactions_select_own on public.purchase_transactions
 create policy support_tickets_select_own on public.support_tickets
   for select to authenticated using (user_id = (select auth.uid()));
 create policy support_tickets_insert_own on public.support_tickets
-  for insert to authenticated with check (user_id = (select auth.uid()));
+  for insert to authenticated with check (
+    user_id = (select auth.uid())
+    and (
+      related_purchase_id is null
+      or exists (
+        select 1 from public.purchase_transactions p
+        where p.id = related_purchase_id and p.user_id = (select auth.uid())
+      )
+    )
+  );
 create policy support_tickets_select_admin on public.support_tickets
   for select to authenticated using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 create policy support_messages_select_ticket_owner_or_admin on public.support_messages
