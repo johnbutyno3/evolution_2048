@@ -447,10 +447,27 @@ exports.submitPurchaseForVerification = onCall(async (request) => {
       return { purchaseId, status: purchase.status };
     }
 
+    // A pending intent may be bound once. Never let a second client request
+    // replace the transaction/provider already associated with that intent.
+    if (purchase.transactionId && purchase.transactionId !== transactionId) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Purchase intent is already bound to another transaction.',
+      );
+    }
+    if (purchase.provider !== 'pending' && purchase.provider !== provider) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Purchase intent is already bound to another provider.',
+      );
+    }
+
     const transactionSnapshot = await transaction.get(transactionRef);
     if (transactionSnapshot.exists) {
       const existing = transactionSnapshot.data();
-      if (existing.purchaseId !== purchaseId || existing.uid !== uid) {
+      if (existing.purchaseId !== purchaseId ||
+          existing.uid !== uid ||
+          existing.provider !== provider) {
         await recordSecurityEvent({
           uid,
           action: 'submit_purchase_for_verification',
