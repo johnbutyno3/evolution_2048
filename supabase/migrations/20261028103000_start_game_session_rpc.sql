@@ -6,7 +6,8 @@ create or replace function public.start_game_session(
   p_request_id uuid,
   p_game_id uuid,
   p_chapter_code text,
-  p_previous_game_id uuid default null
+  p_previous_game_id uuid default null,
+  p_initial_tiles jsonb default null
 )
 returns jsonb
 language plpgsql
@@ -25,11 +26,31 @@ declare
   v_life_result jsonb;
   v_session public.game_sessions%rowtype;
   v_unlimited boolean;
+  v_tile jsonb;
+  v_nonempty_tiles integer := 0;
 begin
   if p_user_id is null or p_request_id is null or p_game_id is null
     or p_chapter_code not in ('C1', 'C2', 'C3', 'C4', 'C5', 'C6')
-    or p_game_id = p_previous_game_id then
+    or p_game_id = p_previous_game_id
+    or p_initial_tiles is null
+    or pg_catalog.jsonb_typeof(p_initial_tiles) <> 'array'
+    or pg_catalog.jsonb_array_length(p_initial_tiles) <> 16 then
     raise exception using errcode = '22023', message = 'INVALID_GAME_SESSION_REQUEST';
+  end if;
+
+  for v_tile in
+    select value from pg_catalog.jsonb_array_elements(p_initial_tiles) as tiles(value)
+  loop
+    if v_tile = 'null'::jsonb then
+      continue;
+    elsif v_tile <> '2'::jsonb and v_tile <> '4'::jsonb then
+      raise exception using errcode = '22023', message = 'INVALID_INITIAL_TILES';
+    end if;
+    v_nonempty_tiles := v_nonempty_tiles + 1;
+  end loop;
+
+  if v_nonempty_tiles <> 2 then
+    raise exception using errcode = '22023', message = 'INVALID_INITIAL_TILES';
   end if;
 
   -- Serialize session starts per user to prevent concurrent new-game races.
@@ -57,7 +78,9 @@ begin
     from public.game_sessions
     where user_id = p_user_id and request_id = p_request_id;
   if found then
-    if v_existing.game_id <> p_game_id or v_existing.chapter_code <> p_chapter_code then
+    if v_existing.game_id <> p_game_id
+      or v_existing.chapter_code <> p_chapter_code
+      or v_existing.initial_tiles is distinct from p_initial_tiles then
       raise exception using errcode = '23505', message = 'REQUEST_ID_REUSED_WITH_DIFFERENT_PAYLOAD';
     end if;
     select life_count, next_regen_at into v_lives, v_next_regen_at
@@ -130,10 +153,10 @@ begin
   end if;
 
   insert into public.game_sessions (
-    game_id, user_id, chapter_code, state, request_id, event_sequence
+    game_id, user_id, chapter_code, state, request_id, event_sequence, initial_tiles
   )
   values (
-    p_game_id, p_user_id, p_chapter_code, 'ACTIVE', p_request_id, 0
+    p_game_id, p_user_id, p_chapter_code, 'ACTIVE', p_request_id, 0, p_initial_tiles
   )
   returning * into v_session;
 
@@ -151,7 +174,7 @@ begin
 end;
 $$;
 
-revoke all on function public.start_game_session(uuid, uuid, uuid, text, uuid)
+revoke all on function public.start_game_session(uuid, uuid, uuid, text, uuid, jsonb)
   from public, anon, authenticated;
-grant execute on function public.start_game_session(uuid, uuid, uuid, text, uuid)
+grant execute on function public.start_game_session(uuid, uuid, uuid, text, uuid, jsonb)
   to service_role;
