@@ -31,10 +31,14 @@ Deno.serve(async (req: Request) => {
     const previousGameId = typeof previousRaw === "string" && previousRaw.length > 0
       ? previousRaw
       : null;
+    const initialTiles = body["initialTiles"];
 
     if (!UUID_PATTERN.test(requestId) || !UUID_PATTERN.test(gameId) ||
       (previousGameId !== null && !UUID_PATTERN.test(previousGameId)) ||
-      !CHAPTER_CODES.has(chapterCode)) {
+      !CHAPTER_CODES.has(chapterCode) ||
+      !Array.isArray(initialTiles) || initialTiles.length !== 16 ||
+      initialTiles.filter((value) => value !== null).length !== 2 ||
+      initialTiles.some((value) => value !== null && value !== 2 && value !== 4)) {
       return jsonResponse({ error: "INVALID_GAME_SESSION_REQUEST" }, 400);
     }
 
@@ -45,6 +49,7 @@ Deno.serve(async (req: Request) => {
       p_game_id: gameId,
       p_chapter_code: chapterCode,
       p_previous_game_id: previousGameId,
+      p_initial_tiles: initialTiles,
     });
 
     if (error) {
