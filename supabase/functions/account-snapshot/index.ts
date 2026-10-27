@@ -12,7 +12,7 @@ Deno.serve(async (req: Request) => {
     const user = await authenticateRequest(req);
     const service = createServiceClient();
 
-    const [profileResult, membershipResult, walletResult, toolsResult] = await Promise.all([
+    const [profileResult, membershipResult, walletResult, lifeResult, toolsResult] = await Promise.all([
       service.from("profiles")
         .select("display_name, locale_code, account_status, updated_at")
         .eq("user_id", user.id).maybeSingle(),
@@ -22,13 +22,16 @@ Deno.serve(async (req: Request) => {
       service.from("gold_wallets")
         .select("balance, updated_at")
         .eq("user_id", user.id).maybeSingle(),
+      service.from("life_wallets")
+        .select("life_count, next_regen_at, updated_at")
+        .eq("user_id", user.id).maybeSingle(),
       service.from("tool_inventory")
         .select("tool_code, quantity, updated_at")
         .eq("user_id", user.id),
     ]);
 
     const firstError = profileResult.error ?? membershipResult.error ??
-      walletResult.error ?? toolsResult.error;
+      walletResult.error ?? lifeResult.error ?? toolsResult.error;
     if (firstError) {
       console.error("account_snapshot_read_failed", {
         userId: user.id,
@@ -40,7 +43,8 @@ Deno.serve(async (req: Request) => {
     const profile = profileResult.data;
     const membership = membershipResult.data;
     const wallet = walletResult.data;
-    if (!profile || !membership || !wallet) {
+    const lifeWallet = lifeResult.data;
+    if (!profile || !membership || !wallet || !lifeWallet) {
       // This is an integrity issue, not permission to invent client-side balances.
       console.error("account_snapshot_missing_required_row", { userId: user.id });
       return jsonResponse({ error: "ACCOUNT_SETUP_INCOMPLETE" }, 503);
@@ -90,6 +94,11 @@ Deno.serve(async (req: Request) => {
         verifiedAt: membership.verified_at,
       },
       gold: Number(wallet.balance),
+      lives: {
+        count: Number(lifeWallet.life_count),
+        unlimited: effectiveTier === "PREMIUM" || effectiveTier === "GOLDEN",
+        nextRegenAt: lifeWallet.next_regen_at,
+      },
       tools,
       serverTime: new Date().toISOString(),
     });
