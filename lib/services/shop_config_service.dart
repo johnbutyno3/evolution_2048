@@ -1,11 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'supabase_backend.dart';
 
 class ShopConfigService {
   ShopConfigService._();
 
-  static final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  /// Local fallback only. The remote document is the source of shop prices.
+  /// Safe local fallback while Supabase is not configured or reachable.
   static const Map<String, dynamic> defaults = {
     'gold300UsdPrice': '0.99',
     'gold1000UsdPrice': '2.99',
@@ -38,19 +38,31 @@ class ShopConfigService {
       return Map<String, dynamic>.from(_cached!);
     }
 
+    if (!SupabaseBackend.isInitialized) {
+      final config = Map<String, dynamic>.from(defaults);
+      _cached ??= config;
+      return Map<String, dynamic>.from(_cached!);
+    }
+
     try {
-      final snapshot = await _db.collection('shop_config').doc('global').get();
-      final remote = snapshot.data();
+      final remote = await SupabaseBackend.client
+          .from('shop_config')
+          .select('currency, products')
+          .eq('id', 'global')
+          .maybeSingle();
 
       final config = <String, dynamic>{
         ...defaults,
         ..._legacyPriceValues(remote),
         if (remote?['currency'] is String) 'currency': remote!['currency'],
-        if (remote != null)
-          'products': remote['products'] ?? <String, dynamic>{},
+        if (remote != null) 'products': remote['products'] ?? <String, dynamic>{},
       };
       _cached = config;
       return Map<String, dynamic>.from(config);
+    } on PostgrestException {
+      final config = Map<String, dynamic>.from(defaults);
+      _cached ??= config;
+      return Map<String, dynamic>.from(_cached!);
     } catch (_) {
       final config = Map<String, dynamic>.from(defaults);
       _cached ??= config;
