@@ -71,6 +71,29 @@ Deno.serve(async (req: Request) => {
     // Until a trusted verification flow restores an entitlement, expose FREE.
     const effectiveTier = membership.status === "revoked" ? "FREE" : membership.tier;
 
+    // FREE life regeneration is computed from server time, not the device clock.
+    let lifeCount = Number(lifeWallet.life_count);
+    let nextRegenAt: string | null = lifeWallet.next_regen_at;
+    if (effectiveTier === "FREE") {
+      const regenResult = await service.rpc("regenerate_lives", {
+        p_user_id: user.id,
+      });
+      if (regenResult.error) {
+        console.error("life_regeneration_failed", {
+          userId: user.id,
+          code: regenResult.error.code,
+        });
+        return jsonResponse({ error: "ACCOUNT_SNAPSHOT_UNAVAILABLE" }, 503);
+      }
+      if (regenResult.data && typeof regenResult.data === "object") {
+        const regen = regenResult.data as Record<string, unknown>;
+        if (typeof regen["lives"] === "number") lifeCount = regen["lives"];
+        if (typeof regen["nextRegenAt"] === "string" || regen["nextRegenAt"] === null) {
+          nextRegenAt = regen["nextRegenAt"] as string | null;
+        }
+      }
+    }
+
     // Daily reward is attempted only after the server confirms an active account
     // and membership row. The database RPC is idempotent by account-local date.
     let goldBalance = Number(wallet.balance);
@@ -121,9 +144,9 @@ Deno.serve(async (req: Request) => {
       gold: goldBalance,
       dailyGold,
       lives: {
-        count: Number(lifeWallet.life_count),
+        count: lifeCount,
         unlimited: effectiveTier === "PREMIUM" || effectiveTier === "GOLDEN",
-        nextRegenAt: lifeWallet.next_regen_at,
+        nextRegenAt,
       },
       tools,
       serverTime: new Date().toISOString(),
