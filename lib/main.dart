@@ -11,6 +11,7 @@ import 'screens/login_register_page.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
+import 'services/supabase_backend.dart';
 
 // Web debug can optionally receive a locally supplied, already-registered
 // debug token. The token must never be committed to source control.
@@ -40,6 +41,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Supabase is being introduced service-by-service. Keep the existing Firebase
+  // authentication path until every dependent service has been migrated.
+  // Only public client keys may be supplied via dart-define.
+  await SupabaseBackend.initialize(
+    url: const String.fromEnvironment('SUPABASE_URL'),
+    publishableKey: const String.fromEnvironment(
+      'SUPABASE_PUBLISHABLE_KEY',
+      defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'),
+    ),
+  );
 
   if (kIsWeb && !kDebugMode && kFirebaseAppCheckWebSiteKey.isEmpty) {
     throw StateError(
