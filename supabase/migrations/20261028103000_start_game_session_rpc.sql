@@ -88,6 +88,18 @@ begin
         set state = 'ABANDONED', end_reason = 'PLAYER_ABANDONED'
         where game_id = p_previous_game_id and user_id = p_user_id;
     end if;
+
+    select * into v_active
+      from public.game_sessions
+      where user_id = p_user_id
+        and state = 'ACTIVE'
+        and game_id <> p_previous_game_id
+      order by updated_at desc
+      limit 1
+      for update;
+    if found then
+      raise exception using errcode = '23505', message = 'ACTIVE_SESSION_EXISTS';
+    end if;
   else
     select * into v_active
       from public.game_sessions
