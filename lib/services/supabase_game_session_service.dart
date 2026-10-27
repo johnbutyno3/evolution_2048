@@ -15,7 +15,8 @@ class SupabaseGameSessionException implements Exception {
 
 /// Supabase transport for authoritative game-session operations.
 /// IDs are supplied by the caller and must be UUIDs; no Firebase session IDs
-/// should be passed into this API.
+/// should be passed into this API. The initial board must contain exactly two
+/// non-null values (2 or 4) and fourteen null cells.
 class SupabaseGameSessionService {
   SupabaseGameSessionService._();
 
@@ -23,6 +24,7 @@ class SupabaseGameSessionService {
     required String requestId,
     required String gameId,
     required String chapterCode,
+    required List<int?> initialTiles,
     String? previousGameId,
   }) async {
     return _invoke(
@@ -32,6 +34,7 @@ class SupabaseGameSessionService {
         'gameId': gameId,
         'chapterCode': chapterCode,
         'previousGameId': previousGameId,
+        'initialTiles': initialTiles,
       },
     );
   }
