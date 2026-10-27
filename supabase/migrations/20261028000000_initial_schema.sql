@@ -238,6 +238,8 @@ create policy support_tickets_select_own on public.support_tickets
   for select to authenticated using (user_id = (select auth.uid()));
 create policy support_tickets_insert_own on public.support_tickets
   for insert to authenticated with check (user_id = (select auth.uid()));
+create policy support_tickets_select_admin on public.support_tickets
+  for select to authenticated using ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 create policy support_messages_select_ticket_owner_or_admin on public.support_messages
   for select to authenticated using (
     exists (
