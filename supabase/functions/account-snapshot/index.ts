@@ -54,7 +54,7 @@ Deno.serve(async (req: Request) => {
       }, 423);
     }
 
-    if (membership.status !== "active") {
+    if (membership.status === "under_review") {
       return jsonResponse({
         error: "MEMBERSHIP_REQUIRES_REVIEW",
         accountStatus: profile.account_status,
@@ -62,6 +62,10 @@ Deno.serve(async (req: Request) => {
         supportAvailable: true,
       }, 423);
     }
+
+    // A revoked purchase entitlement does not itself lock the account.
+    // Until a trusted verification flow restores an entitlement, expose FREE.
+    const effectiveTier = membership.status === "revoked" ? "FREE" : membership.tier;
 
     const tools: Record<string, number> = {
       UNDO: 0,
@@ -81,7 +85,7 @@ Deno.serve(async (req: Request) => {
       localeCode: profile.locale_code,
       accountStatus: profile.account_status,
       membership: {
-        tier: membership.tier,
+        tier: effectiveTier,
         status: membership.status,
         verifiedAt: membership.verified_at,
       },
