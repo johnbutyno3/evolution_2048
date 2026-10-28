@@ -14,7 +14,7 @@ Deno.serve(async (req: Request) => {
 
     const [profileResult, membershipResult, walletResult, lifeResult, toolsResult] = await Promise.all([
       service.from("profiles")
-        .select("display_name, locale_code, account_status, updated_at")
+        .select("display_name, avatar_index, locale_code, account_status, updated_at")
         .eq("user_id", user.id).maybeSingle(),
       service.from("memberships")
         .select("tier, status, verified_at, updated_at")
@@ -134,6 +134,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({
       userId: user.id,
       displayName: profile.display_name,
+      avatarIndex: profile.avatar_index,
       localeCode: profile.locale_code,
       accountStatus: profile.account_status,
       membership: {
