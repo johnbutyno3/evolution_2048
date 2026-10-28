@@ -7,6 +7,11 @@ import 'supabase_backend.dart';
 class SupabaseAuthService {
   SupabaseAuthService._();
 
+  /// Must also be allow-listed in Supabase Dashboard > Authentication > URL
+  /// Configuration. Android and iOS native projects register this callback.
+  static const String nativeOAuthRedirectUri =
+      'io.supabase.rebirth2048://login-callback/';
+
   static GoTrueClient get _auth => SupabaseBackend.client.auth;
 
   static Session? get currentSession => _auth.currentSession;
@@ -34,6 +39,18 @@ class SupabaseAuthService {
       password: password,
     );
   }
+
+  /// Starts Google OAuth with the shared native callback URI.
+  static Future<bool> signInWithGoogle() => signInWithOAuth(
+        provider: OAuthProvider.google,
+        redirectTo: nativeOAuthRedirectUri,
+      );
+
+  /// Starts Apple OAuth with the shared native callback URI.
+  static Future<bool> signInWithApple() => signInWithOAuth(
+        provider: OAuthProvider.apple,
+        redirectTo: nativeOAuthRedirectUri,
+      );
 
   /// Starts the Supabase-hosted OAuth flow.
   ///
