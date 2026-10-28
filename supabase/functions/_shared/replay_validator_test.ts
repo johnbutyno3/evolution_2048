@@ -66,3 +66,35 @@ Deno.test("chapter tool permissions remain restricted", () => {
     "C3 must allow UNDO, REMOVE and SWAP.",
   );
 });
+
+Deno.test("replay validator rejects missing initial tiles with a validation error", () => {
+  const replayLog = { version: 1, chapter: "ocean", events: [] };
+  let message = "";
+  try {
+    replayGame({
+      replayLog,
+      chapterIndex: 0,
+      requireCompletion: false,
+    });
+  } catch (error) {
+    message = error instanceof Error ? error.message : "";
+  }
+  assert(
+    message === "Initial board must contain exactly 16 cells.",
+    "Missing initial tiles must produce a controlled validation error.",
+  );
+});
+
+Deno.test("replay validator rejects non-array initial tiles", () => {
+  const replayLog = {
+    version: 1,
+    chapter: "ocean",
+    initialTiles: { 0: 2, 1: 2 },
+    events: [],
+  };
+  expectThrows(() => replayGame({
+    replayLog,
+    chapterIndex: 0,
+    requireCompletion: false,
+  }), "Non-array initial tiles must be rejected.");
+});
