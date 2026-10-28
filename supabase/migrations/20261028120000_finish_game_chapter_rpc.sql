@@ -119,9 +119,10 @@ begin
   v_tool_penalty := (p_payload ->> 'toolPenaltyTotal')::bigint;
   v_usage := p_payload -> 'toolUsage';
 
-  if v_score < 0 or v_highest < v_target
-    or v_event_count < 0 or v_event_count > 5000
-    or v_tool_penalty < 0
+  if v_score is null or v_score < 0
+    or v_highest is null or v_highest < v_target
+    or v_event_count is null or v_event_count < 0 or v_event_count > 5000
+    or v_tool_penalty is null or v_tool_penalty < 0
     or v_usage is null or pg_catalog.jsonb_typeof(v_usage) <> 'object' then
     raise exception using errcode = '22023', message = 'INVALID_VALIDATED_REPLAY_RESULT';
   end if;
