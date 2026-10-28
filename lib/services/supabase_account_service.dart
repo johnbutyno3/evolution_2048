@@ -93,7 +93,11 @@ class SupabaseAccountSnapshot {
     if (tier is! String ||
         !const {'FREE', 'PREMIUM', 'GOLDEN'}.contains(tier) ||
         status is! String ||
-        !const {'active', 'revoked', 'under_review'}.contains(status)) {
+        !const {'active', 'revoked'}.contains(status) ||
+        (status == 'revoked' && tier != 'FREE')) {
+      // The Edge Function must downgrade revoked entitlements to FREE and
+      // return 423 for memberships under review. Never accept a success
+      // payload that grants stale or disputed paid entitlements.
       throw const SupabaseAccountException(
         'INVALID_RESPONSE',
         'The account service returned invalid membership information.',
