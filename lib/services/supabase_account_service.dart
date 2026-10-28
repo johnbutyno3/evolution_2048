@@ -66,6 +66,7 @@ class SupabaseAccountSnapshot {
     final displayName = data['displayName'];
     final avatarIndex = _nonNegativeInt(data['avatarIndex'], 'avatarIndex');
     final localeCode = data['localeCode'];
+    final accountStatus = data['accountStatus'];
     final membership = data['membership'];
     final lives = data['lives'];
     final rawTools = data['tools'];
@@ -74,6 +75,8 @@ class SupabaseAccountSnapshot {
     if (userId is! String || userId.isEmpty ||
         displayName is! String ||
         localeCode is! String ||
+        !const {'en', 'zh'}.contains(localeCode) ||
+        accountStatus != 'active' ||
         membership is! Map ||
         lives is! Map ||
         rawTools is! Map ||
@@ -105,6 +108,13 @@ class SupabaseAccountSnapshot {
       );
     }
     final lifeCount = _nonNegativeInt(lives['count'], 'lives.count');
+    final expectedUnlimited = tier == 'PREMIUM' || tier == 'GOLDEN';
+    if (unlimited != expectedUnlimited) {
+      throw const SupabaseAccountException(
+        'INVALID_RESPONSE',
+        'Membership and life entitlements do not agree.',
+      );
+    }
     final gold = _nonNegativeInt(data['gold'], 'gold');
     final rawNextRegen = lives['nextRegenAt'];
     final nextRegenAt = rawNextRegen == null
@@ -185,7 +195,17 @@ class SupabaseAccountService {
           'The account service returned an invalid response.',
         );
       }
-      return SupabaseAccountSnapshot.parse(Map<String, dynamic>.from(data));
+      final snapshot = SupabaseAccountSnapshot.parse(
+        Map<String, dynamic>.from(data),
+      );
+      final authenticatedUserId = client.auth.currentUser?.id;
+      if (authenticatedUserId == null || snapshot.userId != authenticatedUserId) {
+        throw const SupabaseAccountException(
+          'ACCOUNT_ID_MISMATCH',
+          'The returned account does not match the signed-in user.',
+        );
+      }
+      return snapshot;
     } on FunctionException catch (error) {
       final details = error.details;
       final payload = details is Map
