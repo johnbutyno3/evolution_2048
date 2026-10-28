@@ -212,6 +212,9 @@ function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requir
     fail('Replay event count is invalid.', { count: Array.isArray(events) ? events.length : null });
   }
 
+  if (!Array.isArray(replayLog.initialTiles)) {
+    fail('Initial board must contain exactly 16 cells.');
+  }
   const board = replayLog.initialTiles.slice();
   validateInitialTiles(board, target);
   if (expectedInitialTiles != null &&
