@@ -60,6 +60,9 @@ Deno.serve(async (req: Request) => {
       if (message.includes("MEMBERSHIP_REQUIRES_REVIEW")) {
         return jsonResponse({ error: "MEMBERSHIP_REQUIRES_REVIEW", supportAvailable: true }, 423);
       }
+      if (message.includes("CHAPTER_LOCKED")) {
+        return jsonResponse({ error: "CHAPTER_LOCKED" }, 403);
+      }
       if (message.includes("LIFE_BALANCE_INSUFFICIENT_OR_MISSING")) {
         return jsonResponse({ error: "OUT_OF_LIVES" }, 402);
       }
