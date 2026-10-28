@@ -135,15 +135,14 @@ class SupabaseGameSessionService {
   static String _friendlyMessage(String code) {
     switch (code) {
       case 'REPLAY_VALIDATION_FAILED':
+        return 'Game replay could not be validated. Please retry.';
       case 'ACCOUNT_RESTRICTED':
+      case 'MEMBERSHIP_REQUIRES_REVIEW':
         return 'Account access is restricted. Support remains available.';
       case 'OUT_OF_LIVES':
         return 'No lives remain. Wait for regeneration before starting a new game.';
       case 'ACTIVE_SESSION_EXISTS':
         return 'An active game session already exists. Resume it before starting another.';
-      case 'ACCOUNT_RESTRICTED':
-      case 'MEMBERSHIP_REQUIRES_REVIEW':
-        return 'Account access is restricted. Support remains available.';
       case 'CHECKPOINT_SEQUENCE_CONFLICT':
         return 'A different checkpoint already exists for this operation sequence.';
       default:
