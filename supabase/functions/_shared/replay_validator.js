@@ -179,6 +179,16 @@ function initialTilesEqual(actual, expected) {
     actual.every((value, index) => value === expected[index]);
 }
 
+/**
+ * @param {{
+ *   replayLog: any,
+ *   chapterIndex: number,
+ *   targetValue?: number,
+ *   allowedTools?: string[],
+ *   requireCompletion?: boolean,
+ *   expectedInitialTiles?: (number | null)[] | null
+ * }} options
+ */
 function replayGame({ replayLog, chapterIndex, targetValue, allowedTools, requireCompletion = true, expectedInitialTiles = null }) {
   validateChapter(chapterIndex);
   const target = targetValue ?? targetForChapter(chapterIndex);
