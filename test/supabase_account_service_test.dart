@@ -89,6 +89,16 @@ void main() {
     );
   });
 
+  test('accepts revoked membership only after downgrade to FREE', () {
+    final data = validSnapshot(tier: 'FREE');
+    (data['membership'] as Map<String, dynamic>)['status'] = 'revoked';
+
+    final snapshot = SupabaseAccountSnapshot.parse(data);
+    expect(snapshot.membershipTier, 'FREE');
+    expect(snapshot.membershipStatus, 'revoked');
+    expect(snapshot.unlimitedLives, isFalse);
+  });
+
   test('rejects revoked membership with stale paid tier', () {
     final data = validSnapshot(tier: 'FREE');
     (data['membership'] as Map<String, dynamic>)['tier'] = 'GOLDEN';
