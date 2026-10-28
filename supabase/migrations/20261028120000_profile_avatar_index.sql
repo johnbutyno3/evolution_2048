@@ -1,4 +1,4 @@
--- Add the server-owned avatar field consumed by Supabase profile/account services.
+-- Add the avatar field consumed by Supabase profile/account services.
 -- Keep this additive so it is safe for an already-created project.
 
 alter table public.profiles
@@ -19,5 +19,10 @@ begin
 end;
 $$;
 
+-- The initial schema revoked table-wide UPDATE and granted only display_name
+-- and locale_code. Avatar selection is a user-owned cosmetic preference, so
+-- explicitly grant only this additional column rather than broadening UPDATE.
+grant update (avatar_index) on public.profiles to authenticated;
+
 comment on column public.profiles.avatar_index is
-  'Server-owned player avatar index, constrained to the bundled avatar range 0..53.';
+  'User-selected avatar index, constrained to the bundled avatar range 0..53.';
