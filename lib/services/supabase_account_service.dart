@@ -13,12 +13,138 @@ class SupabaseAccountException implements Exception {
   String toString() => '$code: $message';
 }
 
+/// A validated view of server-owned entitlements. This object can only be
+/// constructed from a structurally valid account-snapshot response.
+class SupabaseAccountSnapshot {
+  const SupabaseAccountSnapshot({
+    required this.userId,
+    required this.displayName,
+    required this.avatarIndex,
+    required this.localeCode,
+    required this.membershipTier,
+    required this.membershipStatus,
+    required this.gold,
+    required this.lifeCount,
+    required this.unlimitedLives,
+    required this.nextRegenAt,
+    required this.tools,
+    required this.serverTime,
+  });
+
+  final String userId;
+  final String displayName;
+  final int avatarIndex;
+  final String localeCode;
+  final String membershipTier;
+  final String membershipStatus;
+  final int gold;
+  final int lifeCount;
+  final bool unlimitedLives;
+  final DateTime? nextRegenAt;
+  final Map<String, int> tools;
+  final DateTime serverTime;
+
+  static int _nonNegativeInt(dynamic value, String field) {
+    final parsed = value is int
+        ? value
+        : value is num && value.isFinite && value == value.roundToDouble()
+        ? value.toInt()
+        : value is String
+        ? int.tryParse(value)
+        : null;
+    if (parsed == null || parsed < 0) {
+      throw SupabaseAccountException(
+        'INVALID_RESPONSE',
+        'The account service returned an invalid $field value.',
+      );
+    }
+    return parsed;
+  }
+
+  static SupabaseAccountSnapshot parse(Map<String, dynamic> data) {
+    final userId = data['userId'];
+    final displayName = data['displayName'];
+    final avatarIndex = _nonNegativeInt(data['avatarIndex'], 'avatarIndex');
+    final localeCode = data['localeCode'];
+    final membership = data['membership'];
+    final lives = data['lives'];
+    final rawTools = data['tools'];
+    final serverTime = DateTime.tryParse(data['serverTime']?.toString() ?? '');
+
+    if (userId is! String || userId.isEmpty ||
+        displayName is! String ||
+        localeCode is! String ||
+        membership is! Map ||
+        lives is! Map ||
+        rawTools is! Map ||
+        serverTime == null ||
+        avatarIndex > 53) {
+      throw const SupabaseAccountException(
+        'INVALID_RESPONSE',
+        'The account service returned an incomplete account snapshot.',
+      );
+    }
+
+    final tier = membership['tier'];
+    final status = membership['status'];
+    if (tier is! String ||
+        !const {'FREE', 'PREMIUM', 'GOLDEN'}.contains(tier) ||
+        status is! String ||
+        !const {'active', 'revoked', 'under_review'}.contains(status)) {
+      throw const SupabaseAccountException(
+        'INVALID_RESPONSE',
+        'The account service returned invalid membership information.',
+      );
+    }
+
+    final unlimited = lives['unlimited'];
+    if (unlimited is! bool) {
+      throw const SupabaseAccountException(
+        'INVALID_RESPONSE',
+        'The account service returned invalid life entitlements.',
+      );
+    }
+    final lifeCount = _nonNegativeInt(lives['count'], 'lives.count');
+    final gold = _nonNegativeInt(data['gold'], 'gold');
+    final rawNextRegen = lives['nextRegenAt'];
+    final nextRegenAt = rawNextRegen == null
+        ? null
+        : DateTime.tryParse(rawNextRegen.toString());
+    if (rawNextRegen != null && nextRegenAt == null) {
+      throw const SupabaseAccountException(
+        'INVALID_RESPONSE',
+        'The account service returned an invalid life regeneration time.',
+      );
+    }
+
+    final tools = <String, int>{};
+    for (final code in const ['UNDO', 'REMOVE', 'SWAP', 'DUPLICATE']) {
+      tools[code] = _nonNegativeInt(rawTools[code], 'tools.$code');
+    }
+
+    return SupabaseAccountSnapshot(
+      userId: userId,
+      displayName: displayName,
+      avatarIndex: avatarIndex,
+      localeCode: localeCode,
+      membershipTier: tier,
+      membershipStatus: status,
+      gold: gold,
+      lifeCount: lifeCount,
+      unlimitedLives: unlimited,
+      nextRegenAt: nextRegenAt,
+      tools: Map.unmodifiable(tools),
+      serverTime: serverTime,
+    );
+  }
+}
+
 /// Reads the authoritative account snapshot from the trusted Edge Function.
-/// This is intentionally read-only; clients cannot grant themselves assets.
+/// The response is validated before any caller can use it as entitlements.
 class SupabaseAccountService {
   SupabaseAccountService._();
 
-  static Future<Map<String, dynamic>> fetchSnapshot() async {
+  static Future<SupabaseAccountSnapshot> fetchSnapshot() async {
     final client = SupabaseBackend.client;
     if (client.auth.currentSession == null) {
       throw const SupabaseAccountException(
@@ -59,7 +185,7 @@ class SupabaseAccountService {
           'The account service returned an invalid response.',
         );
       }
-      return Map<String, dynamic>.from(data);
+      return SupabaseAccountSnapshot.parse(Map<String, dynamic>.from(data));
     } on FunctionException catch (error) {
       final details = error.details;
       final payload = details is Map
