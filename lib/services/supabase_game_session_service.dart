@@ -39,6 +39,21 @@ class SupabaseGameSessionService {
     );
   }
 
+  static Future<Map<String, dynamic>> finishChapter({
+    required String gameId,
+    required String eventId,
+    required Map<String, dynamic> replayLog,
+  }) async {
+    return _invoke(
+      'finish-game-chapter',
+      <String, dynamic>{
+        'gameId': gameId,
+        'eventId': eventId,
+        'replayLog': replayLog,
+      },
+    );
+  }
+
   static Future<Map<String, dynamic>> saveCheckpoint({
     required String gameId,
     required int eventSequence,
@@ -119,6 +134,9 @@ class SupabaseGameSessionService {
 
   static String _friendlyMessage(String code) {
     switch (code) {
+      case 'REPLAY_VALIDATION_FAILED':
+      case 'ACCOUNT_RESTRICTED':
+        return 'Account access is restricted. Support remains available.';
       case 'OUT_OF_LIVES':
         return 'No lives remain. Wait for regeneration before starting a new game.';
       case 'ACTIVE_SESSION_EXISTS':
