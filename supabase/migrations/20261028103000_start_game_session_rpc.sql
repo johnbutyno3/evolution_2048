@@ -24,6 +24,7 @@ declare
   v_lives integer;
   v_next_regen_at timestamptz;
   v_life_result jsonb;
+  v_regen_result jsonb;
   v_session public.game_sessions%rowtype;
   v_unlimited boolean;
   v_tile jsonb;
@@ -137,6 +138,9 @@ begin
 
   v_unlimited := v_membership_status = 'active' and v_tier in ('PREMIUM', 'GOLDEN');
   if not v_unlimited then
+    -- Reconcile any elapsed regeneration before deciding whether a new game
+    -- can be started; this uses server time, not the device clock.
+    v_regen_result := public.regenerate_lives(p_user_id);
     v_life_result := public.apply_life_delta(
       p_user_id,
       -1,
