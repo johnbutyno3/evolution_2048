@@ -243,9 +243,13 @@ create policy purchase_transactions_select_own on public.purchase_transactions
 
 create policy support_tickets_select_own on public.support_tickets
   for select to authenticated using (user_id = (select auth.uid()));
+revoke insert on public.support_tickets from authenticated;
+grant insert (user_id, category, subject, related_purchase_id)
+  on public.support_tickets to authenticated;
 create policy support_tickets_insert_own on public.support_tickets
   for insert to authenticated with check (
     user_id = (select auth.uid())
+    and status = 'open'
     and (
       related_purchase_id is null
       or exists (
@@ -264,6 +268,9 @@ create policy support_messages_select_ticket_owner_or_admin on public.support_me
     )
     or (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
   );
+revoke insert on public.support_messages from authenticated;
+grant insert (ticket_id, sender_user_id, sender_role, body)
+  on public.support_messages to authenticated;
 create policy support_messages_insert_player_own_ticket on public.support_messages
   for insert to authenticated with check (
     sender_user_id = (select auth.uid())
