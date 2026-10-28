@@ -87,11 +87,12 @@ begin
       where user_id = p_user_id and life_count > 0
       returning life_count, next_regen_at into v_lives, v_next_regen_at;
   elsif p_reason = 'CHAPTER_COMPLETE_REFUND' then
-    -- Refund only up to the natural cap; never destroy bonus lives above 5.
+    -- Restore the life debited for this session, including when the wallet
+    -- previously held bonus lives above the natural regeneration cap.
     update public.life_wallets
-      set life_count = case when life_count < 5 then life_count + 1 else life_count end,
+      set life_count = life_count + 1,
           next_regen_at = case
-            when life_count < 5 and life_count + 1 >= 5 then null
+            when life_count + 1 >= 5 then null
             else next_regen_at
           end
       where user_id = p_user_id
