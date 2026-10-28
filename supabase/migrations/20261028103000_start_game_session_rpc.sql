@@ -27,6 +27,9 @@ declare
   v_regen_result jsonb;
   v_session public.game_sessions%rowtype;
   v_unlimited boolean;
+  v_chapter_index integer;
+  v_previous_chapter_code text;
+  v_previous_highest_stage integer;
   v_tile jsonb;
   v_nonempty_tiles integer := 0;
 begin
@@ -72,6 +75,20 @@ begin
   end if;
   if v_membership_status = 'under_review' then
     raise exception using errcode = '42501', message = 'MEMBERSHIP_REQUIRES_REVIEW';
+  end if;
+
+  v_chapter_index := case p_chapter_code
+    when 'C1' then 0 when 'C2' then 1 when 'C3' then 2
+    when 'C4' then 3 when 'C5' then 4 when 'C6' then 5
+    else null end;
+  if v_chapter_index > 0 then
+    v_previous_chapter_code := 'C' || v_chapter_index::text;
+    select highest_stage into v_previous_highest_stage
+      from public.game_progress
+      where user_id = p_user_id and chapter_code = v_previous_chapter_code;
+    if coalesce(v_previous_highest_stage, 0) < v_chapter_index + 11 then
+      raise exception using errcode = '42501', message = 'CHAPTER_LOCKED';
+    end if;
   end if;
 
   -- A retried request returns its existing session and never charges twice.
