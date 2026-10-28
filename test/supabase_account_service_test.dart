@@ -71,6 +71,33 @@ void main() {
     );
   });
 
+  test('rejects membership and unlimited-life disagreement', () {
+    final data = validSnapshot(tier: 'GOLDEN');
+    (data['lives'] as Map<String, dynamic>)['unlimited'] = false;
+    expect(
+      () => SupabaseAccountSnapshot.parse(data),
+      throwsA(isA<SupabaseAccountException>()),
+    );
+  });
+
+  test('rejects non-active account status in a success response', () {
+    final data = validSnapshot();
+    data['accountStatus'] = 'locked';
+    expect(
+      () => SupabaseAccountSnapshot.parse(data),
+      throwsA(isA<SupabaseAccountException>()),
+    );
+  });
+
+  test('rejects unsupported locale values', () {
+    final data = validSnapshot();
+    data['localeCode'] = 'fr';
+    expect(
+      () => SupabaseAccountSnapshot.parse(data),
+      throwsA(isA<SupabaseAccountException>()),
+    );
+  });
+
   test('rejects missing tool inventory values', () {
     final data = validSnapshot();
     (data['tools'] as Map<String, dynamic>).remove('SWAP');
