@@ -89,6 +89,28 @@ void main() {
     );
   });
 
+  test('rejects revoked membership with stale paid tier', () {
+    final data = validSnapshot(tier: 'FREE');
+    (data['membership'] as Map<String, dynamic>)['tier'] = 'GOLDEN';
+    (data['membership'] as Map<String, dynamic>)['status'] = 'revoked';
+    (data['lives'] as Map<String, dynamic>)['unlimited'] = true;
+
+    expect(
+      () => SupabaseAccountSnapshot.parse(data),
+      throwsA(isA<SupabaseAccountException>()),
+    );
+  });
+
+  test('rejects under-review membership in a success response', () {
+    final data = validSnapshot();
+    (data['membership'] as Map<String, dynamic>)['status'] = 'under_review';
+
+    expect(
+      () => SupabaseAccountSnapshot.parse(data),
+      throwsA(isA<SupabaseAccountException>()),
+    );
+  });
+
   test('rejects unsupported locale values', () {
     final data = validSnapshot();
     data['localeCode'] = 'fr';
