@@ -239,6 +239,12 @@ class SaveManager {
     await _preferences!.setString(_profileNameKey, name.trim());
   }
 
+  /// Removes the cached profile name when the authenticated account has none.
+  static Future<void> clearProfile() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    await _preferences!.remove(_profileNameKey);
+  }
+
   /// Returns the chapter containing the local unfinished board, if any.
   /// Only a playable, non-game-over/non-completed snapshot counts.
   static String? get unfinishedChapter {
