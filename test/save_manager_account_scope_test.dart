@@ -36,6 +36,25 @@ void main() {
     expect(SaveManager.loadCached(chapter: 'C1')?['tiles'], <int>[4, 0, 0, 0]);
   });
 
+  test('keeps server game-session bindings isolated by account', () async {
+    const accountA = '11111111-1111-4111-8111-111111111111';
+    const accountB = '22222222-2222-4222-8222-222222222222';
+
+    await SaveManager.bindAccountScope(accountA);
+    await SaveManager.setGameSessionId('session-account-a');
+    expect(SaveManager.gameSessionId, 'session-account-a');
+
+    await SaveManager.bindAccountScope(accountB);
+    expect(SaveManager.gameSessionId, isNull);
+    await SaveManager.setGameSessionId('session-account-b');
+
+    await SaveManager.bindAccountScope(accountA);
+    expect(SaveManager.gameSessionId, 'session-account-a');
+
+    await SaveManager.unbindAccountScope();
+    expect(SaveManager.gameSessionId, isNull);
+  });
+
   test('does not import guest saves into an authenticated account', () async {
     await SaveManager.unbindAccountScope();
     await SaveManager.save(<String, dynamic>{
@@ -89,6 +108,10 @@ void main() {
   test('rejects malformed account IDs', () async {
     expect(
       () => SaveManager.bindAccountScope('not-a-uuid'),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(
+      () => SaveManager.bindAccountScope('11111111-1111-1111-1111-111111111111'),
       throwsA(isA<ArgumentError>()),
     );
   });
