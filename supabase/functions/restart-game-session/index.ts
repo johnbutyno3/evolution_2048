@@ -54,7 +54,11 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "RESTART_UNAVAILABLE" }, 503);
     }
     if (!previous) return jsonResponse({ error: "PREVIOUS_SESSION_NOT_FOUND" }, 404);
-    if (previous.state !== "ACTIVE") return jsonResponse({ error: "GAME_SESSION_NOT_ACTIVE" }, 409);
+    // A retry after a committed restart must reach the idempotent RPC:
+    // the prior SESSION_ABANDON event and start request return their stored results.
+    if (previous.state !== "ACTIVE" && previous.state !== "ABANDONED") {
+      return jsonResponse({ error: "GAME_SESSION_NOT_ACTIVE" }, 409);
+    }
     const previousChapterIndex = CHAPTER_INDEX[previous.chapter_code];
     if (previousChapterIndex === undefined || !previous.initial_tiles) {
       return jsonResponse({ error: "INVALID_PREVIOUS_SESSION" }, 409);
