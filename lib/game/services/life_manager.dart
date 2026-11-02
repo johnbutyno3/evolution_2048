@@ -26,6 +26,32 @@ class LifeManager {
     await refreshFromServer();
   }
 
+  /// Applies the life entitlement from the validated Supabase account snapshot.
+  /// This is a local cache update only; the snapshot was already verified by
+  /// the trusted account-snapshot Edge Function.
+  static void applySupabaseSnapshot({
+    required int lives,
+    required bool unlimited,
+    required String membershipTier,
+    required DateTime? nextRegenAt,
+  }) {
+    if (lives < 0) throw ArgumentError.value(lives, 'lives');
+    if (!const {'FREE', 'PREMIUM', 'GOLDEN'}.contains(membershipTier)) {
+      throw ArgumentError.value(membershipTier, 'membershipTier');
+    }
+    _lifeStateGeneration++;
+    _lifeCount = lives;
+    _infiniteLives = unlimited;
+    _membership = switch (membershipTier) {
+      'PREMIUM' => 'premium',
+      'GOLDEN' => 'golden',
+      _ => 'general',
+    };
+    _lifeMode = membershipTier == 'GOLDEN' ? 'golden' : 'normal';
+    _nextLifeAtMillis = nextRegenAt?.millisecondsSinceEpoch;
+    _hasAuthoritativeState = true;
+  }
+
   /// Applies an authoritative life payload returned by a server mutation.
   /// Any in-flight regeneration read becomes stale and may no longer
   /// overwrite this newer mutation result.
