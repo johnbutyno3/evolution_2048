@@ -103,7 +103,7 @@ class ToolManager {
     for (final item in mapping.entries) {
       final count = inventory[item.key];
       if (count == null || count < 0) {
-        throw ArgumentError('Invalid Supabase tool inventory: ' + item.key);
+        throw ArgumentError('Invalid Supabase tool inventory: ${item.key}');
       }
       snapshot[item.value] = count;
     }
