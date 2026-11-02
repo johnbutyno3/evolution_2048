@@ -34,6 +34,20 @@ void main() {
     'serverTime': '2026-10-28T02:00:00.000Z',
   };
 
+  test('requires profile setup when the authoritative name is empty', () {
+    final data = validSnapshot();
+    data['displayName'] = '  ';
+    final snapshot = SupabaseAccountSnapshot.parse(data);
+
+    expect(SupabaseAccountBootstrapService.requiresProfileSetup(snapshot), isTrue);
+  });
+
+  test('does not require profile setup for a valid player name', () {
+    final snapshot = SupabaseAccountSnapshot.parse(validSnapshot());
+
+    expect(SupabaseAccountBootstrapService.requiresProfileSetup(snapshot), isFalse);
+  });
+
   test('parses validated server-owned account entitlements', () {
     final snapshot = SupabaseAccountSnapshot.parse(validSnapshot(
       avatarIndex: 17,
