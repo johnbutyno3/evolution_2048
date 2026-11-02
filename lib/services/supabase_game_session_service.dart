@@ -39,6 +39,29 @@ class SupabaseGameSessionService {
     );
   }
 
+  static Future<Map<String, dynamic>> restartGameSession({
+    required String requestId,
+    required String gameId,
+    required String previousGameId,
+    required String eventId,
+    required String chapterCode,
+    required List<int?> initialTiles,
+    required Map<String, dynamic> replayLog,
+  }) async {
+    return _invoke(
+      'restart-game-session',
+      <String, dynamic>{
+        'requestId': requestId,
+        'gameId': gameId,
+        'previousGameId': previousGameId,
+        'eventId': eventId,
+        'chapterCode': chapterCode,
+        'initialTiles': initialTiles,
+        'replayLog': replayLog,
+      },
+    );
+  }
+
   static Future<Map<String, dynamic>> resumeGameSession({
     required String gameId,
   }) async {
