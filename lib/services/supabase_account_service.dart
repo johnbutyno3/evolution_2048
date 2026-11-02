@@ -166,6 +166,10 @@ class SupabaseAccountBootstrapService {
   static Future<SupabaseAccountSnapshot> synchronize() async {
     final snapshot = await SupabaseAccountService.fetchSnapshot();
 
+    // Switch local storage to this authenticated identity before loading or
+    // applying any account-owned game state. Never inherit guest/other-user saves.
+    await SaveManager.bindAccountScope(snapshot.userId);
+
     // Apply validated server-owned entitlements before enabling gameplay.
     LifeManager.applySupabaseSnapshot(
       lives: snapshot.lifeCount,
