@@ -1,6 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../game/services/save_manager.dart';
+import '../game/services/life_manager.dart';
+import '../game/services/gold_manager.dart';
+import '../game/services/tool_manager.dart';
 import 'supabase_backend.dart';
 
 class SupabaseAccountException implements Exception {
@@ -162,6 +165,16 @@ class SupabaseAccountBootstrapService {
 
   static Future<SupabaseAccountSnapshot> synchronize() async {
     final snapshot = await SupabaseAccountService.fetchSnapshot();
+
+    // Apply validated server-owned entitlements before enabling gameplay.
+    LifeManager.applySupabaseSnapshot(
+      lives: snapshot.lifeCount,
+      unlimited: snapshot.unlimitedLives,
+      membershipTier: snapshot.membershipTier,
+      nextRegenAt: snapshot.nextRegenAt,
+    );
+    GoldManager.applySupabaseBalance(snapshot.gold);
+    ToolManager.applySupabaseInventory(snapshot.tools);
 
     await SaveManager.savePlayerId(snapshot.userId);
     await SaveManager.saveAvatarIndex(snapshot.avatarIndex);
