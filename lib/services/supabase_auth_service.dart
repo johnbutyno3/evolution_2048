@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../game/services/save_manager.dart';
 import 'supabase_backend.dart';
 
 /// Supabase Auth entry points for the staged Firebase migration.
@@ -67,5 +68,8 @@ class SupabaseAuthService {
     );
   }
 
-  static Future<void> signOut() => _auth.signOut();
+  static Future<void> signOut() async {
+    await _auth.signOut();
+    await SaveManager.unbindAccountScope();
+  }
 }
