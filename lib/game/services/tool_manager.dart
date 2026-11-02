@@ -90,6 +90,30 @@ class ToolManager {
     }
   }
 
+  /// Replaces the account inventory using a previously validated Supabase
+  /// account snapshot. Tool codes are mapped explicitly to game tool types.
+  static void applySupabaseInventory(Map<String, int> inventory) {
+    final mapping = <String, GameToolType>{
+      'UNDO': GameToolType.timeRewind,
+      'REMOVE': GameToolType.revive,
+      'SWAP': GameToolType.positionSwap,
+      'DUPLICATE': GameToolType.duplicate,
+    };
+    final snapshot = <GameToolType, int>{};
+    for (final item in mapping.entries) {
+      final count = inventory[item.key];
+      if (count == null || count < 0) {
+        throw ArgumentError('Invalid Supabase tool inventory: ' + item.key);
+      }
+      snapshot[item.value] = count;
+    }
+    _serverUses
+      ..clear()
+      ..addAll(snapshot);
+    _sessionUses.clear();
+    _allToolsEnabledForTest = false;
+  }
+
   /// Refreshes the server inventory.
   ///
   /// Callers that are allowed to wait for inventory synchronization may await
