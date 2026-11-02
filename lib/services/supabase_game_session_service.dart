@@ -39,6 +39,15 @@ class SupabaseGameSessionService {
     );
   }
 
+  static Future<Map<String, dynamic>> resumeGameSession({
+    required String gameId,
+  }) async {
+    return _invoke(
+      'resume-game-session',
+      <String, dynamic>{'gameId': gameId},
+    );
+  }
+
   static Future<Map<String, dynamic>> finishChapter({
     required String gameId,
     required String eventId,
