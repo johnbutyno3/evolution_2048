@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../game/services/save_manager.dart';
 import 'supabase_backend.dart';
 
 class SupabaseAccountException implements Exception {
@@ -150,6 +151,35 @@ class SupabaseAccountSnapshot {
       tools: Map.unmodifiable(tools),
       serverTime: serverTime,
     );
+  }
+}
+
+/// Performs the first authenticated account sync before the app enables play.
+/// The server snapshot is the source of truth; local preferences are only a
+/// cache for profile presentation and must never grant economy entitlements.
+class SupabaseAccountBootstrapService {
+  SupabaseAccountBootstrapService._();
+
+  static Future<SupabaseAccountSnapshot> synchronize() async {
+    final snapshot = await SupabaseAccountService.fetchSnapshot();
+
+    await SaveManager.savePlayerId(snapshot.userId);
+    await SaveManager.saveAvatarIndex(snapshot.avatarIndex);
+    await SaveManager.saveLocaleCode(snapshot.localeCode);
+
+    final displayName = snapshot.displayName.trim();
+    if (displayName.isEmpty || displayName.toUpperCase() == 'PLAYER') {
+      await SaveManager.clearProfile();
+    } else {
+      await SaveManager.saveProfile(name: displayName);
+    }
+
+    return snapshot;
+  }
+
+  static bool requiresProfileSetup(SupabaseAccountSnapshot snapshot) {
+    final name = snapshot.displayName.trim();
+    return name.isEmpty || name.toUpperCase() == 'PLAYER';
   }
 }
 
