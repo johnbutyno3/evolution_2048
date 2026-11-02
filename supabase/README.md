@@ -12,6 +12,24 @@ flutter run --dart-define=SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co --da
 
 Use the actual project URL and public publishable/anon key from the Supabase dashboard. Do not commit them if your repository policy requires configuration to remain external. Never put the Supabase service-role key in Flutter, web assets, or committed source.
 
+## Supabase Auth provider configuration
+
+The native OAuth callback URI registered by the Android intent filter and iOS URL scheme is:
+
+```text
+io.supabase.rebirth2048://login-callback/
+```
+
+Before enabling Google or Apple sign-in in the app:
+
+1. Open Supabase Dashboard for the intended project.
+2. In **Authentication → URL Configuration**, add the exact callback URI above to the Redirect URLs allow-list.
+3. Configure the Google provider with the OAuth client credentials and authorized redirect/callback URL shown by the Supabase provider settings.
+4. Configure the Apple provider with the required Services ID, Team ID, Key ID and private key; ensure the Apple return URL matches the Supabase provider settings.
+5. Test sign-in, app return from the external browser, session restoration after force-closing the app, and sign-out on both Android and iOS.
+
+The shared native callback is not a substitute for provider credentials or the Supabase Dashboard allow-list. Web OAuth must use a separately configured HTTPS redirect URL; do not reuse the native URI for web builds. The Flutter login UI still uses Firebase during the staged migration, so these settings alone do not switch the app's active authentication provider.
+
 ## Database migration
 
 First link the intended Supabase project. Run commands from the repository root:
