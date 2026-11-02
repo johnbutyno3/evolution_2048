@@ -24,6 +24,14 @@ class GoldManager {
     _cachedLifetimeSpent = null;
   }
 
+  /// Applies the validated Supabase account balance without inventing
+  /// lifetime-spend data that the account snapshot does not provide.
+  static void applySupabaseBalance(int balance) {
+    if (balance < 0) throw ArgumentError.value(balance, 'balance');
+    _cachedBalance = balance;
+    _cachedLifetimeSpent = null;
+  }
+
   static void applyServerState(Map<String, dynamic> data) {
     final balance = data['balance'];
     if (balance is num && balance.toInt() >= 0) {
