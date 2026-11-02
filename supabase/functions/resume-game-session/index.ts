@@ -39,7 +39,8 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "SESSION_RESUME_UNAVAILABLE" }, 503);
     }
     if (!profile || profile.account_status !== "active" ||
-      !membership || membership.status === "under_review") {
+      !membership || membership.status !== "active" ||
+      !["FREE", "PREMIUM", "GOLDEN"].includes(membership.tier)) {
       return jsonResponse({ error: "ACCOUNT_RESTRICTED", supportAvailable: true }, 423);
     }
 
