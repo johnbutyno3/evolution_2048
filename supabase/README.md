@@ -49,6 +49,7 @@ The initial server endpoints are:
 - `start-game-session` — idempotent new-game creation with atomic FREE life debit and initial-board binding.
 - `save-game-checkpoint` — monotonic checkpoint persistence for recovery.
 - `finish-game-chapter` — replay validation, tool settlement, permanent progress and eligible life refund.
+- `abandon-game-session` — replay validation and idempotent tool settlement for Game Over / player exit; it never refunds the Life charged at game start.
 
 Deploy only after the migrations are successfully applied and integration-tested:
 
@@ -57,6 +58,7 @@ supabase functions deploy account-snapshot
 supabase functions deploy start-game-session
 supabase functions deploy save-game-checkpoint
 supabase functions deploy finish-game-chapter
+supabase functions deploy abandon-game-session
 ```
 
 Edge Functions use the server-side service-role key only within the trusted runtime. Never expose that key to the Flutter client. Sensitive database RPCs explicitly revoke execution from `public`, `anon`, and `authenticated`, and grant it only to `service_role`.
@@ -66,7 +68,7 @@ Edge Functions use the server-side service-role key only within the trusted runt
 - Profiles, membership status, account lock status and account timezone
 - Gold wallet, tool inventory, immutable wallet ledger and atomic wallet mutation
 - Life wallet, life ledger, server-time regeneration and idempotent daily Gold claims
-- Game sessions bound to an initial board, monotonic checkpoints and replay-validated chapter completion
+- Game sessions bound to an initial board, monotonic checkpoints, replay-validated chapter completion and idempotent abandonment settlement
 - Purchase transaction records
 - Support tickets, two-way message schema, security events and admin notification queue
 - Row Level Security with default-deny writes for authoritative account/economy tables
