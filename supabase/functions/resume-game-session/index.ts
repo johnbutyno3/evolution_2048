@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: session, error } = await service
       .from("game_sessions")
-      .select("game_id,chapter_code,state,event_sequence,initial_tiles,checkpoint,checkpoint_version,tool_usage,final_score,final_highest_value,updated_at")
+      .select("game_id,chapter_code,state,event_sequence,initial_tiles,checkpoint,checkpoint_version,tool_usage,updated_at")
       .eq("user_id", user.id)
       .eq("game_id", gameId)
       .maybeSingle();
@@ -81,8 +81,6 @@ Deno.serve(async (req: Request) => {
       checkpoint: session.checkpoint,
       checkpointVersion: session.checkpoint_version,
       toolUsage: session.tool_usage,
-      score: session.final_score,
-      highestValue: session.final_highest_value,
       updatedAt: session.updated_at,
       membershipTier: membership.tier,
       membershipStatus: membership.status,
