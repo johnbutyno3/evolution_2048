@@ -48,6 +48,7 @@ The initial server endpoints are:
 - `account-snapshot` — authoritative membership, Gold, life and tool snapshot; idempotent daily Gold claim and server-time life regeneration.
 - `start-game-session` — idempotent new-game creation with atomic FREE life debit and initial-board binding.
 - `resume-game-session` — authenticated read of an active session and its recovery checkpoint; checkpoint data is not completion proof.
+- `restart-game-session` — replay-validates and settles the old session, then starts the replacement and charges its Life in one database transaction. If the new start fails (including insufficient Life), the old session and its inventory remain unchanged.
 - `save-game-checkpoint` — monotonic checkpoint persistence for recovery.
 - `finish-game-chapter` — replay validation, tool settlement, permanent progress and eligible life refund.
 - `abandon-game-session` — replay validation and idempotent tool settlement for Game Over / player exit; it never refunds the Life charged at game start.
@@ -60,6 +61,7 @@ Deploy only after the migrations are successfully applied and integration-tested
 supabase functions deploy account-snapshot
 supabase functions deploy start-game-session
 supabase functions deploy resume-game-session
+supabase functions deploy restart-game-session
 supabase functions deploy save-game-checkpoint
 supabase functions deploy finish-game-chapter
 supabase functions deploy abandon-game-session
