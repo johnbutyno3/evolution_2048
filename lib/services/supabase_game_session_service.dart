@@ -54,6 +54,26 @@ class SupabaseGameSessionService {
     );
   }
 
+  static Future<Map<String, dynamic>> abandonGameSession({
+    required String gameId,
+    required String eventId,
+    required String reason,
+    required Map<String, dynamic> replayLog,
+  }) async {
+    if (reason != 'GAME_OVER' && reason != 'PLAYER_ABANDONED') {
+      throw ArgumentError.value(reason, 'reason');
+    }
+    return _invoke(
+      'abandon-game-session',
+      <String, dynamic>{
+        'gameId': gameId,
+        'eventId': eventId,
+        'reason': reason,
+        'replayLog': replayLog,
+      },
+    );
+  }
+
   static Future<Map<String, dynamic>> saveCheckpoint({
     required String gameId,
     required int eventSequence,
