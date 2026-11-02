@@ -72,6 +72,9 @@ Deno.serve(async (req: Request) => {
       if (message.includes("PREVIOUS_SESSION_NOT_FOUND")) {
         return jsonResponse({ error: "PREVIOUS_SESSION_NOT_FOUND" }, 409);
       }
+      if (message.includes("SESSION_ABANDON_REQUIRES_VALIDATED_SETTLEMENT")) {
+        return jsonResponse({ error: "PREVIOUS_SESSION_MUST_BE_SETTLED" }, 409);
+      }
       if (message.includes("REQUEST_ID_REUSED_WITH_DIFFERENT_PAYLOAD")) {
         return jsonResponse({ error: "IDEMPOTENCY_CONFLICT" }, 409);
       }
