@@ -172,6 +172,8 @@ class SupabaseGameSessionService {
         return 'No lives remain. Wait for regeneration before starting a new game.';
       case 'ACTIVE_SESSION_EXISTS':
         return 'An active game session already exists. Resume it before starting another.';
+      case 'PREVIOUS_SESSION_MUST_BE_SETTLED':
+        return 'Finish or safely abandon the previous game before starting another.';
       case 'CHECKPOINT_SEQUENCE_CONFLICT':
         return 'A different checkpoint already exists for this operation sequence.';
       default:
