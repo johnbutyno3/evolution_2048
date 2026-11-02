@@ -50,6 +50,42 @@ void main() {
     expect(SaveManager.loadCached(chapter: 'C1'), isNull);
   });
 
+  test('keeps cached profile fields isolated between accounts and guest', () async {
+    const accountA = '11111111-1111-4111-8111-111111111111';
+    const accountB = '22222222-2222-4222-8222-222222222222';
+
+    await SaveManager.unbindAccountScope();
+    await SaveManager.saveProfile(name: 'Guest');
+    await SaveManager.savePlayerId('GUEST-001');
+    await SaveManager.saveAvatarIndex(3);
+
+    await SaveManager.bindAccountScope(accountA);
+    expect(SaveManager.profileName, isNull);
+    expect(SaveManager.playerId, isNull);
+    expect(SaveManager.avatarIndex, 0);
+    await SaveManager.saveProfile(name: 'Account A');
+    await SaveManager.savePlayerId('ACCOUNT-A');
+    await SaveManager.saveAvatarIndex(12);
+
+    await SaveManager.bindAccountScope(accountB);
+    expect(SaveManager.profileName, isNull);
+    expect(SaveManager.playerId, isNull);
+    expect(SaveManager.avatarIndex, 0);
+    await SaveManager.saveProfile(name: 'Account B');
+    await SaveManager.savePlayerId('ACCOUNT-B');
+    await SaveManager.saveAvatarIndex(24);
+
+    await SaveManager.bindAccountScope(accountA);
+    expect(SaveManager.profileName, 'Account A');
+    expect(SaveManager.playerId, 'ACCOUNT-A');
+    expect(SaveManager.avatarIndex, 12);
+
+    await SaveManager.unbindAccountScope();
+    expect(SaveManager.profileName, 'Guest');
+    expect(SaveManager.playerId, 'GUEST-001');
+    expect(SaveManager.avatarIndex, 3);
+  });
+
   test('rejects malformed account IDs', () async {
     expect(
       () => SaveManager.bindAccountScope('not-a-uuid'),
