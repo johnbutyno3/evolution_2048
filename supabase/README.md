@@ -47,15 +47,19 @@ Review the migration plan before applying it to production. Apply and test migra
 The initial server endpoints are:
 - `account-snapshot` — authoritative membership, Gold, life and tool snapshot; idempotent daily Gold claim and server-time life regeneration.
 - `start-game-session` — idempotent new-game creation with atomic FREE life debit and initial-board binding.
+- `resume-game-session` — authenticated read of an active session and its recovery checkpoint; checkpoint data is not completion proof.
 - `save-game-checkpoint` — monotonic checkpoint persistence for recovery.
 - `finish-game-chapter` — replay validation, tool settlement, permanent progress and eligible life refund.
 - `abandon-game-session` — replay validation and idempotent tool settlement for Game Over / player exit; it never refunds the Life charged at game start.
+
+An additional database trigger rejects any `ACTIVE` → `ABANDONED` transition unless a `SESSION_ABANDON` settlement event exists in the same transaction. This prevents new-game replacement from silently bypassing replay validation and tool settlement.
 
 Deploy only after the migrations are successfully applied and integration-tested:
 
 ```powershell
 supabase functions deploy account-snapshot
 supabase functions deploy start-game-session
+supabase functions deploy resume-game-session
 supabase functions deploy save-game-checkpoint
 supabase functions deploy finish-game-chapter
 supabase functions deploy abandon-game-session
