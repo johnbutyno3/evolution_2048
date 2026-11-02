@@ -240,7 +240,9 @@ class SaveManager {
   static String? get activeAccountScope => _activeAccountScope;
 
   static Future<void> initialize() async {
-    _preferences ??= await SharedPreferences.getInstance();
+    // Refresh the plugin instance on initialization. This also keeps isolated
+    // test environments and platform preference reinitialization consistent.
+    _preferences = await SharedPreferences.getInstance();
 
     final raw = _preferences!.getString(_saveKey);
     _cachedSave = _decode(raw);
