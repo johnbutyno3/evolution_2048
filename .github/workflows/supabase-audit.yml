@@ -26,5 +26,14 @@ jobs:
       - name: Check replay validator JavaScript syntax
         run: node --check supabase/functions/_shared/replay_validator.js
 
+      - name: Type-check Supabase Edge Functions
+        run: |
+          deno check supabase/functions/account-snapshot/index.ts
+          deno check supabase/functions/start-game-session/index.ts
+          deno check supabase/functions/resume-game-session/index.ts
+          deno check supabase/functions/save-game-checkpoint/index.ts
+          deno check supabase/functions/finish-game-chapter/index.ts
+          deno check supabase/functions/abandon-game-session/index.ts
+
       - name: Check patch whitespace
         run: git diff --check
