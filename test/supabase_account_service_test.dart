@@ -64,6 +64,29 @@ void main() {
     expect(snapshot.serverTime.isUtc, isTrue);
   });
 
+  test('converts Supabase stage counts into legacy tile values', () {
+    final data = validSnapshot();
+    data['chapterProgress'] = <String, dynamic>{
+      'C1': <String, dynamic>{'highestStage': 12, 'bestScore': 1200},
+      'C2': <String, dynamic>{'highestStage': 13, 'bestScore': 2400},
+      'C3': <String, dynamic>{'highestStage': 0, 'bestScore': 0},
+    };
+
+    final snapshot = SupabaseAccountSnapshot.parse(data);
+    expect(snapshot.legacyChapterProgress['ocean'], {
+      'highestValue': 4096,
+      'score': 1200,
+    });
+    expect(snapshot.legacyChapterProgress['land'], {
+      'highestValue': 8192,
+      'score': 2400,
+    });
+    expect(snapshot.legacyChapterProgress['sky'], {
+      'highestValue': 0,
+      'score': 0,
+    });
+  });
+
   test('rejects an out-of-range avatar index', () {
     expect(
       () => SupabaseAccountSnapshot.parse(validSnapshot(avatarIndex: 54)),
