@@ -33,6 +33,9 @@ class SupabaseAccountSnapshot {
     required this.nextRegenAt,
     required this.tools,
     required this.serverTime,
+    required this.activeGameId,
+    required this.activeChapterCode,
+    required this.chapterProgress,
   });
 
   final String userId;
@@ -47,6 +50,9 @@ class SupabaseAccountSnapshot {
   final DateTime? nextRegenAt;
   final Map<String, int> tools;
   final DateTime serverTime;
+  final String? activeGameId;
+  final String? activeChapterCode;
+  final Map<String, Map<String, int>> chapterProgress;
 
   static int _nonNegativeInt(dynamic value, String field) {
     final parsed = value is int
@@ -75,6 +81,8 @@ class SupabaseAccountSnapshot {
     final lives = data['lives'];
     final rawTools = data['tools'];
     final serverTime = DateTime.tryParse(data['serverTime']?.toString() ?? '');
+    final rawActiveSession = data['activeGameSession'];
+    final rawProgress = data['chapterProgress'];
 
     if (userId is! String || userId.isEmpty ||
         displayName is! String ||
@@ -140,6 +148,44 @@ class SupabaseAccountSnapshot {
       tools[code] = _nonNegativeInt(rawTools[code], 'tools.$code');
     }
 
+    String? activeGameId;
+    String? activeChapterCode;
+    if (rawActiveSession != null) {
+      if (rawActiveSession is! Map ||
+          rawActiveSession['gameId'] is! String ||
+          rawActiveSession['chapterCode'] is! String ||
+          !const {'C1', 'C2', 'C3', 'C4', 'C5', 'C6'}.contains(rawActiveSession['chapterCode'])) {
+        throw const SupabaseAccountException(
+          'INVALID_RESPONSE',
+          'The account service returned an invalid active game session.',
+        );
+      }
+      activeGameId = rawActiveSession['gameId'] as String;
+      activeChapterCode = rawActiveSession['chapterCode'] as String;
+    }
+
+    final chapterProgress = <String, Map<String, int>>{};
+    if (rawProgress is! Map) {
+      throw const SupabaseAccountException(
+        'INVALID_RESPONSE',
+        'The account service returned invalid chapter progress.',
+      );
+    }
+    for (final code in const ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']) {
+      final value = rawProgress[code];
+      if (value == null) continue;
+      if (value is! Map) {
+        throw const SupabaseAccountException(
+          'INVALID_RESPONSE',
+          'The account service returned invalid chapter progress.',
+        );
+      }
+      chapterProgress[code] = {
+        'highestStage': _nonNegativeInt(value['highestStage'], 'chapterProgress.$code.highestStage'),
+        'bestScore': _nonNegativeInt(value['bestScore'], 'chapterProgress.$code.bestScore'),
+      };
+    }
+
     return SupabaseAccountSnapshot(
       userId: userId,
       displayName: displayName,
@@ -153,6 +199,9 @@ class SupabaseAccountSnapshot {
       nextRegenAt: nextRegenAt,
       tools: Map.unmodifiable(tools),
       serverTime: serverTime,
+      activeGameId: activeGameId,
+      activeChapterCode: activeChapterCode,
+      chapterProgress: Map.unmodifiable(chapterProgress),
     );
   }
 }
