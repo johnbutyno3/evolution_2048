@@ -54,6 +54,31 @@ class SupabaseAccountSnapshot {
   final String? activeChapterCode;
   final Map<String, Map<String, int>> chapterProgress;
 
+  /// Adapts Supabase's stage-count progress to the legacy game UI contract.
+  /// Supabase stores the highest stage number (12..17); the existing UI and
+  /// completion checks consume the corresponding tile value (4096..131072).
+  /// Keep this conversion at the boundary so callers never confuse the units.
+  Map<String, Map<String, int>> get legacyChapterProgress {
+    final converted = <String, Map<String, int>>{};
+    for (final entry in chapterProgress.entries) {
+      final stage = entry.value['highestStage'] ?? 0;
+      converted[_legacyChapterNames[entry.key] ?? entry.key] = {
+        'highestValue': stage == 0 ? 0 : 1 << stage,
+        'score': entry.value['bestScore'] ?? 0,
+      };
+    }
+    return Map.unmodifiable(converted);
+  }
+
+  static const Map<String, String> _legacyChapterNames = {
+    'C1': 'ocean',
+    'C2': 'land',
+    'C3': 'sky',
+    'C4': 'history',
+    'C5': 'tech',
+    'C6': 'universe',
+  };
+
   static int _nonNegativeInt(dynamic value, String field) {
     final parsed = value is int
         ? value
