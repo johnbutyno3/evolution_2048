@@ -12,7 +12,7 @@ Deno.serve(async (req: Request) => {
     const user = await authenticateRequest(req);
     const service = createServiceClient();
 
-    const [profileResult, membershipResult, walletResult, lifeResult, toolsResult] = await Promise.all([
+    const [profileResult, membershipResult, walletResult, lifeResult, toolsResult, activeSessionResult, progressResult] = await Promise.all([
       service.from("profiles")
         .select("display_name, avatar_index, locale_code, account_status, updated_at")
         .eq("user_id", user.id).maybeSingle(),
@@ -28,10 +28,19 @@ Deno.serve(async (req: Request) => {
       service.from("tool_inventory")
         .select("tool_code, quantity, updated_at")
         .eq("user_id", user.id),
+      service.from("game_sessions")
+        .select("game_id, chapter_code, state, event_sequence, updated_at")
+        .eq("user_id", user.id)
+        .eq("state", "ACTIVE")
+        .maybeSingle(),
+      service.from("game_progress")
+        .select("chapter_code, highest_stage, best_score, completed_at")
+        .eq("user_id", user.id),
     ]);
 
     const firstError = profileResult.error ?? membershipResult.error ??
-      walletResult.error ?? lifeResult.error ?? toolsResult.error;
+      walletResult.error ?? lifeResult.error ?? toolsResult.error ??
+      activeSessionResult.error ?? progressResult.error;
     if (firstError) {
       console.error("account_snapshot_read_failed", {
         userId: user.id,
@@ -119,6 +128,16 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const chapterProgress: Record<string, { highestStage: number; bestScore: number; completedAt: string | null }> = {};
+    for (const row of progressResult.data ?? []) {
+      chapterProgress[row.chapter_code] = {
+        highestStage: Number(row.highest_stage),
+        bestScore: Number(row.best_score),
+        completedAt: row.completed_at,
+      };
+    }
+
+    const activeSession = activeSessionResult.data;
     const tools: Record<string, number> = {
       UNDO: 0,
       REMOVE: 0,
@@ -150,6 +169,13 @@ Deno.serve(async (req: Request) => {
         nextRegenAt,
       },
       tools,
+      activeGameSession: activeSession ? {
+        gameId: activeSession.game_id,
+        chapterCode: activeSession.chapter_code,
+        eventSequence: activeSession.event_sequence,
+        updatedAt: activeSession.updated_at,
+      } : null,
+      chapterProgress,
       serverTime: new Date().toISOString(),
     });
   } catch (error) {
