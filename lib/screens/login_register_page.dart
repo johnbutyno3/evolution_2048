@@ -3,9 +3,6 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
-import 'home_page.dart';
-import 'profile_setup_page.dart';
-import '../services/player_profile_service.dart';
 import '../services/supabase_auth_service.dart';
 import '../game/services/audio_manager.dart';
 import '../l10n/app_localizations.dart';
@@ -34,28 +31,6 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     super.dispose();
   }
 
-  Future<void> _continueAfterAuth() async {
-    try {
-      // Do not force-refresh App Check here. A forced refresh can trigger a
-      // debug-token exchange even when a valid cached token is already usable.
-      // The callable client will obtain/reuse the App Check token as needed.
-      final playerName = await PlayerProfileService.ensureProfile();
-      if (!mounted) return;
-
-      final destination = playerName == null
-          ? const ProfileSetupPage()
-          : const HomePage();
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => destination),
-        (route) => false,
-      );
-    } on PlayerProfileException catch (error) {
-      if (mounted) _showError(error.message);
-    } catch (_) {
-      if (mounted) _showError(AppLocalizations.of(context)!.profileSetupFailed);
-    }
-  }
 
   Future<void> _emailSubmit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -71,7 +46,6 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
         _showError('Check your email to confirm the account, then sign in.');
         return;
       }
-      if (mounted) await _continueAfterAuth();
     } on AuthException catch (error) {
       if (mounted) _showError(_authError(AppLocalizations.of(context)!, error.code ?? ''));
     } catch (error) {
