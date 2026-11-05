@@ -472,7 +472,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // restartGameSession authoritatively reconcile the same single charge.
     // This makes the Life display change immediately (5 -> 4, etc.) and
     // starts/continues the 40-minute regeneration countdown without waiting
-    // for Firebase.
+    // for Supabase.
     if (!LifeManager.optimisticConsumeLife()) {
       return false;
     }
