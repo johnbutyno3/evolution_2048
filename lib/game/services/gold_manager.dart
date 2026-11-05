@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../services/supabase_backend.dart';
 
 /// Client facade for the server-authoritative Gold wallet.
