@@ -84,9 +84,12 @@ function normalizeAccount(uid, source) {
     ? null
     : new Date(membershipSource.expiresAt);
   if (expiry && Number.isNaN(expiry.getTime())) errors.push('invalid_membership_expiry');
-  const membershipActive = ['premium', 'golden'].includes(membershipType) &&
+  const membershipCandidate = ['premium', 'golden'].includes(membershipType) &&
     (expiry == null || expiry.getTime() > Date.now());
-  const tier = membershipActive ? membershipType.toUpperCase() : 'FREE';
+  // Legacy membership records are not sufficient proof of a paid purchase.
+  // Export FREE by default; an operator must approve a permanent entitlement
+  // separately using transaction/support evidence.
+  const tier = 'FREE';
 
   let nextRegenAt = null;
   if (lives != null && lives < 5) {
@@ -156,7 +159,7 @@ function normalizeAccount(uid, source) {
     membership: {
       tier,
       status: 'active',
-      expiresAt: membershipActive && expiry ? expiry.toISOString() : null,
+      expiresAt: null,
     },
     gold: { balance: Number.isSafeInteger(rawBalance) && rawBalance >= 0 ? rawBalance : 0 },
     lives: { count: lives ?? 5, nextRegenAt },
@@ -165,7 +168,15 @@ function normalizeAccount(uid, source) {
     collection,
   };
 
-  return { payload: normalized, validationErrors: errors };
+  return {
+    payload: normalized,
+    validationErrors: errors,
+    membershipReview: {
+      legacyTier: membershipCandidate ? membershipType.toUpperCase() : 'FREE',
+      legacyExpiresAt: expiry ? expiry.toISOString() : null,
+      requiresApproval: membershipCandidate,
+    },
+  };
 }
 
 async function listAllAuthUids(auth) {
@@ -208,6 +219,7 @@ async function exportOne(uid, db) {
     sourceRecord,
     importPayload: normalized.payload,
     validationErrors: normalized.validationErrors,
+    membershipReview: normalized.membershipReview,
   };
 }
 
