@@ -117,6 +117,31 @@ begin
     raise exception using errcode = '23505', message = 'SUPABASE_ACCOUNT_ALREADY_LINKED_TO_LEGACY_IMPORT';
   end if;
 
+  -- Never overwrite an account that has already started using Supabase.
+  -- A fresh auth-user trigger creates exactly these empty defaults.
+  if not exists (
+      select 1 from public.memberships
+      where user_id = v_user_id and tier = 'FREE' and status = 'active'
+    )
+    or not exists (
+      select 1 from public.gold_wallets
+      where user_id = v_user_id and balance = 0
+    )
+    or not exists (
+      select 1 from public.life_wallets
+      where user_id = v_user_id and life_count = 5 and next_regen_at is null
+    )
+    or (select count(*) from public.tool_inventory
+      where user_id = v_user_id and tool_code in ('UNDO','REMOVE','SWAP','DUPLICATE')
+        and quantity = 0) <> 4
+    or exists (select 1 from public.wallet_ledger where user_id = v_user_id)
+    or exists (select 1 from public.life_ledger where user_id = v_user_id)
+    or exists (select 1 from public.game_progress where user_id = v_user_id)
+    or exists (select 1 from public.creature_collection where user_id = v_user_id)
+    or exists (select 1 from public.game_sessions where user_id = v_user_id) then
+    raise exception using errcode = '55000', message = 'SUPABASE_ACCOUNT_NOT_PRISTINE_FOR_IMPORT';
+  end if;
+
   v_profile := coalesce(p_payload -> 'profile', '{}'::jsonb);
   v_membership := coalesce(p_payload -> 'membership', '{}'::jsonb);
   v_gold := coalesce(p_payload -> 'gold', '{}'::jsonb);
