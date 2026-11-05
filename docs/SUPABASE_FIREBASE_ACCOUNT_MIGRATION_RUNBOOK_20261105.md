@@ -97,10 +97,10 @@ Then confirm both functions are deployed and that the invoking Supabase Auth acc
 
   `$env:GCLOUD_PROJECT = 'your-firebase-project-id'`
 
-  ` node functions/scripts/export_legacy_account_snapshot.js 'C:\secure\legacy-export-20261105.json'`
+  `node functions/scripts/export_legacy_account_snapshot.js 'C:\secure\legacy-export-20261105.json'`
 
-4. Review every`validationErrors` array in the export. Any non-empty array blocks that account from the batch script; resolve it manually and regenerate a fresh export rather than editing its checksum-bearing source record.
-5. Create a local UTF-8 CSV with these headers:`legacyUid,userId,verificationMethod,approvedMembershipTier,membershipApprovalReference`. Include only accounts whose Firebase and Supabase identities have been verified. Use`FREE` (or leave the approval fields empty) unless permanent paid entitlement evidence has been separately reviewed. For`PREMIUM` or`GOLDEN`, the legacy record must have no`expiresAt` and the approval reference must identify the verified receipt/support decision. Do not create this mapping by matching email addresses.
+4. Review every `validationErrors` array in the export. Any non-empty array blocks that account from the batch script; resolve it manually and regenerate a fresh export rather than editing its checksum-bearing source record.
+5. Create a local UTF-8 CSV with these headers: `legacyUid,userId,verificationMethod,approvedMembershipTier,membershipApprovalReference`. Include only accounts whose Firebase and Supabase identities have been verified. Use`FREE` (or leave the approval fields empty) unless permanent paid entitlement evidence has been separately reviewed. For`PREMIUM` or`GOLDEN`, the legacy record must have no`expiresAt` and the approval reference must identify the verified receipt/support decision. Do not create this mapping by matching email addresses.
 6. Set`SUPABASE_URL`,`SUPABASE_PUBLISHABLE_KEY`, and`SUPABASE_ACCESS_TOKEN` in the current PowerShell session. The access token must belong to a Supabase Auth user whose`app_metadata.role` is`admin`.
 7. Run the importer first without`-Execute` for a dry run. After reviewing the count and mapping file, rerun with`-Execute`. The script registers the verified identity link, then imports each account. It counts an account only when the server-side read-back reconciliation returns`verified: true`. Re-running a successfully imported account is idempotent; a different source checksum or a non-pristine Supabase account is rejected.
 
@@ -112,7 +112,7 @@ Example execution (only after review and deployment):
 
 `.\tools\import_legacy_accounts.ps1 -ExportPath 'C:\secure\legacy-export-20261105.json' -MappingPath 'C:\secure\verified-account-map.csv' -Execute`
 
-The exporter includes a normalized`importPayload`, a`membershipReview` object, and a SHA-256 checksum for each exact source record. The PowerShell script never sends accounts with validation errors, and only processes UIDs present in the mapping CSV. Both local files contain sensitive account data and must never be committed or uploaded to the project file library.
+The exporter includes a normalized `importPayload`, a `membershipReview` object, and a SHA-256 checksum for each exact source record. The PowerShell script never sends accounts with validation errors, and only processes UIDs present in the mapping CSV. Both local files contain sensitive account data and must never be committed or uploaded to the project file library.
 
 ## 7. Required migration procedure
 
