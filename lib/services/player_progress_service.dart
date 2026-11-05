@@ -18,8 +18,6 @@ class PlayerProgressService {
 
   static final PlayerProgressService instance = PlayerProgressService._();
 
-  static const String _progressCollection = 'progress';
-  static const String _progressDocument = 'game';
   static const List<String> _chapterNames = <String>[
     'ocean',
     'land',
@@ -97,7 +95,7 @@ class PlayerProgressService {
         final chapter = int.tryParse(entry.key.replaceFirst('C', ''));
         if (chapter == null) continue;
         if ((entry.value['highestStage'] ?? 0) >= chapter + 11) {
-          unlocked = chapter.clamp(1, 5);
+          unlocked = chapter.clamp(1, 5).toInt();
         }
       }
       final activeId = snapshot.activeGameId;
@@ -195,6 +193,7 @@ class PlayerProgressService {
       _activeGameChapterIndex = chapterIndex;
       await SaveManager.setGameSessionId(gameId);
       await refresh();
+      await LifeManager.refreshFromServer();
       return _activeGameSessionId == gameId;
     } catch (_) {
       if (operationGeneration != _sessionOperationGeneration) return false;
@@ -291,6 +290,7 @@ class PlayerProgressService {
       _activeGameChapterIndex = chapterIndex;
       await SaveManager.setGameSessionId(gameId);
       await refresh();
+      await LifeManager.refreshFromServer();
       await ToolManager.refreshInventory();
       return _activeGameSessionId == gameId;
     } catch (_) {
@@ -364,6 +364,7 @@ class PlayerProgressService {
       _activeGameChapterIndex = null;
       await SaveManager.clearGameSessionId();
       await refresh();
+      await LifeManager.refreshFromServer();
       await ToolManager.refreshInventory();
       return _activeGameSessionId == null &&
           chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
