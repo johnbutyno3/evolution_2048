@@ -257,7 +257,11 @@ async function main() {
   process.stdout.write('Review validationErrors before importing. This file contains sensitive account data; keep it out of Git and shared folders.\n');
 }
 
-main().catch((error) => {
-  process.stderr.write(`Export failed: ${error?.stack || error}\n`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(`Export failed: ${error?.stack || error}\n`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { canonicalize, normalizeAccount };
