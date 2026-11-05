@@ -656,7 +656,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(l10n.restartFailed),
         ),
       );
