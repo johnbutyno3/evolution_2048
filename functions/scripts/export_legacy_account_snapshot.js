@@ -175,6 +175,10 @@ function normalizeAccount(uid, source) {
       legacyTier: membershipCandidate ? membershipType.toUpperCase() : 'FREE',
       legacyExpiresAt: expiry ? expiry.toISOString() : null,
       requiresApproval: membershipCandidate,
+      purchaseIntentCount: Array.isArray(source.purchaseIntents) ? source.purchaseIntents.length : 0,
+      purchaseTransactionCount: Array.isArray(source.purchaseTransactions) ? source.purchaseTransactions.length : 0,
+      verifiedPurchaseCount: [ ...(source.purchaseIntents || []), ...(source.purchaseTransactions || []) ]
+        .filter((item) => ['verified', 'granted'].includes(String(item.status || '').toLowerCase())).length,
     },
   };
 }
@@ -197,7 +201,7 @@ async function readDoc(ref) {
 
 async function exportOne(uid, db) {
   const root = db.collection('users').doc(uid);
-  const [user, membership, gold, tools, life, gameProgress, collection] = await Promise.all([
+  const [user, membership, gold, tools, life, gameProgress, collection, purchaseIntentsSnapshot, purchaseTransactionsSnapshot] = await Promise.all([
     readDoc(root),
     readDoc(root.collection('membership').doc('current')),
     readDoc(root.collection('wallet').doc('gold')),
@@ -205,9 +209,13 @@ async function exportOne(uid, db) {
     readDoc(root.collection('life').doc('current')),
     readDoc(root.collection('progress').doc('game')),
     readDoc(root.collection('progress').doc('collection')),
+    root.collection('purchases').get(),
+    db.collection('purchase_transactions').where('uid', '==', uid).get(),
   ]);
   const sourceRecord = canonicalize({
     user, membership, gold, tools, life, gameProgress, collection,
+    purchaseIntents: purchaseIntentsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+    purchaseTransactions: purchaseTransactionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
   });
   const sourceSha256 = crypto.createHash('sha256')
     .update(JSON.stringify(sourceRecord))
