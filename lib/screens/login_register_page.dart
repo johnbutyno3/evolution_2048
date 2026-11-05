@@ -73,7 +73,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
       }
       if (mounted) await _continueAfterAuth();
     } on AuthException catch (error) {
-      if (mounted) _showError(_authError(AppLocalizations.of(context)!, error.code));
+      if (mounted) _showError(_authError(AppLocalizations.of(context)!, error.code ?? ''));
     } catch (error) {
       if (mounted) _showError('Authentication failed: $error');
     } finally {
