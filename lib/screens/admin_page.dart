@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../services/admin_service.dart';
+import '../services/supabase_backend.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -21,7 +21,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Future<void> _checkAccess() async {
-    final allowed = await AdminService.isAdmin();
+    final allowed = await AdminService.checkAdmin();
     if (!mounted) return;
     setState(() {
       _allowed = allowed;
@@ -151,12 +151,19 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    await AdminService.saveShopParameters(_values);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Shop parameters saved.')),
-    );
+    try {
+      await AdminService.saveShopParameters(_values);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Shop parameters saved.')),
+      );
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save shop parameters: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Widget _field(String key, String label, {bool decimal = false}) {
@@ -198,10 +205,10 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
           _field('gold4000UsdPrice', '4,000 Gold ??USD', decimal: true),
           _field('gold10000UsdPrice', '10,000 Gold ??USD', decimal: true),
           const SizedBox(height: 12),
-          const Text('Membership (USD / month)', style: _headingStyle),
+          const Text('Permanent Membership (USD)', style: _headingStyle),
           const SizedBox(height: 12),
-          _field('premiumUsdPrice', 'Premium Member ??USD / month', decimal: true),
-          _field('goldenUsdPrice', 'Golden Member ??USD / month', decimal: true),
+          _field('premiumUsdPrice', 'Premium Member USD', decimal: true),
+          _field('goldenUsdPrice', 'Golden Member USD', decimal: true),
           const SizedBox(height: 12),
           const Text('Evolution Tools (Gold)', style: _headingStyle),
           const SizedBox(height: 12),
@@ -254,11 +261,8 @@ class AdminMessagesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Player Messages')),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('feedback')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _loadMessages(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -266,22 +270,22 @@ class AdminMessagesPage extends StatelessWidget {
           if (snapshot.hasError) {
             return Center(child: Text('Unable to load messages: ${snapshot.error}'));
           }
-
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
+          final messages = snapshot.data ?? const <Map<String, dynamic>>[];
+          if (messages.isEmpty) {
             return const Center(child: Text('No player messages yet.'));
           }
-
           return ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: docs.length,
+            itemCount: messages.length,
             itemBuilder: (context, index) {
-              final data = docs[index].data();
+              final data = messages[index];
+              final ticket = data['ticket'];
+              final ticketData = ticket is Map ? ticket : const <String, dynamic>{};
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.mail_outline),
-                  title: Text('${data['type'] ?? 'Other'} · ${data['status'] ?? 'new'}'),
-                  subtitle: Text('${data['message'] ?? ''}\nUID: ${data['uid'] ?? ''}'),
+                  title: Text('${ticketData['subject'] ?? 'Player message'} · ${ticketData['status'] ?? 'open'}'),
+                  subtitle: Text('${data['body'] ?? ''}\nUID: ${ticketData['user_id'] ?? ''}'),
                   isThreeLine: true,
                 ),
               );
@@ -291,6 +295,14 @@ class AdminMessagesPage extends StatelessWidget {
       ),
     );
   }
+
+  Future<List<Map<String, dynamic>>> _loadMessages() async {
+    final rows = await SupabaseBackend.client
+        .from('support_messages')
+        .select('id, body, created_at, ticket:support_tickets!inner(user_id, subject, status)')
+        .eq('sender_role', 'player')
+        .order('created_at', ascending: false)
+        .limit(200);
+    return rows.map((row) => Map<String, dynamic>.from(row)).toList();
+  }
 }
-
-
