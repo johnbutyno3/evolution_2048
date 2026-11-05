@@ -1,0 +1,23 @@
+# Supabase CLI project configuration.
+# Link this local project to the hosted project with:
+#   supabase link --project-ref <project-ref>
+project_id = "rebirth-2048"
+
+[api]
+enabled = true
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db.migrations]
+enabled = true
+schema_paths = []
+
+[db.seed]
+enabled = false
+sql_paths = []
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["io.supabase.rebirth2048://login-callback/"]
