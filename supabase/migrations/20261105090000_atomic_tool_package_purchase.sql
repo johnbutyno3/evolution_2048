@@ -48,6 +48,8 @@ declare
   v_tool_ledger public.wallet_ledger%rowtype;
 begin
   if p_user_id is null
+    or p_tool_code is null
+    or p_quantity is null
     or p_tool_code not in ('UNDO', 'REMOVE', 'SWAP', 'DUPLICATE')
     or p_quantity not in (1, 5, 20, 50)
     or p_idempotency_key is null
@@ -101,7 +103,8 @@ begin
     into v_tier, v_membership_status, v_account_status
   from public.memberships p
   join public.profiles pr on pr.user_id = p.user_id
-  where p.user_id = p_user_id;
+  where p.user_id = p_user_id
+  for share of p, pr;
 
   if v_account_status is distinct from 'active' then
     raise exception using errcode = '42501', message = 'ACCOUNT_RESTRICTED';
@@ -122,7 +125,7 @@ begin
 
   v_product_key := 'tool_' || lower(p_tool_code) || '_' || p_quantity::text;
   select products -> v_product_key into v_product
-  from public.shop_config where id = 'global';
+  from public.shop_config where id = 'global' for share;
 
   if v_product is null
     or coalesce((v_product ->> 'active')::boolean, false) is not true
