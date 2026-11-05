@@ -60,7 +60,7 @@ class SupabasePlayerProfileService {
   }
 
   static Future<bool> updatePlayerName(String name) async {
-    final trimmed = name.trim().replaceAll(RegExp(r'\\s+'), ' ');
+    final trimmed = name.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (trimmed.isEmpty ||
         trimmed.length > 30 ||
         trimmed.toUpperCase() == 'PLAYER') {
