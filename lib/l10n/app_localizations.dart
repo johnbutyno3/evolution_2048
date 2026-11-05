@@ -644,6 +644,24 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to log out of your account?'**
   String get logoutConfirm;
 
+  /// No description provided for @restartConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart game?'**
+  String get restartConfirmTitle;
+
+  /// No description provided for @restartConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a new board? One Life will be consumed.'**
+  String get restartConfirmMessage;
+
+  /// No description provided for @restart.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart'**
+  String get restart;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:
