@@ -25,20 +25,20 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - `account-snapshot` 會以 server time 執行 FREE Life regeneration，並呼叫冪等的 daily Gold claim。
 - 章節完成由 server replay validator 驗證後才更新永久進度、結算工具使用及符合條件的 Life 獎勵。
 
-## 必須優先修正的規則不一致
+## Life / Session 扣除規則核對
 
-**Restart 是否扣 Life 與已確認遊戲規則不一致。**
+依 2026-10-01 使用者接受的 lifecycle 決策，Life 扣除規則為：
+- NEW GAME：-1 Life。
+- RESUME：0。
+- 返回 Home 儲存／結束目前畫面：0。
+- Restart 對話框選「NO」：0（取消，不建立新局）。
+- Restart 對話框選「YES」：-1（建立 replacement session，僅扣一次）。
+- GAME OVER 本身：0（不額外扣除）。
+- CHAPTER COMPLETE：0（符合條件的完成獎勵另依後端規則處理）。
+- 下一章 NEW GAME：-1。
+- PREMIUM / GOLDEN 依會員權益為無限生命。
 
-目前 `supabase/migrations/20261103030000_atomic_restart_game_session_rpc.sql` 的 `restart_game_session` 先結算舊 Session，再呼叫 `start_game_session`；而 `start_game_session` 會對 FREE 帳戶執行 `NEW_GAME_DEBIT`。因此目前 restart 會扣除 1 Life。
-
-既定遊戲規則為：
-- 新開一局扣 1 Life。
-- Resume 不扣 Life。
-- Restart 不扣 Life。
-- 放棄不退 Life；Game Over 不額外扣 Life。
-- PREMIUM / GOLDEN 無限生命。
-
-下一個資料庫修正必須讓 restart 在單一交易內結算舊 Session 並建立新 Session，但不產生第二筆 `NEW_GAME_DEBIT`；一般 start 仍必須扣 1 Life。需同時補上 SQL contract / integration tests，涵蓋 FREE、PREMIUM、GOLDEN、重試冪等、舊 Session 結算失敗及新 Session 建立失敗回滾。修正前不可宣稱 restart Life 規則已符合要求。
+目前 `supabase/migrations/20261103030000_atomic_restart_game_session_rpc.sql` 的 `restart_game_session` 會在單一資料庫交易中結算舊 Session，再呼叫 `start_game_session` 建立 replacement session；FREE 帳戶由 `start_game_session` 產生一次 `NEW_GAME_DEBIT`。這與 Restart YES 扣 1 Life 的規則一致，不應改成免扣。Restart NO 不應呼叫此 RPC。仍須用 SQL integration / E2E 驗證確認一次扣除、取消零扣除及重試冪等。
 
 ## Firebase 遺留項目與保留原則
 
@@ -67,8 +67,8 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 
 ## 下一個工作順序
 
-1. 修正 restart RPC：舊 Session settlement + 新 Session create 原子化，但不扣 Life；一般新局維持扣 1。
-2. 增補 restart SQL contract / integration tests，確認冪等與 rollback。
+1. 驗證 Restart YES 原子結算舊 Session + 建立新 Session 並只扣 1 Life；Restart NO 完全不呼叫後端扣命流程。
+2. 增補 restart SQL contract / integration tests，涵蓋 YES / NO、冪等與 rollback。
 3. 逐項核對 Supabase migration、Edge Function、RLS、交易與權益規則。
 4. 執行 Firebase 舊帳戶 export → identity mapping → import → reconciliation；保留舊資料直到核對通過。
 5. 在正確 Supabase project 完成 migration / Edge Function deployment，再進行 Flutter 與實機 QA。
