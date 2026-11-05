@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const expectedName = typeof expectedProfile["playerName"] === "string"
-      ? expectedProfile["playerName"].trim().replace(/\\s+/g, " ").slice(0, 40)
+      ? expectedProfile["playerName"].trim().replace(/\s+/g, " ").slice(0, 40)
       : "";
     const expectedAvatar = typeof expectedProfile["avatarIndex"] === "number"
       ? Math.max(0, Math.min(53, Math.trunc(expectedProfile["avatarIndex"])))
