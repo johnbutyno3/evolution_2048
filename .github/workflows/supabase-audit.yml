@@ -23,6 +23,9 @@ jobs:
       - name: Run replay validator tests
         run: deno test supabase/functions/_shared/replay_validator_test.ts
 
+      - name: Run restart confirmation contract tests
+        run: node --test supabase/tests/restart_confirmation_contract.test.js
+
       - name: Check replay validator JavaScript syntax
         run: node --check supabase/functions/_shared/replay_validator.js
 
