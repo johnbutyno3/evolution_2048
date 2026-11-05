@@ -108,9 +108,10 @@ function normalizeAccount(uid, source) {
   for (const chapter of CHAPTERS) {
     const value = progressSource.chapterProgress?.[chapter.legacyProgress];
     if (!value) continue;
-    const highestValue = safeInteger(value.highestValue, 0);
+    const highestValue = value.highestValue;
     const score = safeInteger(value.score, 0);
-    if (highestValue !== 0 && (!isPowerOfTwo(highestValue) || highestValue > chapter.target)) {
+    if (!Number.isSafeInteger(highestValue) || highestValue < 0 ||
+      (highestValue !== 0 && (!isPowerOfTwo(highestValue) || highestValue > chapter.target))) {
       errors.push(`invalid_highest_value:${chapter.code}`);
       continue;
     }
