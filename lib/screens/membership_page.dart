@@ -55,13 +55,13 @@ class _MembershipPageState extends State<MembershipPage> {
               _membershipCard(
                 title: 'Premium',
                 description: 'Permanent membership · No forced ads · Unlimited lives · 20 daily Gold',
-                price: '\${ShopConfigService.usdPrice(config, 'premiumUsdPrice')} · Permanent',
+                price: '\$${ShopConfigService.usdPrice(config, 'premiumUsdPrice')} · Permanent',
                 current: current == 'premium',
               ),
               _membershipCard(
                 title: 'Golden',
                 description: 'Permanent membership · Ad-free · Unlimited lives · 50 daily Gold',
-                price: '\${ShopConfigService.usdPrice(config, 'goldenUsdPrice')} · Permanent',
+                price: '\$${ShopConfigService.usdPrice(config, 'goldenUsdPrice')} · Permanent',
                 current: current == 'golden',
               ),
             ],
