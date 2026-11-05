@@ -3,9 +3,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
@@ -32,11 +29,6 @@ class PlayerProgressService {
     'universe',
   ];
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
-    region: 'us-central1',
-  );
 
   static final Random _uuidRandom = Random.secure();
   static String _newUuid() {
@@ -149,7 +141,7 @@ class PlayerProgressService {
 
     // A second normal start while the first local-first start is still
     // being verified is already covered by that first operation. Return
-    // immediately so duplicate UI calls never wait on Firebase and never
+    // immediately so duplicate UI calls never wait on Supabase and never
     // create another charged session. Completion recovery is the one
     // intentional exception: it must wait for the failed start before retrying.
     final pendingStart = _pendingStartSession;
