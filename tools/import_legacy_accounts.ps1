@@ -12,6 +12,7 @@ if (-not (Test-Path -LiteralPath $ExportPath -PathType Leaf)) { throw "Export fi
 if (-not (Test-Path -LiteralPath $MappingPath -PathType Leaf)) { throw "Identity mapping CSV not found: $MappingPath" }
 if ([string]::IsNullOrWhiteSpace($env:SUPABASE_URL)) { throw 'Set SUPABASE_URL before running this script.' }
 if ([string]::IsNullOrWhiteSpace($env:SUPABASE_ACCESS_TOKEN)) { throw 'Set SUPABASE_ACCESS_TOKEN to an authenticated Supabase admin access token.' }
+if ([string]::IsNullOrWhiteSpace($env:SUPABASE_PUBLISHABLE_KEY)) { throw 'Set SUPABASE_PUBLISHABLE_KEY to the project publishable key.' }
 
 $export = Get-Content -LiteralPath $ExportPath -Raw | ConvertFrom-Json
 if ($export.format -ne 'rebirth2048-firebase-account-export-v1') { throw 'Unsupported Firebase export format.' }
@@ -72,7 +73,7 @@ if (-not $Execute) {
 $baseUrl = $env:SUPABASE_URL.TrimEnd('/')
 $headers = @{
     Authorization = "Bearer $($env:SUPABASE_ACCESS_TOKEN)"
-    apikey = $env:SUPABASE_ACCESS_TOKEN
+    apikey = $env:SUPABASE_PUBLISHABLE_KEY
 }
 $completed = 0
 
