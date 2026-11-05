@@ -1,6 +1,7 @@
 ﻿// ignore_for_file: avoid_print
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -12,6 +13,7 @@ import '../game/services/tool_manager.dart';
 import 'session_generation.dart';
 import 'supabase_account_service.dart';
 import 'supabase_backend.dart';
+import 'supabase_game_session_service.dart';
 
 /// Server-verified account progression with local-first gameplay entry.
 class PlayerProgressService {
@@ -36,6 +38,22 @@ class PlayerProgressService {
     region: 'us-central1',
   );
 
+  static final Random _uuidRandom = Random.secure();
+  static String _newUuid() {
+    final bytes = List<int>.generate(16, (_) => _uuidRandom.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((v) => v.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20)}';
+  }
+  static List<int?> _initialBoard(List<dynamic> values) {
+    if (values.length != 16) throw ArgumentError.value(values.length, 'initialTiles.length');
+    return values.map<int?>((value) {
+      if (value == null || value == 0) return null;
+      if (value is num && (value == 2 || value == 4)) return value.toInt();
+      throw ArgumentError.value(value, 'initialTiles');
+    }).toList(growable: false);
+  }
   int _unlockedChapterIndex = 0;
   final Map<String, Map<String, int>> _chapterProgress = {};
   bool _loadedFromServer = false;
@@ -170,77 +188,30 @@ class PlayerProgressService {
     required int operationGeneration,
   }) async {
     final previousSessionId = _activeGameSessionId;
+    final gameId = _newUuid();
     try {
-      final result = await _functions.httpsCallable('startGameSession').call({
-        'chapterIndex': chapterIndex,
-        'replaceActiveSession': replaceActiveSession,
-        'initialTiles': initialTiles,
-      });
-      final data = result.data;
-      if (data is Map && data['sessionId'] is String) {
-        if (operationGeneration != _sessionOperationGeneration) return false;
-        _activeGameSessionId = data['sessionId'] as String;
-        // Restart creates a replacement board locally. Do not rebind the old
-        // cached board to the new session: that would resurrect the previous
-        // board when the player re-enters. The new GameEngine snapshot is
-        // persisted separately by the caller after this session is accepted.
-        await SaveManager.setGameSessionId(_activeGameSessionId!);
-        final returnedChapter = data['chapterIndex'];
-        _activeGameChapterIndex = returnedChapter is num
-            ? returnedChapter.toInt().clamp(0, 5)
-            : chapterIndex;
-        final lifeState = data['life'];
-        if (lifeState is Map) {
-          LifeManager.applyServerState(
-            Map<String, dynamic>.from(lifeState),
-          );
-        } else {
-          await LifeManager.refreshFromServer();
-        }
-        return true;
-      }
-    } on FirebaseFunctionsException catch (error) {
-      print(
-        'startGameSession failed: code=${error.code}, '
-        'message=${error.message}, details=${error.details}',
+      final result = await SupabaseGameSessionService.startGameSession(
+        requestId: _newUuid(),
+        gameId: gameId,
+        chapterCode: 'C${chapterIndex + 1}',
+        previousGameId: replaceActiveSession ? previousSessionId : null,
+        initialTiles: _initialBoard(initialTiles),
       );
-      if (operationGeneration == _sessionOperationGeneration) {
-        await refresh();
-        if (operationGeneration != _sessionOperationGeneration) return false;
-        final serverSessionId = _activeGameSessionId;
-        final startCommitted =
-            serverSessionId != null &&
-            serverSessionId != previousSessionId &&
-            _activeGameChapterIndex == chapterIndex;
-        await LifeManager.refreshFromServer();
-        if (startCommitted) {
-          await SaveManager.setGameSessionId(serverSessionId);
-          return true;
-        }
-      }
-    } catch (error) {
-      print('startGameSession verification failed: $error');
-      try {
-        if (operationGeneration == _sessionOperationGeneration) {
-          await refresh();
-          if (operationGeneration != _sessionOperationGeneration) return false;
-          final serverSessionId = _activeGameSessionId;
-          final startCommitted =
-              serverSessionId != null &&
-              serverSessionId != previousSessionId &&
-              _activeGameChapterIndex == chapterIndex;
-          await LifeManager.refreshFromServer();
-          if (startCommitted) {
-            await SaveManager.setGameSessionId(serverSessionId);
-            return true;
-          }
-        }
-      } catch (_) {
-        // Keep the optimistic UI responsive; the next authoritative refresh
-        // will reconcile the balance.
-      }
+      if (operationGeneration != _sessionOperationGeneration ||
+          result['gameId'] != gameId || result['state'] != 'ACTIVE') return false;
+      _activeGameSessionId = gameId;
+      _activeGameChapterIndex = chapterIndex;
+      await SaveManager.setGameSessionId(gameId);
+      await refresh();
+      return _activeGameSessionId == gameId;
+    } catch (_) {
+      if (operationGeneration != _sessionOperationGeneration) return false;
+      await refresh();
+      final committed = _activeGameSessionId == gameId &&
+          _activeGameChapterIndex == chapterIndex;
+      if (!committed) await LifeManager.refreshFromServer();
+      return committed;
     }
-    return false;
   }
 
   Future<bool> _awaitPendingStartSession() async {
@@ -254,61 +225,34 @@ class PlayerProgressService {
     int chapterIndex, {
     String? sessionId,
   }) async {
-    final user = _auth.currentUser;
-    if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
-
-    final chapterName = _chapterNames[chapterIndex];
-    final bindingSessionId = sessionId ?? _activeGameSessionId;
-    final saved = SaveManager.loadCached(chapter: chapterName);
-    final hasPlayableLocalBoard = saved != null &&
-        saved['gameSessionId'] == bindingSessionId &&
+    if (SupabaseBackend.client.auth.currentUser == null ||
+        chapterIndex < 0 || chapterIndex > 5) return false;
+    final gameId = sessionId ?? _activeGameSessionId;
+    if (gameId == null) return false;
+    final saved = SaveManager.loadCached(chapter: _chapterNames[chapterIndex]);
+    final playable = saved != null &&
+        saved['gameSessionId'] == gameId &&
         saved['gameOver'] != true &&
         saved['chapterComplete'] != true &&
         saved['tiles'] is List &&
         (saved['tiles'] as List).length == 16;
-
-    if (!hasPlayableLocalBoard) return false;
-
-    final operationGeneration = ++_sessionOperationGeneration;
+    if (!playable) return false;
+    final generation = ++_sessionOperationGeneration;
     try {
-      final result = await _functions.httpsCallable('resumeGameSession').call({
-        'chapterIndex': chapterIndex,
-        'sessionId': ?sessionId,
-      });
-      final data = result.data;
-      if (data is Map && data['sessionId'] is String) {
-        if (operationGeneration != _sessionOperationGeneration) return false;
-        _activeGameSessionId = data['sessionId'] as String;
-        await SaveManager.setGameSessionId(_activeGameSessionId!);
-        final returnedChapter = data['chapterIndex'];
-        _activeGameChapterIndex = returnedChapter is num
-            ? returnedChapter.toInt().clamp(0, 5)
-            : chapterIndex;
-        final lifeState = data['life'];
-        if (lifeState is Map) {
-          LifeManager.applyServerState(
-            Map<String, dynamic>.from(lifeState),
-          );
-        } else {
-          await LifeManager.refreshFromServer();
-        }
-        return true;
-      }
-    } on FirebaseFunctionsException catch (error) {
-      print(
-        'resumeGameSession failed: code=${error.code}, '
-        'message=${error.message}, '
-        'details=${error.details?.toString()},',
-      );
-      final isExpiredSession =
-          error.code == 'deadline-exceeded' &&
-          (error.message ?? '').toLowerCase().contains('expired');
-      if (isExpiredSession) {
-        await refresh();
-        return false;
-      }
+      final result = await SupabaseGameSessionService.resumeGameSession(gameId: gameId);
+      if (generation != _sessionOperationGeneration ||
+          result['gameId'] != gameId ||
+          result['chapterCode'] != 'C${chapterIndex + 1}' ||
+          result['state'] != 'ACTIVE') return false;
+      _activeGameSessionId = gameId;
+      _activeGameChapterIndex = chapterIndex;
+      await SaveManager.setGameSessionId(gameId);
+      await refresh();
+      return _activeGameSessionId == gameId;
+    } catch (_) {
+      if (generation == _sessionOperationGeneration) await refresh();
+      return false;
     }
-    return false;
   }
 
   Future<bool> restartGameSession(
