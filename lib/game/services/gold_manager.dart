@@ -1,4 +1,4 @@
-import '../../services/supabase_account_service.dart';
+import '../../services/supabase_backend.dart';
 
 /// Client facade for the server-authoritative Gold wallet.
 class GoldManager {
@@ -42,10 +42,29 @@ class GoldManager {
 
   static Future<int?> refresh() async {
     try {
-      final snapshot = await SupabaseAccountService.fetchSnapshot();
-      applySupabaseBalance(snapshot.gold);
+      final client = SupabaseBackend.client;
+      if (client.auth.currentSession == null) return null;
+      final response = await client.functions.invoke(
+        'account-snapshot',
+        method: HttpMethod.post,
+        body: <String, dynamic>{},
+      );
+      if (response.status < 200 || response.status >= 300 ||
+          response.data is! Map) {
+        return null;
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final balance = data['gold'];
+      if (data['userId'] != client.auth.currentUser?.id ||
+          balance is! num ||
+          !balance.isFinite ||
+          balance.toInt() < 0 ||
+          balance != balance.toInt()) {
+        return null;
+      }
+      applySupabaseBalance(balance.toInt());
       return _cachedBalance;
-    } on SupabaseAccountException {
+    } catch (_) {
       return null;
     }
   }
