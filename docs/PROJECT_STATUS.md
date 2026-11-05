@@ -1,74 +1,76 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-10-02 21:42（Asia/Taipei）
+最後更新：2026-11-05
 專案：`johnbutyno3/evolution_2048`
-分支：`feature/chapter1-spec-implementation`
-主要事實來源：GitHub branch 最新已提交程式、最新 commit、timestamped canonical progress。
+主要分支：`feature/chapter1-spec-implementation`
+版本權威：GitHub 此分支最新已提交內容。
 
-> 本文件只記錄已提交到 GitHub 的實際狀態。尚未提交的本機修改不得視為完成。舊 `RELEASE_PREPARATION_TODO.md` 不作主要進度來源。
+> 本文件只記錄可由目前 GitHub 原始碼確認的狀態。未執行的測試、部署及實機驗證不標示為完成。
 
 ## 目前階段
 
-**Personal Information + Shop / Marketplace → Life / Game Session runtime correctness → Chapter / Tool / Collection runtime correctness → Launch Security / Anti-Cheat hardening**
+**Supabase client cutover → Economy / Session rule alignment → Legacy account export & reconciliation → Backend deployment / integration QA → Device QA**
 
-目前主線仍是 Life、Session、Restart、會員／工具同步與章節流程的 runtime correctness；不回頭修改已確立的遊戲核心規則。
+Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳戶、會員、Gold、Life、工具庫存、遊戲 Session、進度、收藏、商城與客服資料的目標權威來源。
 
-## 最新 GitHub 狀態
+## 已確認的 Supabase client 遷移
 
-目前 branch 最新已提交 commit：`3291d8d5107de741a41e0dccc50a722afd4290b8`
+- `pubspec.yaml` 目前直接依賴 `supabase_flutter`，未宣告 Firebase Flutter SDK dependencies。
+- `lib/main.dart` 初始化 Supabase；登入／註冊與 OAuth 使用 Supabase Auth。
+- `SupabaseAccountBootstrapService.synchronize()` 在 Home 啟用遊戲前取得並驗證 account snapshot，再套用會員、Life、Gold、工具庫存並綁定帳戶本機存檔。
+- `LifeManager` 已使用 Supabase account snapshot；新局 Life 扣除由 `start-game-session` 的資料庫交易負責，client optimistic count 僅供即時 UI。
+- `GoldManager` 已改用 Supabase account snapshot，僅保存 UI cache；沒有把本機 Gold 當作交易權威。
+- `ToolManager` 的庫存讀取使用 Supabase snapshot，購買透過 `purchase-tool-package`，Gold 扣除與工具增加由資料庫交易原子處理。
+- `PlayerProgressService` 與 `SupabaseGameSessionService` 使用 Supabase Edge Functions 管理 start / resume / restart / checkpoint / completion / abandon。
+- `account-snapshot` 會以 server time 執行 FREE Life regeneration，並呼叫冪等的 daily Gold claim。
+- 章節完成由 server replay validator 驗證後才更新永久進度、結算工具使用及符合條件的 Life 獎勵。
 
-2026-10-02 最新變更：
+## 必須優先修正的規則不一致
 
-- `3291d8d5`、`e18b1f2f`、`559c58ea`、`10bf2b28`：progress / admin lint cleanup。
-- `a8d6f9d5`：恢復 start timeout recovery 的 previous-session guard。
-- `3cd0e14c`：paused save resume 的 nullable guard。
-- `82bb52de`：BACK 後保留 paused session binding。
-- `b4cbffb2`：reset 時清除 paused continuation。
-- `5136ee6d`、`96965422`：paused continuation exclusive persistence / enforcement。
+**Restart 是否扣 Life 與已確認遊戲規則不一致。**
 
-本批變更主要強化 paused-game continuation、BACK、Reset、timeout recovery 與 null-safety，沒有改變既定遊戲規則。
+目前 `supabase/migrations/20261103030000_atomic_restart_game_session_rpc.sql` 的 `restart_game_session` 先結算舊 Session，再呼叫 `start_game_session`；而 `start_game_session` 會對 FREE 帳戶執行 `NEW_GAME_DEBIT`。因此目前 restart 會扣除 1 Life。
 
-## 已完成／已提交修正
+既定遊戲規則為：
+- 新開一局扣 1 Life。
+- Resume 不扣 Life。
+- Restart 不扣 Life。
+- 放棄不退 Life；Game Over 不額外扣 Life。
+- PREMIUM / GOLDEN 無限生命。
 
-### Life / Game Session
+下一個資料庫修正必須讓 restart 在單一交易內結算舊 Session 並建立新 Session，但不產生第二筆 `NEW_GAME_DEBIT`；一般 start 仍必須扣 1 Life。需同時補上 SQL contract / integration tests，涵蓋 FREE、PREMIUM、GOLDEN、重試冪等、舊 Session 結算失敗及新 Session 建立失敗回滾。修正前不可宣稱 restart Life 規則已符合要求。
 
-- 新局進入採本機優先扣除 Life，不等待 Firebase 才建立棋盤。
-- 第一次進入遊戲也採 local-first。
-- Firebase `startGameSession` 背景驗證仍保留；Server transaction 仍是 authoritative Life / Session 來源。
-- Start / Resume / Restart / Completion response 遺失時，會重新讀取 authoritative state。
-- LifeManager 已加入 life-state generation，舊 Firebase read 不得覆蓋較新的本機或 mutation 狀態。
-- Restart 會建立新的 server session、標記舊 session replaced、重新綁定 local save。
-- BACK 後的 paused continuation 只保留唯一可恢復 session；reset 時清除 paused continuation。
-- Start timeout recovery 會檢查 previous session，避免錯誤 session 被視為新局。
-- Home / SaveManager 仍有 active session 與 stale snapshot 防護。
-- Server replay 驗證已綁定 session `initialTiles`。
+## Firebase 遺留項目與保留原則
 
-### Chapter / Collection / Tools
+目前程式碼搜尋未發現 active `lib/` Dart runtime 仍匯入 Firebase Flutter SDK；但下列遺留項目仍存在：
+- `functions/`：Firebase Admin / Cloud Functions legacy account export tooling，仍需用於舊帳戶資料匯出及對照。
+- `firebase.json`、`firestore.rules`：舊 Firebase 專案設定與規則。
+- `lib/screens/personal_page.dart.bak`、`personal_page.dart.backup`：舊 Firebase client 的備份程式碼，不屬於 active Dart build。
+- `pubspec.lock` 搜尋仍見 Firebase platform-interface 套件項目；需在可用 Flutter 環境執行 `flutter pub get` 後確認 lockfile 是否自然清除。
 
-- Completion verification 與動畫平行開始；response 遺失可做 authoritative recovery。
-- Chapter progress、tool reward、inventory refresh 已接通。
-- Tool inventory cache 已做 account-scoped 清除。
-- Provider login failure 會暴露可診斷錯誤細節。
-- `allToolsEnabledForTest` 不等同正式工具庫存數量。
-- Admin / progress lint cleanup 已完成。
+在 Firebase Auth 使用者匯出、身份 mapping、Supabase import、筆數與權益核對完成前，不得刪除 Firebase Auth 帳戶、Firestore 資料、舊 Cloud Functions 或匯出所需設定。不得把 Firebase 舊 runtime 當作新功能開發目標。
 
-## 目前仍未完成／未經最終實機驗證
+## 仍未完成／尚未驗證
 
-- BACK 後重新進入是否只恢復唯一 paused 棋盤。
-- Reset 後是否不會恢復舊 paused continuation。
-- Restart / Game Over → Restart 是否不閃回舊棋盤且 Life 只扣一次。
-- Life regeneration / Firebase reconcile 是否不被舊狀態回滾。
-- Golden membership、Gold wallet、正式工具 inventory 與測試 toggle 的實機一致性。
-- C1 UNDO +1、跨章工具累積、Collection / Chapter progress 完整 E2E。
+- Restart 不扣 Life 的資料庫交易修正及測試。
+- Firebase Auth / Firestore 完整匯出、身份 mapping、Supabase import、reconciliation。
+- Supabase migrations 與 Edge Functions 尚未以目標 production project 完成部署核對；不得由 source files 推定已部署。
+- Google / Apple OAuth provider credentials、redirect allow-list 及實機登入流程。
+- Apple / Google Play 收據伺服器驗證、退款／撤銷及會員權益發放。
+- Supabase SQL integration / concurrency tests、Edge Function tests、Flutter `pub get` / `analyze` / `test`。
+- APK 安裝與實機 E2E：新局扣命、restart/resume、Game Over、過關獎勵、Gold 購買工具、跨裝置登入與帳戶隔離。
+- Firebase 資料完成遷移後的正式 cutover 與舊服務退役。
 
-## 下一個明確工作項目
+## 驗證邊界
 
-**完成 consolidated runtime QA：BACK / paused continuation、Reset、Restart、Game Over → Restart、Game Over → Back、重新進入遊戲、UNDO 後盤面與分數、Life reconcile。**
+本輪為 GitHub source inspection 與 repository-level 更新；目前工作環境沒有可執行此 repo 的 Flutter / Dart / Supabase CLI 與 production credentials。因此沒有宣稱 Flutter analyze、測試、migration apply、Edge Function deploy、APK 或實機驗證成功。
 
-只有在實機出現確定性錯誤後，才改動對應程式；不重做已完成的遊戲核心規則。
+## 下一個工作順序
 
-## 文件狀態差異
+1. 修正 restart RPC：舊 Session settlement + 新 Session create 原子化，但不扣 Life；一般新局維持扣 1。
+2. 增補 restart SQL contract / integration tests，確認冪等與 rollback。
+3. 逐項核對 Supabase migration、Edge Function、RLS、交易與權益規則。
+4. 執行 Firebase 舊帳戶 export → identity mapping → import → reconciliation；保留舊資料直到核對通過。
+5. 在正確 Supabase project 完成 migration / Edge Function deployment，再進行 Flutter 與實機 QA。
+6. 完成 cutover 後才退役 Firebase runtime；不提前刪除舊帳戶或資料。
 
-- `docs/PROJECT_STATUS.md`：同步至 `3291d8d5`。
-- `docs/GAME_RULES.md`：目前 GitHub branch 不存在。
-- 不使用舊 `RELEASE_PREPARATION_TODO.md` 作主要進度來源。
