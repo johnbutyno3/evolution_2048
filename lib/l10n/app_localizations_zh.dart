@@ -292,6 +292,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restart => '重新開始';
 
   @override
+  String get restartFailed => '無法重新開始，請確認生命數量後再試一次。';
+
+  @override
   String get cancel => '取消';
 
   @override
