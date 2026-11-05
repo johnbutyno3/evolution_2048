@@ -1,18 +1,12 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import '../../services/supabase_account_service.dart';
 
-/// Local-first life presentation with server verification.
-///
-/// Gameplay uses an optimistic local decrement so entering a game never waits
-/// for Firebase. Firebase remains authoritative and every successful session
-/// response reconciles the local state with the server state.
+/// Local-first life presentation with Supabase account-snapshot verification.
+/// Gameplay uses an optimistic decrement; session RPCs remain authoritative.
 class LifeManager {
   LifeManager._();
 
   static const int normalCap = 5;
   static const int _regenIntervalMillis = 40 * 60 * 1000;
-
-  static final FirebaseFunctions _functions =
-      FirebaseFunctions.instanceFor(region: 'us-central1');
 
   static int _lifeCount = normalCap;
   static bool _hasAuthoritativeState = false;
@@ -91,17 +85,23 @@ class LifeManager {
         ? _lifeStateGeneration
         : ++_lifeStateGeneration;
 
-    final result = await _functions.httpsCallable('getLifeState').call();
-    final data = Map<String, dynamic>.from(result.data as Map);
-
-    if (requestGeneration != _lifeStateGeneration) return;
-
-    if (fromRegeneration) {
-      _applyServerState(data, preserveLocalRegeneration: true);
-      return;
+    try {
+      final snapshot = await SupabaseAccountService.fetchSnapshot();
+      if (requestGeneration != _lifeStateGeneration) return;
+      _lifeCount = snapshot.lifeCount;
+      _infiniteLives = snapshot.unlimitedLives;
+      _membership = switch (snapshot.membershipTier) {
+        'PREMIUM' => 'premium',
+        'GOLDEN' => 'golden',
+        _ => 'general',
+      };
+      _lifeMode = snapshot.membershipTier == 'GOLDEN' ? 'golden' : 'normal';
+      _nextLifeAtMillis = snapshot.nextRegenAt?.millisecondsSinceEpoch;
+      _hasAuthoritativeState = true;
+    } on SupabaseAccountException {
+      // A failed snapshot is not permission to change the cached life balance.
+      rethrow;
     }
-
-    _applyServerState(data);
   }
 
   static void _applyServerState(
@@ -151,7 +151,7 @@ class LifeManager {
     _hasAuthoritativeState = true;
   }
 
-  /// Clears account-scoped local state before Firebase sign-out.
+  /// Clears account-scoped local state before Supabase sign-out.
   /// The next account must never inherit the previous account's Life display.
   static void clearCachedState() {
     _lifeStateGeneration++;
@@ -179,7 +179,7 @@ class LifeManager {
   /// Advances the local regeneration state as soon as the countdown expires.
   ///
   /// The local transition is immediate so the UI never remains at
-  /// "4 (00:00)" while waiting for Firebase. The server is then queried in
+  /// "4 (00:00)" while waiting for Supabase. The server is then queried in
   /// the background. A stale response can no longer roll the just-regenerated
   /// Life back down.
   static void tickRegeneration() {
@@ -205,7 +205,7 @@ class LifeManager {
     // still in flight; the older request will be discarded by generation.
     _lifeStateGeneration++;
     refreshFromServer(fromRegeneration: true).catchError((_) {
-      // Keep the optimistic local regeneration visible if Firebase is
+      // Keep the optimistic local regeneration visible if Supabase is
       // temporarily unavailable. A later refresh/re-entry will retry.
     });
   }
@@ -219,25 +219,19 @@ class LifeManager {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
-  /// Legacy explicit server consume API. Normal game entry now uses the
-  /// local-first session flow instead of waiting for this call.
+  /// Life is deducted only by start/restart-game-session transactions.
+  /// Kept as a compatibility guard so callers cannot double-charge life.
   static Future<bool> consumeLife() async {
-    try {
-      final result = await _functions.httpsCallable('consumeLife').call();
-      applyServerState(Map<String, dynamic>.from(result.data as Map));
-      return true;
-    } on FirebaseFunctionsException catch (error) {
-      if (error.code == 'failed-precondition' &&
-          error.message == 'No lives available.') {
-        await refreshFromServer();
-        return false;
-      }
-      rethrow;
-    }
+    throw UnsupportedError(
+      'Life can only be consumed by an authoritative game-session transaction.',
+    );
   }
 
+  /// Chapter completion life is settled by finish-game-chapter on the server.
   static Future<void> refundChapterCompletionLife() async {
-    final result = await _functions.httpsCallable('refundLife').call();
-    applyServerState(Map<String, dynamic>.from(result.data as Map));
+    throw UnsupportedError(
+      'Chapter completion life is settled by the game-session transaction.',
+    );
   }
+
 }
