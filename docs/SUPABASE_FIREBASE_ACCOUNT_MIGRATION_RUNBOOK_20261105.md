@@ -71,7 +71,34 @@ Expected payload fields are `profile` (`playerName`, `avatarIndex`, optional `ac
 
 The importer intentionally does not import Firebase `playerId` (the current app uses the Supabase Auth UUID as its player ID), admin flags, password material, or active sessions. `completed_at` remains null because the legacy source does not provide a reliable completion timestamp. Zero balances and inventories remain represented by the destination rows without inventing zero-delta ledger entries.
 
-## 6. Required migration procedure
+## 6. Operator execution (Windows PowerShell)
+
+1. Use a restricted Firebase service account with read-only access to Firebase Authentication and the listed Firestore paths. Keep its JSON key outside the repository.
+2. From the repository root, install only the legacy export tool dependencies: `npm --prefix functions ci`.
+3. Set the Firebase service-account path and project ID in the current PowerShell session, then export to a new restricted local path:
+
+   ` $env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\\secure\\firebase-readonly-service-account.json' `
+
+   ` $env:GCLOUD_PROJECT = 'your-firebase-project-id' `
+
+   ` node functions/scripts/export_legacy_account_snapshot.js 'C:\\secure\\legacy-export-20261105.json' `
+
+4. Review every `validationErrors` array in the export. Any non-empty array blocks that account from the batch script; resolve it manually and regenerate a fresh export rather than editing its checksum-bearing source record.
+5. Create a local UTF-8 CSV with exactly these headers: `legacyUid,userId,verificationMethod`. Include only accounts whose Firebase and Supabase identities have been verified. Do not create this mapping by matching email addresses.
+6. Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_ACCESS_TOKEN` in the current PowerShell session. The access token must belong to a Supabase Auth user whose `app_metadata.role` is `admin`.
+7. Run the importer first without `-Execute` for a dry run. After reviewing the count and mapping file, rerun with `-Execute`. The script registers the verified identity link, then imports each account. Re-running a successfully imported account is idempotent; a different source checksum or a non-pristine Supabase account is rejected.
+
+Example dry run:
+
+` .\\tools\\import_legacy_accounts.ps1 -ExportPath 'C:\\secure\\legacy-export-20261105.json' -MappingPath 'C:\\secure\\verified-account-map.csv' `
+
+Example execution (only after review and deployment):
+
+` .\\tools\\import_legacy_accounts.ps1 -ExportPath 'C:\\secure\\legacy-export-20261105.json' -MappingPath 'C:\\secure\\verified-account-map.csv' -Execute `
+
+The exporter includes a normalized `importPayload` and a SHA-256 checksum for each exact source record. The PowerShell script never sends accounts with validation errors, and only processes UIDs present in the mapping CSV. Both local files contain sensitive account data and must never be committed or uploaded to the project file library.
+
+## 7. Required migration procedure
 
 1. Freeze destructive Firebase changes and take a timestamped export/backup of Firebase Auth and the relevant Firestore collections.
 2. Produce an inventory report: account count, missing subdocuments, duplicate player IDs/names, invalid balances, invalid timestamps, membership status, and per-table counts. Keep PII and raw exports in restricted storage; do not commit them to Git.
@@ -82,12 +109,13 @@ The importer intentionally does not import Firebase `playerId` (the current app 
 7. Reconcile totals and sample accounts (membership, Gold, all tools, lives, six chapters, collection) against the frozen export.
 8. Only after sign-off, direct existing users to Supabase sign-in/linking and monitor account snapshot failures. Retain Firebase backups and read-only access for a defined rollback/support period.
 
-## 7. Current blockers and non-claims
+## 8. Current blockers and non-claims
 
 - No Firebase Auth / Firestore export has been supplied or processed in this repository workflow.
 - No verified Firebase-UID-to-Supabase-UUID mapping exists here.
 - The import SQL migration and two admin-gated Edge Functions are committed but have not been deployed or executed.
-- No offline Firebase export/transform utility has been completed; source export, identity proof, and per-record SHA-256 generation remain required.
+- The Firebase export/normalization tool and PowerShell dry-run/import script are committed but have not been run against the production Firebase project.
+- No verified Firebase-UID-to-Supabase-UUID mapping CSV has been prepared.
 - Firebase legacy resources have not been decommissioned.
 - No production reconciliation, Flutter test, Edge Function deployment, or APK/device validation is claimed by this runbook.
 
