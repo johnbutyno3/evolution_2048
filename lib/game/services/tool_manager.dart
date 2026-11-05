@@ -124,7 +124,20 @@ class ToolManager {
   static Future<void> _refreshInventoryFromServer() async {
     try {
       final snapshot = await SupabaseAccountService.fetchSnapshot();
-      applySupabaseInventory(snapshot.tools);
+      const mapping = <String, GameToolType>{
+        'UNDO': GameToolType.timeRewind,
+        'REMOVE': GameToolType.revive,
+        'SWAP': GameToolType.positionSwap,
+        'DUPLICATE': GameToolType.duplicate,
+      };
+      final refreshed = <GameToolType, int>{
+        for (final entry in mapping.entries) entry.value: snapshot.tools[entry.key]!,
+      };
+      // Refresh the account inventory without clearing the active game's
+      // pending local tool-use overlay.
+      _serverUses
+        ..clear()
+        ..addAll(refreshed);
     } on SupabaseAccountException {
       // Keep the last validated account snapshot. A failed read must never
       // synthesize inventory or grant additional tool uses.
@@ -189,7 +202,6 @@ class ToolManager {
       // The trusted Supabase RPC commits Gold deduction and tool grant in one
       // database transaction. Apply both values only after validating response.
       _serverUses[type] = uses.toInt();
-      _sessionUses.remove(type);
       GoldManager.applySupabaseBalance(balance.toInt());
       return true;
     } on SupabaseToolPurchaseException catch (error) {
