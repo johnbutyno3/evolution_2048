@@ -283,6 +283,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logoutConfirm => '確定要登出帳號嗎？';
 
   @override
+  String get restartConfirmTitle => '重新開始遊戲？';
+
+  @override
+  String get restartConfirmMessage => '確定要建立新棋盤嗎？將消耗 1 點生命。';
+
+  @override
+  String get restart => '重新開始';
+
+  @override
   String get cancel => '取消';
 
   @override
