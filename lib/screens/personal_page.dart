@@ -8,6 +8,7 @@ import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
 import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
+import '../services/supabase_auth_service.dart';
 
 import '../game/services/audio_manager.dart';
 import '../game/services/tool_manager.dart';
@@ -39,7 +40,7 @@ class PersonalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseAuthService.currentUser;
 
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.personalTitle)),
@@ -164,7 +165,7 @@ class PersonalPage extends StatelessWidget {
     ToolManager.clearCachedInventory();
     LifeManager.clearCachedState();
     GoldManager.clearCachedState();
-    await FirebaseAuth.instance.signOut();
+    await SupabaseAuthService.signOut();
 
     if (!context.mounted) return;
 
@@ -259,7 +260,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
   }
 
   Future<void> _loadProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseAuthService.currentUser;
 
     if (user == null) {
       if (mounted) {
