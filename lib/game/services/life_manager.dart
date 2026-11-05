@@ -190,7 +190,7 @@ class LifeManager {
 
     final elapsed = now - _nextLifeAtMillis!;
     final recovered = 1 + (elapsed ~/ _regenIntervalMillis);
-    final nextLives = (_lifeCount + recovered).clamp(0, normalCap);
+    final nextLives = (_lifeCount + recovered).clamp(0, normalCap).toInt();
     _lifeCount = nextLives;
 
     if (_lifeCount >= normalCap) {
