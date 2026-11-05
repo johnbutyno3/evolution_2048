@@ -75,6 +75,7 @@ declare
   v_chapter jsonb;
   v_value jsonb;
   v_count integer := 0;
+  v_tool_count integer := 0;
 begin
   if p_legacy_uid is null or length(trim(p_legacy_uid)) not between 1 and 128
     or p_source_sha256 is null or p_source_sha256 !~ '^[a-f0-9]{64}$'
@@ -157,7 +158,159 @@ begin
   end if;
   if v_membership_status <> 'active' then v_tier := 'FREE'; end if;
 
-  if coalesce(v_gold ->> 'balance', '') !~ '^(0|[1-9][0-9]*)$'
+  if (select count(*) from jsonb_object_keys(v_tools)) <> 4
+    or exists (select 1 from jsonb_object_keys(v_tools) k
+      where k not in ('UNDO', 'REMOVE', 'SWAP', 'DUPLICATE')) then
+    raise exception using errcode = '22023', message = 'INCOMPLETE_LEGACY_TOOL_INVENTORY';
+  end if;
+
+  if coalesce(v_gold ->> 'balance', '') !~ '^(0|[1-9][0-9]*)
+    or length(v_gold ->> 'balance') > 18 then
+    raise exception using errcode = '22023', message = 'INVALID_LEGACY_GOLD_BALANCE';
+  end if;
+  v_gold_balance := (v_gold ->> 'balance')::bigint;
+
+  if coalesce(v_lives ->> 'count', '') !~ '^[0-5]$' then
+    raise exception using errcode = '22023', message = 'INVALID_LEGACY_LIFE_COUNT';
+  end if;
+  v_life_count := (v_lives ->> 'count')::integer;
+  v_next_regen := null;
+  if v_life_count < 5 then
+    if coalesce(v_lives ->> 'nextRegenAt', '') = '' then
+      v_next_regen := now() + interval '40 minutes';
+    else
+      v_next_regen := (v_lives ->> 'nextRegenAt')::timestamptz;
+      if v_next_regen < now() - interval '7 days'
+        or v_next_regen > now() + interval '40 minutes' then
+        raise exception using errcode = '22023', message = 'INVALID_LEGACY_REGENERATION_TIME';
+      end if;
+    end if;
+  end if;
+
+  update public.profiles set
+    display_name = left(regexp_replace(trim(coalesce(v_profile ->> 'playerName', display_name)), '\s+', ' ', 'g'), 40),
+    avatar_index = case
+      when coalesce(v_profile ->> 'avatarIndex', '') ~ '^\d+$'
+        then least(53, (v_profile ->> 'avatarIndex')::integer)
+      else avatar_index
+    end,
+    account_status = v_account_status
+    where user_id = v_user_id;
+
+  update public.memberships set
+    tier = v_tier,
+    status = v_membership_status,
+    verified_at = case when v_tier = 'FREE' then null else now() end
+    where user_id = v_user_id;
+
+  update public.gold_wallets set balance = v_gold_balance
+    where user_id = v_user_id;
+  if v_gold_balance > 0 then
+    insert into public.wallet_ledger (
+      user_id, asset_type, quantity_delta, reason, idempotency_key, metadata
+    ) values (
+      v_user_id, 'GOLD', v_gold_balance, 'LEGACY_IMPORT',
+      'legacy-import:firebase:' || trim(p_legacy_uid) || ':gold',
+      jsonb_build_object('sourceSha256', p_source_sha256, 'importedBalance', v_gold_balance)
+    ) on conflict (user_id, idempotency_key) do nothing;
+  end if;
+
+  for v_code, v_quantity in
+    select key, value::text::bigint from jsonb_each_text(v_tools)
+  loop
+    if v_code not in ('UNDO', 'REMOVE', 'SWAP', 'DUPLICATE')
+      or v_quantity < 0 then
+      raise exception using errcode = '22023', message = 'INVALID_LEGACY_TOOL_INVENTORY';
+    end if;
+    update public.tool_inventory
+      set quantity = v_quantity
+      where user_id = v_user_id and tool_code = v_code;
+    if v_quantity > 0 then
+      insert into public.wallet_ledger (
+        user_id, asset_type, asset_code, quantity_delta, reason,
+        idempotency_key, metadata
+      ) values (
+        v_user_id, 'TOOL', v_code, v_quantity, 'LEGACY_IMPORT',
+        'legacy-import:firebase:' || trim(p_legacy_uid) || ':tool:' || v_code,
+        jsonb_build_object('sourceSha256', p_source_sha256, 'importedQuantity', v_quantity)
+      ) on conflict (user_id, idempotency_key) do nothing;
+    end if;
+    v_tool_count := v_tool_count + 1;
+  end loop;
+
+  update public.life_wallets
+    set life_count = v_life_count, next_regen_at = v_next_regen
+    where user_id = v_user_id;
+  if v_life_count <> 5 then
+    insert into public.life_ledger (
+      user_id, quantity_delta, reason, idempotency_key, metadata
+    ) values (
+      v_user_id, case when v_life_count = 0 then -5 else v_life_count - 5 end,
+      'LEGACY_IMPORT', 'legacy-import:firebase:' || trim(p_legacy_uid) || ':life',
+      jsonb_build_object('sourceSha256', p_source_sha256, 'importedLives', v_life_count,
+        'nextRegenAt', v_next_regen)
+    ) on conflict (user_id, idempotency_key) do nothing;
+  end if;
+
+  for v_chapter in select value from jsonb_array_elements(v_chapters)
+  loop
+    v_code := v_chapter ->> 'chapterCode';
+    if v_code not in ('C1','C2','C3','C4','C5','C6')
+      or coalesce(v_chapter ->> 'highestStage','') !~ '^(0|[1-9][0-9]*)$'
+      or coalesce(v_chapter ->> 'bestScore','') !~ '^(0|[1-9][0-9]*)$' then
+      raise exception using errcode = '22023', message = 'INVALID_LEGACY_CHAPTER_PROGRESS';
+    end if;
+    if (v_chapter ->> 'highestStage')::integer > 17
+      or (v_chapter ->> 'bestScore')::numeric > 9007199254740991 then
+      raise exception using errcode = '22023', message = 'LEGACY_CHAPTER_PROGRESS_OUT_OF_RANGE';
+    end if;
+    insert into public.game_progress (
+      user_id, chapter_code, highest_stage, best_score, completed_at
+    ) values (
+      v_user_id, v_code, (v_chapter ->> 'highestStage')::integer,
+      (v_chapter ->> 'bestScore')::bigint,
+      null
+    ) on conflict (user_id, chapter_code) do update set
+      highest_stage = excluded.highest_stage,
+      best_score = excluded.best_score,
+      completed_at = excluded.completed_at;
+    v_count := v_count + 1;
+  end loop;
+
+  for v_value in select value from jsonb_array_elements(v_collection)
+  loop
+    v_code := v_value ->> 'chapterCode';
+    if v_code not in ('C1','C2','C3','C4','C5','C6')
+      or coalesce(v_value ->> 'creatureValue','') !~ '^(2|4|8|16|32|64|128|256|512|1024|2048|4096|8192|16384|32768|65536|131072)$' then
+      raise exception using errcode = '22023', message = 'INVALID_LEGACY_COLLECTION_ENTRY';
+    end if;
+    insert into public.creature_collection (user_id, chapter_code, creature_value)
+    values (v_user_id, v_code, (v_value ->> 'creatureValue')::bigint)
+    on conflict (user_id, chapter_code, creature_value) do nothing;
+  end loop;
+
+  insert into public.legacy_account_imports (
+    legacy_provider, legacy_uid, user_id, source_sha256, imported_by, import_summary
+  ) values (
+    'firebase', trim(p_legacy_uid), v_user_id, p_source_sha256, p_imported_by,
+    jsonb_build_object('membershipTier', v_tier, 'gold', v_gold_balance,
+      'lives', v_life_count, 'toolsImported', v_tool_count, 'chaptersImported', v_count,
+      'collectionEntries', jsonb_array_length(v_collection))
+  );
+
+  return jsonb_build_object(
+    'imported', true, 'duplicate', false, 'userId', v_user_id,
+    'membershipTier', v_tier, 'gold', v_gold_balance, 'lives', v_life_count,
+    'toolsImported', v_tool_count, 'chaptersImported', v_count, 'collectionEntries', jsonb_array_length(v_collection)
+  );
+end;
+$$;
+
+revoke all on function public.import_legacy_firebase_account(text, text, jsonb, uuid)
+  from public, anon, authenticated;
+grant execute on function public.import_legacy_firebase_account(text, text, jsonb, uuid)
+  to service_role;
+
     or length(v_gold ->> 'balance') > 18 then
     raise exception using errcode = '22023', message = 'INVALID_LEGACY_GOLD_BALANCE';
   end if;
