@@ -27,8 +27,7 @@ class SupabaseBackend {
     final normalizedUrl = url.trim();
     final normalizedKey = publishableKey.trim();
     if (normalizedUrl.isEmpty || normalizedKey.isEmpty) {
-      // Keep Firebase startup intact until all Firebase call sites are migrated.
-      // This avoids switching authentication alone and breaking dependent services.
+      // Refuse to start authenticated features without a configured Supabase project.
       debugPrint('Supabase is not configured; migration bootstrap skipped.');
       return false;
     }
