@@ -144,7 +144,7 @@ class PlayerProgressService {
     bool retryAfterPendingFailure = false,
     required List<dynamic> initialTiles,
   }) async {
-    final user = _auth.currentUser;
+    final user = SupabaseBackend.client.auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
 
     // A second normal start while the first local-first start is still
@@ -261,81 +261,53 @@ class PlayerProgressService {
     String? replaySessionId,
     required List<dynamic> initialTiles,
   }) async {
-    final user = _auth.currentUser;
-    if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
+    if (SupabaseBackend.client.auth.currentUser == null ||
+        chapterIndex < 0 || chapterIndex > 5) return false;
 
-    // RESET takes ownership immediately. This invalidates any refresh that is
-    // already waiting on Firestore before the replacement session is created.
     _sessionIdentityGeneration.begin();
+    final pending = _pendingStartSession;
+    if (pending != null) await pending;
+    final generation = ++_sessionOperationGeneration;
+    final previousGameId = _activeGameSessionId ?? replaySessionId;
+    final gameId = _newUuid();
 
-    final pendingStart = _pendingStartSession;
-    if (pendingStart != null) {
-      await pendingStart;
-    }
-
-    final operationGeneration = ++_sessionOperationGeneration;
-    final previousSessionId = _activeGameSessionId;
     try {
-      final result = await _functions.httpsCallable('restartGameSession').call({
-        'chapterIndex': chapterIndex,
-        // Bind this reset to the session it is replacing. If two reset
-        // requests race, only the first can replace/charge that session.
-        // A lost response is recovered by refresh() below, not by charging
-        // another replacement session.
-        'sessionId': ?previousSessionId,
-        'replaySessionId': ?replaySessionId,
-        'replayLog': ?replayLog,
-        'initialTiles': initialTiles,
-      });
-      final data = result.data;
-      if (data is Map && data['sessionId'] is String) {
-        if (operationGeneration != _sessionOperationGeneration) return false;
-
-        _activeGameSessionId = data['sessionId'] as String;
-        await SaveManager.setGameSessionId(_activeGameSessionId!);
-        _activeGameChapterIndex = chapterIndex;
-
-        final lifeState = <String, dynamic>{
-          'lives': data['lives'],
-          'infiniteLives': data['infiniteLives'],
-          'membership': data['membership'],
-          'lifeMode': data['lifeMode'],
-          'nextLifeAtMillis': data['nextLifeAtMillis'],
-        };
-        if (lifeState['lives'] is int &&
-            lifeState['infiniteLives'] is bool &&
-            lifeState['membership'] is String &&
-            lifeState['lifeMode'] is String) {
-          LifeManager.applyServerState(lifeState);
-        } else {
-          await LifeManager.refreshFromServer();
-        }
-
-        await ToolManager.refreshInventory();
-        return true;
+      final tiles = _initialBoard(initialTiles);
+      final Map<String, dynamic> result;
+      if (previousGameId == null) {
+        result = await SupabaseGameSessionService.startGameSession(
+          requestId: _newUuid(),
+          gameId: gameId,
+          chapterCode: 'C${chapterIndex + 1}',
+          initialTiles: tiles,
+        );
+      } else {
+        if (replayLog == null) return false;
+        result = await SupabaseGameSessionService.restartGameSession(
+          requestId: _newUuid(),
+          gameId: gameId,
+          previousGameId: previousGameId,
+          eventId: _newUuid(),
+          chapterCode: 'C${chapterIndex + 1}',
+          initialTiles: tiles,
+          replayLog: replayLog,
+        );
       }
-    } on FirebaseFunctionsException catch (error) {
-      print(
-        'restartGameSession failed: code=${error.code}, '
-        'message=${error.message}, details=${error.details}',
-      );
-      if (operationGeneration == _sessionOperationGeneration) {
+      if (generation != _sessionOperationGeneration ||
+          result['gameId'] != gameId || result['state'] != 'ACTIVE') return false;
+      _activeGameSessionId = gameId;
+      _activeGameChapterIndex = chapterIndex;
+      await SaveManager.setGameSessionId(gameId);
+      await refresh();
+      await ToolManager.refreshInventory();
+      return _activeGameSessionId == gameId;
+    } catch (_) {
+      if (generation == _sessionOperationGeneration) {
         await refresh();
-        if (operationGeneration != _sessionOperationGeneration) return false;
-        final refreshedSessionId = _activeGameSessionId;
-        final restartCommitted =
-            refreshedSessionId != null &&
-            refreshedSessionId != previousSessionId &&
-            _activeGameChapterIndex == chapterIndex;
         await LifeManager.refreshFromServer();
-        if (restartCommitted) {
-          await SaveManager.setGameSessionId(refreshedSessionId);
-          await ToolManager.refreshInventory();
-          return true;
-        }
       }
+      return false;
     }
-    return false;
   }
 
   Future<void> abandonGameSession({
@@ -343,59 +315,29 @@ class PlayerProgressService {
     Map<String, dynamic>? replayLog,
     bool unfinishedExit = false,
   }) async {
-    final requestedSessionId = sessionId ?? _activeGameSessionId;
-    if (requestedSessionId != null &&
-        _activeGameSessionId == requestedSessionId) {
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
-      if (!unfinishedExit) {
-        unawaited(SaveManager.clearGameSessionId());
-      }
-    }
-
+    // Returning home preserves the active session so the player can resume it.
+    if (unfinishedExit) return;
+    final gameId = sessionId ?? _activeGameSessionId;
+    if (gameId == null || replayLog == null) return;
     await _awaitPendingStartSession();
-    final settledSessionId = sessionId ?? _activeGameSessionId;
-    if (settledSessionId == null) return;
+    if (_activeGameSessionId != gameId) return;
 
-    if (_activeGameSessionId == settledSessionId) {
+    final generation = ++_sessionOperationGeneration;
+    try {
+      await SupabaseGameSessionService.abandonGameSession(
+        gameId: gameId,
+        eventId: _newUuid(),
+        reason: 'PLAYER_ABANDONED',
+        replayLog: replayLog,
+      );
+      if (generation != _sessionOperationGeneration) return;
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
-      if (!unfinishedExit) {
-        unawaited(SaveManager.clearGameSessionId());
-      }
-    }
-
-    try {
-      final result = await _functions.httpsCallable('abandonGameSession').call({
-        'sessionId': settledSessionId,
-        'replayLog': ?replayLog,
-        'unfinishedExit': unfinishedExit,
-      });
-
-      final data = result.data;
-      final chapterProgress = data is Map ? data['chapterProgress'] : null;
-      if (chapterProgress is Map) {
-        for (final entry in chapterProgress.entries) {
-          final value = entry.value;
-          if (value is! Map) continue;
-          final highest = value['highestValue'];
-          final score = value['score'];
-          if (highest is num && score is num) {
-            _chapterProgress[entry.key.toString()] = {
-              'highestValue': highest.toInt(),
-              'score': score.toInt(),
-            };
-          }
-        }
-        _loadedFromServer = true;
-      }
-    } on FirebaseFunctionsException catch (error) {
-      print(
-        'abandonGameSession failed: code='
-        '${error.code}, message=${error.message}, '
-        'details=${error.details}',
-      );
-      unawaited(refresh());
+      await SaveManager.clearGameSessionId();
+      await refresh();
+      await ToolManager.refreshInventory();
+    } catch (_) {
+      if (generation == _sessionOperationGeneration) await refresh();
     }
   }
 
@@ -403,9 +345,8 @@ class PlayerProgressService {
     required int chapterIndex,
     required Map<String, dynamic> replayLog,
   }) async {
-    final user = _auth.currentUser;
-    if (user == null) return false;
-
+    if (SupabaseBackend.client.auth.currentUser == null ||
+        chapterIndex < 0 || chapterIndex > 5) return false;
     if (!await _awaitPendingStartSession()) {
       final initialTiles = replayLog['initialTiles'];
       if (initialTiles is! List || initialTiles.length != 16) return false;
@@ -416,73 +357,36 @@ class PlayerProgressService {
       );
       if (!recovered) return false;
     }
-    final sessionId = _activeGameSessionId;
-    if (sessionId == null) return false;
-
-    final operationGeneration = ++_sessionOperationGeneration;
+    final gameId = _activeGameSessionId;
+    if (gameId == null || _activeGameChapterIndex != chapterIndex) return false;
+    final generation = ++_sessionOperationGeneration;
     try {
-      final result = await _functions.httpsCallable('completeChapter').call({
-        'sessionId': sessionId,
-        'chapterIndex': chapterIndex,
-        'replayLog': replayLog,
-      });
-      final data = result.data;
-      if (data is Map && data['unlockedChapterIndex'] is num) {
-        if (operationGeneration != _sessionOperationGeneration) return false;
-        _unlockedChapterIndex =
-            (data['unlockedChapterIndex'] as num).toInt().clamp(0, 5);
-        _loadedFromServer = true;
-        _activeGameSessionId = null;
-        _activeGameChapterIndex = null;
+      final result = await SupabaseGameSessionService.finishChapter(
+        gameId: gameId,
+        eventId: _newUuid(),
+        replayLog: replayLog,
+      );
+      if (generation != _sessionOperationGeneration ||
+          result['gameId'] != gameId || result['state'] != 'COMPLETED') return false;
+      _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
+      await SaveManager.clearGameSessionId();
+      await refresh();
+      await ToolManager.refreshInventory();
+      return _activeGameSessionId == null &&
+          chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
+    } catch (_) {
+      if (generation != _sessionOperationGeneration) return false;
+      await refresh();
+      final completed = _activeGameSessionId == null &&
+          chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
+      if (completed) {
         await SaveManager.clearGameSessionId();
         await ToolManager.refreshInventory();
-        return true;
       }
-    } on FirebaseFunctionsException catch (error) {
-      print(
-        'completeChapter failed: code=${error.code}, '
-        'message=${error.message}, details=${error.details}',
-      );
-      if (operationGeneration == _sessionOperationGeneration) {
-        await refresh();
-        if (operationGeneration != _sessionOperationGeneration) return false;
-
-        final sessionClosed =
-            _activeGameSessionId == null &&
-            _activeGameChapterIndex == null;
-        final chapterTargetReached =
-            chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
-        final completionCommitted = sessionClosed && chapterTargetReached;
-
-        if (completionCommitted) {
-          await SaveManager.clearGameSessionId();
-          await ToolManager.refreshInventory();
-          return true;
-        }
-      }
-    } catch (error) {
-      print('completeChapter verification failed: $error');
-      if (operationGeneration == _sessionOperationGeneration) {
-        try {
-          await refresh();
-          if (operationGeneration != _sessionOperationGeneration) return false;
-          final sessionClosed =
-              _activeGameSessionId == null &&
-              _activeGameChapterIndex == null;
-          final chapterTargetReached =
-              chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
-          if (sessionClosed && chapterTargetReached) {
-            await SaveManager.clearGameSessionId();
-            await ToolManager.refreshInventory();
-            return true;
-          }
-        } catch (_) {
-          // Keep the local completion state unchanged until the next
-          // authoritative refresh can reconcile it.
-        }
-      }
+      return completed;
     }
-    return false;
   }
+
 }
 
