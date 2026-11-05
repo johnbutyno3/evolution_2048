@@ -31,8 +31,10 @@ const source = {
 
 const result = normalizeAccount('firebase-uid-example', source);
 assert.deepEqual(result.validationErrors, []);
+assert.equal(result.membershipReview.legacyTier, 'PREMIUM');
+assert.equal(result.membershipReview.requiresApproval, true);
 assert.equal(result.payload.profile.playerName, 'Ocean Player');
-assert.equal(result.payload.membership.tier, 'PREMIUM');
+assert.equal(result.payload.membership.tier, 'FREE', 'Legacy membership is not automatically promoted without purchase evidence.');
 assert.equal(result.payload.gold.balance, 1250);
 assert.equal(result.payload.tools.UNDO, 1, 'Legacy initial-UNDO grant must be preserved exactly once.');
 assert.equal(result.payload.tools.REMOVE, 3);
