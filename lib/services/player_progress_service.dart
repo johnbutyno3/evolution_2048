@@ -10,6 +10,8 @@ import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 import '../game/services/tool_manager.dart';
 import 'session_generation.dart';
+import 'supabase_account_service.dart';
+import 'supabase_backend.dart';
 
 /// Server-verified account progression with local-first gameplay entry.
 class PlayerProgressService {
@@ -65,7 +67,7 @@ class PlayerProgressService {
   }
 
   Future<void> refresh() async {
-    final user = _auth.currentUser;
+    final user = SupabaseBackend.client.auth.currentUser;
     if (user == null) {
       _unlockedChapterIndex = 0;
       _loadedFromServer = false;
@@ -74,99 +76,44 @@ class PlayerProgressService {
       _chapterProgress.clear();
       return;
     }
-
-    // Refresh is a reader of authoritative server state, not a session owner.
-    // Capture the owner generation before the network await. RESET increments
-    // this generation as soon as it begins, so a late refresh can finish but
-    // can no longer publish its snapshot into the replacement session.
-    final refreshGeneration = _sessionIdentityGeneration.current;
-    final refreshOwnerSessionId = _activeGameSessionId;
-
+    final generation = _sessionIdentityGeneration.current;
+    final owner = _activeGameSessionId;
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection(_progressCollection)
-          .doc(_progressDocument)
-          .get(const GetOptions(source: Source.server));
-
-      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
-          _activeGameSessionId != refreshOwnerSessionId) {
-        return;
-      }
-
-      final data = snapshot.data() ?? <String, dynamic>{};
-      final value = data['unlockedChapterIndex'];
-      final unlockedChapterIndex =
-          value is num ? value.toInt().clamp(0, 5) : 0;
-
-      final refreshedChapterProgress = <String, Map<String, int>>{};
-      final chapterProgress = data['chapterProgress'];
-      if (chapterProgress is Map) {
-        for (final entry in chapterProgress.entries) {
-          final value = entry.value;
-          if (value is! Map) continue;
-          final highest = value['highestValue'];
-          final score = value['score'];
-          refreshedChapterProgress[entry.key.toString()] = {
-            'highestValue': highest is num ? highest.toInt() : 0,
-            'score': score is num ? score.toInt() : 0,
-          };
+      final snapshot = await SupabaseAccountService.fetchSnapshot();
+      if (!_sessionIdentityGeneration.isCurrent(generation) ||
+          _activeGameSessionId != owner || snapshot.userId != user.id) return;
+      var unlocked = 0;
+      for (final entry in snapshot.chapterProgress.entries) {
+        final chapter = int.tryParse(entry.key.replaceFirst('C', ''));
+        if (chapter == null) continue;
+        if ((entry.value['highestStage'] ?? 0) >= chapter + 11) {
+          unlocked = chapter.clamp(1, 5);
         }
       }
-
-      final sessionId = data['activeGameSessionId'];
-      final refreshedSessionId =
-          sessionId is String && sessionId.isNotEmpty ? sessionId : null;
-
-      final activeChapter = data['activeGameChapterIndex'];
-      final refreshedChapterIndex = activeChapter is num
-          ? activeChapter.toInt().clamp(0, 5)
-          : null;
-
-      // The session generation is still checked immediately before the local
-      // identity commit. This closes the window between parsing the response
-      // and publishing the server session to the local state.
-      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
-          _activeGameSessionId != refreshOwnerSessionId) {
-        return;
-      }
-
-      _unlockedChapterIndex = unlockedChapterIndex;
+      final activeId = snapshot.activeGameId;
+      final activeChapter = snapshot.activeChapterCode == null
+          ? null
+          : int.tryParse(snapshot.activeChapterCode!.replaceFirst('C', ''))! - 1;
+      _unlockedChapterIndex = unlocked;
       _chapterProgress
         ..clear()
-        ..addAll(refreshedChapterProgress);
-      _activeGameSessionId = refreshedSessionId;
-      _activeGameChapterIndex = refreshedChapterIndex;
-
-      // The queue itself is guarded as well. RESET can begin after the
-      // in-memory commit above but before SharedPreferences executes this
-      // write; queue-time ownership prevents that stale refresh from writing
-      // the old session ID into SaveManager.
-      if (refreshedSessionId == null) {
+        ..addAll(snapshot.legacyChapterProgress);
+      _activeGameSessionId = activeId;
+      _activeGameChapterIndex = activeChapter;
+      if (activeId == null) {
         await SaveManager.clearGameSessionIdIf(() =>
-            _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
-            _activeGameSessionId == refreshedSessionId);
-      } else if (SaveManager.gameSessionId != refreshedSessionId) {
-        await SaveManager.setGameSessionIdIf(
-          refreshedSessionId,
-          () =>
-              _sessionIdentityGeneration.isCurrent(refreshGeneration) &&
-              _activeGameSessionId == refreshedSessionId,
-        );
+            _sessionIdentityGeneration.isCurrent(generation) &&
+            _activeGameSessionId == null);
+      } else {
+        await SaveManager.setGameSessionIdIf(activeId, () =>
+            _sessionIdentityGeneration.isCurrent(generation) &&
+            _activeGameSessionId == activeId);
       }
-
-      if (!_sessionIdentityGeneration.isCurrent(refreshGeneration) ||
-          _activeGameSessionId != refreshedSessionId) {
-        return;
-      }
-
-      _loadedFromServer = true;
-    } on FirebaseException {
-      if (_sessionIdentityGeneration.isCurrent(refreshGeneration) &&
-          _activeGameSessionId == refreshOwnerSessionId) {
-        _loadedFromServer = false;
-      }
+      if (_sessionIdentityGeneration.isCurrent(generation) &&
+          _activeGameSessionId == activeId) _loadedFromServer = true;
+    } on SupabaseAccountException {
+      if (_sessionIdentityGeneration.isCurrent(generation) &&
+          _activeGameSessionId == owner) _loadedFromServer = false;
     }
   }
 
