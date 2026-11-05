@@ -52,7 +52,7 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 
 ## 仍未完成／尚未驗證
 
-- Restart 不扣 Life 的資料庫交易修正及測試。
+- Restart YES / NO 的 SQL transaction、取消零扣除及實機 E2E 驗證。
 - Firebase Auth / Firestore 完整匯出、身份 mapping、Supabase import、reconciliation。
 - Supabase migrations 與 Edge Functions 尚未以目標 production project 完成部署核對；不得由 source files 推定已部署。
 - Google / Apple OAuth provider credentials、redirect allow-list 及實機登入流程。
