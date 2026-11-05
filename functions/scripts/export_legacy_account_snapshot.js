@@ -147,7 +147,7 @@ function normalizeAccount(uid, source) {
     : 0;
   const normalized = {
     profile: {
-      playerName: typeof user.playerName === 'string' ? user.playerName.trim().replace(/\\s+/g, ' ') : '',
+      playerName: typeof user.playerName === 'string' ? user.playerName.trim().replace(/\s+/g, ' ') : '',
       avatarIndex,
       accountStatus: ['locked', 'under_review'].includes(user.accountStatus)
         ? user.accountStatus
