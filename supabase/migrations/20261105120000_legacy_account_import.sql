@@ -189,7 +189,8 @@ begin
     raise exception using errcode = '22023', message = 'INCOMPLETE_LEGACY_TOOL_INVENTORY';
   end if;
 
-  if coalesce(v_gold ->> 'balance', '') !~ '^(0|[1-9][0-9]*) ->> 'balance') > 18 then
+  if coalesce(v_gold ->> 'balance', '') !~ '^(0|[1-9][0-9]*)$'
+    or length(v_gold ->> 'balance') > 18 then
     raise exception using errcode = '22023', message = 'INVALID_LEGACY_GOLD_BALANCE';
   end if;
   v_gold_balance := (v_gold ->> 'balance')::bigint;
