@@ -35,6 +35,26 @@ Deno.serve(async (req: Request) => {
     }
 
     const service = createServiceClient();
+    const { data: existing, error: lookupError } = await service
+      .from("legacy_identity_links")
+      .select("legacy_uid, user_id, verification_method")
+      .eq("legacy_provider", "firebase")
+      .eq("legacy_uid", legacyUid)
+      .maybeSingle();
+    if (lookupError) {
+      return jsonResponse({ error: "IDENTITY_LINK_LOOKUP_FAILED" }, 500);
+    }
+    if (existing) {
+      if (existing.user_id === userId &&
+        existing.verification_method === verificationMethod) {
+        return jsonResponse({
+          linked: true, duplicate: true, legacyProvider: "firebase",
+          legacyUid, userId, verificationMethod,
+        });
+      }
+      return jsonResponse({ error: "IDENTITY_LINK_ALREADY_EXISTS" }, 409);
+    }
+
     const { error } = await service.from("legacy_identity_links").insert({
       legacy_provider: "firebase",
       legacy_uid: legacyUid,
