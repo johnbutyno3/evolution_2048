@@ -558,7 +558,7 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
   Future<void> _loadCollection() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = SupabaseAuthService.currentUser;
     if (user == null) {
       if (!context.mounted) return;
 
@@ -598,7 +598,7 @@ class _CollectionPageState extends State<CollectionPage> {
     }
 
     if (!context.mounted) return;
-    if (FirebaseAuth.instance.currentUser?.uid != user.uid) {
+    if (SupabaseAuthService.currentUser?.id != user.id) {
       setState(() {
         _discovered.clear();
         _loading = false;
