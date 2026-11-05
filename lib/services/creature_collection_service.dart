@@ -22,7 +22,14 @@ class CreatureCollectionService {
   };
 
   static String normalizeChapterKey(String chapterKey) {
-    return _chapterCodes.containsKey(chapterKey) ? chapterKey : chapterKey;
+    return switch (_chapterCode(chapterKey)) {
+      'C1' => 'ocean',
+      'C2' => 'land',
+      'C3' => 'sky',
+      'C4' => 'history',
+      'C5' => 'technology',
+      _ => 'space',
+    };
   }
 
   static String _chapterCode(String chapterKey) {
