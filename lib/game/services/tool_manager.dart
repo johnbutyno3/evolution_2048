@@ -2,9 +2,10 @@ import 'dart:async';
 
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'life_manager.dart';
 import 'gold_manager.dart';
+import '../../services/supabase_account_service.dart';
+import '../../services/supabase_tool_purchase_service.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -14,9 +15,6 @@ class ToolManager {
   final GameChapter chapter;
 
   static const int _unlimitedUses = 999999;
-  static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
-    region: 'us-central1',
-  );
   static final Map<GameToolType, int> _serverUses = {};
   // Usage that belongs to the currently active local game session but has
   // not yet been settled against the account inventory on the server.
@@ -31,7 +29,7 @@ class ToolManager {
   static bool get allToolsEnabledForTest => _allToolsEnabledForTest;
 
   /// Clears account-scoped cached inventory when the authenticated user changes.
-  /// Inventory must never leak from a previous Firebase account.
+  /// Inventory must never leak from a previous signed-in account.
   static void clearCachedInventory() {
     _serverUses.clear();
     _sessionUses.clear();
@@ -125,27 +123,11 @@ class ToolManager {
 
   static Future<void> _refreshInventoryFromServer() async {
     try {
-      final result = await _functions.httpsCallable('getToolInventory').call();
-      final data = result.data is Map
-          ? Map<String, dynamic>.from(result.data as Map)
-          : <String, dynamic>{};
-      _allToolsEnabledForTest = data['allToolsEnabledForTest'] == true;
-      final inventory = data['inventory'];
-      if (inventory is! Map) return;
-
-      // Firebase is authoritative for inventory. Replace the account-scoped
-      // snapshot instead of merging into the previous in-memory values.
-      // Otherwise a previous session can leave a stale use count visible
-      // until the next purchase/consumption.
-      final serverSnapshot = <GameToolType, int>{};
-      for (final type in GameToolType.values) {
-        final raw = inventory[type.name];
-        serverSnapshot[type] = raw is num && raw.toInt() >= 0 ? raw.toInt() : 0;
-      }
-      _serverUses
-        ..clear()
-        ..addAll(serverSnapshot);
-    } on FirebaseFunctionsException {
+      final snapshot = await SupabaseAccountService.fetchSnapshot();
+      applySupabaseInventory(snapshot.tools);
+    } on SupabaseAccountException {
+      // Keep the last validated account snapshot. A failed read must never
+      // synthesize inventory or grant additional tool uses.
       return;
     }
   }
@@ -184,51 +166,41 @@ class ToolManager {
 
   static Future<bool> purchase(GameToolType type, int amount) async {
     _lastPurchaseError = null;
-    // Refresh the wallet immediately before purchase so an admin grant or a
-    // recent Gold transaction is not hidden behind an old client cache.
-    await GoldManager.refresh();
+    if (!const [1, 5, 20, 50].contains(amount)) {
+      _lastPurchaseError = 'Invalid tool package quantity.';
+      return false;
+    }
+
+    final toolCode = switch (type) {
+      GameToolType.timeRewind => 'UNDO',
+      GameToolType.revive => 'REMOVE',
+      GameToolType.positionSwap => 'SWAP',
+      GameToolType.duplicate => 'DUPLICATE',
+    };
 
     try {
-      final result = await _functions.httpsCallable('purchaseTool').call({
-        'toolType': type.name,
-        'amount': amount,
-      });
-      final data = result.data is Map
-          ? Map<String, dynamic>.from(result.data as Map)
-          : <String, dynamic>{};
-      final uses = data['uses'];
-      final balance = data['balance'];
+      final data = await SupabaseToolPurchaseService.purchase(
+        toolCode: toolCode,
+        quantity: amount,
+      );
+      final uses = data['uses'] as num;
+      final balance = data['balance'] as num;
 
-      // The purchase callable is atomic: Gold deduction and tool inventory
-      // grant are committed together. Accept the result only when both
-      // authoritative values are present, then refresh the complete inventory
-      // so every tool state reflects the same server snapshot.
-      if (uses is! num || balance is! num) {
-        _lastPurchaseError = 'Server returned an invalid purchase result.';
-        return false;
-      }
+      // The trusted Supabase RPC commits Gold deduction and tool grant in one
+      // database transaction. Apply both values only after validating response.
       _serverUses[type] = uses.toInt();
-      GoldManager.applyServerState(data);
-      await refreshInventory();
+      _sessionUses.remove(type);
+      GoldManager.applySupabaseBalance(balance.toInt());
       return true;
-    } on FirebaseFunctionsException catch (error) {
-      // Re-read the authoritative wallet after a rejected purchase so a
-      // stale client cache cannot continue displaying an incorrect balance.
-      await GoldManager.refresh();
-      _lastPurchaseError = switch (error.code) {
-        'failed-precondition' => error.message ?? 'Purchase precondition failed.',
-        'permission-denied' => error.message ?? 'Account operation is restricted.',
-        'unauthenticated' => 'Please sign in again.',
-        'invalid-argument' => error.message ?? 'Invalid purchase request.',
-        _ => error.message ?? 'Tool purchase failed (${error.code}).',
-      };
+    } on SupabaseToolPurchaseException catch (error) {
+      _lastPurchaseError = error.message;
       return false;
     }
   }
 
   /// Consumes a tool locally.
   ///
-  /// Gameplay never waits for Firebase for an individual tool use. The local
+  /// Gameplay never waits for the server for an individual tool use. The local
   /// replay log is the authoritative input for the eventual server validation
   /// when the game session ends.
   bool consumeLocal(GameToolType type) {
@@ -247,7 +219,7 @@ class ToolManager {
 
     tool.usesRemaining -= 1;
     // The account inventory is not settled until the active session is
-    // restarted/completed. Track this use separately so a Firebase inventory
+    // restarted/completed. Track this use separately so an account inventory
     // refresh cannot resurrect the tool during BACK/re-entry.
     _sessionUses[type] = (_sessionUses[type] ?? 0) + 1;
     return true;
