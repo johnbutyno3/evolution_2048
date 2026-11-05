@@ -71,7 +71,21 @@ Expected payload fields are `profile` (`playerName`, `avatarIndex`, optional `ac
 
 The exporter deliberately sets every legacy membership to `FREE` by default. A Firestore `type` field alone is not proof of a paid purchase, and a time-limited legacy `expiresAt` must never be converted into the current permanent membership product. The CSV may approve `PREMIUM` or `GOLDEN` only when the legacy record is non-expiring and the operator has separately verified purchase/support evidence; `membershipApprovalReference` is then written into the import audit summary. The SQL RPC independently rejects a paid tier without that approval reference. The importer intentionally does not import Firebase `playerId` (the current app uses the Supabase Auth UUID as its player ID), admin flags, password material, or active sessions. `completed_at` remains null because the legacy source does not provide a reliable completion timestamp. Zero balances and inventories remain represented by the destination rows without inventing zero-delta ledger entries.
 
-## 6. Operator execution (Windows PowerShell)
+## 6. Deployment and operator execution
+
+Before importing any account, deploy the schema and both Edge Functions to the intended Supabase project. From the repository root, after confirming the linked project reference:
+
+`supabase link --project-ref <SUPABASE_PROJECT_REF>`
+
+`supabase db push`
+
+`supabase functions deploy register-legacy-identity-link`
+
+`supabase functions deploy import-legacy-account`
+
+Then confirm both functions are deployed and that the invoking Supabase Auth account has the trusted `app_metadata.role=admin` claim. Never put the service-role key in Flutter, PowerShell scripts, CSV files, or Git. The Edge Functions use the server-side service-role environment supplied by Supabase.
+
+### Windows PowerShell data preparation and import
 
 1. Use a restricted Firebase service account with read-only access to Firebase Authentication and the listed Firestore paths. Keep its JSON key outside the repository.
 2. From the repository root, install only the legacy export tool dependencies: `npm --prefix functions ci`.
@@ -96,7 +110,7 @@ Example execution (only after review and deployment):
 
 ` .\\tools\\import_legacy_accounts.ps1 -ExportPath 'C:\\secure\\legacy-export-20261105.json' -MappingPath 'C:\\secure\\verified-account-map.csv' -Execute `
 
-The exporter includes a normalized `importPayload` and a SHA-256 checksum for each exact source record. The PowerShell script never sends accounts with validation errors, and only processes UIDs present in the mapping CSV. Both local files contain sensitive account data and must never be committed or uploaded to the project file library.
+The exporter includes a normalized `importPayload`, a `membershipReview` object, and a SHA-256 checksum for each exact source record. The PowerShell script never sends accounts with validation errors, and only processes UIDs present in the mapping CSV. Both local files contain sensitive account data and must never be committed or uploaded to the project file library.
 
 ## 7. Required migration procedure
 
@@ -105,7 +119,7 @@ The exporter includes a normalized `importPayload` and a SHA-256 checksum for ea
 3. Establish and verify the UID mapping for every account. Unlinked accounts remain unmigrated; do not guess.
 4. Transform a copy of the export into a reviewed import manifest. Include source UID, destination Auth UUID, source export checksum, validation results, and per-account asset values.
 5. Run a dry-run comparison and reconcile every rejected or ambiguous record before applying anything.
-6. Apply through a one-time service-role-only importer with per-source-account idempotency and an audit record. The importer must refuse to overwrite an account already imported from a different source UID or to reapply an already completed import.
+6. Apply through the admin-gated Edge Function backed by the service-role-only RPC, with per-source-account idempotency and an audit record. The importer must refuse to overwrite a Supabase account already in use, an account already imported from a different source UID, or a completed import with a different source checksum.
 7. Reconcile totals and sample accounts (membership, Gold, all tools, lives, six chapters, collection) against the frozen export.
 8. Only after sign-off, direct existing users to Supabase sign-in/linking and monitor account snapshot failures. Retain Firebase backups and read-only access for a defined rollback/support period.
 
