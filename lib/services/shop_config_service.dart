@@ -82,12 +82,29 @@ class ShopConfigService {
       'gold_10000': 'gold10000UsdPrice',
       'membership_premium': 'premiumUsdPrice',
       'membership_golden': 'goldenUsdPrice',
+      'tool_undo_1': 'undo1Price',
+      'tool_undo_5': 'undo5Price',
+      'tool_undo_20': 'undo20Price',
+      'tool_undo_50': 'undo50Price',
+      'tool_remove_1': 'remove1Price',
+      'tool_remove_5': 'remove5Price',
+      'tool_remove_20': 'remove20Price',
+      'tool_remove_50': 'remove50Price',
+      'tool_swap_1': 'swap1Price',
+      'tool_swap_5': 'swap5Price',
+      'tool_swap_20': 'swap20Price',
+      'tool_swap_50': 'swap50Price',
+      'tool_duplicate_1': 'duplicate1Price',
+      'tool_duplicate_5': 'duplicate5Price',
+      'tool_duplicate_20': 'duplicate20Price',
+      'tool_duplicate_50': 'duplicate50Price',
     };
 
     for (final entry in productKeys.entries) {
       final product = products[entry.key];
-      if (product is Map && product['priceUsd'] != null) {
-        values[entry.value] = product['priceUsd'];
+      if (product is Map) {
+        final value = product['priceGold'] ?? product['priceUsd'];
+        if (value != null) values[entry.value] = value;
       }
     }
 
