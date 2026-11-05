@@ -662,6 +662,12 @@ abstract class AppLocalizations {
   /// **'Restart'**
   String get restart;
 
+  /// No description provided for @restartFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to restart. Check your Life and try again.'**
+  String get restartFailed;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:
