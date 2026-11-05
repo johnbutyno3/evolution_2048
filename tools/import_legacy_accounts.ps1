@@ -94,7 +94,7 @@ foreach ($item in $prepared) {
 
     $result = Invoke-RestMethod -Method Post -Uri "$baseUrl/functions/v1/import-legacy-account" -Headers $headers -ContentType 'application/json' -Body $importBody
 
-    if ($result.imported -ne $true -and $result.duplicate -ne $true) {
+    if ($result.verified -ne $true -or ($result.imported -ne $true -and $result.duplicate -ne $true)) {
         throw "Import did not confirm success for Firebase UID '$($item.LegacyUid)'."
     }
     $completed += 1
