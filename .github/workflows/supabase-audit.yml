@@ -35,6 +35,11 @@ jobs:
           deno check supabase/functions/save-game-checkpoint/index.ts
           deno check supabase/functions/finish-game-chapter/index.ts
           deno check supabase/functions/abandon-game-session/index.ts
+          deno check supabase/functions/discover-creature/index.ts
+          deno check supabase/functions/purchase-tool-package/index.ts
+          deno check supabase/functions/admin-update-shop-config/index.ts
+          deno check supabase/functions/register-legacy-identity-link/index.ts
+          deno check supabase/functions/import-legacy-account/index.ts
 
       - name: Check patch whitespace
         run: git diff --check
