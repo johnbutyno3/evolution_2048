@@ -145,5 +145,6 @@
   "profileSetupFailed": "Unable to set up your profile.",
   "restartConfirmTitle": "Restart game?",
   "restartConfirmMessage": "Start a new board? One Life will be consumed.",
-  "restart": "Restart"
+  "restart": "Restart",
+  "restartFailed": "Unable to restart. Check your Life and try again."
 }
