@@ -1,6 +1,4 @@
-﻿import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 
@@ -9,6 +7,7 @@ import '../services/creature_collection_service.dart';
 import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
 import '../services/supabase_auth_service.dart';
+import '../services/admin_service.dart';
 
 import '../game/services/audio_manager.dart';
 import '../game/services/tool_manager.dart';
@@ -18,25 +17,12 @@ import '../game/services/save_manager.dart';
 import 'login_register_page.dart';
 import 'shop_page.dart';
 import 'feedback_page.dart';
-import 'admin_test_page.dart';
+import 'admin_page.dart';
 
 class PersonalPage extends StatelessWidget {
   const PersonalPage({super.key});
 
-  Future<bool> _isAdmin() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || uid.isEmpty) return false;
-    try {
-      await FirebaseFunctions.instanceFor(region: 'us-central1')
-          .httpsCallable('adminGetTestAccountState')
-          .call({'uid': uid});
-      return true;
-    } on FirebaseFunctionsException {
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
+  Future<bool> _isAdmin() => AdminService.checkAdmin();
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +98,7 @@ class PersonalPage extends StatelessWidget {
                 title: AppLocalizations.of(context)!.testControls,
                 subtitle: AppLocalizations.of(context)!.testControlsSubtitle,
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AdminTestPage()),
+                  MaterialPageRoute(builder: (_) => const AdminPage()),
                 ),
               );
             },
