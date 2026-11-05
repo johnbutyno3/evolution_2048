@@ -180,7 +180,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         if (!mounted || generation != _gameSessionGeneration) return false;
         // Without an authoritative session pointer we must not guess that
         // this is a new game. Guessing here can consume a Life and discard an
-        // unfinished local board during a transient Firebase failure.
+        // unfinished local board during a transient Supabase/network failure.
         if (!progress.loadedFromServer) return false;
       }
 
@@ -291,7 +291,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // session-use overlay must not leak into this new board.
       ToolManager.clearSessionUsage();
 
-      // New game: construct the exact board first and start Firebase
+      // New game: construct the exact board first and start Supabase
       // validation in the background. startGameSession performs the
       // optimistic local Life transition.
       final newEngine = GameEngine(
@@ -417,7 +417,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
     // Start the server verification immediately. The 280ms visual animation
-    // now runs in parallel with Firebase validation instead of after it.
+    // now runs in parallel with Supabase validation instead of after it.
     _completionVerificationFuture = progress.completeChapter(
       chapterIndex: _chapterNumber - 1,
       replayLog: Map<String, dynamic>.from(replayLog),
