@@ -33,6 +33,7 @@ jobs:
           for file in *.js; do
             node --check "$file"
           done
+          node --check scripts/export_legacy_account_snapshot.js
 
       - name: Run Functions tests
         run: npm test
