@@ -22,7 +22,7 @@ The checked-in Firebase Functions and Firestore rules establish these relevant l
 | Gold | `users/{uid}/wallet/gold`: `balance`, `lifetimeGranted`, `lifetimeSpent` |
 | Tools | `users/{uid}/wallet/tools`: `revive`, `timeRewind`, `positionSwap`, `duplicate` |
 | Lives | `users/{uid}/life/current`: `lives`, `regenStartAt` |
-| Chapter progress | `users/{uid}/progress/game`: `unlockedChapterIndex`, `highestValue`, `score`, `chapterProgress` |
+| Chapter progress | `users/{uid}/progress/game`: `unlockedChapterIndex`, `chapterProgress` with `ocean/land/sky/history/tech/universe` entries containing `highestValue` and `score` |
 | Creature collection | `users/{uid}/progress/collection`: chapter arrays `ocean`, `land`, `sky`, `history`, `technology`, `space` |
 
 Legacy tool-code mapping:
@@ -31,13 +31,9 @@ Legacy tool-code mapping:
 - `positionSwap` → `SWAP`
 - `duplicate` → `DUPLICATE`
 
-Legacy chapter-name mapping:
-- `ocean` → `C1`
-- `land` → `C2`
-- `sky` → `C3`
-- `history` → `C4`
-- `technology` → `C5`
-- `space` → `C6`
+Legacy chapter-name mapping differs by source document:
+- Game progress: `ocean` → `C1`, `land` → `C2`, `sky` → `C3`, `history` → `C4`, `tech` → `C5`, `universe` → `C6`.
+- Creature collection: `ocean` → `C1`, `land` → `C2`, `sky` → `C3`, `history` → `C4`, `technology` → `C5`, `space` → `C6`.
 
 ## 3. Supabase destination verified in migrations
 
@@ -58,13 +54,24 @@ The new-auth trigger creates default profile, membership, wallet, life, and tool
 2. Map only a currently valid permanent entitlement to `PREMIUM` or `GOLDEN`. The product rules define permanent memberships; inspect the actual legacy `expiresAt` and transaction evidence. An expired or unverifiable entitlement must not be promoted.
 3. Copy the Gold balance as a non-negative integer after validating the export. Do not fabricate historical ledger rows if their event-level source records do not exist.
 4. Copy each tool inventory as a non-negative integer using the tool mapping above. Do not apply the old “initial UNDO” grant a second time.
-5. Normalize lives to 0–5. Translate `regenStartAt` to the destination `next_regen_at` using the remaining regeneration interval and the authoritative migration time; do not copy a client clock value as a future server timestamp without validation. If the legacy timestamp is missing or invalid, reconcile the life count and set a safe regeneration schedule.
-6. Convert chapter progress from the legacy chapter object into one row per C1–C6. Preserve highest stage / score only when the source values are valid non-negative integers. Do not infer a completion timestamp that is absent.
+5. Normalize lives to 0–5. The legacy field is `regenStartAt` (start of the current 40-minute interval), while Supabase stores `next_regen_at` (the next life arrival). Transform it to `regenStartAt + 40 minutes`, then validate against authoritative migration time. If lives are below 5 and the timestamp is missing, schedule the next life 40 minutes after import. If the timestamp is outside the accepted window, reject the record for manual reconciliation; never trust a device clock.
+6. Convert the legacy game-progress keys (`ocean/land/sky/history/tech/universe`) into one row per C1–C6. Convert `highestValue` to `highestStage = log2(highestValue)` for valid power-of-two values; keep 0 as 0. Preserve `score` as `best_score` only when it is a valid non-negative safe integer. Leave `completed_at` null because the legacy source does not provide a reliable completion timestamp.
 7. Convert collection arrays to one row per valid power-of-two creature value, bounded by that chapter's target.
 8. Do not import `isAdmin` as a client profile attribute or grant Supabase `app_metadata.role=admin` from an unverified Firestore field. Admin grants require a separate operator-controlled allowlist and review.
 9. Active game sessions are not migrated as resumable sessions unless a separately tested state conversion is implemented. Keep the legacy export for support; require a clean new session after cutover.
 
-## 5. Required migration procedure
+## 5. Import implementation committed to Git
+
+The controlled import foundation is now present in this branch:
+- `supabase/migrations/20261105120000_legacy_account_import.sql` creates service-role-only identity-link and import audit tables, plus an atomic idempotent import RPC. It validates balances, all four tool keys, life count/regeneration timestamp, chapter limits, and collection values.
+- `supabase/functions/register-legacy-identity-link/index.ts` allows an authenticated Supabase admin to register a one-time verified Firebase UID → Supabase UUID link. It rejects duplicate links.
+- `supabase/functions/import-legacy-account/index.ts` allows an authenticated Supabase admin to submit the transformed account payload and source-record SHA-256. The database RPC refuses unverified links and duplicate/different-source imports.
+
+Expected payload fields are `profile` (`playerName`, `avatarIndex`, optional `accountStatus`), `membership` (`tier`, `status`, `expiresAt`), `gold` (`balance`), `lives` (`count`, `nextRegenAt`), `tools` (all four canonical keys `UNDO`, `REMOVE`, `SWAP`, `DUPLICATE`), `chapters` (array of `{chapterCode, highestStage, bestScore}`), and `collection` (array of `{chapterCode, creatureValue}`). This is a transformed per-account record, not a raw Firebase export. `sourceSha256` is the lowercase SHA-256 of the exact frozen source record used for transformation.
+
+The importer intentionally does not import Firebase `playerId` (the current app uses the Supabase Auth UUID as its player ID), admin flags, password material, or active sessions. `completed_at` remains null because the legacy source does not provide a reliable completion timestamp. Zero balances and inventories remain represented by the destination rows without inventing zero-delta ledger entries.
+
+## 6. Required migration procedure
 
 1. Freeze destructive Firebase changes and take a timestamped export/backup of Firebase Auth and the relevant Firestore collections.
 2. Produce an inventory report: account count, missing subdocuments, duplicate player IDs/names, invalid balances, invalid timestamps, membership status, and per-table counts. Keep PII and raw exports in restricted storage; do not commit them to Git.
@@ -75,11 +82,12 @@ The new-auth trigger creates default profile, membership, wallet, life, and tool
 7. Reconcile totals and sample accounts (membership, Gold, all tools, lives, six chapters, collection) against the frozen export.
 8. Only after sign-off, direct existing users to Supabase sign-in/linking and monitor account snapshot failures. Retain Firebase backups and read-only access for a defined rollback/support period.
 
-## 6. Current blockers and non-claims
+## 7. Current blockers and non-claims
 
 - No Firebase Auth / Firestore export has been supplied or processed in this repository workflow.
 - No verified Firebase-UID-to-Supabase-UUID mapping exists here.
-- No account import function or data import has been deployed.
+- The import SQL migration and two admin-gated Edge Functions are committed but have not been deployed or executed.
+- No offline Firebase export/transform utility has been completed; source export, identity proof, and per-record SHA-256 generation remain required.
 - Firebase legacy resources have not been decommissioned.
 - No production reconciliation, Flutter test, Edge Function deployment, or APK/device validation is claimed by this runbook.
 
