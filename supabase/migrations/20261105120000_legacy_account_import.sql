@@ -176,6 +176,13 @@ begin
     else 'active'
   end;
 
+  if v_tier in ('PREMIUM', 'GOLDEN') and (
+    v_membership ->> 'expiresAt' is not null
+    or length(trim(coalesce(v_membership ->> 'approvalReference', ''))) not between 1 and 200
+  ) then
+    raise exception using errcode = '22023', message = 'LEGACY_MEMBERSHIP_REQUIRES_MANUAL_APPROVAL';
+  end if;
+
   if v_membership ->> 'expiresAt' is not null then
     if (v_membership ->> 'expiresAt')::timestamptz <= now() then
       v_tier := 'FREE';
@@ -325,7 +332,9 @@ begin
     legacy_provider, legacy_uid, user_id, source_sha256, imported_by, import_summary
   ) values (
     'firebase', trim(p_legacy_uid), v_user_id, p_source_sha256, p_imported_by,
-    jsonb_build_object('membershipTier', v_tier, 'gold', v_gold_balance,
+    jsonb_build_object('membershipTier', v_tier,
+      'membershipApprovalReference', v_membership ->> 'approvalReference',
+      'gold', v_gold_balance,
       'lives', v_life_count, 'toolsImported', v_tool_count, 'chaptersImported', v_count,
       'collectionEntries', jsonb_array_length(v_collection))
   );
