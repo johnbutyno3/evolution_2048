@@ -65,7 +65,7 @@ class _AdminPageState extends State<AdminPage> {
           _AdminCard(
             icon: Icons.inbox_outlined,
             title: 'Player Messages',
-            subtitle: 'Read feedback and reply to players',
+            subtitle: 'Read player feedback',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AdminMessagesPage()),
             ),
@@ -200,10 +200,10 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
         children: [
           const Text('Gold Packages (USD)', style: _headingStyle),
           const SizedBox(height: 12),
-          _field('gold300UsdPrice', '300 Gold ??USD', decimal: true),
-          _field('gold1000UsdPrice', '1,000 Gold ??USD', decimal: true),
-          _field('gold4000UsdPrice', '4,000 Gold ??USD', decimal: true),
-          _field('gold10000UsdPrice', '10,000 Gold ??USD', decimal: true),
+          _field('gold300UsdPrice', '300 Gold USD', decimal: true),
+          _field('gold1000UsdPrice', '1,000 Gold USD', decimal: true),
+          _field('gold4000UsdPrice', '4,000 Gold USD', decimal: true),
+          _field('gold10000UsdPrice', '10,000 Gold USD', decimal: true),
           const SizedBox(height: 12),
           const Text('Permanent Membership (USD)', style: _headingStyle),
           const SizedBox(height: 12),
@@ -249,7 +249,7 @@ class AdminQAPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Q&A Management')),
-      body: Center(child: Text('Q&A editing will be connected to Firestore next.')),
+      body: Center(child: Text('Q&A management will be migrated to Supabase next.')),
     );
   }
 }
