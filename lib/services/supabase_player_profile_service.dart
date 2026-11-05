@@ -26,7 +26,7 @@ class SupabasePlayerProfileService {
   }
 
   static int _safeAvatarIndex(dynamic value) {
-    if (value is num) return value.toInt().clamp(0, 53);
+    if (value is num) return value.toInt().clamp(0, 53).toInt();
     return 0;
   }
 
