@@ -145,5 +145,6 @@
   "profileSetupFailed": "建立玩家資料失敗，請再試一次。",
   "restartConfirmTitle": "重新開始遊戲？",
   "restartConfirmMessage": "確定要建立新棋盤嗎？將消耗 1 點生命。",
-  "restart": "重新開始"
+  "restart": "重新開始",
+  "restartFailed": "無法重新開始，請確認生命數量後再試一次。"
 }
