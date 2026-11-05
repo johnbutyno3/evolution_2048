@@ -28,7 +28,7 @@ Before enabling Google or Apple sign-in in the app:
 4. Configure the Apple provider with the required Services ID, Team ID, Key ID and private key; ensure the Apple return URL matches the Supabase provider settings.
 5. Test sign-in, app return from the external browser, session restoration after force-closing the app, and sign-out on both Android and iOS.
 
-The shared native callback is not a substitute for provider credentials or the Supabase Dashboard allow-list. Web OAuth must use a separately configured HTTPS redirect URL; do not reuse the native URI for web builds. The Flutter login UI still uses Firebase during the staged migration, so these settings alone do not switch the app's active authentication provider.
+The shared native callback is not a substitute for provider credentials or the Supabase Dashboard allow-list. Web OAuth must use a separately configured HTTPS redirect URL; do not reuse the native URI for web builds. The Flutter login/register screen now calls Supabase Auth for email/password and OAuth. Provider credentials and redirect allow-lists still need to be configured and tested in the target Supabase project before OAuth sign-in can be considered operational.
 
 ## Database migration
 
@@ -65,6 +65,11 @@ supabase functions deploy restart-game-session
 supabase functions deploy save-game-checkpoint
 supabase functions deploy finish-game-chapter
 supabase functions deploy abandon-game-session
+supabase functions deploy discover-creature
+supabase functions deploy purchase-tool-package
+supabase functions deploy admin-update-shop-config
+supabase functions deploy register-legacy-identity-link
+supabase functions deploy import-legacy-account
 ```
 
 Edge Functions use the server-side service-role key only within the trusted runtime. Never expose that key to the Flutter client. Sensitive database RPCs explicitly revoke execution from `public`, `anon`, and `authenticated`, and grant it only to `service_role`.
@@ -75,7 +80,8 @@ Edge Functions use the server-side service-role key only within the trusted runt
 - Gold wallet, tool inventory, immutable wallet ledger and atomic wallet mutation
 - Life wallet, life ledger, server-time regeneration and idempotent daily Gold claims
 - Game sessions bound to an initial board, monotonic checkpoints, replay-validated chapter completion and idempotent abandonment settlement
-- Purchase transaction records
+- Purchase transaction records (the client-side real-money purchase flow and store receipt verification are not yet implemented; Gold and membership purchase buttons remain intentionally disabled)
+- Creature collection discovery and atomic Gold-to-tool purchases
 - Support tickets, two-way message schema, security events and admin notification queue
 - Row Level Security with default-deny writes for authoritative account/economy tables
 
@@ -99,13 +105,13 @@ Also verify the migrations against a real disposable Supabase project, exercise 
 
 ## Migration status and remaining work
 
-This is an in-progress migration, not a finished backend. The SQL migrations and Edge Functions have been committed to GitHub, but they have not been applied to a live Supabase project or run in a Deno/Supabase runtime in this workflow. Flutter still has Firebase imports and packages. Firebase dependencies must not be removed until all Firebase call sites have been migrated and tested.
+This is an in-progress migration, not a finished production cutover. The Flutter application bootstrap and login/register flow now use Supabase Auth, and the active account, game-session, profile, collection, shop-configuration and tool-purchase client services use Supabase. Firebase Admin SDK remains in the isolated legacy export tooling under `functions/` because it is still needed to read old account data. The legacy Firebase project, Auth records, Firestore data and Cloud Functions must remain available until export, verified identity mapping, import and reconciliation are complete. The Supabase SQL migrations and Edge Functions are committed to GitHub but have not yet been applied to the live project in this workflow.
 
 Still to implement and validate:
-- Supabase Auth migration for Google, Apple and email/password
-- Complete Flutter service migration for profile, life, Gold, tools, game lifecycle, collection, admin and support
-- Apple App Store and Google Play server-side purchase verification, refunds/revocations and grant reconciliation
+- Configure and live-test Supabase email/password, Google and Apple Auth providers, redirects, session restoration and account linking
+- Apple App Store and Google Play server-side receipt verification, refunds/revocations, membership upgrades and Gold grants; real-money purchase buttons remain disabled until this is complete
 - Admin notification delivery, support replies and ticket status workflows
-- Full RLS, SQL integration, concurrency, replay, account-lock appeal and device E2E tests
+- Apply every migration to a disposable Supabase project first, then production; run SQL/RLS integration, concurrency, replay, account-lock appeal and device E2E tests
+- Complete the Firebase account export, verified UID-to-Supabase UUID mapping, controlled import and reconciliation before any Firebase decommission
 
 Never claim a deployment or test passed unless the command or live test was actually run and its result recorded.
