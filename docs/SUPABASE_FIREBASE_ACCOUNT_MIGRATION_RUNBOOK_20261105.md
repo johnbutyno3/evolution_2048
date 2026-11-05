@@ -65,7 +65,7 @@ The new-auth trigger creates default profile, membership, wallet, life, and tool
 The controlled import foundation is now present in this branch:
 - `supabase/migrations/20261105120000_legacy_account_import.sql` creates service-role-only identity-link and import audit tables, plus an atomic idempotent import RPC. It validates balances, all four tool keys, life count/regeneration timestamp, chapter limits, and collection values.
 - `supabase/functions/register-legacy-identity-link/index.ts` allows an authenticated Supabase admin to register a one-time verified Firebase UID → Supabase UUID link. It rejects duplicate links.
-- `supabase/functions/import-legacy-account/index.ts` allows an authenticated Supabase admin to submit the transformed account payload and source-record SHA-256. The database RPC refuses unverified links and duplicate/different-source imports.
+- `supabase/functions/import-legacy-account/index.ts` allows an authenticated Supabase admin to submit the transformed account payload and source-record SHA-256. The database RPC refuses unverified links, duplicate/different-source imports, and any Supabase account that is no longer pristine. After the transaction, the Edge Function reads back the profile, membership, Gold, lives, all tools, chapter progress, and collection; it returns `verified: true` only when the destination matches the submitted payload.
 
 Expected payload fields are `profile` (`playerName`, `avatarIndex`, optional `accountStatus`), `membership` (`tier`, `status`, `expiresAt`), `gold` (`balance`), `lives` (`count`, `nextRegenAt`), `tools` (all four canonical keys `UNDO`, `REMOVE`, `SWAP`, `DUPLICATE`), `chapters` (array of `{chapterCode, highestStage, bestScore}`), and `collection` (array of `{chapterCode, creatureValue}`). This is a transformed per-account record, not a raw Firebase export. `sourceSha256` is the lowercase SHA-256 of the exact frozen source record used for transformation.
 
@@ -86,7 +86,7 @@ The importer intentionally does not import Firebase `playerId` (the current app 
 4. Review every `validationErrors` array in the export. Any non-empty array blocks that account from the batch script; resolve it manually and regenerate a fresh export rather than editing its checksum-bearing source record.
 5. Create a local UTF-8 CSV with exactly these headers: `legacyUid,userId,verificationMethod`. Include only accounts whose Firebase and Supabase identities have been verified. Do not create this mapping by matching email addresses.
 6. Set `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_ACCESS_TOKEN` in the current PowerShell session. The access token must belong to a Supabase Auth user whose `app_metadata.role` is `admin`.
-7. Run the importer first without `-Execute` for a dry run. After reviewing the count and mapping file, rerun with `-Execute`. The script registers the verified identity link, then imports each account. Re-running a successfully imported account is idempotent; a different source checksum or a non-pristine Supabase account is rejected.
+7. Run the importer first without `-Execute` for a dry run. After reviewing the count and mapping file, rerun with `-Execute`. The script registers the verified identity link, then imports each account. It counts an account only when the server-side read-back reconciliation returns `verified: true`. Re-running a successfully imported account is idempotent; a different source checksum or a non-pristine Supabase account is rejected.
 
 Example dry run:
 
