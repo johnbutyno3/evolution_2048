@@ -38,9 +38,11 @@ class _FeedbackPageState extends State<FeedbackPage> {
         const SnackBar(content: Text('Your message has been sent.')),
       );
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not send your message. Please retry online.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not send your message. Please retry online.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
