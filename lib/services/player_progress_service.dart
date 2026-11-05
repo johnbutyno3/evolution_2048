@@ -299,7 +299,9 @@ class PlayerProgressService {
         );
       }
       if (generation != _sessionOperationGeneration ||
-          result['gameId'] != gameId || result['state'] != 'ACTIVE') return false;
+          result['gameId'] != gameId || result['state'] != 'ACTIVE') {
+        return false;
+      }
       _activeGameSessionId = gameId;
       _activeGameChapterIndex = chapterIndex;
       await SaveManager.setGameSessionId(gameId);
