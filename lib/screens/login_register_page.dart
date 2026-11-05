@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
 import 'home_page.dart';
 import 'profile_setup_page.dart';
 import '../services/player_profile_service.dart';
+import '../services/supabase_auth_service.dart';
 import '../game/services/audio_manager.dart';
 import '../l10n/app_localizations.dart';
 
@@ -27,7 +26,6 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   bool _loading = false;
   bool _obscurePassword = true;
 
-  static Future<void>? _googleSignInInitialization;
 
   @override
   void dispose() {
@@ -65,88 +63,43 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     try {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
+      final response = _isRegister
+          ? await SupabaseAuthService.registerWithEmail(email: email, password: password)
+          : await SupabaseAuthService.signInWithEmail(email: email, password: password);
 
-      if (_isRegister) {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-      } else {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+      if (response.session == null) {
+        _showError('Check your email to confirm the account, then sign in.');
+        return;
       }
       if (mounted) await _continueAfterAuth();
-    } on FirebaseAuthException catch (error) {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        _showError(_authError(l10n, error.code));
-      }
+    } on AuthException catch (error) {
+      if (mounted) _showError(_authError(AppLocalizations.of(context)!, error.code));
+    } catch (error) {
+      if (mounted) _showError('Authentication failed: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _googleLogin() async {
+  Future<void> _googleLogin() async => _providerLogin(OAuthProvider.google);
+
+  Future<void> _appleLogin() async => _providerLogin(OAuthProvider.apple);
+
+  Future<void> _providerLogin(OAuthProvider provider) async {
     setState(() => _loading = true);
     try {
-      if (kIsWeb) {
-        await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
-      } else {
-        _googleSignInInitialization ??= GoogleSignIn.instance.initialize();
-        await _googleSignInInitialization;
-
-        final account = await GoogleSignIn.instance.authenticate();
-        final idToken = account.authentication.idToken;
-        if (idToken == null || idToken.isEmpty) {
-          throw FirebaseAuthException(
-            code: 'missing-google-id-token',
-            message: 'Google sign-in did not return an ID token.',
-          );
-        }
-
-        await FirebaseAuth.instance.signInWithCredential(
-          GoogleAuthProvider.credential(idToken: idToken),
-        );
-      }
-      if (mounted) await _continueAfterAuth();
-    } on FirebaseAuthException catch (error) {
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        _showError('${_authError(l10n, error.code)} (${error.code})');
-      }
-    } on GoogleSignInException catch (error) {
-      if (mounted && error.code != GoogleSignInExceptionCode.canceled) {
-        _showError('Google login failed: ${error.description ?? error.code.name}');
-      }
+      final started = await SupabaseAuthService.signInWithOAuth(
+        provider: provider,
+        redirectTo: SupabaseAuthService.nativeOAuthRedirectUri,
+      );
+      if (!started && mounted) _showError('The sign-in provider could not be opened.');
+      // OAuth completes through the registered deep-link redirect. The root
+      // auth-state stream performs the route transition after Supabase stores
+      // the resulting session.
+    } on AuthException catch (error) {
+      if (mounted) _showError(error.message);
     } catch (error) {
-      if (mounted) _showError('Google login failed: $error');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _appleLogin() async => _providerLogin(AppleAuthProvider());
-
-  Future<void> _providerLogin(AuthProvider provider) async {
-    setState(() => _loading = true);
-    try {
-      if (kIsWeb) {
-        await FirebaseAuth.instance.signInWithPopup(provider);
-      } else {
-        await FirebaseAuth.instance.signInWithProvider(provider);
-      }
-      if (mounted) await _continueAfterAuth();
-    } on FirebaseAuthException catch (error) {
-      if (mounted &&
-          error.code != 'popup-closed-by-user' &&
-          error.code != 'cancelled-popup-request') {
-        final l10n = AppLocalizations.of(context)!;
-        _showError('${_authError(l10n, error.code)} (${error.code})');
-      }
-    } catch (error) {
-      if (mounted) _showError('Google/Apple login error: $error');
+      if (mounted) _showError('Sign-in failed: $error');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -155,14 +108,18 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
   String _authError(AppLocalizations l10n, String code) {
     switch (code) {
       case 'email-already-in-use':
+      case 'user_already_exists':
         return l10n.authEmailAlreadyInUse;
       case 'invalid-credential':
+      case 'invalid_credentials':
       case 'wrong-password':
       case 'user-not-found':
         return l10n.authInvalidCredentials;
       case 'weak-password':
+      case 'weak_password':
         return l10n.authWeakPassword;
       case 'invalid-email':
+      case 'email_address_invalid':
         return l10n.authInvalidEmail;
       case 'too-many-requests':
         return l10n.authTooManyRequests;
