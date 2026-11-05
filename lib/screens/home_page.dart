@@ -8,10 +8,10 @@ import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../game/services/save_manager.dart';
-import '../services/player_profile_service.dart';
 import '../services/supabase_account_service.dart';
 import '../services/player_progress_service.dart';
 import 'personal_page.dart';
+import 'profile_setup_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
