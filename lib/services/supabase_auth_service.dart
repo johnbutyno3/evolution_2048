@@ -3,8 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../game/services/save_manager.dart';
 import 'supabase_backend.dart';
 
-/// Supabase Auth entry points for the staged Firebase migration.
-/// The UI is not switched over until dependent Firebase services are migrated.
+/// Supabase Auth entry points used by the application account flow.
 class SupabaseAuthService {
   SupabaseAuthService._();
 
