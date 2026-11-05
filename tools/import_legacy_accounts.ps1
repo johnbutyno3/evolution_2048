@@ -59,7 +59,7 @@ foreach ($row in $mappingRows) {
             throw "Paid membership for '$legacyUid' requires a matching non-expiring legacy record and a verified approval reference."
         }
         $account.importPayload.membership.tier = $approvedTier
-        $account.importPayload.membership.approvalReference = $membershipApprovalReference
+        Add-Member -InputObject $account.importPayload.membership -NotePropertyName approvalReference -NotePropertyValue $membershipApprovalReference -Force
     }
     if (@($account.validationErrors).Count -gt 0) {
         throw "Account '$legacyUid' has validation errors: $(@($account.validationErrors) -join ', ')"
