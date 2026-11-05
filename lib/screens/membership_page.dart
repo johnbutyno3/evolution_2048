@@ -48,20 +48,20 @@ class _MembershipPageState extends State<MembershipPage> {
             children: [
               _membershipCard(
                 title: 'General',
-                description: 'Ads normal · 5 lives',
+                description: 'Free · 5 lives · 1 Life regenerates every 40 minutes',
                 price: 'Free',
                 current: current == 'general',
               ),
               _membershipCard(
                 title: 'Premium',
-                description: 'No forced ads · 5 lives · 20 daily Gold',
-                price: '\$${ShopConfigService.usdPrice(config, 'premiumUsdPrice')} / month',
+                description: 'Permanent membership · No forced ads · Unlimited lives · 20 daily Gold',
+                price: '\${ShopConfigService.usdPrice(config, 'premiumUsdPrice')} · Permanent',
                 current: current == 'premium',
               ),
               _membershipCard(
                 title: 'Golden',
-                description: 'Completely ad-free · unlimited lives · 50 daily Gold',
-                price: '\$${ShopConfigService.usdPrice(config, 'goldenUsdPrice')} / month',
+                description: 'Permanent membership · Ad-free · Unlimited lives · 50 daily Gold',
+                price: '\${ShopConfigService.usdPrice(config, 'goldenUsdPrice')} · Permanent',
                 current: current == 'golden',
               ),
             ],
