@@ -18,6 +18,7 @@ class SupabaseToolPurchaseService {
   SupabaseToolPurchaseService._();
 
   static final Random _random = Random.secure();
+  static final Map<String, String> _pendingRequestIds = {};
 
   static String _newRequestId() {
     final bytes = List<int>.generate(16, (_) => _random.nextInt(256));
@@ -39,6 +40,8 @@ class SupabaseToolPurchaseService {
       );
     }
 
+    final requestKey = '$toolCode:$quantity';
+    final requestId = _pendingRequestIds.putIfAbsent(requestKey, _newRequestId);
     try {
       final response = await client.functions.invoke(
         'purchase-tool-package',
@@ -46,7 +49,7 @@ class SupabaseToolPurchaseService {
         body: <String, dynamic>{
           'toolCode': toolCode,
           'quantity': quantity,
-          'idempotencyKey': _newRequestId(),
+          'idempotencyKey': requestId,
         },
       );
       final data = response.data;
@@ -77,6 +80,7 @@ class SupabaseToolPurchaseService {
           'The tool purchase service returned inconsistent account values.',
         );
       }
+      _pendingRequestIds.remove(requestKey);
       return result;
     } on FunctionException catch (error) {
       final details = error.details;
