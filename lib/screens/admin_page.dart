@@ -158,9 +158,11 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
         const SnackBar(content: Text('Shop parameters saved.')),
       );
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save shop parameters: $error')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save shop parameters: $error')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
