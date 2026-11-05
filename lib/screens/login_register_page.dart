@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/supabase_auth_service.dart';
 import '../game/services/audio_manager.dart';
@@ -64,7 +65,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
     try {
       final started = await SupabaseAuthService.signInWithOAuth(
         provider: provider,
-        redirectTo: SupabaseAuthService.nativeOAuthRedirectUri,
+        redirectTo: kIsWeb ? Uri.base.origin : SupabaseAuthService.nativeOAuthRedirectUri,
       );
       if (!started && mounted) _showError('The sign-in provider could not be opened.');
       // OAuth completes through the registered deep-link redirect. The root
