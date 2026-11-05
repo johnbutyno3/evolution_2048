@@ -1,10 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'firebase_options.dart';
 import 'game/services/save_manager.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/login_register_page.dart';
@@ -14,73 +10,23 @@ import 'screens/shop_page.dart';
 import 'services/supabase_backend.dart';
 import 'services/supabase_auth_service.dart';
 
-// Web debug can optionally receive a locally supplied, already-registered
-// debug token. The token must never be committed to source control.
-const kFirebaseAppCheckWebDebugToken = String.fromEnvironment(
-  'FIREBASE_APPCHECK_WEB_DEBUG_TOKEN',
-  defaultValue: '',
-);
-
-// Web debug intentionally does not require a dart-define token. WebDebugProvider
-// uses the browser-local Firebase App Check debug token mechanism configured in
-// web/index.html when no explicit token is supplied. Release Web still requires
-// the production Site Key.
-const kFirebaseAppCheckWebSiteKey = String.fromEnvironment(
-  'FIREBASE_APPCHECK_WEB_SITE_KEY',
-  defaultValue: '',
-);
-
-// Release builds use production App Check providers by default. Test APKs that
-// are sideloaded (and therefore cannot satisfy Play Integrity) must explicitly
-// opt into the debug provider with --dart-define=FIREBASE_APPCHECK_DEBUG=true.
-const kFirebaseAppCheckDebug = bool.fromEnvironment(
-  'FIREBASE_APPCHECK_DEBUG',
-  defaultValue: false,
-);
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // Supabase Auth and Edge Functions are now the active account path. Firebase
-  // initialization remains temporarily for legacy screens still being migrated.
+  // Supabase Auth and Edge Functions are the active account path.
   // Only public client keys may be supplied via dart-define.
-  await SupabaseBackend.initialize(
+  final supabaseReady = await SupabaseBackend.initialize(
     url: const String.fromEnvironment('SUPABASE_URL'),
     publishableKey: const String.fromEnvironment(
       'SUPABASE_PUBLISHABLE_KEY',
       defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'),
     ),
   );
-
-  if (kIsWeb && !kDebugMode && kFirebaseAppCheckWebSiteKey.isEmpty) {
-    throw StateError(
-      'FIREBASE_APPCHECK_WEB_SITE_KEY is required for release Web builds.',
-    );
+  if (!supabaseReady) {
+    throw StateError('SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are required.');
   }
 
-  await FirebaseAppCheck.instance.activate(
-    providerWeb: (kDebugMode || kFirebaseAppCheckDebug)
-        ? WebDebugProvider(
-            debugToken: kFirebaseAppCheckWebDebugToken.isNotEmpty
-                ? kFirebaseAppCheckWebDebugToken
-                : null,
-          )
-        : ReCaptchaV3Provider(kFirebaseAppCheckWebSiteKey),
-    providerAndroid: (kDebugMode || kFirebaseAppCheckDebug)
-        ? const AndroidDebugProvider()
-        : const AndroidPlayIntegrityProvider(),
-    providerApple: (kDebugMode || kFirebaseAppCheckDebug)
-        ? const AppleDebugProvider()
-        : const AppleAppAttestProvider(),
-  );
-
-  // Do not block app startup on the first Web Auth state event. Firebase Auth
-  // initializes asynchronously in the browser; waiting here can leave the
-  // whole Flutter app blank when the Web Auth layer reports a transient init
-  // error. The UI reads currentUser when it builds and Auth continues to manage
-  // its state normally after startup.
+  // Supabase restores its persisted session before the auth router is built.
   await SaveManager.initialize();
 
   runApp(const Rebirth2048App());
