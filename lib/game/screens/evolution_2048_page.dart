@@ -629,7 +629,28 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    // RESET always creates a new board and consumes one Life immediately.
+    // Cancel leaves the current board and Life untouched. Only explicit
+    // confirmation starts a replacement session and consumes one Life.
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.restartConfirmTitle),
+        content: Text(l10n.restartConfirmMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.restart),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     final restarted = await _reset();
     if (restarted && mounted) {
       unawaited(AudioManager.instance.playChapterMusic(_engine.chapter));
@@ -646,7 +667,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _startTool(String mode) async {
     // Gameplay is local-first. A tool must not become unclickable merely
-    // because the Firebase session response is still in flight.
+    // because the Supabase session response is still in flight.
     if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
