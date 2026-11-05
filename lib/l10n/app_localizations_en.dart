@@ -292,6 +292,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to log out of your account?';
 
   @override
+  String get restartConfirmTitle => 'Restart game?';
+
+  @override
+  String get restartConfirmMessage =>
+      'Start a new board? One Life will be consumed.';
+
+  @override
+  String get restart => 'Restart';
+
+  @override
   String get cancel => 'Cancel';
 
   @override
