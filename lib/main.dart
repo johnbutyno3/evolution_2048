@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +11,7 @@ import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
 import 'services/supabase_backend.dart';
+import 'services/supabase_auth_service.dart';
 
 // Web debug can optionally receive a locally supplied, already-registered
 // debug token. The token must never be committed to source control.
@@ -42,8 +42,8 @@ Future<void> main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Supabase is being introduced service-by-service. Keep the existing Firebase
-  // authentication path until every dependent service has been migrated.
+  // Supabase Auth and Edge Functions are now the active account path. Firebase
+  // initialization remains temporarily for legacy screens still being migrated.
   // Only public client keys may be supplied via dart-define.
   await SupabaseBackend.initialize(
     url: const String.fromEnvironment('SUPABASE_URL'),
@@ -93,20 +93,20 @@ class Rebirth2048App extends StatelessWidget {
       return const OnboardingPage();
     }
 
-    // Firebase Auth restores a persisted session asynchronously. Reading
-    // currentUser only once can route a returning player to LoginRegisterPage
-    // before that restoration finishes. React to the first auth-state event
-    // instead, and do not present the game until the account state is known.
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    // Wait for Supabase Auth to restore its persisted session before routing.
+    return StreamBuilder<AuthState>(
+      stream: SupabaseAuthService.authStateChanges,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            SupabaseAuthService.currentSession == null) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        if (snapshot.hasError || snapshot.data == null) {
+        final user = snapshot.data?.session?.user ??
+            SupabaseAuthService.currentUser;
+        if (snapshot.hasError || user == null) {
           return const LoginRegisterPage();
         }
 
