@@ -10,8 +10,7 @@ class SupabasePlayerProfileException implements Exception {
   String toString() => message;
 }
 
-/// Profile access through Supabase Auth + the user's own RLS-protected row.
-/// This service is intentionally separate until the app's auth cutover.
+/// Profile access through Supabase Auth and the user's own RLS-protected row.
 class SupabasePlayerProfileService {
   SupabasePlayerProfileService._();
 
