@@ -302,6 +302,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get restart => 'Restart';
 
   @override
+  String get restartFailed =>
+      'Unable to restart. Check your Life and try again.';
+
+  @override
   String get cancel => 'Cancel';
 
   @override
