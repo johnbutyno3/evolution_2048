@@ -141,6 +141,9 @@
   "playerId": "玩家 ID",
   "membership": "會員資格",
   "evolutionProgress": "進化進度",
-  "chapterLabel": "第 {number} 章 · {name}"
-  ,"profileSetupFailed": "建立玩家資料失敗，請再試一次。"
+  "chapterLabel": "第 {number} 章 · {name}",
+  "profileSetupFailed": "建立玩家資料失敗，請再試一次。",
+  "restartConfirmTitle": "重新開始遊戲？",
+  "restartConfirmMessage": "確定要建立新棋盤嗎？將消耗 1 點生命。",
+  "restart": "重新開始"
 }
