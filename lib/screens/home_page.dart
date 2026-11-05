@@ -9,6 +9,7 @@ import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../game/services/save_manager.dart';
 import '../services/player_profile_service.dart';
+import '../services/supabase_account_service.dart';
 import '../services/player_progress_service.dart';
 import 'personal_page.dart';
 
@@ -121,13 +122,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
-    await Future.wait([
-      PlayerProfileService.ensureProfile().catchError((_) => null),
-      LifeManager.initialize().catchError((_) => null),
-      GoldManager.initialize().catchError((_) => null),
-      ToolManager.refreshInventory().catchError((_) => null),
-      _progress.refresh().catchError((_) => null),
-    ]);
+    try {
+      final snapshot = await SupabaseAccountBootstrapService.synchronize();
+      if (!mounted) return;
+      if (SupabaseAccountBootstrapService.requiresProfileSetup(snapshot)) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ProfileSetupPage()),
+          (route) => false,
+        );
+        return;
+      }
+      await _progress.refresh();
+    } catch (_) {
+      // Keep the home shell available, but gameplay remains disabled until
+      // the authoritative account snapshot has been loaded successfully.
+    }
     if (mounted) setState(() => _loading = false);
   }
 
