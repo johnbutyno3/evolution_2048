@@ -1,11 +1,15 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+"use strict";
 
-const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const repoRoot = path.resolve(__dirname, "../..");
+const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
 
 test("Restart requires explicit confirmation before creating a replacement session", () => {
-  const source = read("../../lib/game/screens/evolution_2048_page.dart");
+  const source = read("lib/game/screens/evolution_2048_page.dart");
   const start = source.indexOf("Future<void> _showResetMenu()");
   const end = source.indexOf("\n  Future<void> _startTool(", start);
   assert.ok(start >= 0 && end > start, "Restart handler must exist");
@@ -29,10 +33,10 @@ test("Restart requires explicit confirmation before creating a replacement sessi
 });
 
 test("Restart confirmation strings exist in English and Traditional Chinese", () => {
-  const enArb = JSON.parse(read("../../lib/l10n/app_en.arb"));
-  const zhArb = JSON.parse(read("../../lib/l10n/app_zh.arb"));
-  const enDart = read("../../lib/l10n/app_localizations_en.dart");
-  const zhDart = read("../../lib/l10n/app_localizations_zh.dart");
+  const enArb = JSON.parse(read("lib/l10n/app_en.arb"));
+  const zhArb = JSON.parse(read("lib/l10n/app_zh.arb"));
+  const enDart = read("lib/l10n/app_localizations_en.dart");
+  const zhDart = read("lib/l10n/app_localizations_zh.dart");
 
   for (const key of ["restartConfirmTitle", "restartConfirmMessage", "restart", "restartFailed"]) {
     assert.equal(typeof enArb[key], "string", `English ARB missing ${key}`);
@@ -43,8 +47,8 @@ test("Restart confirmation strings exist in English and Traditional Chinese", ()
 });
 
 test("Supabase restart endpoint delegates settlement and start to one database RPC", () => {
-  const edge = read("../functions/restart-game-session/index.ts");
-  const migration = read("../migrations/20261103030000_atomic_restart_game_session_rpc.sql");
+  const edge = read("supabase/functions/restart-game-session/index.ts");
+  const migration = read("supabase/migrations/20261103030000_atomic_restart_game_session_rpc.sql");
 
   assert.match(edge, /rpc\(["']restart_game_session["']/);
   assert.match(migration, /public\.abandon_game_session\(/);
