@@ -46,6 +46,21 @@ foreach ($row in $mappingRows) {
     if (-not $accountByUid.ContainsKey($legacyUid)) { throw "Firebase UID '$legacyUid' is not present in the export." }
 
     $account = $accountByUid[$legacyUid]
+    $approvedTier = ([string]$row.approvedMembershipTier).Trim().ToUpperInvariant()
+    if ([string]::IsNullOrWhiteSpace($approvedTier)) { $approvedTier = 'FREE' }
+    if ($approvedTier -notin @('FREE', 'PREMIUM', 'GOLDEN')) {
+        throw "Invalid approvedMembershipTier for Firebase UID '$legacyUid'."
+    }
+    $membershipApprovalReference = ([string]$row.membershipApprovalReference).Trim()
+    if ($approvedTier -ne 'FREE') {
+        if ($account.membershipReview.legacyTier -ne $approvedTier -or
+            $null -ne $account.membershipReview.legacyExpiresAt -or
+            [string]::IsNullOrWhiteSpace($membershipApprovalReference)) {
+            throw "Paid membership for '$legacyUid' requires a matching non-expiring legacy record and a verified approval reference."
+        }
+        $account.importPayload.membership.tier = $approvedTier
+        $account.importPayload.membership.approvalReference = $membershipApprovalReference
+    }
     if (@($account.validationErrors).Count -gt 0) {
         throw "Account '$legacyUid' has validation errors: $(@($account.validationErrors) -join ', ')"
     }
