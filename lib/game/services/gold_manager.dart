@@ -1,6 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../../services/supabase_backend.dart';
+import '../../services/supabase_account_service.dart';
 
 /// Client facade for the server-authoritative Gold wallet.
 class GoldManager {
@@ -44,29 +42,15 @@ class GoldManager {
 
   static Future<int?> refresh() async {
     try {
-      final client = SupabaseBackend.client;
-      if (client.auth.currentSession == null) return null;
-      final response = await client.functions.invoke(
-        'account-snapshot',
-        method: HttpMethod.post,
-        body: <String, dynamic>{},
-      );
-      if (response.status < 200 || response.status >= 300 ||
-          response.data is! Map) {
-        return null;
-      }
-      final data = Map<String, dynamic>.from(response.data as Map);
-      final balance = data['gold'];
-      if (data['userId'] != client.auth.currentUser?.id ||
-          balance is! num ||
-          !balance.isFinite ||
-          balance.toInt() < 0 ||
-          balance != balance.toInt()) {
-        return null;
-      }
-      applySupabaseBalance(balance.toInt());
+      // Use the same timezone-aware, fully validated snapshot path as account
+      // bootstrap. Calling account-snapshot with an empty body is rejected by
+      // the Edge Function (timezone is mandatory), which previously left shop
+      // screens showing a stale Gold cache without surfacing the failure.
+      final snapshot = await SupabaseAccountService.fetchSnapshot();
+      applySupabaseBalance(snapshot.gold);
       return _cachedBalance;
-    } catch (_) {
+    } on SupabaseAccountException {
+      // Keep the last validated balance; a failed read never grants or spends.
       return null;
     }
   }
