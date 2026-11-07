@@ -25,6 +25,19 @@ class SupabaseToolPurchaseService {
     return _pendingRequestIdLoads.putIfAbsent(requestKey, () async {
       final preferences = await SharedPreferences.getInstance();
       final storageKey = 'supabase_pending_tool_purchase:$requestKey';
+      final completedKey = '$storageKey:completed';
+      if (preferences.getBool(completedKey) == true) {
+        final nextId = _newRequestId();
+        final savedId = await preferences.setString(storageKey, nextId);
+        final resetMarker = await preferences.setBool(completedKey, false);
+        if (!savedId || !resetMarker) {
+          throw const SupabaseToolPurchaseException(
+            'PURCHASE_SAFETY_STORAGE_UNAVAILABLE',
+            'Purchase protection could not be saved. Please retry.',
+          );
+        }
+        return nextId;
+      }
       final existing = preferences.getString(storageKey);
       if (existing != null &&
           RegExp(
@@ -66,7 +79,7 @@ class SupabaseToolPurchaseService {
       );
     }
 
-    final requestKey = '$toolCode:$quantity';
+    final requestKey = '${client.auth.currentUser!.id}:$toolCode:$quantity';
     try {
       // Persist the idempotency key before sending the transaction. If the app
       // closes after the server commits but before the response arrives, retry
@@ -114,7 +127,13 @@ class SupabaseToolPurchaseService {
       // Clear only after a structurally valid success response. A timeout or
       // malformed response deliberately keeps the same key for safe retry.
       final preferences = await SharedPreferences.getInstance();
-      await preferences.remove('supabase_pending_tool_purchase:$requestKey');
+      final storageKey = 'supabase_pending_tool_purchase:$requestKey';
+      final markedComplete = await preferences.setBool('$storageKey:completed', true);
+      if (!markedComplete) {
+        // The request is already committed. Removing the key is the safe
+        // fallback; if removal also fails, a retry returns the same result.
+        await preferences.remove(storageKey);
+      }
       _pendingRequestIdLoads.remove(requestKey);
       return result;
     } on FunctionException catch (error) {
