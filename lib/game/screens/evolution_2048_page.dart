@@ -815,11 +815,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         replayLog: completionReplay,
       );
       _completionVerificationFuture = future;
-      unawaited(future.whenComplete(() {
-        if (identical(_completionVerificationFuture, future)) {
-          _completionVerificationFuture = null;
-        }
-      }));
+      unawaited(future.then<void>(
+        (_) {
+          if (identical(_completionVerificationFuture, future)) {
+            _completionVerificationFuture = null;
+          }
+        },
+        onError: (Object _) {
+          if (identical(_completionVerificationFuture, future)) {
+            _completionVerificationFuture = null;
+          }
+        },
+      ));
       return future;
     }
 
