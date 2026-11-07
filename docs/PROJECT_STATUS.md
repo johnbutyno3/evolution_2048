@@ -60,7 +60,7 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - 已修正 timezone RPC 的 PL/pgSQL 變數宣告及 dollar-quote 邊界；測試新增對 SQL 區塊結構的明確檢查。
 - 新增 membership / purchase_transactions 權限 migration：一般客戶端可讀自己的會員與交易紀錄，但不能新增、修改或刪除；寫入權限保留給 service_role。
 - Premium → Golden 升級價 USD 3.00 已接通 shop config、管理員價格設定及會員頁；FREE → Golden 仍顯示 USD 5.99。商店收據驗證完成前，所有實際付款按鈕仍保持不可購買。
-- GitHub Actions 在 commit `86446a9` 已通過四項檢查：Flutter Analyze、Flutter tests、Supabase source contract tests、Supabase Audit、Security Audit Migration、Functions Audit（Flutter workflow 與三個後端 workflow 均成功）。這些 CI 不等同於真實 Supabase SQL integration 或裝置 E2E。
+- GitHub Actions 在 commit `86446a9` 的四個 workflow 均成功：Flutter Analyze workflow（包含 Flutter tests、Supabase source contract tests）、Supabase Audit、Security Audit Migration、Functions Audit。這些 CI 不等同於真實 Supabase SQL integration 或裝置 E2E。
 - CI 執行 `flutter pub get` 可成功解析新增套件，`flutter analyze` 與 `flutter test` 均通過；但 `pubspec.lock` 尚未由本機 Flutter 環境更新並提交，需在 `C:\Users\user\rebirth_2048` 執行 `flutter pub get` 後核對 lockfile。
 - Google / Apple OAuth provider credentials、redirect allow-list 及實機登入流程。
 - Apple / Google Play 收據伺服器驗證、退款／撤銷及會員權益發放。
