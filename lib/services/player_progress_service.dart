@@ -332,18 +332,21 @@ class PlayerProgressService {
     }
   }
 
-  Future<void> abandonGameSession({
+  Future<bool> abandonGameSession({
     String? sessionId,
     Map<String, dynamic>? replayLog,
     String reason = 'PLAYER_ABANDONED',
     bool unfinishedExit = false,
   }) async {
     // Returning home preserves the active session so the player can resume it.
-    if (unfinishedExit) return;
+    if (unfinishedExit) return true;
     final gameId = sessionId ?? _activeGameSessionId;
-    if (gameId == null || replayLog == null) return;
+    if (gameId == null) return true;
+    if (replayLog == null) return false;
     await _awaitPendingStartSession();
-    if (_activeGameSessionId != gameId) return;
+    if (_activeGameSessionId != gameId) {
+      return _loadedFromServer && _activeGameSessionId == null;
+    }
 
     final generation = ++_sessionOperationGeneration;
     try {
@@ -353,14 +356,25 @@ class PlayerProgressService {
         reason: reason,
         replayLog: replayLog,
       );
-      if (generation != _sessionOperationGeneration) return;
+      if (generation != _sessionOperationGeneration) return false;
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
       await SaveManager.clearGameSessionId();
       await refresh();
+      if (!_loadedFromServer || _activeGameSessionId == gameId) return false;
       await ToolManager.refreshInventory();
+      return true;
     } catch (_) {
-      if (generation == _sessionOperationGeneration) await refresh();
+      if (generation != _sessionOperationGeneration) return false;
+      await refresh();
+      // A lost response is successful only when a fresh authoritative
+      // snapshot confirms that the server no longer owns this active session.
+      if (_loadedFromServer && _activeGameSessionId != gameId) {
+        await SaveManager.clearGameSessionId();
+        await ToolManager.refreshInventory();
+        return true;
+      }
+      return false;
     }
   }
 
