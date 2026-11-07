@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "COLLECTION_SYNC_UNAVAILABLE" }, 503);
     }
     if (!session || session.chapter_code !== chapterCode ||
-      !["ACTIVE", "COMPLETED"].includes(session.state) || !session.initial_tiles) {
+      !["ACTIVE", "COMPLETED", "ABANDONED"].includes(session.state) || !session.initial_tiles) {
       return jsonResponse({ error: "GAME_SESSION_NOT_FOUND" }, 404);
     }
 
