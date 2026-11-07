@@ -311,8 +311,18 @@ class PlayerProgressService {
       return _activeGameSessionId == gameId;
     } catch (_) {
       if (generation == _sessionOperationGeneration) {
+        // The request may have committed on the server even when its response
+        // was lost. Reconcile against the authoritative active-session pointer
+        // before restoring the old local board or undoing the optimistic Life.
         await refresh();
         await LifeManager.refreshFromServer();
+        final committed = _activeGameSessionId == gameId &&
+            _activeGameChapterIndex == chapterIndex;
+        if (committed) {
+          await SaveManager.setGameSessionId(gameId);
+          await ToolManager.refreshInventory();
+          return true;
+        }
       }
       return false;
     }
