@@ -30,7 +30,9 @@ Deno.serve(async (req: Request) => {
     });
     if (timezoneResult.error) {
       console.error("account_timezone_update_failed", { userId: user.id, code: timezoneResult.error.code });
-      return jsonResponse({ error: "INVALID_TIMEZONE" }, 400);
+      return timezoneResult.error.code === "22023"
+        ? jsonResponse({ error: "INVALID_TIMEZONE" }, 400)
+        : jsonResponse({ error: "ACCOUNT_SNAPSHOT_UNAVAILABLE" }, 503);
     }
 
     const [profileResult, membershipResult, walletResult, lifeResult, toolsResult, activeSessionResult, progressResult] = await Promise.all([
