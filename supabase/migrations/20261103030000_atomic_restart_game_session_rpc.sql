@@ -20,10 +20,17 @@ declare
   v_abandon_result jsonb;
   v_start_result jsonb;
 begin
-  if p_previous_game_id is null or p_abandon_event_id is null
+  if p_user_id is null or p_previous_game_id is null or p_abandon_event_id is null
     or p_previous_game_id = p_game_id then
     raise exception using errcode = '22023', message = 'INVALID_RESTART_REQUEST';
   end if;
+
+  -- Acquire the same per-user lock as start_game_session before locking the
+  -- previous session in abandon_game_session. This preserves one lock order
+  -- and serializes restart against concurrent starts without deadlock.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_user_id::text, 0)
+  );
 
   v_abandon_result := public.abandon_game_session(
     p_user_id,
