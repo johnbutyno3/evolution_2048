@@ -1,6 +1,6 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-11-05
+最後更新：2026-11-07
 專案：`johnbutyno3/evolution_2048`
 主要分支：`feature/chapter1-spec-implementation`
 版本權威：GitHub 此分支最新已提交內容。
@@ -23,6 +23,7 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - `ToolManager` 的庫存讀取使用 Supabase snapshot，購買透過 `purchase-tool-package`，Gold 扣除與工具增加由資料庫交易原子處理。
 - `PlayerProgressService` 與 `SupabaseGameSessionService` 使用 Supabase Edge Functions 管理 start / resume / restart / checkpoint / completion / abandon。
 - `account-snapshot` 會以 server time 執行 FREE Life regeneration，並呼叫冪等的 daily Gold claim。
+- 每日 Gold 已新增裝置 IANA 時區同步：Flutter 以 `flutter_timezone` 取得裝置時區，`account-snapshot` 先經 service-role RPC `set_account_timezone` 由 PostgreSQL `pg_timezone_names` 驗證並寫入 `profiles.timezone_name`，之後才呼叫 `claim_daily_gold`。無法取得時區或後端同步失敗時，帳戶同步 fail-closed，不使用 UTC offset／縮寫冒充 IANA 時區。
 - 章節完成由 server replay validator 驗證後才更新永久進度、結算工具使用及符合條件的 Life 獎勵。
 
 ## Life / Session 扣除規則核對
@@ -55,6 +56,7 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - Restart YES / NO 的 SQL transaction 與實機 E2E 驗證；已新增 Node source-contract tests 並接入 Supabase Audit workflow，但尚未取得 CI 執行結果。
 - Firebase Auth / Firestore 完整匯出、身份 mapping、Supabase import、reconciliation。
 - Supabase migrations 與 Edge Functions 尚未以目標 production project 完成部署核對；不得由 source files 推定已部署。
+- 裝置時區同步已提交原始碼與 source-contract test；尚未執行 `flutter pub get` 更新 `pubspec.lock`、Flutter analyze/test、Node test 或 Supabase SQL integration。
 - Google / Apple OAuth provider credentials、redirect allow-list 及實機登入流程。
 - Apple / Google Play 收據伺服器驗證、退款／撤銷及會員權益發放。
 - Supabase SQL integration / concurrency tests、完整 Edge Function tests、Flutter `pub get` / `analyze` / `test`；目前新增的 restart Node source-contract test 尚未在此工作階段執行。
@@ -67,10 +69,11 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 
 ## 下一個工作順序
 
-1. 驗證 Restart YES 原子結算舊 Session + 建立新 Session 並只扣 1 Life；Restart NO 完全不呼叫後端扣命流程。
-2. 增補 restart SQL contract / integration tests，涵蓋 YES / NO、冪等與 rollback。
-3. 逐項核對 Supabase migration、Edge Function、RLS、交易與權益規則。
-4. 執行 Firebase 舊帳戶 export → identity mapping → import → reconciliation；保留舊資料直到核對通過。
-5. 在正確 Supabase project 完成 migration / Edge Function deployment，再進行 Flutter 與實機 QA。
-6. 完成 cutover 後才退役 Firebase runtime；不提前刪除舊帳戶或資料。
+1. 完成裝置時區依賴鎖定與 Flutter / Node CI 驗證，並在 Supabase 測試資料庫驗證 timezone RPC + 每日 Gold 日期邊界。
+2. 驗證 Restart YES 原子結算舊 Session + 建立新 Session 並只扣 1 Life；Restart NO 完全不呼叫後端扣命流程。
+3. 增補 restart SQL contract / integration tests，涵蓋 YES / NO、冪等與 rollback。
+4. 逐項核對 Supabase migration、Edge Function、RLS、交易與權益規則。
+5. 執行 Firebase 舊帳戶 export → identity mapping → import → reconciliation；保留舊資料直到核對通過。
+6. 在正確 Supabase project 完成 migration / Edge Function deployment，再進行 Flutter 與實機 QA。
+7. 完成 cutover 後才退役 Firebase runtime；不提前刪除舊帳戶或資料。
 
