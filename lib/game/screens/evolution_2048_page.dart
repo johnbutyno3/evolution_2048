@@ -480,14 +480,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? saveData['gameSessionId'] as String
         : null;
 
-    // RESET is a new game: consume exactly one Life locally now, then let
-    // restartGameSession authoritatively reconcile the same single charge.
-    // This makes the Life display change immediately (5 -> 4, etc.) and
-    // starts/continues the 40-minute regeneration countdown without waiting
-    // for Supabase.
-    if (!LifeManager.optimisticConsumeLife()) {
-      return false;
-    }
+    // Restart replaces the current board without charging another Life.
+    // The already-paid Life remains reserved for this game session; the
+    // restart RPC settles tools and creates the replacement atomically.
 
     _restartInProgress = true;
     _gameSessionGeneration++;
@@ -723,6 +718,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       await PlayerProgressService.instance.abandonGameSession(
         sessionId: sessionId,
         replayLog: replay,
+        reason: 'GAME_OVER',
       );
     }
     await SaveManager.clearChapter(chapter);
