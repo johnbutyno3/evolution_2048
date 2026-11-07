@@ -143,3 +143,12 @@ test("FREE life wallets and trusted adjustments are capped at five lives", () =>
   assert.doesNotMatch(migration, /trusted adjustments may grant bonus lives above 5/i);
   assert.match(importMigration, /life_count = 5 and next_regen_at is null/);
 });
+
+test("Tool purchase idempotency key survives app restarts", () => {
+  const service = read("lib/services/supabase_tool_purchase_service.dart");
+  assert.match(service, /SharedPreferences\.getInstance\(\)/);
+  assert.match(service, /supabase_pending_tool_purchase:/);
+  assert.match(service, /final requestId = await _requestIdFor\(requestKey\)/);
+  assert.match(service, /await preferences\.remove\('supabase_pending_tool_purchase:\$requestKey'\)/);
+  assert.match(service, /Purchase protection could not be saved/);
+});
