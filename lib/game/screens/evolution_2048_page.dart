@@ -219,52 +219,48 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           settledGameOver = true;
         }
 
-        final hasPlayableLocalBoard = saved != null &&
-            saved['gameSessionId'] == activeSessionId &&
-            saved['gameOver'] != true &&
-            saved['chapterComplete'] != true &&
-            saved['tiles'] is List &&
-            (saved['tiles'] as List).length == 16;
+        if (!settledGameOver) {
+          final hasPlayableLocalBoard = saved != null &&
+              saved['gameSessionId'] == activeSessionId &&
+              saved['gameOver'] != true &&
+              saved['chapterComplete'] != true &&
+              saved['tiles'] is List &&
+              (saved['tiles'] as List).length == 16;
 
-        if (hasPlayableLocalBoard) {
-          final localEngine = GameEngine(
-            chapter: _engine.chapter,
-            forceNewBoard: false,
-            boardLifeActive: true,
+          if (hasPlayableLocalBoard) {
+            final localEngine = GameEngine(
+              chapter: _engine.chapter,
+              forceNewBoard: false,
+              boardLifeActive: true,
+            );
+            if (!localEngine.restoreFromSaveData(saved)) return false;
+
+            _engine.stopGameTimer();
+            _engine = localEngine;
+            _resumeGameplay();
+            _focusNode.requestFocus();
+
+            // Resume validation is authoritative but must never delay the
+            // already-restored local board.
+            unawaited(
+              progress.resumeGameSession(_chapterNumber - 1).then((_) {
+                if (!mounted || generation != _gameSessionGeneration) return;
+                _engine.toolManager.refreshFromSavedProgress();
+                setState(() {});
+              }).catchError((_) {}),
+            );
+            unawaited(_refreshMountedToolInventory(generation));
+            return true;
+          }
+
+          // Never replace an active session when its playable local snapshot
+          // is missing. Its Life and board must remain reserved.
+          debugPrint(
+            'Active game session exists but its local board snapshot is missing: '
+            '$activeSessionId',
           );
-          if (!localEngine.restoreFromSaveData(saved)) return false;
-
-          _engine.stopGameTimer();
-          _engine = localEngine;
-          _resumeGameplay();
-          _focusNode.requestFocus();
-
-          // Resume validation is authoritative but must never delay the
-          // already-restored local board. A failed verification is reconciled
-          // by PlayerProgressService; the next authoritative operation can
-          // recover the session when necessary.
-          unawaited(
-            progress.resumeGameSession(_chapterNumber - 1).then((_) {
-              if (!mounted || generation != _gameSessionGeneration) return;
-              _engine.toolManager.refreshFromSavedProgress();
-              setState(() {});
-            }).catchError((_) {}),
-          );
-          unawaited(_refreshMountedToolInventory(generation));
-          return true;
+          return false;
         }
-
-        // An active server session is never replaced merely because the
-        // local snapshot is missing. Replacing it would consume another Life
-        // and silently turn BACK/re-entry into a new game. There is no safe
-        // way to reconstruct the exact current board from initialTiles alone.
-        // Keep the active session untouched and refuse to manufacture a new
-        // board.
-        debugPrint(
-          'Active game session exists but its local board snapshot is missing: '
-          '$activeSessionId',
-        );
-        return false;
       }
 
       // A BACK action pauses the exact session while keeping its local
