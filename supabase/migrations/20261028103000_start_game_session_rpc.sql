@@ -125,9 +125,11 @@ begin
       raise exception using errcode = 'P0002', message = 'PREVIOUS_SESSION_NOT_FOUND';
     end if;
     if v_previous.state = 'ACTIVE' then
-      update public.game_sessions
-        set state = 'ABANDONED', end_reason = 'PLAYER_ABANDONED'
-        where game_id = p_previous_game_id and user_id = p_user_id;
+      -- An active session may only be settled through the replay-validated
+      -- abandon/restart endpoint. Directly changing its state here would skip
+      -- authoritative tool-usage settlement and permit an economy bypass.
+      raise exception using errcode = '55000',
+        message = 'SESSION_ABANDON_REQUIRES_VALIDATED_SETTLEMENT';
     end if;
 
     select * into v_active
