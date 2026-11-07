@@ -127,3 +127,8 @@ test("Creature discovery requires a server-validated replay reaching each claime
   assert.match(client, /'gameId': gameId/);
   assert.match(gameScreen, /replayLog: Map<String, dynamic>\.from\(replayLog\)/);
 });
+
+test("Creature discovery remains valid after a replay-validated session ends", () => {
+  const endpoint = read("supabase/functions/discover-creature/index.ts");
+  assert.match(endpoint, /\["ACTIVE", "COMPLETED", "ABANDONED"\]\.includes\(session\.state\)/);
+});
