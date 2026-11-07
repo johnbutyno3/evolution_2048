@@ -269,6 +269,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final pausedSaved = SaveManager.loadCached(
         chapter: _engine.chapter.name,
       );
+      if (activeSessionId == null &&
+          pausedSaved != null &&
+          pausedSaved['gameOver'] == true) {
+        // The server snapshot is authoritative: if no ACTIVE session remains,
+        // a retained terminal board is only an uncollected local cleanup.
+        await SaveManager.clearChapter(_engine.chapter.name);
+        settledGameOver = true;
+      }
       final pausedSessionId = pausedSaved != null &&
               pausedSaved['gameSessionId'] is String &&
               pausedSaved['gameOver'] != true &&
