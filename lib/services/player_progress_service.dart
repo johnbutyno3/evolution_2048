@@ -335,6 +335,7 @@ class PlayerProgressService {
   Future<void> abandonGameSession({
     String? sessionId,
     Map<String, dynamic>? replayLog,
+    String reason = 'PLAYER_ABANDONED',
     bool unfinishedExit = false,
   }) async {
     // Returning home preserves the active session so the player can resume it.
@@ -349,7 +350,7 @@ class PlayerProgressService {
       await SupabaseGameSessionService.abandonGameSession(
         gameId: gameId,
         eventId: _newUuid(),
-        reason: 'PLAYER_ABANDONED',
+        reason: reason,
         replayLog: replayLog,
       );
       if (generation != _sessionOperationGeneration) return;
