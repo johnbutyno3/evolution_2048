@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../game/services/save_manager.dart';
 import '../game/services/life_manager.dart';
@@ -279,6 +280,22 @@ class SupabaseAccountBootstrapService {
 class SupabaseAccountService {
   SupabaseAccountService._();
 
+  static Future<String> _readDeviceTimezone() async {
+    try {
+      final info = await FlutterTimezone.getLocalTimezone();
+      final identifier = info.identifier.trim();
+      if (identifier.isEmpty || identifier.length > 64) {
+        throw const FormatException('Invalid device time zone identifier.');
+      }
+      return identifier;
+    } catch (_) {
+      throw const SupabaseAccountException(
+        'TIMEZONE_UNAVAILABLE',
+        'Could not determine the device time zone. Please retry.',
+      );
+    }
+  }
+
   static Future<SupabaseAccountSnapshot> fetchSnapshot() async {
     final client = SupabaseBackend.client;
     if (client.auth.currentSession == null) {
@@ -290,10 +307,11 @@ class SupabaseAccountService {
     }
 
     try {
+      final deviceTimezone = await _readDeviceTimezone();
       final response = await client.functions.invoke(
         'account-snapshot',
         method: HttpMethod.post,
-        body: <String, dynamic>{},
+        body: <String, dynamic>{'timezone': deviceTimezone},
       );
 
       final data = response.data;
