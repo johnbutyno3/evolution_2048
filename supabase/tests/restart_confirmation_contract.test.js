@@ -132,3 +132,14 @@ test("Creature discovery remains valid after a replay-validated session ends", (
   const endpoint = read("supabase/functions/discover-creature/index.ts");
   assert.match(endpoint, /\["ACTIVE", "COMPLETED", "ABANDONED"\]\.includes\(session\.state\)/);
 });
+
+test("FREE life wallets and trusted adjustments are capped at five lives", () => {
+  const migration = read("supabase/migrations/20261107100000_enforce_free_life_cap.sql");
+  const importMigration = read("supabase/migrations/20261105120000_legacy_account_import.sql");
+
+  assert.match(migration, /add constraint life_wallets_life_count_check check \(life_count between 0 and 5\)/);
+  assert.match(migration, /set life_count = least\(5, greatest\(0, life_count\)\)/);
+  assert.match(migration, /set life_count = least\(5, greatest\(0, life_count \+ p_quantity_delta\)\)/);
+  assert.doesNotMatch(migration, /trusted adjustments may grant bonus lives above 5/i);
+  assert.match(importMigration, /life_count = 5 and next_regen_at is null/);
+});
