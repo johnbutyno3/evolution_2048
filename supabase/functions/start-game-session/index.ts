@@ -50,6 +50,7 @@ Deno.serve(async (req: Request) => {
       p_chapter_code: chapterCode,
       p_previous_game_id: previousGameId,
       p_initial_tiles: initialTiles,
+      p_charge_life: true,
     });
 
     if (error) {
