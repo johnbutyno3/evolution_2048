@@ -54,6 +54,11 @@ test("Supabase restart endpoint delegates settlement and start to one database R
   assert.match(migration, /public\.abandon_game_session\(/);
   assert.match(migration, /public\.start_game_session\(/);
   assert.match(migration, /create or replace function public\.restart_game_session/);
+  assert.match(migration, /pg_catalog\.hashtextextended\(p_user_id::text, 0\)/);
+  const userLock = migration.indexOf("pg_catalog.pg_advisory_xact_lock(");
+  const abandon = migration.indexOf("v_abandon_result := public.abandon_game_session(");
+  assert.ok(userLock >= 0 && abandon > userLock,
+    "Restart must acquire the per-user lock before locking and settling the previous session");
 });
 
 test("Restart reconciles a lost response against the authoritative active session", () => {
