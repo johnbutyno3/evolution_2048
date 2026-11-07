@@ -56,7 +56,11 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - Restart YES / NO 的 SQL transaction 與實機 E2E 驗證；已新增 Node source-contract tests 並接入 Supabase Audit workflow，但尚未取得 CI 執行結果。
 - Firebase Auth / Firestore 完整匯出、身份 mapping、Supabase import、reconciliation。
 - Supabase migrations 與 Edge Functions 尚未以目標 production project 完成部署核對；不得由 source files 推定已部署。
-- 裝置時區同步已提交原始碼與 source-contract test；尚未執行 `flutter pub get` 更新 `pubspec.lock`、Flutter analyze/test、Node test 或 Supabase SQL integration。
+- 裝置時區同步已提交原始碼與 source-contract test；新增 PostgreSQL IANA timezone RPC，並以 24 小時內已有領取紀錄時暫緩時區切換，降低跨日期重複領取風險。
+- 已修正 timezone RPC 的 PL/pgSQL 變數宣告及 dollar-quote 邊界；測試新增對 SQL 區塊結構的明確檢查。
+- 新增 membership / purchase_transactions 權限 migration：一般客戶端可讀自己的會員與交易紀錄，但不能新增、修改或刪除；寫入權限保留給 service_role。
+- GitHub Flutter workflow 已擴充執行 `flutter test` 與 `node --test supabase/tests/*.test.js`；尚待 Actions 回報實際結果。
+- `pubspec.lock` 尚未更新 `flutter_timezone` 的解析結果；需在 Flutter 環境執行 `flutter pub get`，並完成 Flutter Analyze/Test、Node test 與 Supabase SQL integration。
 - Google / Apple OAuth provider credentials、redirect allow-list 及實機登入流程。
 - Apple / Google Play 收據伺服器驗證、退款／撤銷及會員權益發放。
 - Supabase SQL integration / concurrency tests、完整 Edge Function tests、Flutter `pub get` / `analyze` / `test`；目前新增的 restart Node source-contract test 尚未在此工作階段執行。
