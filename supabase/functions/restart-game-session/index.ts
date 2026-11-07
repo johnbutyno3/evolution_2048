@@ -35,6 +35,8 @@ Deno.serve(async (req: Request) => {
     if (![requestId, gameId, previousGameId, eventId].every((value) => UUID_PATTERN.test(value)) ||
       !Object.hasOwn(CHAPTER_INDEX, chapterCode) ||
       !Array.isArray(initialTiles) || initialTiles.length !== 16 ||
+      initialTiles.filter((value) => value !== null).length !== 2 ||
+      initialTiles.some((value) => value !== null && value !== 2 && value !== 4) ||
       !replayLog || typeof replayLog !== "object" || Array.isArray(replayLog)) {
       return jsonResponse({ error: "INVALID_RESTART_REQUEST" }, 400);
     }
