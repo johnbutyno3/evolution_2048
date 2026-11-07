@@ -64,7 +64,11 @@ class PlayerProgressService {
   bool get hasUnfinishedGame => _activeGameSessionId != null;
 
   bool isChapterUnlocked(int chapterIndex) {
-    return chapterIndex >= 0 &&
+    // A cached chapter index is not proof of current account access. If the
+    // authoritative snapshot failed (or belongs to a previous account), keep
+    // every chapter locked until the server progress has been refreshed.
+    return _loadedFromServer &&
+        chapterIndex >= 0 &&
         chapterIndex <= _unlockedChapterIndex &&
         !isChapterBlockedByUnfinishedGame(chapterIndex);
   }
