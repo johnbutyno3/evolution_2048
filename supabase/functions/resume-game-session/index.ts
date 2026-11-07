@@ -39,10 +39,13 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "SESSION_RESUME_UNAVAILABLE" }, 503);
     }
     if (!profile || profile.account_status !== "active" ||
-      !membership || membership.status !== "active" ||
+      !membership || !["active", "revoked"].includes(membership.status) ||
       !["FREE", "PREMIUM", "GOLDEN"].includes(membership.tier)) {
       return jsonResponse({ error: "ACCOUNT_RESTRICTED", supportAvailable: true }, 423);
     }
+    // A revoked purchase entitlement downgrades to FREE; it does not lock
+    // an otherwise active account or prevent resuming an already-paid session.
+    const effectiveTier = membership.status === "revoked" ? "FREE" : membership.tier;
 
     const { data: session, error } = await service
       .from("game_sessions")
@@ -83,7 +86,7 @@ Deno.serve(async (req: Request) => {
       checkpointVersion: session.checkpoint_version,
       toolUsage: session.tool_usage,
       updatedAt: session.updated_at,
-      membershipTier: membership.tier,
+      membershipTier: effectiveTier,
       membershipStatus: membership.status,
     });
   } catch (error) {
