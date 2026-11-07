@@ -7,7 +7,9 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $
+declare
+  v_current_timezone text;
 begin
   if p_user_id is null or p_timezone is null or length(p_timezone) > 64
      or not exists (
