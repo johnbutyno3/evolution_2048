@@ -52,8 +52,10 @@ class CreatureCollectionService {
 
   static Future<void> discover(
     String chapterKey,
-    Iterable<int> values,
-  ) async {
+    Iterable<int> values, {
+    required String gameId,
+    required Map<String, dynamic> replayLog,
+  }) async {
     final client = SupabaseBackend.client;
     if (client.auth.currentUser == null) return;
     final limit = switch (_chapterCode(chapterKey)) {
@@ -68,18 +70,19 @@ class CreatureCollectionService {
         value >= 2 &&
         value <= limit &&
         (value & (value - 1)) == 0);
-    for (final value in valid) {
-      final response = await client.functions.invoke(
-        'discover-creature',
-        method: HttpMethod.post,
-        body: <String, dynamic>{
-          'chapterCode': _chapterCode(chapterKey),
-          'value': value,
-        },
-      );
-      if (response.status < 200 || response.status >= 300) {
-        throw StateError('Creature collection sync failed.');
-      }
+    if (valid.isEmpty) return;
+    final response = await client.functions.invoke(
+      'discover-creature',
+      method: HttpMethod.post,
+      body: <String, dynamic>{
+        'gameId': gameId,
+        'chapterCode': _chapterCode(chapterKey),
+        'values': valid.toList(growable: false),
+        'replayLog': replayLog,
+      },
+    );
+    if (response.status < 200 || response.status >= 300) {
+      throw StateError('Creature collection sync failed.');
     }
   }
 }
