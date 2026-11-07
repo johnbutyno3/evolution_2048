@@ -92,8 +92,7 @@ begin
       where user_id = p_user_id and life_count > 0
       returning life_count, next_regen_at into v_lives, v_next_regen_at;
   elsif p_reason = 'CHAPTER_COMPLETE_REFUND' then
-    -- Chapter-completion refunds are capped at the natural limit of 5.
-    -- Bonus balances above 5 remain supported for trusted server adjustments.
+    -- Chapter-completion refunds never raise the balance above 5.
     update public.life_wallets
       set life_count = least(5, life_count + 1),
           next_regen_at = case
@@ -109,8 +108,6 @@ begin
           next_regen_at = case
             when least(5, greatest(0, life_count + p_quantity_delta)) >= 5 then null
             when life_count >= 5 and p_quantity_delta < 0
-              then now() + interval '40 minutes'
-            when life_count = 5 and p_quantity_delta < 0
               then now() + interval '40 minutes'
             else next_regen_at
           end
