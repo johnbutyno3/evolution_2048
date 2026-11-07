@@ -61,6 +61,19 @@ test("Supabase restart endpoint delegates settlement and start to one database R
     "Restart must acquire the per-user lock before locking and settling the previous session");
 });
 
+test("A normal start cannot bypass replay-validated settlement of an active session", () => {
+  const migration = read("supabase/migrations/20261028103000_start_game_session_rpc.sql");
+  const edge = read("supabase/functions/start-game-session/index.ts");
+
+  assert.match(migration, /SESSION_ABANDON_REQUIRES_VALIDATED_SETTLEMENT/);
+  assert.match(edge, /message\.includes\("SESSION_ABANDON_REQUIRES_VALIDATED_SETTLEMENT"\)/);
+  assert.doesNotMatch(
+    migration,
+    /if v_previous\.state = 'ACTIVE' then\s+update public\.game_sessions\s+set state = 'ABANDONED'/,
+    "A normal start must not abandon an active session without replay and tool settlement",
+  );
+});
+
 test("Restart reconciles a lost response against the authoritative active session", () => {
   const source = read("lib/services/player_progress_service.dart");
   const start = source.indexOf("Future<bool> restartGameSession(");
