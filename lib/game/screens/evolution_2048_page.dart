@@ -195,12 +195,27 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           chapter: _engine.chapter.name,
         );
 
-        // A Game Over board is not resumable, but its replay log is retained
-        // until SESSION_ABANDON is confirmed. Retry that settlement before
-        // allowing a fresh, life-charged game to start.
+        // Terminal boards are not resumable. Keep their replay until the
+        // matching server settlement is confirmed, then allow a fresh game.
         final savedSessionId = saved?['gameSessionId'];
         final savedReplay = saved?['replayLog'];
         if (saved != null &&
+            saved['chapterComplete'] == true &&
+            savedSessionId == activeSessionId &&
+            savedReplay is Map) {
+          final settled = await progress.completeChapter(
+            chapterIndex: _chapterNumber - 1,
+            replayLog: Map<String, dynamic>.from(savedReplay),
+          );
+          if (!settled ||
+              !mounted ||
+              generation != _gameSessionGeneration ||
+              progress.activeGameSessionId != null) {
+            return false;
+          }
+          await SaveManager.clearChapter(_engine.chapter.name);
+          settledGameOver = true;
+        } else if (saved != null &&
             saved['gameOver'] == true &&
             savedSessionId == activeSessionId &&
             savedReplay is Map) {
@@ -271,9 +286,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       );
       if (activeSessionId == null &&
           pausedSaved != null &&
-          pausedSaved['gameOver'] == true) {
-        // The server snapshot is authoritative: if no ACTIVE session remains,
-        // a retained terminal board is only an uncollected local cleanup.
+          (pausedSaved['gameOver'] == true ||
+              pausedSaved['chapterComplete'] == true)) {
+        // The server snapshot is authoritative: no ACTIVE session means the
+        // retained terminal board is only an uncollected local cleanup.
         await SaveManager.clearChapter(_engine.chapter.name);
         settledGameOver = true;
       }
@@ -784,19 +800,31 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     // The completion page is a local UI result. Server verification continues
     // in the background and only gates the Next Chapter action.
-    final pending = _completionVerificationFuture;
-    final verification = pending ??
-        () {
-          final saveData = _engine.createSaveData();
-          final replayLog = saveData['replayLog'];
-          if (replayLog is! Map) return Future<bool>.value(false);
-          final future = progress.completeChapter(
-            chapterIndex: _chapterNumber - 1,
-            replayLog: Map<String, dynamic>.from(replayLog),
-          );
-          _completionVerificationFuture = future;
-          return future;
-        }();
+    final saveData = _engine.createSaveData();
+    final replayLog = saveData['replayLog'];
+    final completionReplay = replayLog is Map
+        ? Map<String, dynamic>.from(replayLog)
+        : null;
+
+    Future<bool> verifyCompletion() {
+      final pending = _completionVerificationFuture;
+      if (pending != null) return pending;
+      if (completionReplay == null) return Future<bool>.value(false);
+      final future = progress.completeChapter(
+        chapterIndex: _chapterNumber - 1,
+        replayLog: completionReplay,
+      );
+      _completionVerificationFuture = future;
+      unawaited(future.whenComplete(() {
+        if (identical(_completionVerificationFuture, future)) {
+          _completionVerificationFuture = null;
+        }
+      }));
+      return future;
+    }
+
+    // Start verification while the local completion page is displayed.
+    unawaited(verifyCompletion());
 
     await AudioManager.instance.stopMusic();
     unawaited(AudioManager.instance.playSfx(GameSfx.chapterUnlock));
@@ -813,7 +841,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             if (_completionNextInProgress) return;
             _completionNextInProgress = true;
             try {
-              final accepted = await verification;
+              final accepted = await verifyCompletion();
               if (!accepted) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
