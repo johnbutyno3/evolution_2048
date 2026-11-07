@@ -42,6 +42,9 @@ class _MembershipPageState extends State<MembershipPage> {
 
           final config = snapshot.data ?? ShopConfigService.defaults;
           final current = LifeManager.membership;
+          final goldenPrice = current == 'premium'
+              ? '\${ShopConfigService.usdPrice(config, 'goldenUpgradeUsdPrice')} · Upgrade'
+              : '\${ShopConfigService.usdPrice(config, 'goldenUsdPrice')} · Permanent';
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -61,7 +64,7 @@ class _MembershipPageState extends State<MembershipPage> {
               _membershipCard(
                 title: 'Golden',
                 description: 'Permanent membership · Ad-free · Unlimited lives · 50 daily Gold',
-                price: '\$${ShopConfigService.usdPrice(config, 'goldenUsdPrice')} · Permanent',
+                price: goldenPrice,
                 current: current == 'golden',
               ),
             ],
