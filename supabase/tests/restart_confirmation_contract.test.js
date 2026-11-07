@@ -178,3 +178,11 @@ test("Account bootstrap syncs a validated device IANA timezone before daily Gold
   assert.match(timezoneRpc, /grant execute on function public\.set_account_timezone\(uuid, text\) to service_role/);
   assert.match(timezoneRpc, /revoke all on function public\.set_account_timezone\(uuid, text\) from public, anon, authenticated/);
 });
+
+
+test("Membership and real-money purchase records are not client-writable", () => {
+  const permissions = read("supabase/migrations/20261107130000_lock_membership_purchase_writes.sql");
+  assert.match(permissions, /revoke insert, update, delete on table public\.memberships\s+from public, anon, authenticated/);
+  assert.match(permissions, /revoke insert, update, delete on table public\.purchase_transactions\s+from public, anon, authenticated/);
+  assert.match(permissions, /grant all on table public\.memberships, public\.purchase_transactions\s+to service_role/);
+});
