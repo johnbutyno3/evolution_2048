@@ -23,7 +23,7 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - `ToolManager` 的庫存讀取使用 Supabase snapshot，購買透過 `purchase-tool-package`，Gold 扣除與工具增加由資料庫交易原子處理。
 - `PlayerProgressService` 與 `SupabaseGameSessionService` 使用 Supabase Edge Functions 管理 start / resume / restart / checkpoint / completion / abandon。
 - `account-snapshot` 會以 server time 執行 FREE Life regeneration，並呼叫冪等的 daily Gold claim。
-- 每日 Gold 已新增裝置 IANA 時區同步：Flutter 以 `flutter_timezone` 取得裝置時區，`account-snapshot` 先經 service-role RPC `set_account_timezone` 由 PostgreSQL `pg_timezone_names` 驗證並寫入 `profiles.timezone_name`，之後才呼叫 `claim_daily_gold`。無法取得時區或後端同步失敗時，帳戶同步 fail-closed，不使用 UTC offset／縮寫冒充 IANA 時區。
+- 每日 Gold 已新增裝置 IANA 時區同步：Flutter 以 `flutter_timezone` 取得裝置時區，`account-snapshot` 先經 service-role RPC `set_account_timezone` 由 PostgreSQL `pg_timezone_names` 驗證並寫入 `profiles.timezone_name`，之後才呼叫 `claim_daily_gold`。若最近 24 小時已領取，時區變更會延後，避免切換時區跨日期重複領取。無法取得時區或後端同步失敗時，帳戶同步 fail-closed，不使用 UTC offset／縮寫冒充 IANA 時區。
 - 章節完成由 server replay validator 驗證後才更新永久進度、結算工具使用及符合條件的 Life 獎勵。
 
 ## Life / Session 扣除規則核對
