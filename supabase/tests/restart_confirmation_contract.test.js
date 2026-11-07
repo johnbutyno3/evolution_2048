@@ -97,8 +97,8 @@ test("A restart preserves the previously charged Life while a normal start charg
   const startEdge = read("supabase/functions/start-game-session/index.ts");
 
   assert.match(migration, /p_charge_life boolean/);
-  assert.match(migration, /if p_charge_life then[\\s\\S]*?NEW_GAME_DEBIT/);
-  assert.match(migration, /from public\\.life_wallets where user_id = p_user_id/);
-  assert.match(migration, /p_initial_tiles,\\s*false\\s*\\)/);
+  assert.match(migration, /if p_charge_life then[\s\S]*?NEW_GAME_DEBIT/);
+  assert.match(migration, /from public\.life_wallets where user_id = p_user_id/);
+  assert.match(migration, /p_initial_tiles,\s*false\s*\)/);
   assert.match(startEdge, /p_charge_life: true/);
 });
