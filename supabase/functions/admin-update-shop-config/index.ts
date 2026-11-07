@@ -7,6 +7,7 @@ const PRICE_FIELDS: Record<string, { product: string; field: "priceUsd" | "price
   gold10000UsdPrice: { product: "gold_10000", field: "priceUsd", integer: false },
   premiumUsdPrice: { product: "membership_premium", field: "priceUsd", integer: false },
   goldenUsdPrice: { product: "membership_golden", field: "priceUsd", integer: false },
+  goldenUpgradeUsdPrice: { product: "membership_upgrade_golden", field: "priceUsd", integer: false },
   undo1Price: { product: "tool_undo_1", field: "priceGold", integer: true },
   undo5Price: { product: "tool_undo_5", field: "priceGold", integer: true },
   undo20Price: { product: "tool_undo_20", field: "priceGold", integer: true },
