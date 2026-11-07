@@ -145,7 +145,10 @@ class SupabaseToolPurchaseService {
           ? payload['error'] as String
           : 'TOOL_PURCHASE_FAILED';
       throw SupabaseToolPurchaseException(code, _friendlyMessage(code));
-    } on SupabaseToolPurchaseException {
+    } on SupabaseToolPurchaseException catch (error) {
+      if (error.code == 'PURCHASE_SAFETY_STORAGE_UNAVAILABLE') {
+        _pendingRequestIdLoads.remove(requestKey);
+      }
       rethrow;
     } catch (_) {
       throw const SupabaseToolPurchaseException(
