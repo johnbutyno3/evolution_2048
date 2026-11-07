@@ -59,6 +59,7 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - 裝置時區同步已提交原始碼與 source-contract test；新增 PostgreSQL IANA timezone RPC，並以 24 小時內已有領取紀錄時暫緩時區切換，降低跨日期重複領取風險。
 - 已修正 timezone RPC 的 PL/pgSQL 變數宣告及 dollar-quote 邊界；測試新增對 SQL 區塊結構的明確檢查。
 - 新增 membership / purchase_transactions 權限 migration：一般客戶端可讀自己的會員與交易紀錄，但不能新增、修改或刪除；寫入權限保留給 service_role。
+- Premium → Golden 升級價 USD 3.00 已接通 shop config、管理員價格設定及會員頁；FREE → Golden 仍顯示 USD 5.99。商店收據驗證完成前，所有實際付款按鈕仍保持不可購買。
 - GitHub Flutter workflow 已擴充執行 `flutter test` 與 `node --test supabase/tests/*.test.js`；尚待 Actions 回報實際結果。
 - `pubspec.lock` 尚未更新 `flutter_timezone` 的解析結果；需在 Flutter 環境執行 `flutter pub get`，並完成 Flutter Analyze/Test、Node test 與 Supabase SQL integration。
 - Google / Apple OAuth provider credentials、redirect allow-list 及實機登入流程。
