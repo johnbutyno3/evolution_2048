@@ -61,6 +61,13 @@ test("Supabase restart endpoint delegates settlement and start to one database R
     "Restart must acquire the per-user lock before locking and settling the previous session");
 });
 
+test("Restart validates the exact two-tile initial board before calling the RPC", () => {
+  const edge = read("supabase/functions/restart-game-session/index.ts");
+  assert.match(edge, /initialTiles\.length !== 16/);
+  assert.match(edge, /initialTiles\.filter\(\(value\) => value !== null\)\.length !== 2/);
+  assert.match(edge, /value !== null && value !== 2 && value !== 4/);
+});
+
 test("A normal start cannot bypass replay-validated settlement of an active session", () => {
   const migration = read("supabase/migrations/20261028103000_start_game_session_rpc.sql");
   const edge = read("supabase/functions/start-game-session/index.ts");
