@@ -11,8 +11,8 @@ create or replace function public.start_game_session(
   p_request_id uuid,
   p_game_id uuid,
   p_chapter_code text,
-  p_previous_game_id uuid default null,
-  p_initial_tiles jsonb default null,
+  p_previous_game_id uuid,
+  p_initial_tiles jsonb,
   p_charge_life boolean
 )
 returns jsonb
