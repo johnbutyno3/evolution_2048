@@ -112,3 +112,18 @@ test("Revoked membership resumes an existing session with FREE entitlements", ()
   assert.match(resume, /membershipTier: effectiveTier/);
   assert.match(snapshot, /membership\.status === "revoked" \? "FREE" : membership\.tier/);
 });
+
+test("Creature discovery requires a server-validated replay reaching each claimed value", () => {
+  const endpoint = read("supabase/functions/discover-creature/index.ts");
+  const client = read("lib/services/creature_collection_service.dart");
+  const gameScreen = read("lib/game/screens/evolution_2048_page.dart");
+
+  assert.match(endpoint, /\.eq\("user_id", user\.id\)/);
+  assert.match(endpoint, /expectedInitialTiles: session\.initial_tiles/);
+  assert.match(endpoint, /replayGame\(/);
+  assert.match(endpoint, /uniqueValues\.some\(\(value\) => value > replayResult\.highestValue\)/);
+  assert.match(endpoint, /\.eq\("game_id", gameId\)/);
+  assert.match(client, /'replayLog': replayLog/);
+  assert.match(client, /'gameId': gameId/);
+  assert.match(gameScreen, /replayLog: Map<String, dynamic>\.from\(replayLog\)/);
+});
