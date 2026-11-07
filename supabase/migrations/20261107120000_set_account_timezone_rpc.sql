@@ -17,13 +17,30 @@ begin
     raise exception using errcode = '22023', message = 'INVALID_ACCOUNT_TIMEZONE';
   end if;
 
-  update public.profiles
-    set timezone_name = p_timezone,
-        updated_at = now()
-    where user_id = p_user_id;
+  select timezone_name into v_current_timezone
+    from public.profiles
+    where user_id = p_user_id
+    for update;
 
   if not found then
     raise exception using errcode = 'P0002', message = 'PROFILE_NOT_FOUND';
+  end if;
+
+  if v_current_timezone is distinct from p_timezone then
+    -- Prevent changing device time zones to cross a calendar boundary and
+    -- claim multiple daily rewards inside one rolling 24-hour period.
+    if exists (
+      select 1 from public.daily_gold_claims
+      where user_id = p_user_id
+        and created_at > now() - interval '24 hours'
+    ) then
+      return;
+    end if;
+
+    update public.profiles
+      set timezone_name = p_timezone,
+          updated_at = now()
+      where user_id = p_user_id;
   end if;
 end;
 $$;
