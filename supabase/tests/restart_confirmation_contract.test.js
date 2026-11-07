@@ -149,6 +149,9 @@ test("Tool purchase idempotency key survives app restarts", () => {
   assert.match(service, /SharedPreferences\.getInstance\(\)/);
   assert.match(service, /supabase_pending_tool_purchase:/);
   assert.match(service, /final requestId = await _requestIdFor\(requestKey\)/);
-  assert.match(service, /await preferences\.remove\('supabase_pending_tool_purchase:\$requestKey'\)/);
+  assert.match(service, /await preferences\.remove\(storageKey\)/);
+  assert.match(service, /supabase_pending_tool_purchase:\$requestKey/);
+  assert.match(service, /client\.auth\.currentUser!\.id:\$toolCode:\$quantity/);
+  assert.match(service, /setBool\('\$storageKey:completed', true\)/);
   assert.match(service, /Purchase protection could not be saved/);
 });
