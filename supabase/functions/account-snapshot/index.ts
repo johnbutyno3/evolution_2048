@@ -12,6 +12,26 @@ Deno.serve(async (req: Request) => {
     const user = await authenticateRequest(req);
     const service = createServiceClient();
 
+    const body = await req.json().catch(() => null);
+    const timezone = body && typeof body === "object" && typeof body.timezone === "string"
+      ? body.timezone.trim()
+      : "";
+    if (!timezone || timezone.length > 64) {
+      return jsonResponse({ error: "INVALID_TIMEZONE" }, 400);
+    }
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+    } catch {
+      return jsonResponse({ error: "INVALID_TIMEZONE" }, 400);
+    }
+    const timezoneResult = await service.from("profiles")
+      .update({ timezone_name: timezone })
+      .eq("user_id", user.id);
+    if (timezoneResult.error) {
+      console.error("account_timezone_update_failed", { userId: user.id, code: timezoneResult.error.code });
+      return jsonResponse({ error: "ACCOUNT_SNAPSHOT_UNAVAILABLE" }, 503);
+    }
+
     const [profileResult, membershipResult, walletResult, lifeResult, toolsResult, activeSessionResult, progressResult] = await Promise.all([
       service.from("profiles")
         .select("display_name, avatar_index, locale_code, account_status, updated_at")
