@@ -186,3 +186,21 @@ test("Membership and real-money purchase records are not client-writable", () =>
   assert.match(permissions, /revoke insert, update, delete on table public\.purchase_transactions\s+from public, anon, authenticated/);
   assert.match(permissions, /grant all on table public\.memberships, public\.purchase_transactions\s+to service_role/);
 });
+
+
+test("Premium to Golden upgrade price is wired through config, admin, and membership UI", () => {
+  const shop = read("lib/services/shop_config_service.dart");
+  const adminService = read("lib/services/admin_service.dart");
+  const adminPage = read("lib/screens/admin_page.dart");
+  const adminFunction = read("supabase/functions/admin-update-shop-config/index.ts");
+  const membershipPage = read("lib/screens/membership_page.dart");
+  const catalog = read("supabase/migrations/20261028113000_shop_config.sql");
+  assert.match(shop, /'goldenUpgradeUsdPrice': '3\.00'/);
+  assert.match(shop, /'membership_upgrade_golden': 'goldenUpgradeUsdPrice'/);
+  assert.match(adminService, /'goldenUpgradeUsdPrice': \('membership_upgrade_golden', 'priceUsd'\)/);
+  assert.match(adminPage, /Premium → Golden Upgrade USD/);
+  assert.match(adminFunction, /goldenUpgradeUsdPrice: \{ product: "membership_upgrade_golden", field: "priceUsd"/);
+  assert.match(membershipPage, /current == 'premium'/);
+  assert.match(membershipPage, /'goldenUpgradeUsdPrice'/);
+  assert.match(catalog, /"membership_upgrade_golden".*"priceUsd":"3\.00"/);
+});
