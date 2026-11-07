@@ -187,12 +187,38 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final activeSessionId = progress.activeGameSessionId;
       final activeChapter = progress.activeGameChapterIndex;
 
+      var settledGameOver = false;
       if (activeSessionId != null) {
         if (activeChapter != _chapterNumber - 1) return false;
 
         final saved = SaveManager.loadCached(
           chapter: _engine.chapter.name,
         );
+
+        // A Game Over board is not resumable, but its replay log is retained
+        // until SESSION_ABANDON is confirmed. Retry that settlement before
+        // allowing a fresh, life-charged game to start.
+        final savedSessionId = saved?['gameSessionId'];
+        final savedReplay = saved?['replayLog'];
+        if (saved != null &&
+            saved['gameOver'] == true &&
+            savedSessionId == activeSessionId &&
+            savedReplay is Map) {
+          final settled = await progress.abandonGameSession(
+            sessionId: activeSessionId,
+            replayLog: Map<String, dynamic>.from(savedReplay),
+            reason: 'GAME_OVER',
+          );
+          if (!settled ||
+              !mounted ||
+              generation != _gameSessionGeneration ||
+              progress.activeGameSessionId != null) {
+            return false;
+          }
+          await SaveManager.clearChapter(_engine.chapter.name);
+          settledGameOver = true;
+        }
+
         final hasPlayableLocalBoard = saved != null &&
             saved['gameSessionId'] == activeSessionId &&
             saved['gameOver'] != true &&
@@ -278,7 +304,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return true;
       }
 
-      if (_engine.gameOver || _engine.chapterComplete) return false;
+      if (!settledGameOver && (_engine.gameOver || _engine.chapterComplete)) {
+        return false;
+      }
 
       // With no active server session, a zero-life account cannot be shown a
       // fabricated new board. Only a real session owns a Life and a playable
@@ -713,15 +741,21 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         : null;
     final chapter = _engine.chapter.name;
 
+    // Keep the terminal board and replay log until the server confirms
+    // settlement. If the network is unavailable, Home can retry settlement
+    // from this durable snapshot instead of orphaning an ACTIVE session.
+    await SaveManager.save(saveData);
     _gameSessionGeneration++;
-    if (sessionId != null) {
-      await PlayerProgressService.instance.abandonGameSession(
-        sessionId: sessionId,
-        replayLog: replay,
-        reason: 'GAME_OVER',
-      );
+    final settled = sessionId == null
+        ? PlayerProgressService.instance.activeGameSessionId == null
+        : await PlayerProgressService.instance.abandonGameSession(
+            sessionId: sessionId,
+            replayLog: replay,
+            reason: 'GAME_OVER',
+          );
+    if (settled) {
+      await SaveManager.clearChapter(chapter);
     }
-    await SaveManager.clearChapter(chapter);
 
     _gameOverDialogShowing = false;
     if (!mounted) return;
