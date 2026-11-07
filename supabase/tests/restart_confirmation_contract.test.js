@@ -161,13 +161,17 @@ test("Account bootstrap syncs a validated device IANA timezone before daily Gold
   const client = read("lib/services/supabase_account_service.dart");
   const endpoint = read("supabase/functions/account-snapshot/index.ts");
   const dailyGold = read("supabase/migrations/20261028100000_daily_gold_claim_rpc.sql");
+  const timezoneRpc = read("supabase/migrations/20261107120000_set_account_timezone_rpc.sql");
   assert.match(client, /FlutterTimezone.getLocalTimezone\(\)/);
   assert.match(client, /info.identifier/);
   assert.match(client, /'timezone': deviceTimezone/);
   assert.match(endpoint, /typeof body.timezone === "string"/);
   assert.match(endpoint, /new Intl.DateTimeFormat\("en-US", \{ timeZone: timezone \}\)/);
-  const update = endpoint.indexOf("update({ timezone_name: timezone })");
+  const update = endpoint.indexOf("set_account_timezone");
   const claim = endpoint.indexOf('rpc("claim_daily_gold"');
   assert.ok(update >= 0 && claim > update, "Timezone must be saved before the daily Gold claim");
   assert.match(dailyGold, /now\(\) at time zone v_timezone/);
+  assert.match(timezoneRpc, /pg_catalog\.pg_timezone_names/);
+  assert.match(timezoneRpc, /grant execute on function public\.set_account_timezone\(uuid, text\) to service_role/);
+  assert.match(timezoneRpc, /revoke all on function public\.set_account_timezone\(uuid, text\) from public, anon, authenticated/);
 });
