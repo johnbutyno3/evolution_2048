@@ -31,6 +31,8 @@ void main() {
       'SWAP': 0,
       'DUPLICATE': 3,
     },
+    'activeGameSession': null,
+    'chapterProgress': <String, dynamic>{},
     'serverTime': '2026-10-28T02:00:00.000Z',
   };
 
