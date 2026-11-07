@@ -55,3 +55,14 @@ test("Supabase restart endpoint delegates settlement and start to one database R
   assert.match(migration, /public\.start_game_session\(/);
   assert.match(migration, /create or replace function public\.restart_game_session/);
 });
+
+test("Restart reconciles a lost response against the authoritative active session", () => {
+  const source = read("lib/services/player_progress_service.dart");
+  const start = source.indexOf("Future<bool> restartGameSession(");
+  const end = source.indexOf("  Future<void> abandonGameSession(", start);
+  assert.ok(start >= 0 && end > start, "Restart service method must exist");
+  const method = source.slice(start, end);
+
+  assert.match(method, /await refresh\(\);[\s\S]*?final committed = _activeGameSessionId == gameId &&\s*_activeGameChapterIndex == chapterIndex;/);
+  assert.match(method, /if \(committed\) \{[\s\S]*?await ToolManager\.refreshInventory\(\);[\s\S]*?return true;/);
+});
