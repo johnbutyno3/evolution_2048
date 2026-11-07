@@ -320,10 +320,17 @@ class PlayerProgressService {
         // before restoring the old local board or undoing the optimistic Life.
         await refresh();
         await LifeManager.refreshFromServer();
-        final committed = _activeGameSessionId == gameId &&
-            _activeGameChapterIndex == chapterIndex;
+        final committedGameId = _activeGameSessionId;
+        final committed = _activeGameChapterIndex == chapterIndex &&
+            committedGameId != null &&
+            (committedGameId == gameId ||
+                (previousGameId != null && committedGameId != previousGameId));
         if (committed) {
-          await SaveManager.setGameSessionId(gameId);
+          // The atomic restart may have committed with a different generated
+          // game ID before the response was lost. The account snapshot is the
+          // authority: bind the visible replacement board to that exact ID,
+          // not the request ID that never reached the client.
+          await SaveManager.setGameSessionId(committedGameId);
           await ToolManager.refreshInventory();
           return true;
         }
