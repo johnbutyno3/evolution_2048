@@ -84,7 +84,7 @@ test("A normal start cannot bypass replay-validated settlement of an active sess
 test("Restart reconciles a lost response against the authoritative active session", () => {
   const source = read("lib/services/player_progress_service.dart");
   const start = source.indexOf("Future<bool> restartGameSession(");
-  const end = source.indexOf("  Future<void> abandonGameSession(", start);
+  const end = source.indexOf("  Future<bool> abandonGameSession(", start);
   assert.ok(start >= 0 && end > start, "Restart service method must exist");
   const method = source.slice(start, end);
 
