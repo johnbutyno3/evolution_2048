@@ -91,3 +91,14 @@ test("Restart reconciles a lost response against the authoritative active sessio
   assert.match(method, /await refresh\(\);[\s\S]*?final committed = _activeGameSessionId == gameId &&\s*_activeGameChapterIndex == chapterIndex;/);
   assert.match(method, /if \(committed\) \{[\s\S]*?await ToolManager\.refreshInventory\(\);[\s\S]*?return true;/);
 });
+
+test("A restart preserves the previously charged Life while a normal start charges one", () => {
+  const migration = read("supabase/migrations/20261106090000_restart_does_not_debit_life.sql");
+  const startEdge = read("supabase/functions/start-game-session/index.ts");
+
+  assert.match(migration, /p_charge_life boolean/);
+  assert.match(migration, /if p_charge_life then[\\s\\S]*?NEW_GAME_DEBIT/);
+  assert.match(migration, /from public\\.life_wallets where user_id = p_user_id/);
+  assert.match(migration, /p_initial_tiles,\\s*false\\s*\\)/);
+  assert.match(startEdge, /p_charge_life: true/);
+});
