@@ -396,7 +396,19 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!changed) return;
     final newEvolutionValues = _engine.newEvolutionValuesThisMove;
     final mergedValues = _engine.board.lastMergedValues;
-    if (mergedValues.isNotEmpty) unawaited(CreatureCollectionService.discover(_engine.chapter.name, mergedValues));
+    if (mergedValues.isNotEmpty) {
+      final saveData = _engine.createSaveData();
+      final replayLog = saveData['replayLog'];
+      final gameId = PlayerProgressService.instance.activeGameSessionId;
+      if (gameId != null && replayLog is Map) {
+        unawaited(CreatureCollectionService.discover(
+          _engine.chapter.name,
+          mergedValues,
+          gameId: gameId,
+          replayLog: Map<String, dynamic>.from(replayLog),
+        ));
+      }
+    }
     if (newEvolutionValues.isNotEmpty) AudioManager.instance.playSfx(GameSfx.tileMerge); else AudioManager.instance.playSfx(GameSfx.tileMove);
     if (mounted) setState(() {});
     if (newEvolutionValues.isNotEmpty) { _showEvolutionNotice(newEvolutionValues.last); HapticService.evolutionImpact(); }
