@@ -102,3 +102,13 @@ test("A restart preserves the previously charged Life while a normal start charg
   assert.match(migration, /p_initial_tiles,\s*false\s*\)/);
   assert.match(startEdge, /p_charge_life: true/);
 });
+
+test("Revoked membership resumes an existing session with FREE entitlements", () => {
+  const resume = read("supabase/functions/resume-game-session/index.ts");
+  const snapshot = read("supabase/functions/account-snapshot/index.ts");
+
+  assert.match(resume, /\["active", "revoked"\]\.includes\(membership\.status\)/);
+  assert.match(resume, /membership\.status === "revoked" \? "FREE" : membership\.tier/);
+  assert.match(resume, /membershipTier: effectiveTier/);
+  assert.match(snapshot, /membership\.status === "revoked" \? "FREE" : membership\.tier/);
+});
