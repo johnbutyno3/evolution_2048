@@ -172,7 +172,8 @@ test("Account bootstrap syncs a validated device IANA timezone before daily Gold
   assert.ok(update >= 0 && claim > update, "Timezone must be saved before the daily Gold claim");
   assert.match(dailyGold, /now\(\) at time zone v_timezone/);
   assert.match(timezoneRpc, /pg_catalog\.pg_timezone_names/);
-  assert.match(timezoneRpc, /as \\$\\$\\ndeclare\\s+v_current_timezone text/);
+  assert.ok(timezoneRpc.includes("as $\\ndeclare\\n  v_current_timezone text;"), "Timezone RPC must declare its local variable inside a valid dollar-quoted function");
+  assert.ok(timezoneRpc.includes("\n$;"), "Timezone RPC must close its dollar-quoted function");
   assert.match(timezoneRpc, /created_at > now\(\) - interval '24 hours'/);
   assert.match(timezoneRpc, /grant execute on function public\.set_account_timezone\(uuid, text\) to service_role/);
   assert.match(timezoneRpc, /revoke all on function public\.set_account_timezone\(uuid, text\) from public, anon, authenticated/);
