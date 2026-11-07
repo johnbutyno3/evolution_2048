@@ -211,6 +211,7 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
           const SizedBox(height: 12),
           _field('premiumUsdPrice', 'Premium Member USD', decimal: true),
           _field('goldenUsdPrice', 'Golden Member USD', decimal: true),
+          _field('goldenUpgradeUsdPrice', 'Premium → Golden Upgrade USD', decimal: true),
           const SizedBox(height: 12),
           const Text('Evolution Tools (Gold)', style: _headingStyle),
           const SizedBox(height: 12),
