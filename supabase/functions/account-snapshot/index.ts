@@ -24,12 +24,13 @@ Deno.serve(async (req: Request) => {
     } catch {
       return jsonResponse({ error: "INVALID_TIMEZONE" }, 400);
     }
-    const timezoneResult = await service.from("profiles")
-      .update({ timezone_name: timezone })
-      .eq("user_id", user.id);
+    const timezoneResult = await service.rpc("set_account_timezone", {
+      p_user_id: user.id,
+      p_timezone: timezone,
+    });
     if (timezoneResult.error) {
       console.error("account_timezone_update_failed", { userId: user.id, code: timezoneResult.error.code });
-      return jsonResponse({ error: "ACCOUNT_SNAPSHOT_UNAVAILABLE" }, 503);
+      return jsonResponse({ error: "INVALID_TIMEZONE" }, 400);
     }
 
     const [profileResult, membershipResult, walletResult, lifeResult, toolsResult, activeSessionResult, progressResult] = await Promise.all([
