@@ -204,3 +204,11 @@ test("Premium to Golden upgrade price is wired through config, admin, and member
   assert.match(membershipPage, /'goldenUpgradeUsdPrice'/);
   assert.match(catalog, /"membership_upgrade_golden".*"priceUsd":"3\.00"/);
 });
+
+
+test("Real-money membership checkout remains blocked until store verification is implemented", () => {
+  const page = read("lib/screens/membership_page.dart");
+  assert.match(page, /Real-money payment is not connected yet/);
+  assert.match(page, /onPressed: _unavailable/);
+  assert.doesNotMatch(page, /functions\.invoke|purchase-membership|verify-store-purchase/);
+});
