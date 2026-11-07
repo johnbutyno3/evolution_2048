@@ -88,7 +88,7 @@ test("Restart reconciles a lost response against the authoritative active sessio
   assert.ok(start >= 0 && end > start, "Restart service method must exist");
   const method = source.slice(start, end);
 
-  assert.match(method, /await refresh\(\);[\s\S]*?final committed = _activeGameSessionId == gameId &&\s*_activeGameChapterIndex == chapterIndex;/);
+  assert.match(method, /await refresh\(\);[\s\S]*?final committedGameId = _activeGameSessionId;[\s\S]*?committedGameId != previousGameId/);
   assert.match(method, /if \(committed\) \{[\s\S]*?await ToolManager\.refreshInventory\(\);[\s\S]*?return true;/);
 });
 
