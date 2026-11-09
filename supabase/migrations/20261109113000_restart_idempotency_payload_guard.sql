@@ -65,6 +65,18 @@ begin
       raise exception using errcode = '23505',
         message = 'IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD';
     end if;
+  else
+    -- An existing abandon event without its matching replacement request
+    -- means this event ID is being reused with a different request ID. Do not
+    -- allow a second no-Life-debit replacement from an already-settled session.
+    select * into v_existing_event
+      from public.game_session_events
+      where user_id = p_user_id and event_id = p_abandon_event_id
+      for update;
+    if found then
+      raise exception using errcode = '23505',
+        message = 'IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD';
+    end if;
   end if;
 
   v_abandon_result := public.abandon_game_session(
