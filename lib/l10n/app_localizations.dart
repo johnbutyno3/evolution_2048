@@ -653,7 +653,7 @@ abstract class AppLocalizations {
   /// No description provided for @restartConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'Start a new board? One Life will be consumed.'**
+  /// **'Replace the current board? No additional Life will be charged.'**
   String get restartConfirmMessage;
 
   /// No description provided for @restart.
