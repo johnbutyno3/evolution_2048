@@ -1,4 +1,5 @@
 import { authenticateRequest, corsHeaders, createServiceClient, jsonResponse } from "../_shared/auth.ts";
+import { recordSecurityEvent } from "../_shared/security_events.ts";
 import { allowedToolsForChapter, replayGame } from "../_shared/replay_validator.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -116,7 +117,22 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: "ACCOUNT_RESTRICTED", supportAvailable: true }, 423);
       }
       if (message.includes("TOOL_USAGE_REPLAY_CONFLICT") || message.includes("ASSET_BALANCE_INSUFFICIENT_OR_MISSING")) {
-        return jsonResponse({ error: "ACCOUNT_RESTRICTED", reason: "TOOL_USAGE_VALIDATION_FAILED", supportAvailable: true }, 423);
+        const reason = message.includes("TOOL_USAGE_REPLAY_CONFLICT")
+          ? "tool_usage_replay_conflict"
+          : "tool_inventory_settlement_conflict";
+        const recorded = await recordSecurityEvent(
+          service,
+          user.id,
+          gameId,
+          "warning",
+          reason,
+          message,
+        );
+        if (!recorded) return jsonResponse({ error: "SECURITY_REVIEW_UNAVAILABLE" }, 503);
+        return jsonResponse({
+          error: "TOOL_USAGE_REQUIRES_REVIEW",
+          supportAvailable: true,
+        }, 409);
       }
       if (message.includes("ACTIVE_SESSION_EXISTS")) return jsonResponse({ error: "ACTIVE_SESSION_EXISTS" }, 409);
       if (
