@@ -88,7 +88,13 @@ test("Restart reconciles a lost response against the authoritative active sessio
   assert.ok(start >= 0 && end > start, "Restart service method must exist");
   const method = source.slice(start, end);
 
-  assert.match(method, /await refresh\(\);[\s\S]*?final committedGameId = _activeGameSessionId;[\s\S]*?committedGameId != previousGameId/);
+  assert.match(method, /final requestId = _newUuid\(\);[\s\S]*?requestId: requestId/);
+  assert.match(method, /await refresh\(\);[\s\S]*?final committedGameId = _activeGameSessionId;[\s\S]*?_activeGameRequestId == requestId/);
+  const snapshot = read("supabase/functions/account-snapshot/index.ts");
+  const parser = read("lib/services/supabase_account_service.dart");
+  assert.match(snapshot, /select\("game_id, request_id, chapter_code/);
+  assert.match(snapshot, /requestId: activeSession\.request_id/);
+  assert.match(parser, /activeGameRequestId = rawActiveSession\['requestId'\] as String/);
   assert.match(method, /if \(committed\) \{[\s\S]*?await ToolManager\.refreshInventory\(\);[\s\S]*?return true;/);
 });
 
