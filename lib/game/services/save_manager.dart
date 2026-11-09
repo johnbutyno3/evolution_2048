@@ -229,79 +229,6 @@ class SaveManager {
     _cachedSave = root;
   }
 
-  /// Writes a prospective session snapshot into the inactive slot without
-  /// changing the committed pointer. The server's active-session pointer later
-  /// decides whether this candidate or the previous board is authoritative.
-  static Future<void> saveCandidateForSession(
-    Map<String, dynamic> data, {
-    required String sessionId,
-  }) async {
-    final id = sessionId.trim();
-    if (id.isEmpty) throw ArgumentError.value(sessionId, 'sessionId');
-    _preferences ??= await SharedPreferences.getInstance();
-
-    final operation = _saveQueue.then<void>(
-      (_) => _saveCandidateNow(data, id),
-      onError: (_, _) => _saveCandidateNow(data, id),
-    );
-    _saveQueue = operation;
-    await operation;
-  }
-
-  static Future<void> _saveCandidateNow(
-    Map<String, dynamic> data,
-    String sessionId,
-  ) async {
-    final chapter = data['chapter'];
-    if (chapter is! String || chapter.isEmpty) {
-      throw ArgumentError.value(chapter, 'data.chapter');
-    }
-
-    final root = _cachedSave == null
-        ? <String, dynamic>{}
-        : Map<String, dynamic>.from(_cachedSave!);
-    final chapters = <String, dynamic>{};
-    final existingChapters = root['chapters'];
-    if (existingChapters is Map) {
-      for (final entry in existingChapters.entries) {
-        if (entry.value is Map) {
-          chapters[entry.key.toString()] = Map<String, dynamic>.from(
-            (entry.value as Map).map(
-              (key, value) => MapEntry(key.toString(), value),
-            ),
-          );
-        }
-      }
-    }
-
-    final chapterPayload = <String, dynamic>{
-      'version': 1,
-      'savedAt': DateTime.now().millisecondsSinceEpoch,
-      ...data,
-      'gameSessionId': sessionId,
-    };
-    chapters[chapter] = chapterPayload;
-    root['version'] = 1;
-    root['savedAt'] = DateTime.now().millisecondsSinceEpoch;
-    root['lastChapter'] = chapter;
-    root['chapters'] = chapters;
-
-    final nextSequence = _saveSequence + 1;
-    final targetSlot = _activeSaveSlot == 0 ? 1 : 0;
-    final payloadJson = jsonEncode(root);
-    final envelope = jsonEncode(<String, dynamic>{
-      'formatVersion': 2,
-      'sequence': nextSequence,
-      'checksum': _checksum(payloadJson),
-      'payload': root,
-    });
-    final targetKey = targetSlot == 0 ? _saveSlotAKey : _saveSlotBKey;
-    final wrote = await _preferences!.setString(targetKey, envelope);
-    if (!wrote) throw StateError('Could not persist the candidate game snapshot.');
-    // Deliberately do not update the active pointer, cache, or session binding.
-    // A later authoritative account snapshot selects the matching session slot.
-  }
-
   /// Selects the A/B snapshot whose chapter binding matches the server-owned
   /// active game ID. This recovers correctly if the app closes between writing
   /// a replacement board and the backend session transaction committing.
@@ -328,10 +255,11 @@ class SaveManager {
     String chapter,
     String sessionId,
   ) async {
-    final candidates = <Map<String, dynamic>>[
-      if (_readSnapshotSlot(_saveSlotAKey, 0) case final slot?) slot,
-      if (_readSnapshotSlot(_saveSlotBKey, 1) case final slot?) slot,
-    ];
+    final candidates = <Map<String, dynamic>>[];
+    final slotA = _readSnapshotSlot(_saveSlotAKey, 0);
+    final slotB = _readSnapshotSlot(_saveSlotBKey, 1);
+    if (slotA != null) candidates.add(slotA);
+    if (slotB != null) candidates.add(slotB);
     candidates.removeWhere((candidate) {
       final payload = candidate['payload'];
       if (payload is! Map) return true;
