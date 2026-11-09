@@ -144,7 +144,7 @@
   "chapterLabel": "Chapter {number} · {name}",
   "profileSetupFailed": "Unable to set up your profile.",
   "restartConfirmTitle": "Restart game?",
-  "restartConfirmMessage": "Start a new board? One Life will be consumed.",
+  "restartConfirmMessage": "Replace the current board? No additional Life will be charged.",
   "restart": "Restart",
   "restartFailed": "Unable to restart. Check your Life and try again.",
   "restartPending": "Restart is still syncing. Return to Home and reopen this chapter when connected."
