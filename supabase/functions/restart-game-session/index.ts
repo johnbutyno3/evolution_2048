@@ -119,7 +119,10 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: "ACCOUNT_RESTRICTED", reason: "TOOL_USAGE_VALIDATION_FAILED", supportAvailable: true }, 423);
       }
       if (message.includes("ACTIVE_SESSION_EXISTS")) return jsonResponse({ error: "ACTIVE_SESSION_EXISTS" }, 409);
-      if (message.includes("IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD")) {
+      if (
+        message.includes("IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD") ||
+        message.includes("REQUEST_ID_REUSED_WITH_DIFFERENT_PAYLOAD")
+      ) {
         return jsonResponse({ error: "IDEMPOTENCY_CONFLICT" }, 409);
       }
       console.error("restart_game_session_failed", { userId: user.id, code: error.code });
