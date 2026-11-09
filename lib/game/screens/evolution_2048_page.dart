@@ -667,7 +667,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final pendingRestart = _restartFuture;
     if (_restartInProgress && pendingRestart != null) {
-      final restartResult = await pendingRestart;
+      final restartResult = await pendingRestart.catchError(
+        (_) => RestartGameSessionResult.pending,
+      );
       if (!mounted) return;
       if (restartResult == RestartGameSessionResult.pending) {
         // Do not abandon or rewrite either board while the server result is
