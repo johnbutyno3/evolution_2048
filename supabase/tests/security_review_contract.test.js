@@ -14,6 +14,7 @@ test("replay and tool settlement discrepancies are recorded for review, not auto
   const restart = read("supabase/functions/restart-game-session/index.ts");
   const helper = read("supabase/functions/_shared/security_events.ts");
   const migration = read("supabase/migrations/20261109120000_security_event_idempotency.sql");
+  const client = read("lib/services/supabase_game_session_service.dart");
 
   for (const source of [finish, abandon, restart]) {
     assert.match(source, /recordSecurityEvent\(/);
@@ -29,4 +30,7 @@ test("replay and tool settlement discrepancies are recorded for review, not auto
   assert.match(helper, /ignoreDuplicates: true/);
   assert.match(migration, /add column if not exists idempotency_key text/);
   assert.match(migration, /create unique index if not exists security_events_user_idempotency_key_uidx/);
+  assert.match(client, /case 'REPLAY_VALIDATION_FAILED'/);
+  assert.match(client, /case 'TOOL_USAGE_REQUIRES_REVIEW'/);
+  assert.match(client, /Support remains available/);
 });
