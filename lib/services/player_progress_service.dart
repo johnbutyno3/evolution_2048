@@ -178,7 +178,9 @@ class PlayerProgressService {
     // intentional exception: it must wait for the failed start before retrying.
     final pendingStart = _pendingStartSession;
     if (pendingStart != null) {
-      if (!retryAfterPendingFailure) return true;
+      // A second caller has no matching locally persisted board/request IDs.
+      // Fail closed instead of claiming that its unrelated board was started.
+      if (!retryAfterPendingFailure) return false;
       final pendingResult = await pendingStart;
       if (pendingResult) return true;
     }
@@ -224,11 +226,13 @@ class PlayerProgressService {
       previousSessionId: previousSessionId,
     );
     _pendingStartSession = pending;
-    unawaited(pending.whenComplete(() {
-      if (identical(_pendingStartSession, pending)) {
-        _pendingStartSession = null;
-      }
-    }));
+    unawaited(
+      pending.whenComplete(() {
+        if (identical(_pendingStartSession, pending)) {
+          _pendingStartSession = null;
+        }
+      }).catchError((_) {}),
+    );
 
     return true;
   }
