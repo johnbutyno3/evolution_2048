@@ -49,7 +49,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
-  Future<bool>? _restartFuture;
+  Future<RestartGameSessionResult>? _restartFuture;
   bool _allowSystemPop = false;
   bool _handlingSystemBack = false;
   static const double _swipeThreshold = 30;
@@ -528,18 +528,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? saveData['gameSessionId'] as String
         : null;
 
-    // Restart replaces the current board without charging another Life.
-    // The already-paid Life remains reserved for this game session; the
-    // restart RPC settles tools and creates the replacement atomically.
+    // The Life already charged for this active session remains reserved.
+    // Restart settles its tool usage and replaces the board without a second
+    // Life debit.
 
     _restartInProgress = true;
     _gameSessionGeneration++;
     final generation = _gameSessionGeneration;
     oldEngine.stopGameTimer();
 
-    // RESET starts a genuinely new session. The old session's pending tool
-    // usage is settled by restartGameSession; do not carry it into the new
-    // board.
     ToolManager.clearSessionUsage();
 
     final newEngine = GameEngine(
@@ -563,7 +560,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _startUiRefreshTimer();
     _focusNode.requestFocus();
 
-    final newReplayData = newEngine.createSaveData()['replayLog'];
+    final replacementSave = newEngine.createSaveData();
+    final newReplayData = replacementSave['replayLog'];
     final initialTiles = newReplayData is Map && newReplayData['initialTiles'] is List
         ? List<dynamic>.from(newReplayData['initialTiles'] as List)
         : const <dynamic>[];
@@ -573,20 +571,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       replayLog: replay,
       replaySessionId: replaySessionId,
       initialTiles: initialTiles,
+      replacementSave: replacementSave,
     );
     _restartFuture = restartFuture;
 
     unawaited(
-      restartFuture.then((restarted) async {
+      restartFuture.then((result) async {
         if (!mounted || generation != _gameSessionGeneration) return;
 
-        if (restarted) {
-          // Persist the replacement board after the new server session ID is
-          // bound. This prevents the old cached board from being restored on
-          // the next entry and makes RESET durable immediately.
+        if (result == RestartGameSessionResult.committed) {
           await newEngine.flushLocalSave();
-          // restartGameSession has now bound SaveManager to the replacement
-          // session. Persist the visible new board again with that binding.
           await SaveManager.save(newEngine.createSaveData());
           if (!mounted || generation != _gameSessionGeneration) return;
           _engine.toolManager.refreshFromSavedProgress();
@@ -596,11 +590,20 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           return;
         }
 
-        // Server rejected the optimistic restart. Restore the previous local
-        // board and let the authoritative Life refresh settle the optimistic
-        // decrement.
-        newEngine.stopGameTimer();
-        await newEngine.flushLocalSave();
+        if (result == RestartGameSessionResult.pending) {
+          // The response and the account snapshot could not establish whether
+          // the transaction committed. Keep the replacement board frozen;
+          // the next Home/bootstrap refresh will select the matching A/B slot
+          // from the server's active-session ID.
+          newEngine.stopGameTimer();
+          _stopUiRefreshTimer();
+          setState(() {});
+          return;
+        }
+
+        // The server confirms the previous session is still active. Its
+        // matching local snapshot has already been selected by refresh().
+        newEngine.stopGameTimer(persist: false);
         await LifeManager.refreshFromServer().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           oldEngine.createSaveData()['replayLog'],
@@ -615,19 +618,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         if (mounted) setState(() {});
       }).catchError((_) async {
         if (!mounted || generation != _gameSessionGeneration) return;
-        newEngine.stopGameTimer();
-        await LifeManager.refreshFromServer().catchError((_) {});
-        ToolManager.restoreSessionUsageFromReplayLog(
-          oldEngine.createSaveData()['replayLog'],
-        );
-        await SaveManager.save(oldEngine.createSaveData());
-        oldEngine.toolManager.refreshFromSavedProgress();
-        oldEngine.startGameTimer();
-        _engine = oldEngine;
-        _startUiRefreshTimer();
-        _focusNode.requestFocus();
-        _restartInProgress = false;
-        if (mounted) setState(() {});
+        // Treat an unexpected client-side error as unresolved rather than
+        // overwriting either session's last committed local snapshot.
+        newEngine.stopGameTimer(persist: false);
+        _stopUiRefreshTimer();
+        setState(() {});
       }),
     );
 
@@ -639,8 +634,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
     final pendingRestart = _restartFuture;
     if (_restartInProgress && pendingRestart != null) {
-      await pendingRestart;
+      final restartResult = await pendingRestart;
       if (!mounted) return;
+      if (restartResult == RestartGameSessionResult.pending) {
+        // Do not abandon or rewrite either board while the server result is
+        // unknown. Home bootstrap will select the slot matching server state.
+        _engine.pauseGameTimer();
+        _stopUiRefreshTimer();
+        _allowSystemPop = true;
+        Navigator.of(context).pop();
+        _handlingSystemBack = false;
+        return;
+      }
     }
 
     final wasChapterComplete = _engine.chapterComplete;
@@ -684,8 +689,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    // Cancel leaves the current board and Life untouched. Only explicit
-    // confirmation starts a replacement session and consumes one Life.
+    // Cancel leaves the current board and Life untouched. Confirming Restart
+    // replaces the active session without charging Life a second time.
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
