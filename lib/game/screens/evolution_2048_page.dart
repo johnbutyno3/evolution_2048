@@ -922,7 +922,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   Future<void> _startChapter(GameChapter chapter, {bool forceNewBoard = false}) async {
-    if (!mounted) return;
+    if (!mounted || _restartInProgress) return;
 
     if (!LifeManager.optimisticConsumeLife()) {
       if (mounted) {
@@ -936,9 +936,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     final previousEngine = _engine;
+    final generation = ++_gameSessionGeneration;
+    _restartInProgress = true;
 
     // Chapter completion settles the old session. The next chapter starts
-    // with a fresh session-use overlay.
+    // with a fresh session-use overlay and one new-game Life charge.
     ToolManager.clearSessionUsage();
 
     final newEngine = GameEngine(
@@ -946,7 +948,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       forceNewBoard: true,
       boardLifeActive: true,
     );
-    final previewReplay = newEngine.createSaveData()['replayLog'];
+    final replacementSave = newEngine.createSaveData();
+    final previewReplay = replacementSave['replayLog'];
     final initialTiles = previewReplay is Map && previewReplay['initialTiles'] is List
         ? List<dynamic>.from(previewReplay['initialTiles'] as List)
         : const <dynamic>[];
@@ -968,44 +971,56 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final restartFuture = PlayerProgressService.instance.restartGameSession(
       chapter.index,
       initialTiles: initialTiles,
+      replacementSave: replacementSave,
     );
+    _restartFuture = restartFuture;
 
     unawaited(
-      restartFuture.then((started) async {
-        if (!mounted) return;
-        if (started) {
+      restartFuture.then((result) async {
+        if (!mounted || generation != _gameSessionGeneration) return;
+
+        if (result == RestartGameSessionResult.committed) {
+          await newEngine.flushLocalSave();
+          await SaveManager.save(newEngine.createSaveData());
           _engine.toolManager.refreshFromSavedProgress();
-          unawaited(_refreshMountedToolInventory(_gameSessionGeneration));
+          unawaited(_refreshMountedToolInventory(generation));
+          _restartInProgress = false;
+          setState(() {});
           return;
         }
 
-        // The local transition was optimistic. If the authoritative server
-        // rejects it, do not leave the player on an unbound chapter board.
-        newEngine.stopGameTimer();
-        await newEngine.flushLocalSave();
+        if (result == RestartGameSessionResult.pending) {
+          // Keep the candidate board frozen until a later authoritative
+          // refresh can determine which session actually committed.
+          newEngine.stopGameTimer();
+          _stopUiRefreshTimer();
+          setState(() {});
+          return;
+        }
+
+        newEngine.stopGameTimer(persist: false);
         await LifeManager.refreshFromServer().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           previousEngine.createSaveData()['replayLog'],
         );
         previousEngine.toolManager.refreshFromSavedProgress();
+        await SaveManager.save(previousEngine.createSaveData());
         _engine = previousEngine;
-        if (mounted) {
-          _startUiRefreshTimer();
-          _focusNode.requestFocus();
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unable to start the next chapter. Please try again.'),
-            ),
-          );
-        }
-      }).catchError((_) async {
-        if (!mounted) return;
-        newEngine.stopGameTimer();
-        await LifeManager.refreshFromServer().catchError((_) {});
-        _engine = previousEngine;
+        _restartInProgress = false;
         _startUiRefreshTimer();
         _focusNode.requestFocus();
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to start the next chapter. Please try again.'),
+          ),
+        );
+      }).catchError((_) async {
+        if (!mounted || generation != _gameSessionGeneration) return;
+        // Unknown outcome: preserve both snapshots and let account bootstrap
+        // choose by the authoritative server session ID.
+        newEngine.stopGameTimer(persist: false);
+        _stopUiRefreshTimer();
         setState(() {});
       }),
     );
