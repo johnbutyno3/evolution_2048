@@ -146,5 +146,6 @@
   "restartConfirmTitle": "Restart game?",
   "restartConfirmMessage": "Start a new board? One Life will be consumed.",
   "restart": "Restart",
-  "restartFailed": "Unable to restart. Check your Life and try again."
+  "restartFailed": "Unable to restart. Check your Life and try again.",
+  "restartPending": "Restart is still syncing. Return to Home and reopen this chapter when connected."
 }
