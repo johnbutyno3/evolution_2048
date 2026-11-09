@@ -187,7 +187,9 @@ class SupabaseGameSessionService {
   static String _friendlyMessage(String code) {
     switch (code) {
       case 'REPLAY_VALIDATION_FAILED':
-        return 'Game replay could not be validated. Please retry.';
+        return 'Game replay needs review. Support remains available.';
+      case 'TOOL_USAGE_REQUIRES_REVIEW':
+        return 'Tool usage could not be settled. Support remains available.';
       case 'ACCOUNT_RESTRICTED':
       case 'MEMBERSHIP_REQUIRES_REVIEW':
         return 'Account access is restricted. Support remains available.';
