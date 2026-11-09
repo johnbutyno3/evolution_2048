@@ -48,6 +48,7 @@ class PlayerProgressService {
   final Map<String, Map<String, int>> _chapterProgress = {};
   bool _loadedFromServer = false;
   String? _activeGameSessionId;
+  String? _activeGameRequestId;
   int? _activeGameChapterIndex;
   Future<bool>? _pendingStartSession;
   int _sessionOperationGeneration = 0;
@@ -84,6 +85,7 @@ class PlayerProgressService {
       _unlockedChapterIndex = 0;
       _loadedFromServer = false;
       _activeGameSessionId = null;
+      _activeGameRequestId = null;
       _activeGameChapterIndex = null;
       _chapterProgress.clear();
       return;
@@ -105,6 +107,7 @@ class PlayerProgressService {
         }
       }
       final activeId = snapshot.activeGameId;
+      _activeGameRequestId = snapshot.activeGameRequestId;
       final activeChapter = snapshot.activeChapterCode == null
           ? null
           : int.tryParse(snapshot.activeChapterCode!.replaceFirst('C', ''))! - 1;
@@ -278,6 +281,7 @@ class PlayerProgressService {
     if (pending != null) await pending;
     final generation = ++_sessionOperationGeneration;
     final previousGameId = _activeGameSessionId ?? replaySessionId;
+    final requestId = _newUuid();
     final gameId = _newUuid();
 
     try {
@@ -285,7 +289,7 @@ class PlayerProgressService {
       final Map<String, dynamic> result;
       if (previousGameId == null) {
         result = await SupabaseGameSessionService.startGameSession(
-          requestId: _newUuid(),
+          requestId: requestId,
           gameId: gameId,
           chapterCode: 'C${chapterIndex + 1}',
           initialTiles: tiles,
@@ -293,7 +297,7 @@ class PlayerProgressService {
       } else {
         if (replayLog == null) return false;
         result = await SupabaseGameSessionService.restartGameSession(
-          requestId: _newUuid(),
+          requestId: requestId,
           gameId: gameId,
           previousGameId: previousGameId,
           eventId: _newUuid(),
@@ -303,7 +307,7 @@ class PlayerProgressService {
         );
       }
       if (generation != _sessionOperationGeneration ||
-          result['gameId'] != gameId || result['state'] != 'ACTIVE') {
+          result['gameId'] != gameId || result['requestId'] != requestId || result['state'] != 'ACTIVE') {
         return false;
       }
       _activeGameSessionId = gameId;
@@ -323,13 +327,12 @@ class PlayerProgressService {
         final committedGameId = _activeGameSessionId;
         final committed = _activeGameChapterIndex == chapterIndex &&
             committedGameId != null &&
-            (committedGameId == gameId ||
-                (previousGameId != null && committedGameId != previousGameId));
+            _activeGameRequestId == requestId &&
+            (committedGameId == gameId || committedGameId != previousGameId);
         if (committed) {
           // The atomic restart may have committed with a different generated
-          // game ID before the response was lost. The account snapshot is the
-          // authority: bind the visible replacement board to that exact ID,
-          // not the request ID that never reached the client.
+          // game ID before the response was lost. Match its server-stored
+          // request ID before binding the local board to that session.
           await SaveManager.setGameSessionId(committedGameId);
           await ToolManager.refreshInventory();
           return true;
