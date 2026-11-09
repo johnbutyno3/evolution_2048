@@ -10,7 +10,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("session abandonment settles tool usage once and never refunds Life", () => {
   const abandon = read("supabase/migrations/20261104010000_qualify_abandon_rpc_catalog_calls.sql");
-  const restart = read("supabase/migrations/20261109113000_restart_idempotency_payload_guard.sql");
+  const restart = read("supabase/migrations/20261109130000_carry_life_debit_across_restarts.sql");
 
   const eventLookup = abandon.indexOf("where user_id = p_user_id and event_id = p_event_id");
   const duplicateReturn = abandon.indexOf("return coalesce(v_existing_event.result");
