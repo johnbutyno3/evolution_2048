@@ -83,19 +83,19 @@ test("A normal start cannot bypass replay-validated settlement of an active sess
 
 test("Restart reconciles a lost response against the authoritative active session", () => {
   const source = read("lib/services/player_progress_service.dart");
-  const start = source.indexOf("Future<bool> restartGameSession(");
+  const start = source.indexOf("Future<RestartGameSessionResult> restartGameSession(");
   const end = source.indexOf("  Future<bool> abandonGameSession(", start);
   assert.ok(start >= 0 && end > start, "Restart service method must exist");
   const method = source.slice(start, end);
 
   assert.match(method, /final requestId = _newUuid\(\);[\s\S]*?requestId: requestId/);
-  assert.match(method, /await refresh\(\);[\s\S]*?final committedGameId = _activeGameSessionId;[\s\S]*?_activeGameRequestId == requestId/);
+  assert.match(method, /await refresh\(\);[\s\S]*?_activeGameSessionId == gameId[\s\S]*?_activeGameRequestId == requestId/);
   const snapshot = read("supabase/functions/account-snapshot/index.ts");
   const parser = read("lib/services/supabase_account_service.dart");
   assert.match(snapshot, /select\("game_id, request_id, chapter_code/);
   assert.match(snapshot, /requestId: activeSession\.request_id/);
   assert.match(parser, /activeGameRequestId = rawActiveSession\['requestId'\] as String/);
-  assert.match(method, /if \(committed\) \{[\s\S]*?await ToolManager\.refreshInventory\(\);[\s\S]*?return true;/);
+  assert.match(method, /if \(_activeGameSessionId == gameId[\s\S]*?await ToolManager\.refreshInventory\(\);[\s\S]*?return RestartGameSessionResult\.committed;/);
 });
 
 test("A restart preserves the previously charged Life while a normal start charges one", () => {
