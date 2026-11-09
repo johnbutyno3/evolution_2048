@@ -229,6 +229,161 @@ class SaveManager {
     _cachedSave = root;
   }
 
+  /// Writes a prospective session snapshot into the inactive slot without
+  /// changing the committed pointer. The server's active-session pointer later
+  /// decides whether this candidate or the previous board is authoritative.
+  static Future<void> saveCandidateForSession(
+    Map<String, dynamic> data, {
+    required String sessionId,
+  }) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) throw ArgumentError.value(sessionId, 'sessionId');
+    _preferences ??= await SharedPreferences.getInstance();
+
+    final operation = _saveQueue.then<void>(
+      (_) => _saveCandidateNow(data, id),
+      onError: (_, _) => _saveCandidateNow(data, id),
+    );
+    _saveQueue = operation;
+    await operation;
+  }
+
+  static Future<void> _saveCandidateNow(
+    Map<String, dynamic> data,
+    String sessionId,
+  ) async {
+    final chapter = data['chapter'];
+    if (chapter is! String || chapter.isEmpty) {
+      throw ArgumentError.value(chapter, 'data.chapter');
+    }
+
+    final root = _cachedSave == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(_cachedSave!);
+    final chapters = <String, dynamic>{};
+    final existingChapters = root['chapters'];
+    if (existingChapters is Map) {
+      for (final entry in existingChapters.entries) {
+        if (entry.value is Map) {
+          chapters[entry.key.toString()] = Map<String, dynamic>.from(
+            (entry.value as Map).map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          );
+        }
+      }
+    }
+
+    final chapterPayload = <String, dynamic>{
+      'version': 1,
+      'savedAt': DateTime.now().millisecondsSinceEpoch,
+      ...data,
+      'gameSessionId': sessionId,
+    };
+    chapters[chapter] = chapterPayload;
+    root['version'] = 1;
+    root['savedAt'] = DateTime.now().millisecondsSinceEpoch;
+    root['lastChapter'] = chapter;
+    root['chapters'] = chapters;
+
+    final nextSequence = _saveSequence + 1;
+    final targetSlot = _activeSaveSlot == 0 ? 1 : 0;
+    final payloadJson = jsonEncode(root);
+    final envelope = jsonEncode(<String, dynamic>{
+      'formatVersion': 2,
+      'sequence': nextSequence,
+      'checksum': _checksum(payloadJson),
+      'payload': root,
+    });
+    final targetKey = targetSlot == 0 ? _saveSlotAKey : _saveSlotBKey;
+    final wrote = await _preferences!.setString(targetKey, envelope);
+    if (!wrote) throw StateError('Could not persist the candidate game snapshot.');
+    // Deliberately do not update the active pointer, cache, or session binding.
+    // A later authoritative account snapshot selects the matching session slot.
+  }
+
+  /// Selects the A/B snapshot whose chapter binding matches the server-owned
+  /// active game ID. This recovers correctly if the app closes between writing
+  /// a replacement board and the backend session transaction committing.
+  static Future<bool> restoreSnapshotForSession({
+    required String chapter,
+    required String sessionId,
+  }) async {
+    final id = sessionId.trim();
+    if (id.isEmpty) return false;
+    _preferences ??= await SharedPreferences.getInstance();
+
+    final operation = _saveQueue.then<bool>(
+      (_) => _restoreSnapshotForSessionNow(chapter, id),
+      onError: (_, _) => _restoreSnapshotForSessionNow(chapter, id),
+    );
+    _saveQueue = operation.then<void>(
+      (_) {},
+      onError: (_, _) {},
+    );
+    return operation;
+  }
+
+  static Future<bool> _restoreSnapshotForSessionNow(
+    String chapter,
+    String sessionId,
+  ) async {
+    final candidates = <Map<String, dynamic>>[
+      if (_readSnapshotSlot(_saveSlotAKey, 0) case final slot?) slot,
+      if (_readSnapshotSlot(_saveSlotBKey, 1) case final slot?) slot,
+    ];
+    candidates.removeWhere((candidate) {
+      final payload = candidate['payload'];
+      if (payload is! Map) return true;
+      final chapters = payload['chapters'];
+      if (chapters is! Map) return true;
+      final chapterSave = chapters[chapter];
+      return chapterSave is! Map ||
+          chapterSave['gameSessionId'] != sessionId ||
+          chapterSave['tiles'] is! List ||
+          (chapterSave['tiles'] as List).length != 16;
+    });
+
+    if (candidates.isEmpty) {
+      final legacy = _decode(_preferences!.getString(_saveKey));
+      final legacyChapters = legacy?['chapters'];
+      final legacyChapter = legacyChapters is Map
+          ? legacyChapters[chapter]
+          : null;
+      if (legacy == null ||
+          legacyChapter is! Map ||
+          legacyChapter['gameSessionId'] != sessionId ||
+          legacyChapter['tiles'] is! List ||
+          (legacyChapter['tiles'] as List).length != 16) {
+        return false;
+      }
+      _cachedSave = legacy;
+      _activeSaveSlot = 1;
+      _saveSequence = 0;
+    } else {
+      candidates.sort(
+        (a, b) => (b['sequence'] as int).compareTo(a['sequence'] as int),
+      );
+      final selected = candidates.first;
+      final slot = selected['slot'] as int;
+      final sequence = selected['sequence'] as int;
+      final payload = selected['payload'] as Map<String, dynamic>;
+      final pointerWritten = await _preferences!.setInt(_savePointerKey, slot);
+      if (!pointerWritten) {
+        throw StateError('Could not restore the matching game snapshot pointer.');
+      }
+      _activeSaveSlot = slot;
+      _saveSequence = sequence;
+      _cachedSave = payload;
+    }
+
+    final bindingWritten = await _preferences!.setString(_gameSessionIdKey, sessionId);
+    if (!bindingWritten) {
+      throw StateError('Could not restore the matching game-session binding.');
+    }
+    return true;
+  }
+
   static Future<void> _rebindCachedGameSessionNow({
     required String chapter,
     required String? previousSessionId,
