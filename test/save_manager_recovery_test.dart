@@ -119,4 +119,42 @@ void main() {
       isNotNull,
     );
   });
+
+  test('selects the local snapshot matching the server-owned active session', () async {
+    await SaveManager.setGameSessionId('session-old');
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'C1',
+      'gameSessionId': 'session-old',
+      'tiles': <int>[2, 0, 0, 0],
+    });
+
+    await SaveManager.setGameSessionId('session-new');
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'C1',
+      'gameSessionId': 'session-new',
+      'tiles': <int>[4, 0, 0, 0],
+    });
+    expect(SaveManager.loadCached(chapter: 'C1')?['tiles'], <int>[4, 0, 0, 0]);
+
+    expect(
+      await SaveManager.restoreSnapshotForSession(
+        chapter: 'C1',
+        sessionId: 'session-old',
+      ),
+      isTrue,
+    );
+    expect(SaveManager.gameSessionId, 'session-old');
+    expect(SaveManager.loadCached(chapter: 'C1')?['tiles'], <int>[2, 0, 0, 0]);
+
+    expect(
+      await SaveManager.restoreSnapshotForSession(
+        chapter: 'C1',
+        sessionId: 'session-new',
+      ),
+      isTrue,
+    );
+    expect(SaveManager.gameSessionId, 'session-new');
+    expect(SaveManager.loadCached(chapter: 'C1')?['tiles'], <int>[4, 0, 0, 0]);
+  });
+
 }
