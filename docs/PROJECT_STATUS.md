@@ -1,9 +1,11 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-11-07
+最後更新：2026-11-09
 專案：`johnbutyno3/evolution_2048`
 主要分支：`feature/chapter1-spec-implementation`
+目前提交：`3eb3bdd7b23bf7433b6215c54141f9fbaf20e13b`
 版本權威：GitHub 此分支最新已提交內容。
+目前已完成本機 A/B 快照與 Session 對應復原、Restart／Life debit carry-forward、每日 Gold 時區競態修正、工具購買及安全事件合約測試；尚未執行實際測試、Supabase migration 或部署。
 
 > 本文件只記錄可由目前 GitHub 原始碼確認的狀態。未執行的測試、部署及實機驗證不標示為完成。
 
