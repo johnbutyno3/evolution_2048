@@ -312,7 +312,13 @@ class GameEngine {
 
     final snapshot = createSaveData();
 
-    _saveQueue = _saveQueue.then((_) => SaveManager.save(snapshot));
+    // A failed disk write must not poison this engine's queue forever.
+    // Keep the failure observable to the current flush, but let the next
+    // valid gameplay snapshot retry persistence.
+    _saveQueue = _saveQueue.then(
+      (_) => SaveManager.save(snapshot),
+      onError: (_, _) => SaveManager.save(snapshot),
+    );
   }
 
   /// Wait until all queued local snapshots have been persisted.
