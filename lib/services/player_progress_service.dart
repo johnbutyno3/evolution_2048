@@ -181,7 +181,7 @@ class PlayerProgressService {
       // A second caller has no matching locally persisted board/request IDs.
       // Fail closed instead of claiming that its unrelated board was started.
       if (!retryAfterPendingFailure) return false;
-      final pendingResult = await pendingStart;
+      final pendingResult = await _awaitPendingStartSession();
       if (pendingResult) return true;
     }
 
@@ -226,14 +226,6 @@ class PlayerProgressService {
       previousSessionId: previousSessionId,
     );
     _pendingStartSession = pending;
-    unawaited(
-      pending.whenComplete(() {
-        if (identical(_pendingStartSession, pending)) {
-          _pendingStartSession = null;
-        }
-      }).catchError((_) {}),
-    );
-
     return true;
   }
 
@@ -281,7 +273,18 @@ class PlayerProgressService {
   Future<bool> _awaitPendingStartSession() async {
     final pending = _pendingStartSession;
     if (pending == null) return _activeGameSessionId != null;
-    return pending;
+    try {
+      final result = await pending;
+      if (identical(_pendingStartSession, pending)) {
+        _pendingStartSession = null;
+      }
+      return result;
+    } catch (_) {
+      if (identical(_pendingStartSession, pending)) {
+        _pendingStartSession = null;
+      }
+      rethrow;
+    }
   }
 
   /// Re-enters the server-owned unfinished session.
@@ -337,7 +340,7 @@ class PlayerProgressService {
 
     _sessionIdentityGeneration.begin();
     final pending = _pendingStartSession;
-    if (pending != null) await pending;
+    if (pending != null) await _awaitPendingStartSession();
     final generation = ++_sessionOperationGeneration;
     final previousGameId = _activeGameSessionId ?? replaySessionId;
     if (previousGameId != null && replayLog == null) {
