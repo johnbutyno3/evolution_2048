@@ -250,6 +250,7 @@ test("Restart writes the replacement board before the RPC and recovers by server
 
 test("Restart idempotency validates the prior session and abandon event before settlement", () => {
   const migration = read("supabase/migrations/20261109113000_restart_idempotency_payload_guard.sql");
+  const edge = read("supabase/functions/restart-game-session/index.ts");
   const requestLookup = migration.indexOf("where user_id = p_user_id and request_id = p_request_id");
   const eventLookup = migration.indexOf("where user_id = p_user_id and event_id = p_abandon_event_id");
   const abandon = migration.indexOf("v_abandon_result := public.abandon_game_session(");
@@ -264,6 +265,8 @@ test("Restart idempotency validates the prior session and abandon event before s
   assert.match(migration, /v_existing_event\.payload is distinct from p_abandon_payload/);
   assert.match(migration, /else[\s\S]*?where user_id = p_user_id and event_id = p_abandon_event_id[\s\S]*?if found then[\s\S]*?IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD/);
   assert.match(migration, /IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD/);
+  assert.match(edge, /message\.includes\("REQUEST_ID_REUSED_WITH_DIFFERENT_PAYLOAD"\)/);
+  assert.match(edge, /error: "IDEMPOTENCY_CONFLICT"/);
 });
 
 });
