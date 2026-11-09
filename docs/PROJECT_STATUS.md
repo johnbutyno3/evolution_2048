@@ -28,18 +28,17 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 
 ## Life / Session 扣除規則核對
 
-依 2026-10-01 使用者接受的 lifecycle 決策，Life 扣除規則為：
-- NEW GAME：-1 Life。
-- RESUME：0。
-- 返回 Home 儲存／結束目前畫面：0。
-- Restart 對話框選「NO」：0（取消，不建立新局）。
-- Restart 對話框選「YES」：-1（建立 replacement session，僅扣一次）。
-- GAME OVER 本身：0（不額外扣除）。
-- CHAPTER COMPLETE：0（符合條件的完成獎勵另依後端規則處理）。
-- 下一章 NEW GAME：-1。
+依 2026-11-09 生效的唯一權威規則文件 `docs/Rebirth 2048 完整專案規則20261027`，Life／Session 規則更新如下：
+- 建立真正的新局：FREE 扣除 1 Life。
+- RESUME／重新進入同一局／APP 重啟：0，不得再次扣除。
+- Restart 對話框選「NO」：0（取消，不呼叫 restart RPC）。
+- Restart 對話框選「YES」：0 額外扣除；replacement session 延續原遊戲已扣除的 Life。
+- GAME OVER 本身：0 額外扣除；玩家之後明確建立新局才依新局規則扣除。
+- CHAPTER COMPLETE：若該遊戲曾扣除 FREE Life，成功過關退還原始 1 Life，最高 5；Premium／Golden 不增加有限生命。
+- 下一章建立新局：依新局規則扣除 1 Life。
 - PREMIUM / GOLDEN 依會員權益為無限生命。
 
-目前 `supabase/migrations/20261103030000_atomic_restart_game_session_rpc.sql` 的 `restart_game_session` 會在單一資料庫交易中結算舊 Session，再呼叫 `start_game_session` 建立 replacement session；FREE 帳戶由 `start_game_session` 產生一次 `NEW_GAME_DEBIT`。這與 Restart YES 扣 1 Life 的規則一致，不應改成免扣。Restart NO 不應呼叫此 RPC。仍須用 SQL integration / E2E 驗證確認一次扣除、取消零扣除及重試冪等。
+舊版「Restart YES 扣 1 Life」決策已被 2026-11-09 唯一權威規則取代，不再適用。最新 migration `20261109130000_carry_life_debit_across_restarts.sql` 讓 replacement session 沿用原始 `NEW_GAME_DEBIT` ledger reference；成功完成時才能正確退還原始 Life，且只退還一次。尚待 PostgreSQL integration／E2E 實測，不能只依靜態原始碼宣稱驗收通過。
 
 ## Firebase 遺留項目與保留原則
 
