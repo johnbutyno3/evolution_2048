@@ -48,7 +48,7 @@ test("Restart confirmation strings exist in English and Traditional Chinese", ()
 
 test("Supabase restart endpoint delegates settlement and start to one database RPC", () => {
   const edge = read("supabase/functions/restart-game-session/index.ts");
-  const migration = read("supabase/migrations/20261103030000_atomic_restart_game_session_rpc.sql");
+  const migration = read("supabase/migrations/20261106090000_restart_does_not_debit_life.sql");
 
   assert.match(edge, /rpc\(["']restart_game_session["']/);
   assert.match(migration, /public\.abandon_game_session\(/);
@@ -69,7 +69,7 @@ test("Restart validates the exact two-tile initial board before calling the RPC"
 });
 
 test("A normal start cannot bypass replay-validated settlement of an active session", () => {
-  const migration = read("supabase/migrations/20261028103000_start_game_session_rpc.sql");
+  const migration = read("supabase/migrations/20261106090000_restart_does_not_debit_life.sql");
   const edge = read("supabase/functions/start-game-session/index.ts");
 
   assert.match(migration, /SESSION_ABANDON_REQUIRES_VALIDATED_SETTLEMENT/);
@@ -245,6 +245,24 @@ test("Restart writes the replacement board before the RPC and recovers by server
   assert.match(save, /_saveSlotBKey/);
   assert.match(save, /restoreSnapshotForSession/);
   assert.match(save, /_preferences!\.setInt\(_savePointerKey, slot\)/);
+});
+
+
+test("Restart idempotency validates the prior session and abandon event before settlement", () => {
+  const migration = read("supabase/migrations/20261109113000_restart_idempotency_payload_guard.sql");
+  const requestLookup = migration.indexOf("where user_id = p_user_id and request_id = p_request_id");
+  const eventLookup = migration.indexOf("where user_id = p_user_id and event_id = p_abandon_event_id");
+  const abandon = migration.indexOf("v_abandon_result := public.abandon_game_session(");
+
+  assert.ok(requestLookup >= 0 && eventLookup > requestLookup && abandon > eventLookup,
+    "The exact request and abandon event must be checked before settling the previous session.");
+  assert.match(migration, /v_existing\.game_id <> p_game_id/);
+  assert.match(migration, /v_existing\.chapter_code <> p_chapter_code/);
+  assert.match(migration, /v_existing\.initial_tiles is distinct from p_initial_tiles/);
+  assert.match(migration, /v_existing_event\.game_id <> p_previous_game_id/);
+  assert.match(migration, /v_existing_event\.event_type <> 'SESSION_ABANDON'/);
+  assert.match(migration, /v_existing_event\.payload is distinct from p_abandon_payload/);
+  assert.match(migration, /IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD/);
 });
 
 });
