@@ -286,7 +286,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restartConfirmTitle => '重新開始遊戲？';
 
   @override
-  String get restartConfirmMessage => '確定要建立新棋盤嗎？將消耗 1 點生命。';
+  String get restartConfirmMessage => '確定要替換目前棋盤嗎？不會再次扣除生命。';
 
   @override
   String get restart => '重新開始';
