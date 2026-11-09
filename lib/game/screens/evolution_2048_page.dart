@@ -563,6 +563,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _gameSessionGeneration++;
     final generation = _gameSessionGeneration;
     oldEngine.stopGameTimer();
+    await oldEngine.flushLocalSave();
 
     ToolManager.clearSessionUsage();
 
@@ -965,6 +966,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final previousEngine = _engine;
     final generation = ++_gameSessionGeneration;
     _restartInProgress = true;
+    previousEngine.stopGameTimer();
+    await previousEngine.flushLocalSave();
 
     // Chapter completion settles the old session. The next chapter starts
     // with a fresh session-use overlay and one new-game Life charge.
