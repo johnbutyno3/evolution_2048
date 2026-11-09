@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
         .select("tool_code, quantity, updated_at")
         .eq("user_id", user.id),
       service.from("game_sessions")
-        .select("game_id, chapter_code, state, event_sequence, updated_at")
+        .select("game_id, request_id, chapter_code, state, event_sequence, updated_at")
         .eq("user_id", user.id)
         .eq("state", "ACTIVE")
         .maybeSingle(),
@@ -194,6 +194,7 @@ Deno.serve(async (req: Request) => {
       tools,
       activeGameSession: activeSession ? {
         gameId: activeSession.game_id,
+        requestId: activeSession.request_id,
         chapterCode: activeSession.chapter_code,
         eventSequence: activeSession.event_sequence,
         updatedAt: activeSession.updated_at,
