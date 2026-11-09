@@ -48,7 +48,7 @@ test("Restart confirmation strings exist in English and Traditional Chinese", ()
 
 test("Supabase restart endpoint delegates settlement and start to one database RPC", () => {
   const edge = read("supabase/functions/restart-game-session/index.ts");
-  const migration = read("supabase/migrations/20261109113000_restart_idempotency_payload_guard.sql");
+  const migration = read("supabase/migrations/20261109130000_carry_life_debit_across_restarts.sql");
 
   assert.match(edge, /rpc\(["']restart_game_session["']/);
   assert.match(migration, /public\.abandon_game_session\(/);
@@ -250,7 +250,7 @@ test("Restart writes the replacement board before the RPC and recovers by server
 
 
 test("Restart idempotency validates the prior session and abandon event before settlement", () => {
-  const migration = read("supabase/migrations/20261109113000_restart_idempotency_payload_guard.sql");
+  const migration = read("supabase/migrations/20261109130000_carry_life_debit_across_restarts.sql");
   const edge = read("supabase/functions/restart-game-session/index.ts");
   const requestLookup = migration.indexOf("where user_id = p_user_id and request_id = p_request_id");
   const eventLookup = migration.indexOf("where user_id = p_user_id and event_id = p_abandon_event_id");
