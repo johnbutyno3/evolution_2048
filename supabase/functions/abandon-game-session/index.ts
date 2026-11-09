@@ -101,6 +101,7 @@ Deno.serve(async (req: Request) => {
           service,
           user.id,
           gameId,
+          eventId,
           "warning",
           reason,
           message,
