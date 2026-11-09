@@ -217,6 +217,7 @@ test("Real-money membership checkout remains blocked until store verification is
   assert.match(page, /Real-money payment is not connected yet/);
   assert.match(page, /onPressed: _unavailable/);
   assert.doesNotMatch(page, /functions\.invoke|purchase-membership|verify-store-purchase/);
+});
 
 test("Restart writes the replacement board before the RPC and recovers by server session ID", () => {
   const service = read("lib/services/player_progress_service.dart");
@@ -267,6 +268,4 @@ test("Restart idempotency validates the prior session and abandon event before s
   assert.match(migration, /IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD/);
   assert.match(edge, /message\.includes\("REQUEST_ID_REUSED_WITH_DIFFERENT_PAYLOAD"\)/);
   assert.match(edge, /error: "IDEMPOTENCY_CONFLICT"/);
-});
-
 });
