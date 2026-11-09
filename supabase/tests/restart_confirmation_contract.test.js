@@ -217,4 +217,34 @@ test("Real-money membership checkout remains blocked until store verification is
   assert.match(page, /Real-money payment is not connected yet/);
   assert.match(page, /onPressed: _unavailable/);
   assert.doesNotMatch(page, /functions\.invoke|purchase-membership|verify-store-purchase/);
+
+test("Restart writes the replacement board before the RPC and recovers by server session ID", () => {
+  const service = read("lib/services/player_progress_service.dart");
+  const screen = read("lib/game/screens/evolution_2048_page.dart");
+  const save = read("lib/game/services/save_manager.dart");
+
+  const restartStart = service.indexOf("Future<RestartGameSessionResult> restartGameSession(");
+  const restartEnd = service.indexOf("Future<bool> abandonGameSession(", restartStart);
+  assert.ok(restartStart >= 0 && restartEnd > restartStart);
+  const restart = service.slice(restartStart, restartEnd);
+  const bind = restart.indexOf("await SaveManager.setGameSessionId(gameId)");
+  const persist = restart.indexOf("await SaveManager.save(candidateSave)");
+  const rpc = restart.indexOf("SupabaseGameSessionService.restartGameSession(");
+  assert.ok(bind >= 0 && persist > bind && rpc > persist,
+    "The replacement board and binding must be durable before the restart RPC begins.");
+
+  assert.match(restart, /RestartGameSessionResult\.pending/);
+  assert.match(restart, /_activeGameRequestId == requestId/);
+  assert.match(service, /SaveManager\.restoreSnapshotForSession\(/);
+
+  assert.match(screen, /replacementSave: replacementSave/);
+  assert.match(screen, /result == RestartGameSessionResult\.pending/);
+  assert.match(screen, /restartResult == RestartGameSessionResult\.pending/);
+
+  assert.match(save, /_saveSlotAKey/);
+  assert.match(save, /_saveSlotBKey/);
+  assert.match(save, /restoreSnapshotForSession/);
+  assert.match(save, /_preferences!\.setInt\(_savePointerKey, slot\)/);
+});
+
 });
