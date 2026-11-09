@@ -416,7 +416,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return KeyEventResult.handled;
+    if (_restartInProgress || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return KeyEventResult.handled;
     final direction = switch (event.logicalKey) {
       LogicalKeyboardKey.arrowUp => 'up', LogicalKeyboardKey.arrowDown => 'down',
       LogicalKeyboardKey.arrowLeft => 'left', LogicalKeyboardKey.arrowRight => 'right', _ => null,
@@ -425,11 +425,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _move(direction); return KeyEventResult.handled;
   }
   void _handleDragStart(DragStartDetails details) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
+    if (_restartInProgress || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
     _dragStart = details.localPosition; _swipeHandled = false;
   }
   void _handleDragUpdate(DragUpdateDetails details) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null || _swipeHandled || _dragStart == null) return;
+    if (_restartInProgress || _gameOverDialogShowing || _chapterCompleteShowing || _toolMode != null || _swipeHandled || _dragStart == null) return;
     final delta = details.localPosition - _dragStart!;
     if (delta.distance < _swipeThreshold) return;
     final direction = delta.dx.abs() > delta.dy.abs() ? (delta.dx < 0 ? 'left' : 'right') : (delta.dy < 0 ? 'up' : 'down');
@@ -438,7 +438,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   void _handleDragEnd(DragEndDetails details) { _dragStart = null; _swipeHandled = false; }
 
   void _move(String direction) {
-    if (_gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
+    if (_restartInProgress || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying || _toolMode != null) return;
     bool changed;
     switch (direction) { case 'up': changed = _engine.moveUp(); break; case 'down': changed = _engine.moveDown(); break; case 'left': changed = _engine.moveLeft(); break; case 'right': changed = _engine.moveRight(); break; default: changed = false; }
     if (!changed) return;
@@ -726,7 +726,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Future<void> _startTool(String mode) async {
     // Gameplay is local-first. A tool must not become unclickable merely
     // because the Supabase session response is still in flight.
-    if (!_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
+    if (_restartInProgress || !_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
     if (!toolState.canUse) { if (!mounted) return; if (mode == 'rewind') { await _showToolUnavailable('UNDO'); return; } Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) async { await ToolManager.refreshInventory(); if (!mounted) return; _engine.toolManager.refreshFromSavedProgress(); setState(() {}); }); return; }
@@ -740,7 +740,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     ])));
   }
   Future<void> _selectToolTile(int index) async {
-    final mode = _toolMode; if (mode == null) return; final tile = _engine.board.tiles[index]; final row = index ~/ 4; final column = index % 4;
+    final mode = _toolMode; if (_restartInProgress || mode == null) return; final tile = _engine.board.tiles[index]; final row = index ~/ 4; final column = index % 4;
     if (mode == 'duplicate') { if (_firstSwapIndex == null) { if (tile == null) return; setState(() => _firstSwapIndex = index); return; } final first = _firstSwapIndex!; if (first == index || tile != null) return; if (_engine.useDuplicate(first ~/ 4, first % 4, row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
     if (tile == null) return;
     if (mode == 'revive') { if (_engine.useRevive(row, column)) { setState(() { _toolMode = null; _firstSwapIndex = null; }); _focusNode.requestFocus(); } return; }
