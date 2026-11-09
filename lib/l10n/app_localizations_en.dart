@@ -306,6 +306,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Unable to restart. Check your Life and try again.';
 
   @override
+  String get restartPending =>
+      'Restart is still syncing. Return to Home and reopen this chapter when connected.';
+
+  @override
   String get cancel => 'Cancel';
 
   @override
