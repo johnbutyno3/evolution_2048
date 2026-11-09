@@ -295,6 +295,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restartFailed => '無法重新開始，請確認生命數量後再試一次。';
 
   @override
+  String get restartPending => '重新開始仍在同步中。請返回首頁，連線恢復後再進入本章。';
+
+  @override
   String get cancel => '取消';
 
   @override
