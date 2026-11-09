@@ -85,6 +85,12 @@ Edge Functions use the server-side service-role key only within the trusted runt
 - Support tickets, two-way message schema, security events and admin notification queue
 - Row Level Security with default-deny writes for authoritative account/economy tables
 
+## Security review and account locking
+
+- Replay-validation failures and tool-settlement discrepancies are persisted to `security_events` with a per-event idempotency key.
+- A mismatch or damaged/incompatible local replay is not, by itself, proof of intentional cheating. These events are recorded for review and the affected settlement is rejected; the Edge Functions do not automatically lock the account.
+- Account locking remains a separate service-role-only action and should occur only after a violation is confirmed. The administrative review/lock workflow is still outstanding; locked accounts must retain the support and appeal path.
+
 ## Tests and validation
 
 Run the pure replay-validator contract tests where Deno is installed:
