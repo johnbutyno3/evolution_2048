@@ -18,6 +18,11 @@ class SaveManager {
   static String get _gameSessionIdKey => _activeAccountScope == null
       ? _legacyGameSessionIdKey
       : '${_legacyGameSessionIdKey}_$_activeAccountScope';
+  static String get _saveSlotAKey => '${_saveKey}_slot_a_v2';
+  static String get _saveSlotBKey => '${_saveKey}_slot_b_v2';
+  static String get _savePointerKey => '${_saveKey}_active_slot_v2';
+  static int _activeSaveSlot = 1;
+  static int _saveSequence = 0;
   static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
   static const String _legacyProfileNameKey = 'rebirth_2048_profile_name_v1';
   static const String _legacyPlayerIdKey = 'rebirth_2048_player_id_v1';
@@ -122,6 +127,108 @@ class SaveManager {
     await _saveQueue;
   }
 
+  static String _checksum(String value) {
+    // FNV-1a 32-bit checksum detects truncated or accidentally modified JSON.
+    // It is an integrity check, not a cryptographic anti-cheat mechanism.
+    var hash = 0x811c9dc5;
+    for (final byte in utf8.encode(value)) {
+      hash ^= byte;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash.toRadixString(16).padLeft(8, '0');
+  }
+
+  static Map<String, dynamic>? _readSnapshotSlot(String key, int slot) {
+    final raw = _preferences?.getString(key);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map ||
+          decoded['formatVersion'] != 2 ||
+          decoded['sequence'] is! int ||
+          (decoded['sequence'] as int) <= 0 ||
+          decoded['checksum'] is! String ||
+          decoded['payload'] is! Map) {
+        return null;
+      }
+      final payload = Map<String, dynamic>.from(
+        (decoded['payload'] as Map).map(
+          (key, value) => MapEntry(key.toString(), value),
+        ),
+      );
+      if (_checksum(jsonEncode(payload)) != decoded['checksum']) return null;
+      return <String, dynamic>{
+        'slot': slot,
+        'sequence': decoded['sequence'],
+        'payload': payload,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void _loadBestSnapshotNow() {
+    final slotA = _readSnapshotSlot(_saveSlotAKey, 0);
+    final slotB = _readSnapshotSlot(_saveSlotBKey, 1);
+    final pointer = _preferences?.getInt(_savePointerKey);
+
+    Map<String, dynamic>? selected;
+    if (pointer == 0 && slotA != null) {
+      selected = slotA;
+    } else if (pointer == 1 && slotB != null) {
+      selected = slotB;
+    } else if (slotA != null && slotB != null) {
+      selected = (slotA['sequence'] as int) >= (slotB['sequence'] as int)
+          ? slotA
+          : slotB;
+    } else {
+      selected = slotA ?? slotB;
+    }
+
+    if (selected != null) {
+      _activeSaveSlot = selected['slot'] as int;
+      _saveSequence = selected['sequence'] as int;
+      _cachedSave = selected['payload'] as Map<String, dynamic>;
+      return;
+    }
+
+    // Backward-compatible recovery for installs that have not written a v2
+    // snapshot yet. The first successful save migrates this data into slot A.
+    _activeSaveSlot = 1;
+    _saveSequence = 0;
+    _cachedSave = _decode(_preferences?.getString(_saveKey));
+  }
+
+  static Future<void> _persistSnapshotNow(Map<String, dynamic> root) async {
+    final nextSequence = _saveSequence + 1;
+    final targetSlot = _activeSaveSlot == 0 ? 1 : 0;
+    final payloadJson = jsonEncode(root);
+    final envelope = jsonEncode(<String, dynamic>{
+      'formatVersion': 2,
+      'sequence': nextSequence,
+      'checksum': _checksum(payloadJson),
+      'payload': root,
+    });
+    final targetKey = targetSlot == 0 ? _saveSlotAKey : _saveSlotBKey;
+
+    // Double-buffer commit: write the inactive slot completely first, then
+    // switch the pointer. Until the pointer write succeeds, the previous
+    // committed slot remains the recovery source.
+    final wroteSlot = await _preferences!.setString(targetKey, envelope);
+    if (!wroteSlot) throw StateError('Could not persist the save snapshot slot.');
+    final committedPointer = await _preferences!.setInt(
+      _savePointerKey,
+      targetSlot,
+    );
+    if (!committedPointer) {
+      throw StateError('Could not commit the active save snapshot pointer.');
+    }
+
+    _activeSaveSlot = targetSlot;
+    _saveSequence = nextSequence;
+    _cachedSave = root;
+  }
+
   static Future<void> _rebindCachedGameSessionNow({
     required String chapter,
     required String? previousSessionId,
@@ -157,13 +264,11 @@ class SaveManager {
 
     final updatedRoot = Map<String, dynamic>.from(root);
     updatedRoot['chapters'] = updatedChapters;
-    _cachedSave = updatedRoot;
-
     await _preferences!.setString(
       _gameSessionIdKey,
       newSessionId,
     );
-    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+    await _persistSnapshotNow(updatedRoot);
   }
 
   static Future<void> clearGameSessionId() async {
@@ -207,12 +312,12 @@ class SaveManager {
       (_) async {
         if (_activeAccountScope == id) return;
         _activeAccountScope = id;
-        _cachedSave = _decode(_preferences!.getString(_saveKey));
+        _loadBestSnapshotNow();
       },
       onError: (_, _) async {
         if (_activeAccountScope == id) return;
         _activeAccountScope = id;
-        _cachedSave = _decode(_preferences!.getString(_saveKey));
+        _loadBestSnapshotNow();
       },
     );
     _saveQueue = operation;
@@ -226,11 +331,11 @@ class SaveManager {
     final operation = _saveQueue.then<void>(
       (_) async {
         _activeAccountScope = null;
-        _cachedSave = _decode(_preferences!.getString(_saveKey));
+        _loadBestSnapshotNow();
       },
       onError: (_, _) async {
         _activeAccountScope = null;
-        _cachedSave = _decode(_preferences!.getString(_saveKey));
+        _loadBestSnapshotNow();
       },
     );
     _saveQueue = operation;
@@ -244,8 +349,7 @@ class SaveManager {
     // test environments and platform preference reinitialization consistent.
     _preferences = await SharedPreferences.getInstance();
 
-    final raw = _preferences!.getString(_saveKey);
-    _cachedSave = _decode(raw);
+    _loadBestSnapshotNow();
     localeCodeNotifier.value = localeCode;
   }
 
@@ -474,8 +578,7 @@ class SaveManager {
       root['toolRewardsClaimed'] = data['toolRewardsClaimed'];
     }
 
-    _cachedSave = root;
-    await _preferences!.setString(_saveKey, jsonEncode(root));
+    await _persistSnapshotNow(root);
   }
 
   static Future<void> clearChapter(String chapter) async {
@@ -521,14 +624,27 @@ class SaveManager {
       }
     }
 
-    _cachedSave = updatedRoot;
-    await _preferences!.setString(_saveKey, jsonEncode(updatedRoot));
+    await _persistSnapshotNow(updatedRoot);
   }
 
   static Future<void> clear() async {
     _preferences ??= await SharedPreferences.getInstance();
+    final operation = _saveQueue.then<void>(
+      (_) => _clearNow(),
+      onError: (_, _) => _clearNow(),
+    );
+    _saveQueue = operation;
+    await operation;
+  }
+
+  static Future<void> _clearNow() async {
     _cachedSave = null;
+    _activeSaveSlot = 1;
+    _saveSequence = 0;
     await _preferences!.remove(_saveKey);
+    await _preferences!.remove(_saveSlotAKey);
+    await _preferences!.remove(_saveSlotBKey);
+    await _preferences!.remove(_savePointerKey);
   }
 
   static Map<String, dynamic>? _decode(String? raw) {
