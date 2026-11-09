@@ -296,18 +296,25 @@ class SaveManager {
       final slot = selected['slot'] as int;
       final sequence = selected['sequence'] as int;
       final payload = selected['payload'] as Map<String, dynamic>;
-      final pointerWritten = await _preferences!.setInt(_savePointerKey, slot);
-      if (!pointerWritten) {
-        throw StateError('Could not restore the matching game snapshot pointer.');
+      if (_preferences!.getInt(_savePointerKey) != slot) {
+        final pointerWritten = await _preferences!.setInt(_savePointerKey, slot);
+        if (!pointerWritten) {
+          throw StateError('Could not restore the matching game snapshot pointer.');
+        }
       }
       _activeSaveSlot = slot;
       _saveSequence = sequence;
       _cachedSave = payload;
     }
 
-    final bindingWritten = await _preferences!.setString(_gameSessionIdKey, sessionId);
-    if (!bindingWritten) {
-      throw StateError('Could not restore the matching game-session binding.');
+    if (_preferences!.getString(_gameSessionIdKey) != sessionId) {
+      final bindingWritten = await _preferences!.setString(
+        _gameSessionIdKey,
+        sessionId,
+      );
+      if (!bindingWritten) {
+        throw StateError('Could not restore the matching game-session binding.');
+      }
     }
     return true;
   }
