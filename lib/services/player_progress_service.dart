@@ -505,7 +505,7 @@ class PlayerProgressService {
         initialTiles: List<dynamic>.from(initialTiles),
         retryAfterPendingFailure: true,
       );
-      if (!recovered) return false;
+      if (!recovered || !await _awaitPendingStartSession()) return false;
     }
     final gameId = _activeGameSessionId;
     if (gameId == null || _activeGameChapterIndex != chapterIndex) return false;
