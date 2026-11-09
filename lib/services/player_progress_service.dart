@@ -12,6 +12,12 @@ import 'supabase_account_service.dart';
 import 'supabase_backend.dart';
 import 'supabase_game_session_service.dart';
 
+enum RestartGameSessionResult {
+  committed,
+  rejected,
+  pending,
+}
+
 /// Server-verified account progression with local-first gameplay entry.
 class PlayerProgressService {
   PlayerProgressService._();
@@ -279,15 +285,16 @@ class PlayerProgressService {
     }
   }
 
-  Future<bool> restartGameSession(
+  Future<RestartGameSessionResult> restartGameSession(
     int chapterIndex, {
     Map<String, dynamic>? replayLog,
     String? replaySessionId,
     required List<dynamic> initialTiles,
+    required Map<String, dynamic> replacementSave,
   }) async {
-    if (SupabaseBackend.client.auth.currentUser == null ||
-        chapterIndex < 0 || chapterIndex > 5) {
-      return false;
+    final user = SupabaseBackend.client.auth.currentUser;
+    if (user == null || chapterIndex < 0 || chapterIndex > 5) {
+      return RestartGameSessionResult.rejected;
     }
 
     _sessionIdentityGeneration.begin();
@@ -295,11 +302,25 @@ class PlayerProgressService {
     if (pending != null) await pending;
     final generation = ++_sessionOperationGeneration;
     final previousGameId = _activeGameSessionId ?? replaySessionId;
+    if (previousGameId != null && replayLog == null) {
+      return RestartGameSessionResult.rejected;
+    }
+
     final requestId = _newUuid();
     final gameId = _newUuid();
+    final eventId = _newUuid();
 
     try {
       final tiles = _initialBoard(initialTiles);
+      // Persist a prospective replacement in the inactive snapshot slot before
+      // the network request. The previous committed slot remains untouched.
+      // On the next bootstrap, the server's active game ID selects the correct
+      // snapshot whether this transaction committed or not.
+      await SaveManager.saveCandidateForSession(
+        replacementSave,
+        sessionId: gameId,
+      );
+
       final Map<String, dynamic> result;
       if (previousGameId == null) {
         result = await SupabaseGameSessionService.startGameSession(
@@ -309,50 +330,66 @@ class PlayerProgressService {
           initialTiles: tiles,
         );
       } else {
-        if (replayLog == null) return false;
         result = await SupabaseGameSessionService.restartGameSession(
           requestId: requestId,
           gameId: gameId,
           previousGameId: previousGameId,
-          eventId: _newUuid(),
+          eventId: eventId,
           chapterCode: 'C${chapterIndex + 1}',
           initialTiles: tiles,
-          replayLog: replayLog,
+          replayLog: replayLog!,
         );
       }
-      if (generation != _sessionOperationGeneration ||
-          result['gameId'] != gameId || result['requestId'] != requestId || result['state'] != 'ACTIVE') {
-        return false;
+
+      if (generation != _sessionOperationGeneration) {
+        return RestartGameSessionResult.pending;
       }
-      _activeGameSessionId = gameId;
-      _activeGameChapterIndex = chapterIndex;
-      await SaveManager.setGameSessionId(gameId);
       await refresh();
-      await LifeManager.refreshFromServer();
-      await ToolManager.refreshInventory();
-      return _activeGameSessionId == gameId;
-    } catch (_) {
-      if (generation == _sessionOperationGeneration) {
-        // The request may have committed on the server even when its response
-        // was lost. Reconcile against the authoritative active-session pointer
-        // before restoring the old local board or undoing the optimistic Life.
-        await refresh();
+      if (_activeGameSessionId == gameId &&
+          _activeGameRequestId == requestId &&
+          result['gameId'] == gameId &&
+          result['requestId'] == requestId &&
+          result['state'] == 'ACTIVE') {
         await LifeManager.refreshFromServer();
-        final committedGameId = _activeGameSessionId;
-        final committed = _activeGameChapterIndex == chapterIndex &&
-            committedGameId != null &&
-            _activeGameRequestId == requestId &&
-            (committedGameId == gameId || committedGameId != previousGameId);
-        if (committed) {
-          // The atomic restart may have committed with a different generated
-          // game ID before the response was lost. Match its server-stored
-          // request ID before binding the local board to that session.
-          await SaveManager.setGameSessionId(committedGameId);
-          await ToolManager.refreshInventory();
-          return true;
-        }
+        await ToolManager.refreshInventory();
+        return RestartGameSessionResult.committed;
       }
-      return false;
+
+      if (_loadedFromServer && _activeGameSessionId == previousGameId) {
+        await LifeManager.refreshFromServer();
+        return RestartGameSessionResult.rejected;
+      }
+      if (_loadedFromServer && previousGameId == null &&
+          _activeGameSessionId == null) {
+        await LifeManager.refreshFromServer();
+        return RestartGameSessionResult.rejected;
+      }
+      return RestartGameSessionResult.pending;
+    } catch (_) {
+      if (generation != _sessionOperationGeneration) {
+        return RestartGameSessionResult.pending;
+      }
+      await refresh();
+      if (_loadedFromServer &&
+          _activeGameSessionId == gameId &&
+          _activeGameRequestId == requestId) {
+        await LifeManager.refreshFromServer();
+        await ToolManager.refreshInventory();
+        return RestartGameSessionResult.committed;
+      }
+      if (_loadedFromServer && _activeGameSessionId == previousGameId) {
+        await LifeManager.refreshFromServer();
+        return RestartGameSessionResult.rejected;
+      }
+      if (_loadedFromServer && previousGameId == null &&
+          _activeGameSessionId == null) {
+        await LifeManager.refreshFromServer();
+        return RestartGameSessionResult.rejected;
+      }
+      // A failed refresh cannot prove whether the transaction committed.
+      // Keep both snapshots and let the next account refresh select by the
+      // authoritative server session ID. The UI must remain frozen meanwhile.
+      return RestartGameSessionResult.pending;
     }
   }
 
