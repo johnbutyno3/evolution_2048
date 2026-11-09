@@ -1,5 +1,6 @@
 import { authenticateRequest, corsHeaders, createServiceClient, jsonResponse } from "../_shared/auth.ts";
 import { allowedToolsForChapter, replayGame } from "../_shared/replay_validator.js";
+import { recordSecurityEvent } from "../_shared/security_events.ts";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CHAPTER_INDEX: Record<string, number> = {
@@ -11,31 +12,6 @@ const CHAPTER_INDEX: Record<string, number> = {
   C6: 5,
 };
 const MAX_REPLAY_BYTES = 1024 * 1024;
-
-async function lockForReplayViolation(
-  service: ReturnType<typeof createServiceClient>,
-  userId: string,
-  gameId: string,
-  reason: string,
-  message: string,
-): Promise<boolean> {
-  const { error } = await service.rpc("lock_account_for_security_violation", {
-    p_user_id: userId,
-    p_game_id: gameId,
-    p_reason: reason,
-    p_details: { message: message.slice(0, 240) },
-  });
-  if (error) {
-    console.error("security_lock_failed", {
-      userId,
-      gameId,
-      reason,
-      code: error.code,
-    });
-    return false;
-  }
-  return true;
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -107,21 +83,23 @@ Deno.serve(async (req: Request) => {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Replay validation failed.";
-      const locked = await lockForReplayViolation(
+      const recorded = await recordSecurityEvent(
         service,
         user.id,
         gameId,
-        "forged_replay_detected",
+        "high",
+        "replay_validation_failed",
         message,
       );
-      if (!locked) {
+      if (!recorded) {
         return jsonResponse({ error: "SECURITY_REVIEW_UNAVAILABLE" }, 503);
       }
+      // A rejected replay is evidence for review, not by itself proof of intent:
+      // damaged or incompatible local saves must not auto-lock the account.
       return jsonResponse({
-        error: "ACCOUNT_RESTRICTED",
-        reason: "REPLAY_VALIDATION_FAILED",
+        error: "REPLAY_VALIDATION_FAILED",
         supportAvailable: true,
-      }, 423);
+      }, 409);
     }
 
     const payload = {
@@ -144,20 +122,20 @@ Deno.serve(async (req: Request) => {
         message.includes("ASSET_BALANCE_INSUFFICIENT_OR_MISSING")) {
         const reason = message.includes("TOOL_USAGE_REPLAY_CONFLICT")
           ? "tool_usage_replay_conflict"
-          : "tool_inventory_overuse_detected";
-        const locked = await lockForReplayViolation(
+          : "tool_inventory_settlement_conflict";
+        const recorded = await recordSecurityEvent(
           service,
           user.id,
           gameId,
+          "warning",
           reason,
           message,
         );
-        if (!locked) return jsonResponse({ error: "SECURITY_REVIEW_UNAVAILABLE" }, 503);
+        if (!recorded) return jsonResponse({ error: "SECURITY_REVIEW_UNAVAILABLE" }, 503);
         return jsonResponse({
-          error: "ACCOUNT_RESTRICTED",
-          reason: "TOOL_USAGE_VALIDATION_FAILED",
+          error: "TOOL_USAGE_REQUIRES_REVIEW",
           supportAvailable: true,
-        }, 423);
+        }, 409);
       }
       if (message.includes("GAME_SESSION_NOT_FOUND")) {
         return jsonResponse({ error: "GAME_SESSION_NOT_FOUND" }, 404);
