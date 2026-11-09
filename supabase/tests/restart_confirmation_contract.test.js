@@ -48,7 +48,7 @@ test("Restart confirmation strings exist in English and Traditional Chinese", ()
 
 test("Supabase restart endpoint delegates settlement and start to one database RPC", () => {
   const edge = read("supabase/functions/restart-game-session/index.ts");
-  const migration = read("supabase/migrations/20261106090000_restart_does_not_debit_life.sql");
+  const migration = read("supabase/migrations/20261109113000_restart_idempotency_payload_guard.sql");
 
   assert.match(edge, /rpc\(["']restart_game_session["']/);
   assert.match(migration, /public\.abandon_game_session\(/);
