@@ -166,6 +166,7 @@ class PlayerProgressService {
     bool replaceActiveSession = false,
     bool retryAfterPendingFailure = false,
     required List<dynamic> initialTiles,
+    Map<String, dynamic>? initialSave,
   }) async {
     final user = SupabaseBackend.client.auth.currentUser;
     if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
@@ -188,11 +189,39 @@ class PlayerProgressService {
     if (!LifeManager.optimisticConsumeLife()) return false;
 
     final operationGeneration = ++_sessionOperationGeneration;
+    final previousSessionId = _activeGameSessionId;
+    final gameId = _newUuid();
+    final requestId = _newUuid();
+
+    if (initialSave != null) {
+      final previousBinding = SaveManager.gameSessionId;
+      try {
+        // Persist and bind the new board before the request. If the app closes
+        // after the server commits but before its response, startup can match
+        // this snapshot to the server's active game ID.
+        await SaveManager.setGameSessionId(gameId);
+        final candidateSave = Map<String, dynamic>.from(initialSave)
+          ..['gameSessionId'] = gameId;
+        await SaveManager.save(candidateSave);
+      } catch (_) {
+        if (previousBinding == null) {
+          await SaveManager.clearGameSessionId();
+        } else {
+          await SaveManager.setGameSessionId(previousBinding);
+        }
+        await LifeManager.refreshFromServer().catchError((_) {});
+        return false;
+      }
+    }
+
     final pending = _startGameSessionOnServer(
       chapterIndex,
       replaceActiveSession: replaceActiveSession,
       initialTiles: initialTiles,
       operationGeneration: operationGeneration,
+      requestId: requestId,
+      gameId: gameId,
+      previousSessionId: previousSessionId,
     );
     _pendingStartSession = pending;
     unawaited(pending.whenComplete(() {
@@ -209,12 +238,13 @@ class PlayerProgressService {
     required bool replaceActiveSession,
     required List<dynamic> initialTiles,
     required int operationGeneration,
+    required String requestId,
+    required String gameId,
+    required String? previousSessionId,
   }) async {
-    final previousSessionId = _activeGameSessionId;
-    final gameId = _newUuid();
     try {
       final result = await SupabaseGameSessionService.startGameSession(
-        requestId: _newUuid(),
+        requestId: requestId,
         gameId: gameId,
         chapterCode: 'C${chapterIndex + 1}',
         previousGameId: replaceActiveSession ? previousSessionId : null,
@@ -239,6 +269,10 @@ class PlayerProgressService {
       return committed;
     }
   }
+
+  /// Resolves the server-side result for the local-first start operation.
+  /// The caller may await this without delaying the initial local board save.
+  Future<bool> waitForPendingStartSession() => _awaitPendingStartSession();
 
   Future<bool> _awaitPendingStartSession() async {
     final pending = _pendingStartSession;
