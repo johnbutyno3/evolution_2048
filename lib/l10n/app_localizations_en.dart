@@ -296,7 +296,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restartConfirmMessage =>
-      'Start a new board? One Life will be consumed.';
+      'Replace the current board? No additional Life will be charged.';
 
   @override
   String get restart => 'Restart';
