@@ -38,7 +38,7 @@ test("Restart confirmation strings exist in English and Traditional Chinese", ()
   const enDart = read("lib/l10n/app_localizations_en.dart");
   const zhDart = read("lib/l10n/app_localizations_zh.dart");
 
-  for (const key of ["restartConfirmTitle", "restartConfirmMessage", "restart", "restartFailed"]) {
+  for (const key of ["restartConfirmTitle", "restartConfirmMessage", "restart", "restartFailed", "restartPending"]) {
     assert.equal(typeof enArb[key], "string", `English ARB missing ${key}`);
     assert.equal(typeof zhArb[key], "string", `Traditional Chinese ARB missing ${key}`);
     assert.match(enDart, new RegExp(`String get ${key}\\b`));
