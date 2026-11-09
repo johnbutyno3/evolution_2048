@@ -35,6 +35,7 @@ class SupabaseAccountSnapshot {
     required this.tools,
     required this.serverTime,
     required this.activeGameId,
+    required this.activeGameRequestId,
     required this.activeChapterCode,
     required this.chapterProgress,
   });
@@ -52,6 +53,7 @@ class SupabaseAccountSnapshot {
   final Map<String, int> tools;
   final DateTime serverTime;
   final String? activeGameId;
+  final String? activeGameRequestId;
   final String? activeChapterCode;
   final Map<String, Map<String, int>> chapterProgress;
 
@@ -175,10 +177,12 @@ class SupabaseAccountSnapshot {
     }
 
     String? activeGameId;
+    String? activeGameRequestId;
     String? activeChapterCode;
     if (rawActiveSession != null) {
       if (rawActiveSession is! Map ||
           rawActiveSession['gameId'] is! String ||
+          rawActiveSession['requestId'] is! String ||
           rawActiveSession['chapterCode'] is! String ||
           !const {'C1', 'C2', 'C3', 'C4', 'C5', 'C6'}.contains(rawActiveSession['chapterCode'])) {
         throw const SupabaseAccountException(
@@ -187,6 +191,7 @@ class SupabaseAccountSnapshot {
         );
       }
       activeGameId = rawActiveSession['gameId'] as String;
+      activeGameRequestId = rawActiveSession['requestId'] as String;
       activeChapterCode = rawActiveSession['chapterCode'] as String;
     }
 
@@ -226,6 +231,7 @@ class SupabaseAccountSnapshot {
       tools: Map.unmodifiable(tools),
       serverTime: serverTime,
       activeGameId: activeGameId,
+      activeGameRequestId: activeGameRequestId,
       activeChapterCode: activeChapterCode,
       chapterProgress: Map.unmodifiable(chapterProgress),
     );
