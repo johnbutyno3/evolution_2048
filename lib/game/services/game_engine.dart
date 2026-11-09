@@ -135,9 +135,9 @@ class GameEngine {
   /// Stop the game timer permanently.
   ///
   /// Used for Game Over and Chapter Complete.
-  void stopGameTimer() {
+  void stopGameTimer({bool persist = true}) {
     _stopGameTimer();
-    _saveLocal();
+    if (persist) _saveLocal();
   }
 
   void _stopGameTimer() {
