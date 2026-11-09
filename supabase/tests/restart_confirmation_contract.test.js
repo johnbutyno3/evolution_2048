@@ -262,6 +262,7 @@ test("Restart idempotency validates the prior session and abandon event before s
   assert.match(migration, /v_existing_event\.game_id <> p_previous_game_id/);
   assert.match(migration, /v_existing_event\.event_type <> 'SESSION_ABANDON'/);
   assert.match(migration, /v_existing_event\.payload is distinct from p_abandon_payload/);
+  assert.match(migration, /else[\s\S]*?where user_id = p_user_id and event_id = p_abandon_event_id[\s\S]*?if found then[\s\S]*?IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD/);
   assert.match(migration, /IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD/);
 });
 
