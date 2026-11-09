@@ -668,6 +668,12 @@ abstract class AppLocalizations {
   /// **'Unable to restart. Check your Life and try again.'**
   String get restartFailed;
 
+  /// No description provided for @restartPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart is still syncing. Return to Home and reopen this chapter when connected.'**
+  String get restartPending;
+
   /// No description provided for @cancel.
   ///
   /// In en, this message translates to:
