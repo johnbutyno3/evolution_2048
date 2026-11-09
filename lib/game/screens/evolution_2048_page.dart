@@ -281,18 +281,26 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // A BACK action pauses the exact session while keeping its local
       // snapshot. Returning to this chapter later resumes that session
       // without consuming another Life.
-      final pausedSaved = SaveManager.loadCached(
+      final cachedPausedSaved = SaveManager.loadCached(
         chapter: _engine.chapter.name,
       );
-      if (activeSessionId == null &&
-          pausedSaved != null &&
-          (pausedSaved['gameOver'] == true ||
-              pausedSaved['chapterComplete'] == true)) {
-        // The server snapshot is authoritative: no ACTIVE session means the
-        // retained terminal board is only an uncollected local cleanup.
+      final orphanedLocalSession = activeSessionId == null &&
+          cachedPausedSaved != null &&
+          cachedPausedSaved['gameSessionId'] is String &&
+          cachedPausedSaved['gameOver'] != true &&
+          cachedPausedSaved['chapterComplete'] != true;
+      if (orphanedLocalSession ||
+          (activeSessionId == null &&
+              cachedPausedSaved != null &&
+              (cachedPausedSaved['gameOver'] == true ||
+                  cachedPausedSaved['chapterComplete'] == true))) {
+        // No server-owned ACTIVE session means this local board is no longer
+        // resumable. This also discards an uncommitted candidate left by a
+        // next-chapter start that was interrupted before its RPC committed.
         await SaveManager.clearChapter(_engine.chapter.name);
         settledGameOver = true;
       }
+      final pausedSaved = orphanedLocalSession ? null : cachedPausedSaved;
       final pausedSessionId = pausedSaved != null &&
               pausedSaved['gameSessionId'] is String &&
               pausedSaved['gameOver'] != true &&
