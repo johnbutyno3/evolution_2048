@@ -347,9 +347,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // session-use overlay must not leak into this new board.
       ToolManager.clearSessionUsage();
 
-      // New game: construct the exact board first and start Supabase
-      // validation in the background. startGameSession performs the
-      // optimistic local Life transition.
+      // New game: prepare and persist the exact board locally before the
+      // background Supabase request. This is a local write, not a network wait.
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
@@ -360,12 +359,24 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final initialTiles = newReplay is Map && newReplay['initialTiles'] is List
           ? List<dynamic>.from(newReplay['initialTiles'] as List)
           : const <dynamic>[];
+      final previousEngine = _engine;
 
-      final startedFuture = progress.startGameSession(
+      final locallyStarted = await progress.startGameSession(
         _chapterNumber - 1,
         initialTiles: initialTiles,
+        initialSave: newSave,
       );
-      final previousEngine = _engine;
+      if (!locallyStarted ||
+          !mounted ||
+          generation != _gameSessionGeneration) {
+        ToolManager.restoreSessionUsageFromReplayLog(
+          previousEngine.createSaveData()['replayLog'],
+        );
+        previousEngine.toolManager.refreshFromSavedProgress();
+        return false;
+      }
+
+      final startedFuture = progress.waitForPendingStartSession();
       _engine.stopGameTimer();
       _engine = newEngine;
       newEngine.startGameTimer();
@@ -374,28 +385,36 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
       unawaited(
         startedFuture.then((started) async {
-          if (!started || !mounted || generation != _gameSessionGeneration) {
-            if (mounted && generation == _gameSessionGeneration) {
-              newEngine.stopGameTimer();
-              await newEngine.flushLocalSave();
-              ToolManager.restoreSessionUsageFromReplayLog(
-                previousEngine.createSaveData()['replayLog'],
-              );
-              previousEngine.toolManager.refreshFromSavedProgress();
-              _engine = previousEngine;
-              previousEngine.startGameTimer();
-              _startUiRefreshTimer();
-              setState(() {});
-            }
+          if (!mounted || generation != _gameSessionGeneration) return;
+          if (!started) {
+            // The server authoritatively rejected the start. The refresh has
+            // restored the previous session binding, so the candidate board
+            // can be discarded without overwriting the old snapshot.
+            newEngine.stopGameTimer(persist: false);
+            await LifeManager.refreshFromServer().catchError((_) {});
+            ToolManager.restoreSessionUsageFromReplayLog(
+              previousEngine.createSaveData()['replayLog'],
+            );
+            previousEngine.toolManager.refreshFromSavedProgress();
+            await SaveManager.save(previousEngine.createSaveData());
+            _engine = previousEngine;
+            previousEngine.startGameTimer();
+            _startUiRefreshTimer();
+            setState(() {});
             return;
           }
-          // startGameSession has now bound SaveManager to the new server
-          // session. Persist the visible board again with that binding so
-          // re-entry cannot fall back to the previous snapshot.
+
+          // The server has confirmed this session. The candidate snapshot was
+          // already persisted before the request; write the current timer and
+          // latest board state with the now-authoritative binding.
           await newEngine.flushLocalSave();
           await SaveManager.save(newEngine.createSaveData());
           unawaited(_refreshMountedToolInventory(generation));
-        }).catchError((_) {}),
+        }).catchError((_) {
+          // Unknown network outcome: keep the locally persisted board. If the
+          // server committed, bootstrap will match it by game ID; if not, the
+          // account refresh will reject this orphaned local session.
+        }),
       );
       return true;
     } catch (error) {
