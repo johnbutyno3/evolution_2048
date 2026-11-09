@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, "../..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 test("chapter completion atomically validates, settles, unlocks, and refunds Life once", () => {
-  const migration = read("supabase/migrations/20261028120000_finish_game_chapter_rpc.sql");
+  const migration = read("supabase/migrations/20261109130000_carry_life_debit_across_restarts.sql");
   const edge = read("supabase/functions/finish-game-chapter/index.ts");
 
   const duplicateLookup = migration.indexOf("where user_id = p_user_id and event_id = p_event_id");
