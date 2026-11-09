@@ -11,7 +11,7 @@ export async function recordSecurityEvent(
   reason: string,
   message: string,
 ): Promise<boolean> {
-  const { error } = await service.from("security_events").insert({
+  const { error } = await service.from("security_events").upsert({
     user_id: userId,
     game_id: gameId,
     idempotency_key: `${eventId}:${reason}`,
