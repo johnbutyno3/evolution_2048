@@ -312,14 +312,23 @@ class PlayerProgressService {
 
     try {
       final tiles = _initialBoard(initialTiles);
-      // Persist a prospective replacement in the inactive snapshot slot before
-      // the network request. The previous committed slot remains untouched.
-      // On the next bootstrap, the server's active game ID selects the correct
-      // snapshot whether this transaction committed or not.
-      await SaveManager.saveCandidateForSession(
-        replacementSave,
-        sessionId: gameId,
-      );
+      // Persist the replacement board before contacting Supabase. The
+      // previous board remains in the other A/B slot. Bootstrap later selects
+      // whichever snapshot matches the server-owned active game ID.
+      final previousBinding = SaveManager.gameSessionId;
+      await SaveManager.setGameSessionId(gameId);
+      final candidateSave = Map<String, dynamic>.from(replacementSave)
+        ..['gameSessionId'] = gameId;
+      try {
+        await SaveManager.save(candidateSave);
+      } catch (_) {
+        if (previousBinding == null) {
+          await SaveManager.clearGameSessionId();
+        } else {
+          await SaveManager.setGameSessionId(previousBinding);
+        }
+        return RestartGameSessionResult.rejected;
+      }
 
       final Map<String, dynamic> result;
       if (previousGameId == null) {
