@@ -625,6 +625,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // from the server's active-session ID.
           newEngine.stopGameTimer();
           _stopUiRefreshTimer();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.restartPending),
+            ),
+          );
           setState(() {});
           return;
         }
@@ -1024,6 +1029,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           // refresh can determine which session actually committed.
           newEngine.stopGameTimer();
           _stopUiRefreshTimer();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.restartPending),
+            ),
+          );
           setState(() {});
           return;
         }
