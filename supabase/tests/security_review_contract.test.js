@@ -24,7 +24,7 @@ test("replay and tool settlement discrepancies are recorded for review, not auto
   assert.match(finish, /replay_validation_failed/);
   assert.match(finish, /REPLAY_VALIDATION_FAILED/);
   assert.match(finish, /}, 409\)/);
-  assert.match(helper, /idempotency_key: `${eventId}:${reason}`/);
+  assert.match(helper, /idempotency_key: `\$\{eventId\}:\$\{reason\}`/);
   assert.match(helper, /onConflict: "user_id,idempotency_key"/);
   assert.match(helper, /ignoreDuplicates: true/);
   assert.match(migration, /add column if not exists idempotency_key text/);
