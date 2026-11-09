@@ -122,6 +122,20 @@ class PlayerProgressService {
             _sessionIdentityGeneration.isCurrent(generation) &&
             _activeGameSessionId == null);
       } else {
+        // Both A/B slots may contain a valid board: one can be a prospective
+        // replacement written just before a restart RPC. Select only the slot
+        // whose session ID matches the authoritative server pointer.
+        if (activeChapter != null) {
+          try {
+            await SaveManager.restoreSnapshotForSession(
+              chapter: _chapterNames[activeChapter],
+              sessionId: activeId,
+            );
+          } catch (_) {
+            // Keep account refresh authoritative; game entry will fail closed
+            // if no matching local snapshot can be recovered.
+          }
+        }
         await SaveManager.setGameSessionIdIf(activeId, () =>
             _sessionIdentityGeneration.isCurrent(generation) &&
             _activeGameSessionId == activeId);
