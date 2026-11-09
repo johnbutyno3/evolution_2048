@@ -125,6 +125,15 @@ begin
   if not found then
     raise exception using errcode = 'P0002', message = 'GAME_SESSION_NOT_FOUND';
   end if;
+  if v_life_debit_ledger_id is null then
+    select id into v_life_debit_ledger_id
+      from public.life_ledger
+      where user_id = p_user_id
+        and game_id = p_previous_game_id
+        and reason = 'NEW_GAME_DEBIT'
+      order by created_at desc
+      limit 1;
+  end if;
 
   v_abandon_result := public.abandon_game_session(
     p_user_id,
