@@ -45,6 +45,7 @@ test("a failed GameEngine autosave does not permanently poison later saves", () 
   const method = source.slice(start, end);
   assert.match(method, /_saveQueue = _saveQueue\.then\(/);
   assert.match(method, /\(_, _\) => SaveManager\.save\(snapshot\)/);
+});
 
 test("a first local game board is persisted and bound before background session creation", () => {
   const service = read("lib/services/player_progress_service.dart");
@@ -64,6 +65,4 @@ test("a first local game board is persisted and bound before background session 
   assert.match(screen, /initialSave: newSave/);
   assert.match(screen, /await progress\.startGameSession\(/);
   assert.match(screen, /progress\.waitForPendingStartSession\(\)/);
-});
-
 });
