@@ -146,5 +146,6 @@
   "restartConfirmTitle": "重新開始遊戲？",
   "restartConfirmMessage": "確定要建立新棋盤嗎？將消耗 1 點生命。",
   "restart": "重新開始",
-  "restartFailed": "無法重新開始，請確認生命數量後再試一次。"
+  "restartFailed": "無法重新開始，請確認生命數量後再試一次。",
+  "restartPending": "重新開始仍在同步中。請返回首頁，連線恢復後再進入本章。"
 }
