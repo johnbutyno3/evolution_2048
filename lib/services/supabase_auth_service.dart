@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../game/services/save_manager.dart';
@@ -18,7 +19,21 @@ class SupabaseAuthService {
 
   static User? get currentUser => _auth.currentUser;
 
-  static Stream<AuthState> get authStateChanges => _auth.onAuthStateChange;
+  /// Logs only event names and session presence; never tokens or credentials.
+  static Stream<AuthState> get authStateChanges =>
+      _auth.onAuthStateChange
+          .map((state) {
+            debugPrint(
+              '[AUTH_DIAG] event=${state.event.name} '
+              'session=${state.session != null} '
+              'user=${state.session?.user != null}',
+            );
+            return state;
+          })
+          .handleError((Object error, StackTrace stackTrace) {
+            debugPrint('[AUTH_DIAG] auth stream error: $error');
+            Error.throwWithStackTrace(error, stackTrace);
+          });
 
   static Future<AuthResponse> registerWithEmail({
     required String email,
@@ -59,12 +74,24 @@ class SupabaseAuthService {
   static Future<bool> signInWithOAuth({
     required OAuthProvider provider,
     required String redirectTo,
-  }) {
-    return _auth.signInWithOAuth(
-      provider,
-      redirectTo: redirectTo,
-      authScreenLaunchMode: LaunchMode.externalApplication,
+  }) async {
+    debugPrint(
+      '[AUTH_DIAG] OAuth start provider=${provider.name} '
+      'redirect=$redirectTo',
     );
+    try {
+      final started = await _auth.signInWithOAuth(
+        provider,
+        redirectTo: redirectTo,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+      debugPrint('[AUTH_DIAG] OAuth launch returned started=$started');
+      return started;
+    } catch (error, stackTrace) {
+      debugPrint('[AUTH_DIAG] OAuth launch failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   static Future<void> signOut() async {
