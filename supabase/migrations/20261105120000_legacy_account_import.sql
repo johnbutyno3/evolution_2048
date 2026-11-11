@@ -292,9 +292,9 @@ begin
       or coalesce(v_chapter ->> 'bestScore','') !~ '^(0|[1-9][0-9]*)$' then
       raise exception using errcode = '22023', message = 'INVALID_LEGACY_CHAPTER_PROGRESS';
     end if;
-    if (v_chapter ->> 'highestStage')::integer > case v_code
+    if (v_chapter ->> 'highestStage')::integer > (case v_code
         when 'C1' then 12 when 'C2' then 13 when 'C3' then 14
-        when 'C4' then 15 when 'C5' then 16 else 17 end
+        when 'C4' then 15 when 'C5' then 16 else 17 end)
       or (v_chapter ->> 'bestScore')::numeric > 9007199254740991 then
       raise exception using errcode = '22023', message = 'LEGACY_CHAPTER_PROGRESS_OUT_OF_RANGE';
     end if;
@@ -318,9 +318,9 @@ begin
       or coalesce(v_value ->> 'creatureValue','') !~ '^(2|4|8|16|32|64|128|256|512|1024|2048|4096|8192|16384|32768|65536|131072)$' then
       raise exception using errcode = '22023', message = 'INVALID_LEGACY_COLLECTION_ENTRY';
     end if;
-    if (v_value ->> 'creatureValue')::bigint > case v_code
+    if (v_value ->> 'creatureValue')::bigint > (case v_code
         when 'C1' then 4096 when 'C2' then 8192 when 'C3' then 16384
-        when 'C4' then 32768 when 'C5' then 65536 else 131072 end then
+        when 'C4' then 32768 when 'C5' then 65536 else 131072 end) then
       raise exception using errcode = '22023', message = 'LEGACY_COLLECTION_VALUE_EXCEEDS_CHAPTER_TARGET';
     end if;
     insert into public.creature_collection (user_id, chapter_code, creature_value)
