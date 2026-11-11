@@ -20,6 +20,9 @@ jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,13 +37,32 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Android debug APK
-        run: flutter build apk --debug
+      - name: Verify Supabase client configuration
+        shell: bash
+        run: |
+          if [[ -z "$SUPABASE_URL" ]]; then
+            echo "::error::GitHub Actions secret SUPABASE_URL is missing."
+            exit 1
+          fi
+          if [[ -z "$SUPABASE_PUBLISHABLE_KEY" ]]; then
+            echo "::error::GitHub Actions secret SUPABASE_PUBLISHABLE_KEY is missing."
+            exit 1
+          fi
+          if [[ "$SUPABASE_URL" != https://*.supabase.co ]]; then
+            echo "::error::SUPABASE_URL must be the HTTPS URL of the intended Supabase project."
+            exit 1
+          fi
+
+      - name: Build Android debug APK with Supabase
+        run: |
+          flutter build apk --debug \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
 
       - name: Upload installable debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: rebirth-2048-android-debug
+          name: rebirth-2048-android-supabase-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
