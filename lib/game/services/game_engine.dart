@@ -410,6 +410,18 @@ class GameEngine {
     gameOver = data['gameOver'] == true;
     chapterComplete = data['chapterComplete'] == true;
 
+    // Re-evaluate a restored board instead of trusting a possibly stale
+    // terminal flag. A full board with no legal merge must immediately enter
+    // Game Over after resume; otherwise the first rejected swipe would return
+    // before the page can show the terminal flow.
+    if (!chapterComplete && _isGameOver()) {
+      gameOver = true;
+    }
+    if (gameOver) {
+      _boardLifeActive = false;
+      _stopGameTimer();
+    }
+
     // Restore game time.
     _gameElapsedSeconds = max(0, _readInt(data['gameElapsedSeconds']));
 
