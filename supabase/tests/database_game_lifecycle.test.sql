@@ -81,7 +81,7 @@ begin
   select life_count into v_lives from public.life_wallets where user_id = v_user;
   if v_lives <> 5 then raise exception 'FAIL: chapter refund exceeded cap or reduced full wallet (got %)', v_lives; end if;
   select count(*) into v_count from public.life_ledger
-    where user_id = v_user and game_id = v_game and reason = 'CHAPTER_COMPLETE_REFUND';
+    where user_id = v_user and game_id = v_replacement and reason = 'CHAPTER_COMPLETE_REFUND';
   if v_count <> 1 then raise exception 'FAIL: expected exactly one completion refund, got %', v_count; end if;
 
   -- Same completion event returns the stored result; a new event cannot refund again.
