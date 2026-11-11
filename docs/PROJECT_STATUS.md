@@ -1,11 +1,11 @@
 # Rebirth 2048 — Project Status
 
-最後更新：2026-11-09
+最後更新：2026-11-11
 專案：`johnbutyno3/evolution_2048`
 主要分支：`feature/chapter1-spec-implementation`
-目前提交：`3eb3bdd7b23bf7433b6215c54141f9fbaf20e13b`
+目前程式驗證提交：`3728f004b8c9bdea5260b5c60f291630c8566fef`
 版本權威：GitHub 此分支最新已提交內容。
-目前已完成本機 A/B 快照與 Session 對應復原、Restart／Life debit carry-forward、每日 Gold 時區競態修正、工具購買及安全事件合約測試；尚未執行實際測試、Supabase migration 或部署。
+目前已完成本機 A/B 快照與 Session 對應復原、Restart／Life debit carry-forward、每日 Gold 時區競態修正、工具購買及安全事件合約測試；另已修正恢復滿盤無合法合併棋盤時未即時標記 Game Over 的邊界問題。2026-11-11 的 GitHub CI 已通過 Flutter Analyze、37 項 Flutter tests、Supabase source contract tests 及三項後端 Audit workflow；仍未執行 production Supabase migration 或部署。
 
 > 本文件只記錄可由目前 GitHub 原始碼確認的狀態。未執行的測試、部署及實機驗證不標示為完成。
 
@@ -51,6 +51,14 @@ Firebase 已不再是 Flutter app 的目標 runtime backend。Supabase 是新帳
 - `pubspec.lock` 搜尋仍見 Firebase platform-interface 套件項目；需在可用 Flutter 環境執行 `flutter pub get` 後確認 lockfile 是否自然清除。
 
 在 Firebase Auth 使用者匯出、身份 mapping、Supabase import、筆數與權益核對完成前，不得刪除 Firebase Auth 帳戶、Firestore 資料、舊 Cloud Functions 或匯出所需設定。不得把 Firebase 舊 runtime 當作新功能開發目標。
+
+## 2026-11-11 存檔恢復與 Game Over 補強
+
+- 修正 `test/save_manager_recovery_test.dart` 的 legacy save fixture：補齊帳戶範圍 Session ID，並讓 session recovery 使用正式規定的 16 格棋盤；沒有放寬正式存檔驗證。
+- `GameEngine.restoreFromSaveData()` 在還原棋盤後重新檢查滿盤及合法合併狀態。若存檔 Game Over flag 過期，但棋盤已無合法移動，會立即標記 Game Over、停止計時並清除該盤 Life active 標記。
+- 新增 `test/game_engine_restore_test.dart`，覆蓋滿盤無合併與滿盤仍有合併兩種情境。
+- 最新程式提交 `3728f004b8c9bdea5260b5c60f291630c8566fef` 的 GitHub Actions：Flutter Analyze、Supabase Audit、Security Audit Migration、Functions Audit 全數成功；Flutter tests 37 passed，Supabase source contract tests 成功。
+- 詳細封存：`docs/Rebirth_2048_專案進度202611110945_後續.md`。
 
 ## 仍未完成／尚未驗證
 
