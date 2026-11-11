@@ -9,6 +9,18 @@
 
 > 本文件只記錄可由目前 GitHub 原始碼確認的狀態。未執行的測試、部署及實機驗證不標示為完成。
 
+## 2026-11-11 資料庫整合驗證結案（最新）
+
+- 最新進度封存：`docs/Rebirth_2048_專案進度202611111015_資料庫整合驗證通過.md`。
+- 程式驗證提交：`91911aaa0dc42a75cf71ac71f56860b857a375fe`；文件封存提交：`2ae6533656aa1e67c395f3b86f8591cc7c7fa8b4`。
+- GitHub Actions 的 Supabase Database Integration（run `42944200807`）已成功：Supabase local stack 啟動、空白資料庫 `supabase db reset`、所有 migrations 套用及 `supabase test db` 全部成功；pgTAP 輸出 `All tests successful`、`Result: PASS`。
+- 整合測試涵蓋 FREE 新局扣命、Restart 不重扣、Life debit ledger 延續、Restart 冪等與 payload 防重、章節完成補命上限及只補一次、不同完成 event 拒絕、未解鎖章節 Restart 失敗時完整 rollback。
+- 同一程式提交的 Flutter Analyze、Supabase Audit、Security Audit Migration、Functions Audit 亦全部成功。
+- 本輪資料庫測試階段已結案，不再為追求更多測試而重開；後續只針對正式部署或 APK 實機驗證發現的具體阻斷問題修正。
+- **此 CI 僅使用 disposable local Supabase，不能視為正式 Supabase project migration / Edge Function deployment 已完成。** Firebase 舊帳戶遷移、正式付款驗證、APK 與實機驗收仍未完成。
+
+上述最新結案狀態優先於本文件較早段落中「PostgreSQL integration 尚待執行」及「下一步先做資料庫整合測試」的歷史記錄；那些段落保留作為當時狀態，不再代表目前待辦。
+
 ## 目前階段
 
 **Supabase client cutover → Economy / Session rule alignment → Legacy account export & reconciliation → Backend deployment / integration QA → Device QA**
