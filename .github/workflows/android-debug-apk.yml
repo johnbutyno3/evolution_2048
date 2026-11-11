@@ -48,8 +48,12 @@ jobs:
             echo "::error::GitHub Actions secret SUPABASE_PUBLISHABLE_KEY is missing."
             exit 1
           fi
-          if [[ "$SUPABASE_URL" != https://*.supabase.co ]]; then
-            echo "::error::SUPABASE_URL must be the HTTPS URL of the intended Supabase project."
+          if [[ "$SUPABASE_URL" != "https://imwgwdfqhhihdvrpkgwx.supabase.co" ]]; then
+            echo "::error::SUPABASE_URL must point to the Rebirth 2048 Supabase project."
+            exit 1
+          fi
+          if [[ "$SUPABASE_PUBLISHABLE_KEY" != sb_publishable_* ]]; then
+            echo "::error::SUPABASE_PUBLISHABLE_KEY must be a Supabase publishable key (sb_publishable_...)."
             exit 1
           fi
 
