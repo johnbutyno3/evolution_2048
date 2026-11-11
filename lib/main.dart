@@ -25,6 +25,10 @@ Future<void> main() async {
   if (!supabaseReady) {
     throw StateError('SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are required.');
   }
+  debugPrint(
+    '[AUTH_DIAG] Supabase initialized '
+    'sessionPresent=${SupabaseAuthService.currentSession != null}',
+  );
 
   // Supabase restores its persisted session before the auth router is built.
   await SaveManager.initialize();
@@ -44,8 +48,21 @@ class Rebirth2048App extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: SupabaseAuthService.authStateChanges,
       builder: (context, snapshot) {
+        final currentSession = SupabaseAuthService.currentSession;
+        debugPrint(
+          '[AUTH_DIAG] router state=${snapshot.connectionState.name} '
+          'hasData=${snapshot.hasData} '
+          'event=${snapshot.data?.event.name ?? "none"} '
+          'streamError=${snapshot.hasError} '
+          'sessionPresent=${currentSession != null} '
+          'snapshotSession=${snapshot.data?.session != null}',
+        );
+        if (snapshot.hasError) {
+          debugPrint('[AUTH_DIAG] router stream error: ${snapshot.error}');
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting &&
-            SupabaseAuthService.currentSession == null) {
+            currentSession == null) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
