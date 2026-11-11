@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rebirth_2048/game/models/game_tile.dart';
 import 'package:rebirth_2048/game/services/game_engine.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
 
