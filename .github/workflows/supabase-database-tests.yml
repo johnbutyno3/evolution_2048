@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - feature/chapter1-spec-implementation
+    paths:
+      - 'supabase/**'
   pull_request:
     branches:
       - feature/chapter1-spec-implementation
+    paths:
+      - 'supabase/**'
 
 jobs:
   database-integration:
