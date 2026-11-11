@@ -6,6 +6,7 @@ import 'package:rebirth_2048/game/services/save_manager.dart';
 
 const _accountId = '11111111-1111-4111-8111-111111111111';
 const _accountSaveKey = 'rebirth_2048_local_save_v1_$_accountId';
+const _accountSessionKey = 'rebirth_2048_game_session_id_v1_$_accountId';
 
 Map<String, dynamic> _save(int tile) => <String, dynamic>{
       'chapter': 'C1',
@@ -92,6 +93,7 @@ void main() {
   test('loads the legacy single-key save and migrates it on the next write', () async {
     await SaveManager.unbindAccountScope();
     final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_accountSessionKey, 'session-1');
     await preferences.setString(
       _accountSaveKey,
       jsonEncode(<String, dynamic>{
@@ -125,16 +127,19 @@ void main() {
     await SaveManager.save(<String, dynamic>{
       'chapter': 'C1',
       'gameSessionId': 'session-old',
-      'tiles': <int>[2, 0, 0, 0],
+      'tiles': List<int>.generate(16, (index) => index == 0 ? 2 : 0),
     });
 
     await SaveManager.setGameSessionId('session-new');
     await SaveManager.save(<String, dynamic>{
       'chapter': 'C1',
       'gameSessionId': 'session-new',
-      'tiles': <int>[4, 0, 0, 0],
+      'tiles': List<int>.generate(16, (index) => index == 0 ? 4 : 0),
     });
-    expect(SaveManager.loadCached(chapter: 'C1')?['tiles'], <int>[4, 0, 0, 0]);
+    expect(
+      SaveManager.loadCached(chapter: 'C1')?['tiles'],
+      List<int>.generate(16, (index) => index == 0 ? 4 : 0),
+    );
 
     expect(
       await SaveManager.restoreSnapshotForSession(
@@ -144,7 +149,10 @@ void main() {
       isTrue,
     );
     expect(SaveManager.gameSessionId, 'session-old');
-    expect(SaveManager.loadCached(chapter: 'C1')?['tiles'], <int>[2, 0, 0, 0]);
+    expect(
+      SaveManager.loadCached(chapter: 'C1')?['tiles'],
+      List<int>.generate(16, (index) => index == 0 ? 2 : 0),
+    );
 
     expect(
       await SaveManager.restoreSnapshotForSession(
@@ -154,7 +162,10 @@ void main() {
       isTrue,
     );
     expect(SaveManager.gameSessionId, 'session-new');
-    expect(SaveManager.loadCached(chapter: 'C1')?['tiles'], <int>[4, 0, 0, 0]);
+    expect(
+      SaveManager.loadCached(chapter: 'C1')?['tiles'],
+      List<int>.generate(16, (index) => index == 0 ? 4 : 0),
+    );
   });
 
 }
