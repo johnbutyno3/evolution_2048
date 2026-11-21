@@ -70,7 +70,10 @@ class Rebirth2048App extends StatelessWidget {
 
         final user = snapshot.data?.session?.user ??
             SupabaseAuthService.currentUser;
-        if (snapshot.hasError || user == null) {
+        // A transient auth-stream error must not discard an already restored
+        // valid Supabase session. Route by the authoritative current session;
+        // when no user exists, keep the login page visible.
+        if (user == null) {
           return const LoginRegisterPage();
         }
 
