@@ -57,6 +57,12 @@ jobs:
             exit 1
           fi
 
+      - name: Analyze Flutter source
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
       - name: Build Android debug APK with Supabase
         run: |
           flutter build apk --debug \
