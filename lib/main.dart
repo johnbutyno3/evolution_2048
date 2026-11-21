@@ -36,12 +36,20 @@ Future<void> main() async {
   runApp(const Rebirth2048App());
 }
 
-class Rebirth2048App extends StatelessWidget {
+class Rebirth2048App extends StatefulWidget {
   const Rebirth2048App({super.key});
+
+  @override
+  State<Rebirth2048App> createState() => _Rebirth2048AppState();
+}
+
+class _Rebirth2048AppState extends State<Rebirth2048App> {
 
   Widget _home() {
     if (!SaveManager.hasCompletedOnboarding) {
-      return const OnboardingPage();
+      return OnboardingPage(onCompleted: () {
+        if (mounted) setState(() {});
+      });
     }
 
     // Wait for Supabase Auth to restore its persisted session before routing.
