@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../game/services/audio_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../game/services/save_manager.dart';
-import 'login_register_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key, this.onCompleted});
