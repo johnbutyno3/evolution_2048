@@ -8,7 +8,9 @@ import '../game/services/save_manager.dart';
 import 'login_register_page.dart';
 
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key});
+  const OnboardingPage({super.key, this.onCompleted});
+
+  final VoidCallback? onCompleted;
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -62,9 +64,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     if (!mounted) return;
 
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginRegisterPage()));
+    widget.onCompleted?.call();
   }
 
   @override
