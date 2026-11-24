@@ -703,7 +703,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shopParametersSaved => '商城參數已儲存。';
 
   @override
-  String shopParametersSaveFailed(Object error) => '無法儲存商城參數：$error';
+  String get shopParametersSaveFailed => '無法儲存商城參數，請確認網路後重試。';
 
   @override
   String get goldPackagesUsd => '金幣方案（美元）';
@@ -724,7 +724,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get qaMigrationPending => '常見問題管理功能將於後續版本遷移至 Supabase。';
 
   @override
-  String unableLoadMessages(Object error) => '無法載入訊息：$error';
+  String get unableLoadMessages => '無法載入玩家訊息，請確認網路後重試。';
 
   @override
   String get noPlayerMessages => '目前沒有玩家訊息。';
@@ -821,4 +821,52 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get simulatorApplied => '本機測試購買已套用。這不是真實交易。';
+
+  @override
+  String get authConfirmEmail => '請先查看電子郵件並完成帳號驗證，再登入。';
+
+  @override
+  String get authProviderUnavailable => '無法開啟第三方登入服務。';
+
+  @override
+  String get adminGold300Usd => '300 金幣（美元）';
+
+  @override
+  String get adminGold1000Usd => '1,000 金幣（美元）';
+
+  @override
+  String get adminGold4000Usd => '4,000 金幣（美元）';
+
+  @override
+  String get adminGold10000Usd => '10,000 金幣（美元）';
+
+  @override
+  String get adminPremiumUsd => 'Premium 會員價格（美元）';
+
+  @override
+  String get adminGoldenUsd => 'Golden 會員價格（美元）';
+
+  @override
+  String get adminGoldenUpgradeUsd => 'Premium 升級 Golden 價格（美元）';
+
+  @override
+  String get adminOneUseGoldPrice => '1 次使用・金幣價格';
+
+  @override
+  String get adminFiveUsesGoldPrice => '5 次使用・金幣價格';
+
+  @override
+  String get adminTwentyUsesGoldPrice => '20 次使用・金幣價格';
+
+  @override
+  String get adminFiftyUsesGoldPrice => '50 次使用・金幣價格';
+
+  @override
+  String get uidLabel => '玩家 UID';
+
+  @override
+  String get statusOpen => '開啟';
+
+  @override
+  String get statusClosed => '已關閉';
 }
