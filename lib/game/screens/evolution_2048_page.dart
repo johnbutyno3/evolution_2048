@@ -763,7 +763,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
     if (!toolState.canUse) { if (!mounted) return; if (mode == 'rewind') { await _showToolUnavailable(_toolLabel(GameToolType.timeRewind)); return; } Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) async { await ToolManager.refreshInventory(); if (!mounted) return; _engine.toolManager.refreshFromSavedProgress(); setState(() {}); }); return; }
-    if (mode == 'rewind') { if (!_engine.canUseTimeRewind) { await _showToolUnavailable('UNDO'); return; } if (_engine.useTimeRewind()) setState(() {}); _focusNode.requestFocus(); return; }
+    if (mode == 'rewind') { if (!_engine.canUseTimeRewind) { await _showToolUnavailable(_toolLabel(GameToolType.timeRewind)); return; } if (_engine.useTimeRewind()) setState(() {}); _focusNode.requestFocus(); return; }
     setState(() { _toolMode = mode; _firstSwapIndex = null; });
   }
   Future<void> _showToolUnavailable(String toolName) async {
