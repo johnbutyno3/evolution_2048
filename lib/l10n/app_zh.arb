@@ -296,5 +296,52 @@
   "faqQuestion5": "進化道具有什麼功能？",
   "faqAnswer5": "撤銷可回復上一步；移除可移除指定生物；交換可對調兩個生物的位置；複製可複製指定生物。",
   "faqQuestion6": "如何回報問題？",
-  "faqAnswer6": "進入個人資訊頁的「聯絡我們／意見回饋」，選擇「錯誤回報」，描述問題後即可傳送給開發團隊。"
+  "faqAnswer6": "進入個人資訊頁的「聯絡我們／意見回饋」，選擇「錯誤回報」，描述問題後即可傳送給開發團隊。",
+  "simulatorTitle": "本機模擬購買",
+  "simulatorNotice": "僅供除錯測試。變更只存在本機且為暫時狀態；下次同步帳號時會被伺服器資料取代。本功能不會進行真實付款。",
+  "simulatePremium": "模擬購買 Premium",
+  "simulateGolden": "模擬購買 Golden",
+  "simulateGold": "模擬購買 300 金幣",
+  "simulateUndo": "模擬購買 UNDO ×1",
+  "simulateRemove": "模擬購買 REMOVE ×1",
+  "simulateSwap": "模擬購買 SWAP ×1",
+  "simulateDuplicate": "模擬購買 DUPLICATE ×1",
+  "simulatorCurrentState": "目前本機測試狀態",
+  "simulatorDebugOnly": "模擬購買功能僅能在除錯版本使用。",
+  "simulatorMembership": "會員資格：{tier}",
+  "simulatorLives": "生命：{count}",
+  "simulatorGold": "金幣：{count}",
+  "simulatorToolUses": "{tool}：{count}",
+  "simulatorApplied": "本機測試購買已套用。這不是真實交易。",
+  "@simulatorMembership": {
+    "placeholders": {
+      "tier": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorLives": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorGold": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorToolUses": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      },
+      "count": {
+        "type": "Object"
+      }
+    }
+  }
 }
