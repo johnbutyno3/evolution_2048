@@ -91,7 +91,7 @@
   "aboutGameSubtitle": "Creator, music, assets and third-party services",
   "logOut": "Log Out",
   "logoutConfirm": "Are you sure you want to log out of your account?",
-  "cancel": "Cancel",
+  "cancel": "CANCEL",
   "chooseAvatar": "Choose your avatar",
   "save": "Save",
   "loading": "Loading...",
@@ -465,6 +465,15 @@
         "type": "Object"
       },
       "highest": {
+        "type": "Object"
+      }
+    }
+  },
+  "toolUsed": "USED",
+  "toolUsesRemaining": "{count} USE",
+  "@toolUsesRemaining": {
+    "placeholders": {
+      "count": {
         "type": "Object"
       }
     }
