@@ -1078,6 +1078,18 @@ abstract class AppLocalizations {
   String get playerMessage;
   String get openStatus;
   String get testControlsTitle;
+  String get faqQuestion1;
+  String get faqAnswer1;
+  String get faqQuestion2;
+  String get faqAnswer2;
+  String get faqQuestion3;
+  String get faqAnswer3;
+  String get faqQuestion4;
+  String get faqAnswer4;
+  String get faqQuestion5;
+  String get faqAnswer5;
+  String get faqQuestion6;
+  String get faqAnswer6;
 }
 
 class _AppLocalizationsDelegate
