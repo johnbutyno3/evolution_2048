@@ -11,6 +11,16 @@ on:
       - 'pubspec.yaml'
       - 'pubspec.lock'
       - '.github/workflows/android-debug-apk.yml'
+  pull_request:
+    branches:
+      - feature/chapter1-spec-implementation
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/android-debug-apk.yml'
   workflow_dispatch:
 
 permissions:
