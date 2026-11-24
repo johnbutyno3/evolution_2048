@@ -198,7 +198,7 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppLocalizations.of(context)!.adminShopParameters)),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.adminShopParameters)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -265,7 +265,7 @@ class AdminMessagesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text(AppLocalizations.of(context)!.adminPlayerMessages)),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.adminPlayerMessages)),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _loadMessages(),
         builder: (context, snapshot) {
