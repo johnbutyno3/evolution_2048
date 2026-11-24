@@ -368,7 +368,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       final empty = _tiles.indexWhere((v) => v == null);
       if (empty < 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No empty position available.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.noEmptyPosition)),
         );
         return;
       }
