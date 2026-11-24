@@ -68,9 +68,9 @@ Audit date: 2026-11-24
 
 ## Current audit status
 
-- Current ARB parity is 284 keys in each locale; no missing keys or placeholder-name/type mismatches were found.
+- Current ARB parity is 286 keys in each locale; no missing keys or placeholder-name/type mismatches were found.
 - Bilingual shop, membership, tool, gameplay-dialog, account/authentication, administrator, feedback and FAQ strings have been added in this branch.
 - `test/localization_arb_test.dart` enforces locale key and placeholder parity.
-- `test/shop_entitlement_test.dart` covers validated FREE/PREMIUM/GOLDEN entitlements and the debug-only purchase simulator.
+- `test/shop_entitlement_test.dart` covers validated FREE/PREMIUM/GOLDEN entitlements, debug-only simulated purchases, Gold deductions, FREE package limits, and unlocking a tool in an already active game manager.
 - `lib/services/shop_purchase_simulator.dart` and `AdminTestPage` provide an administrator-only, debug-build-only local simulator for membership, Gold and tool purchases. Simulated tool purchases deduct local Gold and enforce FREE package limits; no simulator action writes to Supabase or records a real-money transaction.
 - Remaining verification: GitHub Actions is running `flutter analyze`, `flutter test`, Supabase source-contract tests and the Android Debug APK build on PR #5. Resolve any failures, inspect the generator output, and verify the resulting Android artifact before treating this work as complete. Real-money membership and Gold checkout remain intentionally unavailable; tool packages continue to use the server-priced atomic purchase RPC.
