@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/admin_service.dart';
 import '../services/supabase_backend.dart';
+import '../l10n/app_localizations.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -37,50 +38,50 @@ class _AdminPageState extends State<AdminPage> {
 
     if (!_allowed) {
       return const Scaffold(
-        body: Center(child: Text('Administrator access required.')),
+        body: Center(child: Text(AppLocalizations.of(context)!.adminRequired)),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Management')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.adminTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _AdminCard(
             icon: Icons.storefront_outlined,
-            title: 'Shop Parameters',
-            subtitle: 'Gold, Tools and Membership settings',
+            title: AppLocalizations.of(context)!.adminShopParameters,
+            subtitle: AppLocalizations.of(context)!.adminShopSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AdminShopParametersPage()),
             ),
           ),
           _AdminCard(
             icon: Icons.help_outline,
-            title: 'Q&A Management',
-            subtitle: 'Manage frequently asked questions',
+            title: AppLocalizations.of(context)!.adminQAManagement,
+            subtitle: AppLocalizations.of(context)!.adminQASubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AdminQAPage()),
             ),
           ),
           _AdminCard(
             icon: Icons.inbox_outlined,
-            title: 'Player Messages',
-            subtitle: 'Read player feedback',
+            title: AppLocalizations.of(context)!.adminPlayerMessages,
+            subtitle: AppLocalizations.of(context)!.adminMessagesSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AdminMessagesPage()),
             ),
           ),
           _AdminCard(
             icon: Icons.search,
-            title: 'Player Search',
-            subtitle: 'Player lookup will be connected here',
-            onTap: () => _showComingSoon('Player Search'),
+            title: AppLocalizations.of(context)!.adminPlayerSearch,
+            subtitle: AppLocalizations.of(context)!.adminPlayerSearchSubtitle,
+            onTap: () => _showComingSoon(AppLocalizations.of(context)!.adminPlayerSearch),
           ),
           _AdminCard(
             icon: Icons.tune,
-            title: 'Game Parameters',
-            subtitle: 'Chapter and gameplay settings',
-            onTap: () => _showComingSoon('Game Parameters'),
+            title: AppLocalizations.of(context)!.adminGameParameters,
+            subtitle: AppLocalizations.of(context)!.adminGameParametersSubtitle,
+            onTap: () => _showComingSoon(AppLocalizations.of(context)!.adminGameParameters),
           ),
         ],
       ),
@@ -89,7 +90,7 @@ class _AdminPageState extends State<AdminPage> {
 
   void _showComingSoon(String name) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$name management will be added next.')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.adminComingSoon(name))),
     );
   }
 }
@@ -155,12 +156,12 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
       await AdminService.saveShopParameters(_values);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Shop parameters saved.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.shopParametersSaved)),
       );
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save shop parameters: $error')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.shopParametersSaveFailed(error))),
         );
       }
     } finally {
@@ -196,24 +197,24 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Shop Parameters')),
+      appBar: AppBar(title: const Text(AppLocalizations.of(context)!.adminShopParameters)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('Gold Packages (USD)', style: _headingStyle),
+          Text(AppLocalizations.of(context)!.goldPackagesUsd, style: _headingStyle),
           const SizedBox(height: 12),
           _field('gold300UsdPrice', '300 Gold USD', decimal: true),
           _field('gold1000UsdPrice', '1,000 Gold USD', decimal: true),
           _field('gold4000UsdPrice', '4,000 Gold USD', decimal: true),
           _field('gold10000UsdPrice', '10,000 Gold USD', decimal: true),
           const SizedBox(height: 12),
-          const Text('Permanent Membership (USD)', style: _headingStyle),
+          Text(AppLocalizations.of(context)!.permanentMembershipUsd, style: _headingStyle),
           const SizedBox(height: 12),
           _field('premiumUsdPrice', 'Premium Member USD', decimal: true),
           _field('goldenUsdPrice', 'Golden Member USD', decimal: true),
           _field('goldenUpgradeUsdPrice', 'Premium → Golden Upgrade USD', decimal: true),
           const SizedBox(height: 12),
-          const Text('Evolution Tools (Gold)', style: _headingStyle),
+          Text(AppLocalizations.of(context)!.evolutionToolsGold, style: _headingStyle),
           const SizedBox(height: 12),
           for (final tool in const [
             ('undo', 'UNDO'),
@@ -232,7 +233,7 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
           FilledButton.icon(
             onPressed: _saving ? null : _save,
             icon: const Icon(Icons.save_outlined),
-            label: Text(_saving ? 'Saving...' : 'Save Parameters'),
+            label: Text(_saving ? AppLocalizations.of(context)!.saving : AppLocalizations.of(context)!.saveParameters),
           ),
         ],
       ),
@@ -251,8 +252,8 @@ class AdminQAPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Q&A Management')),
-      body: Center(child: Text('Q&A management will be migrated to Supabase next.')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.adminQAManagement)),
+      body: Center(child: Text(AppLocalizations.of(context)!.qaMigrationPending)),
     );
   }
 }
@@ -263,7 +264,7 @@ class AdminMessagesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Player Messages')),
+      appBar: AppBar(title: const Text(AppLocalizations.of(context)!.adminPlayerMessages)),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _loadMessages(),
         builder: (context, snapshot) {
@@ -271,11 +272,11 @@ class AdminMessagesPage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Unable to load messages: ${snapshot.error}'));
+            return Center(child: Text(AppLocalizations.of(context)!.unableLoadMessages(snapshot.error ?? '')));
           }
           final messages = snapshot.data ?? const <Map<String, dynamic>>[];
           if (messages.isEmpty) {
-            return const Center(child: Text('No player messages yet.'));
+            return Center(child: Text(AppLocalizations.of(context)!.noPlayerMessages));
           }
           return ListView.builder(
             padding: const EdgeInsets.all(12),
@@ -287,7 +288,7 @@ class AdminMessagesPage extends StatelessWidget {
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.mail_outline),
-                  title: Text('${ticketData['subject'] ?? 'Player message'} · ${ticketData['status'] ?? 'open'}'),
+                  title: Text('${ticketData['subject'] ?? AppLocalizations.of(context)!.playerMessage} · ${ticketData['status'] ?? 'open'}'),
                   subtitle: Text('${data['body'] ?? ''}\nUID: ${ticketData['user_id'] ?? ''}'),
                   isThreeLine: true,
                 ),
