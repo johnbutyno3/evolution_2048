@@ -5,6 +5,7 @@ import '../game/services/life_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../services/shop_config_service.dart';
+import '../l10n/app_localizations.dart';
 
 class ToolsPage extends StatefulWidget {
   const ToolsPage({super.key});
@@ -37,14 +38,14 @@ class _ToolsPageState extends State<ToolsPage> {
     required int amount,
   }) async {
     if (!await ToolManager.purchase(type, amount)) {
-      _message(ToolManager.lastPurchaseError ?? 'Tool purchase failed.');
+      _message(AppLocalizations.of(context)!.purchaseFailed);
       return;
     }
 
     if (!mounted) return;
 
     setState(() {});
-    _message('Purchased $amount $name use${amount == 1 ? '' : 's'}.');
+    _message(AppLocalizations.of(context)!.purchaseSuccess.replaceFirst('{amount}', '$amount').replaceFirst('{tool}', name));
   }
 
   void _message(String text) {
@@ -56,7 +57,7 @@ class _ToolsPageState extends State<ToolsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tools')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.tools)),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _configFuture,
         builder: (context, snapshot) {
@@ -132,7 +133,7 @@ class _ToolsPageState extends State<ToolsPage> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '$name · Owned: $ownedLabel',
+                    '$name · ${AppLocalizations.of(context)!.ownedUses.replaceFirst('{count}', ownedLabel)}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
