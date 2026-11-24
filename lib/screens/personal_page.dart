@@ -303,7 +303,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.playerNameUpdateError)));
     } catch (error) {
       if (!mounted) return;
 
