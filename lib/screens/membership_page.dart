@@ -2,6 +2,7 @@
 
 import '../game/services/life_manager.dart';
 import '../services/shop_config_service.dart';
+import '../l10n/app_localizations.dart';
 
 class MembershipPage extends StatefulWidget {
   const MembershipPage({super.key});
@@ -24,7 +25,7 @@ class _MembershipPageState extends State<MembershipPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('Real-money payment is not connected yet.'),
+          content: Text(AppLocalizations.of(context)!.paymentUnavailable),
         ),
       );
   }
@@ -32,7 +33,7 @@ class _MembershipPageState extends State<MembershipPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Membership')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.membership)),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _configFuture,
         builder: (context, snapshot) {
@@ -50,20 +51,20 @@ class _MembershipPageState extends State<MembershipPage> {
             padding: const EdgeInsets.all(16),
             children: [
               _membershipCard(
-                title: 'General',
-                description: 'Free · 5 lives · 1 Life regenerates every 40 minutes',
-                price: 'Free',
+                title: AppLocalizations.of(context)!.membershipGeneral,
+                description: AppLocalizations.of(context)!.membershipGeneralDescription,
+                price: AppLocalizations.of(context)!.membershipGeneral,
                 current: current == 'general',
               ),
               _membershipCard(
-                title: 'Premium',
-                description: 'Permanent membership · No forced ads · Unlimited lives · 20 daily Gold',
+                title: AppLocalizations.of(context)!.membershipPremium,
+                description: AppLocalizations.of(context)!.membershipPremiumDescription,
                 price: '\$${ShopConfigService.usdPrice(config, 'premiumUsdPrice')} · Permanent',
                 current: current == 'premium',
               ),
               _membershipCard(
-                title: 'Golden',
-                description: 'Permanent membership · Ad-free · Unlimited lives · 50 daily Gold',
+                title: AppLocalizations.of(context)!.membershipGolden,
+                description: AppLocalizations.of(context)!.membershipGoldenDescription,
                 price: goldenPrice,
                 current: current == 'golden',
               ),
@@ -94,7 +95,7 @@ class _MembershipPageState extends State<MembershipPage> {
           child: Text(description),
         ),
         trailing: current
-            ? const Chip(label: Text('Current'))
+            ? Chip(label: Text(AppLocalizations.of(context)!.currentLabel))
             : FilledButton(
                 onPressed: _unavailable,
                 child: Text(price),
