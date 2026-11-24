@@ -105,9 +105,41 @@ void main() {
       'DUPLICATE': 0,
     });
 
-    expect(GoldManager.balance, 300);
+    expect(GoldManager.balance, 100);
     final manager = ToolManager(chapter: GameChapter.sky);
     expect(manager.canUse(GameToolType.positionSwap), isTrue);
+  });
+
+  test('debug tool simulation rejects purchases without enough Gold', () {
+    expect(
+      () => ShopPurchaseSimulator.simulateToolPurchase(
+        GameToolType.duplicate,
+        1,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(GoldManager.balance, 0);
+    expect(ToolManager.savedUsesFor(GameToolType.duplicate), 0);
+  });
+
+  test('debug tool simulation enforces the FREE single-use package limit', () {
+    LifeManager.applySupabaseSnapshot(
+      lives: 5,
+      unlimited: false,
+      membershipTier: 'FREE',
+      nextRegenAt: null,
+    );
+    GoldManager.applySupabaseBalance(1000);
+
+    expect(
+      () => ShopPurchaseSimulator.simulateToolPurchase(
+        GameToolType.timeRewind,
+        5,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(GoldManager.balance, 1000);
+    expect(ToolManager.savedUsesFor(GameToolType.timeRewind), 0);
   });
 
   test('zero account inventory never unlocks a purchasable tool', () {
