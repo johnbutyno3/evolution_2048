@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_backend.dart';
+import '../l10n/app_localizations.dart';
 
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});
@@ -35,12 +36,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
       if (!mounted) return;
       _controller.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Your message has been sent.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.feedbackSent)),
       );
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not send your message. Please retry online.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.feedbackSendFailed)),
         );
       }
     } finally {
@@ -52,24 +53,24 @@ class _FeedbackPageState extends State<FeedbackPage> {
   Widget build(BuildContext context) {
     final user = SupabaseBackend.client.auth.currentUser;
     return Scaffold(
-      appBar: AppBar(title: const Text('Contact / Feedback')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.feedbackTitle)),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        const Text('Send a message', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        Text(AppLocalizations.of(context)!.feedbackSendTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        const Text('Questions, suggestions and bug reports are welcome.'),
+        Text(AppLocalizations.of(context)!.feedbackDescription),
         const SizedBox(height: 20),
         DropdownButtonFormField<String>(
           initialValue: _type,
-          decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
+          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.feedbackType, border: const OutlineInputBorder()),
           items: [for (final type in _types) DropdownMenuItem(value: type, child: Text(type))],
           onChanged: (value) { if (value != null) setState(() => _type = value); },
         ),
         const SizedBox(height: 16),
         TextField(controller: _controller, minLines: 6, maxLines: 10, maxLength: 2000,
-          decoration: const InputDecoration(labelText: 'Message', alignLabelWithHint: true, border: OutlineInputBorder())),
+          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.feedbackMessage, alignLabelWithHint: true, border: const OutlineInputBorder())),
         const SizedBox(height: 12),
         FilledButton.icon(onPressed: user == null || _sending ? null : _send,
-          icon: const Icon(Icons.send_outlined), label: Text(_sending ? 'Sending...' : 'Send Message')),
+          icon: const Icon(Icons.send_outlined), label: Text(_sending ? AppLocalizations.of(context)!.feedbackSending : AppLocalizations.of(context)!.feedbackSend)),
       ]),
     );
   }
