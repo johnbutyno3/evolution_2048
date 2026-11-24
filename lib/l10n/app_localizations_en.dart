@@ -676,4 +676,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get faqTitle => 'Frequently Asked Questions';
+
+  @override
+  String get adminRequired => 'Administrator access required.';
+
+  @override
+  String get adminTitle => 'Admin Management';
+
+  @override
+  String get adminShopParameters => 'Shop Parameters';
+
+  @override
+  String get adminShopSubtitle => 'Gold, Tools and Membership settings';
+
+  @override
+  String get adminQAManagement => 'Q&A Management';
+
+  @override
+  String get adminQASubtitle => 'Manage frequently asked questions';
+
+  @override
+  String get adminPlayerMessages => 'Player Messages';
+
+  @override
+  String get adminMessagesSubtitle => 'Read player feedback';
+
+  @override
+  String get adminPlayerSearch => 'Player Search';
+
+  @override
+  String get adminPlayerSearchSubtitle => 'Player lookup will be connected here';
+
+  @override
+  String get adminGameParameters => 'Game Parameters';
+
+  @override
+  String get adminGameParametersSubtitle => 'Chapter and gameplay settings';
+
+  @override
+  String adminComingSoon(String name) => '$name management will be added next.';
+
+  @override
+  String get shopParametersSaved => 'Shop parameters saved.';
+
+  @override
+  String shopParametersSaveFailed(Object error) => 'Could not save shop parameters: $error';
+
+  @override
+  String get goldPackagesUsd => 'Gold Packages (USD)';
+
+  @override
+  String get permanentMembershipUsd => 'Permanent Membership (USD)';
+
+  @override
+  String get evolutionToolsGold => 'Evolution Tools (Gold)';
+
+  @override
+  String get saving => 'Saving...';
+
+  @override
+  String get saveParameters => 'Save Parameters';
+
+  @override
+  String get qaMigrationPending => 'Q&A management will be migrated to Supabase next.';
+
+  @override
+  String unableLoadMessages(Object error) => 'Unable to load messages: $error';
+
+  @override
+  String get noPlayerMessages => 'No player messages yet.';
+
+  @override
+  String get playerMessage => 'Player message';
+
+  @override
+  String get openStatus => 'open';
+
+  @override
+  String get testControlsTitle => 'Test Controls';
 }
