@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../l10n/creature_localization.dart';
 
 import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
@@ -676,6 +677,7 @@ class _CollectionPageState extends State<CollectionPage> {
 
                         return _CreatureCollectionCard(
                           creature: creature,
+                          chapterNumber: _selectedChapter + 1,
                           discovered: discovered.contains(creature.value),
                         );
                       }, childCount: creatures.length),
@@ -734,10 +736,12 @@ class _CollectionSummary extends StatelessWidget {
 class _CreatureCollectionCard extends StatelessWidget {
   const _CreatureCollectionCard({
     required this.creature,
+    required this.chapterNumber,
     required this.discovered,
   });
 
   final Creature creature;
+  final int chapterNumber;
   final bool discovered;
 
   @override
@@ -763,7 +767,11 @@ class _CreatureCollectionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    creature.name,
+                    localizedCreatureName(
+                      AppLocalizations.of(context)!,
+                      chapterNumber,
+                      creature.value,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
