@@ -24,7 +24,7 @@ class _MembershipPageState extends State<MembershipPage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(AppLocalizations.of(context)!.paymentUnavailable),
         ),
       );
