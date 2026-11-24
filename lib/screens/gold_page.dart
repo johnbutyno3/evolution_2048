@@ -29,7 +29,7 @@ class _GoldPageState extends State<GoldPage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(AppLocalizations.of(context)!.paymentUnavailable),
         ),
       );
