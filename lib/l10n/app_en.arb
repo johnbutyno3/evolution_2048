@@ -178,5 +178,22 @@
   "purchaseRetryOnline": "Tool purchase could not be completed. Please retry online.",
   "purchaseProtectionUnavailable": "Purchase protection could not be saved. Please retry.",
   "invalidPurchaseResponse": "The tool purchase service returned an invalid response.",
-  "purchaseVerificationFailed": "Could not verify the purchase. No local wallet change was applied."
+  "purchaseVerificationFailed": "Could not verify the purchase. No local wallet change was applied.",
+  "@ownedUses": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@purchaseSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "Object"
+      },
+      "tool": {
+        "type": "String"
+      }
+    }
+  }
 }
