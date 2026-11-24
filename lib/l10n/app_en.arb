@@ -199,5 +199,43 @@
   "undoToolLabel": "UNDO",
   "removeToolLabel": "REMOVE",
   "swapToolLabel": "SWAP",
-  "duplicateToolLabel": "DUPLICATE"
+  "duplicateToolLabel": "DUPLICATE",
+  "gameOverTitle": "GAME OVER",
+  "noMoreMoves": "No more moves.",
+  "scoreLabel": "SCORE",
+  "useTool": "USE TOOL",
+  "restartButton": "RESTART",
+  "duplicateLimit": "Duplicate is limited to tiles up to 256.",
+  "noEmptyPosition": "No empty position available.",
+  "nextChapterStartFailed": "Unable to start the next chapter. Please check your Life.",
+  "nextChapterStartRetry": "Unable to start the next chapter. Please try again.",
+  "chapterVerifyPending": "Chapter verification is still unavailable. Please try again.",
+  "nextChapter": "Next Chapter",
+  "home": "Home",
+  "cancelTool": "CANCEL",
+  "getTool": "Get {tool}",
+  "rewardedAdToolDescription": "Watch a rewarded ad to get additional uses.",
+  "goToShop": "Go to Shop",
+  "feedbackTitle": "Contact / Feedback",
+  "feedbackSendTitle": "Send a message",
+  "feedbackDescription": "Questions, suggestions and bug reports are welcome.",
+  "feedbackType": "Type",
+  "feedbackMessage": "Message",
+  "feedbackSending": "Sending...",
+  "feedbackSend": "Send Message",
+  "feedbackSent": "Your message has been sent.",
+  "feedbackSendFailed": "Could not send your message. Please retry online.",
+  "feedbackQuestion": "Question",
+  "feedbackSuggestion": "Suggestion",
+  "feedbackBugReport": "Bug Report",
+  "feedbackOther": "Other",
+  "qaTitle": "Q&A",
+  "faqTitle": "Frequently Asked Questions",
+  "@getTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  }
 }
