@@ -68,8 +68,8 @@ Audit date: 2026-11-24
 
 ## Current audit status
 
-- Current ARB parity is 380 keys in each locale; no missing keys or placeholder-name/type mismatches were found.
-- Bilingual shop, membership, tool, gameplay-dialog, all 87 creature names, account/authentication, administrator, feedback and FAQ strings have been added in this branch.
+- Current ARB parity is 382 keys in each locale; no missing keys or placeholder-name/type mismatches were found.
+- Bilingual shop, membership, tool, gameplay-dialog, all 87 creature names, legacy chapter tool actions, account/authentication, administrator, feedback and FAQ strings have been added in this branch.
 - `test/localization_arb_test.dart` enforces locale key and placeholder parity.
 - `test/creature_localization_test.dart` verifies all 87 creature names across all six chapters exist in both languages.
 - `test/shop_entitlement_test.dart` covers validated FREE/PREMIUM/GOLDEN entitlements, debug-only simulated purchases, Gold deductions, FREE package limits, and unlocking a tool in an already active game manager.
