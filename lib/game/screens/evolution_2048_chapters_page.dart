@@ -137,7 +137,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       _Chapter.tech => l10n.chapterTechnology,
       _Chapter.universe => l10n.chapterSpace,
     };
-    return l10n.chapterLabel(_chapter.index + 1, chapterName);
+    return l10n.chapterLabel(chapterName, _chapter.index + 1);
   }
 
   List<_Tool> get _tools => switch (_chapter) {
