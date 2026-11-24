@@ -127,14 +127,18 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     _Chapter.universe: 131072,
   }[_chapter]!;
 
-  String get _title => const {
-    _Chapter.ocean: 'Ocean Chapter',
-    _Chapter.land: 'Land Chapter',
-    _Chapter.sky: 'Sky Chapter',
-    _Chapter.history: 'History Chapter',
-    _Chapter.tech: 'Technology Chapter',
-    _Chapter.universe: 'Universe Chapter',
-  }[_chapter]!;
+  String get _title {
+    final l10n = AppLocalizations.of(context)!;
+    final chapterName = switch (_chapter) {
+      _Chapter.ocean => l10n.chapterOcean,
+      _Chapter.land => l10n.chapterLand,
+      _Chapter.sky => l10n.chapterSky,
+      _Chapter.history => l10n.chapterHistory,
+      _Chapter.tech => l10n.chapterTechnology,
+      _Chapter.universe => l10n.chapterSpace,
+    };
+    return l10n.chapterLabel(_chapter.index + 1, chapterName);
+  }
 
   List<_Tool> get _tools => switch (_chapter) {
     _Chapter.ocean => const [_Tool.rewind],
@@ -811,7 +815,7 @@ class _Tools extends StatelessWidget {
   final ValueChanged<_Tool> onTool;
   final VoidCallback onCancel;
 
-  String _name(_Tool tool) => switch (tool) {
+  String _name(BuildContext context, _Tool tool) => switch (tool) {
     _Tool.revive => AppLocalizations.of(context)!.removeToolLabel,
     _Tool.rewind => AppLocalizations.of(context)!.undoToolLabel,
     _Tool.swap => AppLocalizations.of(context)!.swapToolLabel,
@@ -844,7 +848,7 @@ class _Tools extends StatelessWidget {
           icon: Icon(_icon(tool)),
           label: Text(
             used.contains(tool)
-                ? '${_name(tool)} USED'
+                ? '${_name(context, tool)} USED'
                 : selecting == tool
                 ? 'CANCEL'
                 : '${_name(tool)} 1 USE',
