@@ -554,4 +554,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get purchaseVerificationFailed => '無法驗證購買結果，本機金幣與道具數量未變更。';
+
+  @override
+  String get undoToolLabel => '撤銷';
+
+  @override
+  String get removeToolLabel => '移除';
+
+  @override
+  String get swapToolLabel => '交換';
+
+  @override
+  String get duplicateToolLabel => '複製';
 }
