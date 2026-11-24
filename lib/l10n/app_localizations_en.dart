@@ -478,4 +478,97 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileSetupFailed => 'Unable to set up your profile.';
+
+  @override
+  String get shopMembership => 'Membership';
+
+  @override
+  String get shopMembershipSubtitle => 'Premium and Golden membership';
+
+  @override
+  String get shopGold => 'Gold';
+
+  @override
+  String get shopGoldSubtitle => 'Purchase Gold packages';
+
+  @override
+  String get shopTools => 'Tools';
+
+  @override
+  String get shopToolsSubtitle => 'UNDO, REMOVE, SWAP and DUPLICATE';
+
+  @override
+  String get goldBalanceTitle => 'Gold Balance';
+
+  @override
+  String get paymentUnavailable => 'Real-money payment is not connected yet.';
+
+  @override
+  String get membershipGeneral => 'General';
+
+  @override
+  String get membershipPremium => 'Premium';
+
+  @override
+  String get membershipGolden => 'Golden';
+
+  @override
+  String get membershipGeneralDescription => 'Free · 5 lives · 1 Life regenerates every 40 minutes';
+
+  @override
+  String get membershipPremiumDescription => 'Permanent membership · No forced ads · Unlimited lives · 20 daily Gold';
+
+  @override
+  String get membershipGoldenDescription => 'Permanent membership · Ad-free · Unlimited lives · 50 daily Gold';
+
+  @override
+  String get permanentLabel => 'Permanent';
+
+  @override
+  String get upgradeLabel => 'Upgrade';
+
+  @override
+  String get currentLabel => 'Current';
+
+  @override
+  String get ownedUses => 'Owned: {count}';
+
+  @override
+  String get purchaseSuccess => 'Purchased {amount} {tool} use(s).';
+
+  @override
+  String get purchaseFailed => 'Tool purchase failed.';
+
+  @override
+  String get invalidToolQuantity => 'Invalid tool package quantity.';
+
+  @override
+  String get signInBeforePurchase => 'Sign in before purchasing tools.';
+
+  @override
+  String get insufficientGold => 'Not enough Gold for this purchase.';
+
+  @override
+  String get freeSingleToolOnly => 'FREE members can only purchase one tool at a time.';
+
+  @override
+  String get goldenUndoUnlimited => 'GOLDEN members have unlimited UNDO.';
+
+  @override
+  String get accountRestricted => 'Account access is restricted. Support remains available.';
+
+  @override
+  String get idempotencyConflict => 'This purchase request conflicts with an earlier request.';
+
+  @override
+  String get purchaseRetryOnline => 'Tool purchase could not be completed. Please retry online.';
+
+  @override
+  String get purchaseProtectionUnavailable => 'Purchase protection could not be saved. Please retry.';
+
+  @override
+  String get invalidPurchaseResponse => 'The tool purchase service returned an invalid response.';
+
+  @override
+  String get purchaseVerificationFailed => 'Could not verify the purchase. No local wallet change was applied.';
 }
