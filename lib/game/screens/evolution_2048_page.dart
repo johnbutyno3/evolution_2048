@@ -536,8 +536,114 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _showEvolutionNotice(int value) { if (!mounted) return; setState(() { _evolutionValue = value; _evolutionCreatureName = _creatureNameForValue(value); }); }
   String _creatureNameForValue(int value) {
-    final creatures = switch (_engine.chapter) { GameChapter.ocean => Creature.chapter1Ocean, GameChapter.land => Creature.chapter2Land, GameChapter.sky => Creature.chapter3Sky, GameChapter.history => Creature.chapter4History, GameChapter.tech => Creature.chapter5Tech, GameChapter.universe => Creature.chapter6Universe };
-    for (final creature in creatures) { if (creature.value == value) return creature.name; } return '';
+    final l10n = AppLocalizations.of(context)!;
+    return switch (_engine.chapter) {
+      GameChapter.ocean => switch (value) {
+        2 => l10n.creatureC1V2,
+        4 => l10n.creatureC1V4,
+        8 => l10n.creatureC1V8,
+        16 => l10n.creatureC1V16,
+        32 => l10n.creatureC1V32,
+        64 => l10n.creatureC1V64,
+        128 => l10n.creatureC1V128,
+        256 => l10n.creatureC1V256,
+        512 => l10n.creatureC1V512,
+        1024 => l10n.creatureC1V1024,
+        2048 => l10n.creatureC1V2048,
+        4096 => l10n.creatureC1V4096,
+        _ => '',
+      },
+      GameChapter.land => switch (value) {
+        2 => l10n.creatureC2V2,
+        4 => l10n.creatureC2V4,
+        8 => l10n.creatureC2V8,
+        16 => l10n.creatureC2V16,
+        32 => l10n.creatureC2V32,
+        64 => l10n.creatureC2V64,
+        128 => l10n.creatureC2V128,
+        256 => l10n.creatureC2V256,
+        512 => l10n.creatureC2V512,
+        1024 => l10n.creatureC2V1024,
+        2048 => l10n.creatureC2V2048,
+        4096 => l10n.creatureC2V4096,
+        8192 => l10n.creatureC2V8192,
+        _ => '',
+      },
+      GameChapter.sky => switch (value) {
+        2 => l10n.creatureC3V2,
+        4 => l10n.creatureC3V4,
+        8 => l10n.creatureC3V8,
+        16 => l10n.creatureC3V16,
+        32 => l10n.creatureC3V32,
+        64 => l10n.creatureC3V64,
+        128 => l10n.creatureC3V128,
+        256 => l10n.creatureC3V256,
+        512 => l10n.creatureC3V512,
+        1024 => l10n.creatureC3V1024,
+        2048 => l10n.creatureC3V2048,
+        4096 => l10n.creatureC3V4096,
+        8192 => l10n.creatureC3V8192,
+        16384 => l10n.creatureC3V16384,
+        _ => '',
+      },
+      GameChapter.history => switch (value) {
+        2 => l10n.creatureC4V2,
+        4 => l10n.creatureC4V4,
+        8 => l10n.creatureC4V8,
+        16 => l10n.creatureC4V16,
+        32 => l10n.creatureC4V32,
+        64 => l10n.creatureC4V64,
+        128 => l10n.creatureC4V128,
+        256 => l10n.creatureC4V256,
+        512 => l10n.creatureC4V512,
+        1024 => l10n.creatureC4V1024,
+        2048 => l10n.creatureC4V2048,
+        4096 => l10n.creatureC4V4096,
+        8192 => l10n.creatureC4V8192,
+        16384 => l10n.creatureC4V16384,
+        32768 => l10n.creatureC4V32768,
+        _ => '',
+      },
+      GameChapter.tech => switch (value) {
+        2 => l10n.creatureC5V2,
+        4 => l10n.creatureC5V4,
+        8 => l10n.creatureC5V8,
+        16 => l10n.creatureC5V16,
+        32 => l10n.creatureC5V32,
+        64 => l10n.creatureC5V64,
+        128 => l10n.creatureC5V128,
+        256 => l10n.creatureC5V256,
+        512 => l10n.creatureC5V512,
+        1024 => l10n.creatureC5V1024,
+        2048 => l10n.creatureC5V2048,
+        4096 => l10n.creatureC5V4096,
+        8192 => l10n.creatureC5V8192,
+        16384 => l10n.creatureC5V16384,
+        32768 => l10n.creatureC5V32768,
+        65536 => l10n.creatureC5V65536,
+        _ => '',
+      },
+      GameChapter.universe => switch (value) {
+        2 => l10n.creatureC6V2,
+        4 => l10n.creatureC6V4,
+        8 => l10n.creatureC6V8,
+        16 => l10n.creatureC6V16,
+        32 => l10n.creatureC6V32,
+        64 => l10n.creatureC6V64,
+        128 => l10n.creatureC6V128,
+        256 => l10n.creatureC6V256,
+        512 => l10n.creatureC6V512,
+        1024 => l10n.creatureC6V1024,
+        2048 => l10n.creatureC6V2048,
+        4096 => l10n.creatureC6V4096,
+        8192 => l10n.creatureC6V8192,
+        16384 => l10n.creatureC6V16384,
+        32768 => l10n.creatureC6V32768,
+        65536 => l10n.creatureC6V65536,
+        131072 => l10n.creatureC6V131072,
+        _ => '',
+      },
+    };
   }
 
   Future<bool> _reset() async {
@@ -1133,7 +1239,17 @@ class _ChapterCompletePage extends StatelessWidget {
   final FutureOr<void> Function() onNextChapter;
   final VoidCallback onHome;
   String get _background => switch (chapter) { GameChapter.ocean => 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg', GameChapter.land => 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg', GameChapter.sky => 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg', GameChapter.history => 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png', GameChapter.tech => 'assets/backgrounds/chapter_05_tech/tech_complete.png', GameChapter.universe => 'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg' };
-  String get _title => switch (chapter) { GameChapter.ocean => 'Ocean Restored', GameChapter.land => 'Land Restored', GameChapter.sky => 'Sky Restored', GameChapter.history => 'History Restored', GameChapter.tech => 'Technology Restored', GameChapter.universe => 'Universe Restored' };
+  String get _title {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (chapter) {
+      GameChapter.ocean => l10n.oceanRestored,
+      GameChapter.land => l10n.landRestored,
+      GameChapter.sky => l10n.skyRestored,
+      GameChapter.history => l10n.historyRestored,
+      GameChapter.tech => l10n.technologyRestored,
+      GameChapter.universe => l10n.universeRestored,
+    };
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1159,7 +1275,7 @@ class _ChapterCompletePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Score $score    Highest $highestValue',
+                  AppLocalizations.of(context)!.chapterScoreSummary(score, highestValue),
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 const Spacer(),
