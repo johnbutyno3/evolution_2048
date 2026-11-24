@@ -827,7 +827,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final backgroundIndex = switch (_engine.chapter) { GameChapter.ocean => stage >= 10 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0, GameChapter.land => stage >= 12 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0, GameChapter.sky => stage >= 13 ? 3 : stage >= 11 ? 2 : stage >= 5 ? 1 : 0, GameChapter.history => stage >= 14 ? 3 : stage >= 12 ? 2 : stage >= 7 ? 1 : 0, GameChapter.tech => stage >= 13 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0, GameChapter.universe => stage >= 13 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0 };
     return backgrounds[backgroundIndex];
   }
-  String get _chapterTitle => switch (_engine.chapter) { GameChapter.ocean => 'Ocean Chapter', GameChapter.land => 'Land Chapter', GameChapter.sky => 'Sky Chapter', GameChapter.history => 'History Chapter', GameChapter.tech => 'Technology Chapter', GameChapter.universe => 'Universe Chapter' };
+  String get _chapterTitle {
+    final l10n = AppLocalizations.of(context)!;
+    final name = switch (_engine.chapter) {
+      GameChapter.ocean => l10n.chapterOcean,
+      GameChapter.land => l10n.chapterLand,
+      GameChapter.sky => l10n.chapterSky,
+      GameChapter.history => l10n.chapterHistory,
+      GameChapter.tech => l10n.chapterTechnology,
+      GameChapter.universe => l10n.chapterSpace,
+    };
+    return l10n.chapterLabel(_chapterNumber, name);
+  }
   int get _chapterNumber => switch (_engine.chapter) { GameChapter.ocean => 1, GameChapter.land => 2, GameChapter.sky => 3, GameChapter.history => 4, GameChapter.tech => 5, GameChapter.universe => 6 };
 
   Future<void> _showChapterComplete() async {
@@ -1065,7 +1076,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }),
     );
   }
-  String _toolLabel(GameToolType type) => switch (type) { GameToolType.revive => 'REMOVE', GameToolType.timeRewind => 'UNDO', GameToolType.positionSwap => 'SWAP', GameToolType.duplicate => 'DUPLICATE' };
+  String _toolLabel(GameToolType type) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (type) {
+      GameToolType.revive => l10n.removeToolLabel,
+      GameToolType.timeRewind => l10n.undoToolLabel,
+      GameToolType.positionSwap => l10n.swapToolLabel,
+      GameToolType.duplicate => l10n.duplicateToolLabel,
+    };
+  }
   String _toolModeForType(GameToolType type) => switch (type) { GameToolType.revive => 'revive', GameToolType.timeRewind => 'rewind', GameToolType.positionSwap => 'swap', GameToolType.duplicate => 'duplicate' };
   String _toolImagePath(String mode, {required bool pressed}) => switch (mode) { 'rewind' => pressed ? 'assets/tools/tool_undo_pressed.png' : 'assets/tools/tool_undo.png', 'swap' => pressed ? 'assets/tools/tool_swap_pressed.png' : 'assets/tools/tool_swap.png', 'revive' => pressed ? 'assets/tools/tool_remove_pressed.png' : 'assets/tools/tool_remove.png', 'duplicate' => pressed ? 'assets/tools/tool_duplicate_pressed.png' : 'assets/tools/tool_duplicate.png', _ => '' };
   Widget _buildToolButton(GameToolType type) {
