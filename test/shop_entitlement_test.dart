@@ -95,19 +95,17 @@ void main() {
     expect(manager.canUse(GameToolType.timeRewind), isTrue);
   });
 
-  test('debug Gold and tool simulations update local cached permissions', () {
+  test('debug purchase unlocks a tool in an already active game manager', () {
+    final manager = ToolManager(chapter: GameChapter.sky);
+    expect(manager.canUse(GameToolType.positionSwap), isFalse);
+
     ShopPurchaseSimulator.simulateGoldPurchase(300);
     ShopPurchaseSimulator.simulateToolPurchase(GameToolType.positionSwap, 1);
-    ToolManager.applySupabaseInventory({
-      'UNDO': 0,
-      'REMOVE': 0,
-      'SWAP': 1,
-      'DUPLICATE': 0,
-    });
 
     expect(GoldManager.balance, 100);
-    final manager = ToolManager(chapter: GameChapter.sky);
     expect(manager.canUse(GameToolType.positionSwap), isTrue);
+    expect(manager.consumeLocal(GameToolType.positionSwap), isTrue);
+    expect(manager.canUse(GameToolType.positionSwap), isFalse);
   });
 
   test('debug tool simulation rejects purchases without enough Gold', () {
