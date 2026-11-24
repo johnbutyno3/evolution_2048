@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../game/services/gold_manager.dart';
+import '../l10n/app_localizations.dart';
 import '../services/shop_config_service.dart';
 
 class GoldPage extends StatefulWidget {
@@ -29,7 +30,7 @@ class _GoldPageState extends State<GoldPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('Real-money payment is not connected yet.'),
+          content: Text(AppLocalizations.of(context)!.paymentUnavailable),
         ),
       );
   }
@@ -37,7 +38,7 @@ class _GoldPageState extends State<GoldPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Gold')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.gold)),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _configFuture,
         builder: (context, snapshot) {
@@ -53,7 +54,7 @@ class _GoldPageState extends State<GoldPage> {
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.monetization_on, size: 34),
-                  title: const Text('Gold Balance'),
+                  title: Text(AppLocalizations.of(context)!.goldBalanceTitle),
                   trailing: Text(
                     '${GoldManager.balance}',
                     style: const TextStyle(
@@ -107,7 +108,7 @@ class _GoldPageState extends State<GoldPage> {
         ),
         leading: const Icon(Icons.monetization_on_outlined),
         title: Text(
-          '$amount Gold',
+          '${AppLocalizations.of(context)!.goldAmount(amount)}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         trailing: FilledButton(
