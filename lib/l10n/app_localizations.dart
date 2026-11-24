@@ -1052,6 +1052,32 @@ abstract class AppLocalizations {
   String get feedbackOther;
   String get qaTitle;
   String get faqTitle;
+  String get adminRequired;
+  String get adminTitle;
+  String get adminShopParameters;
+  String get adminShopSubtitle;
+  String get adminQAManagement;
+  String get adminQASubtitle;
+  String get adminPlayerMessages;
+  String get adminMessagesSubtitle;
+  String get adminPlayerSearch;
+  String get adminPlayerSearchSubtitle;
+  String get adminGameParameters;
+  String get adminGameParametersSubtitle;
+  String adminComingSoon(Object name);
+  String get shopParametersSaved;
+  String shopParametersSaveFailed(Object error);
+  String get goldPackagesUsd;
+  String get permanentMembershipUsd;
+  String get evolutionToolsGold;
+  String get saving;
+  String get saveParameters;
+  String get qaMigrationPending;
+  String unableLoadMessages(Object error);
+  String get noPlayerMessages;
+  String get playerMessage;
+  String get openStatus;
+  String get testControlsTitle;
 }
 
 class _AppLocalizationsDelegate
