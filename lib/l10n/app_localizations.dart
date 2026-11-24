@@ -1079,6 +1079,8 @@ abstract class AppLocalizations {
   String get openStatus;
   String get testControlsTitle;
   String get simulatorTitle;
+  String highestProgress(Object current, Object target);
+  String selectTileForTool(String tool);
   String get simulatorNotice;
   String get simulatePremium;
   String get simulateGolden;
