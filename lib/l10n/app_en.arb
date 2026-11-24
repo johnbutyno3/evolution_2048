@@ -195,5 +195,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "undoToolLabel": "UNDO",
+  "removeToolLabel": "REMOVE",
+  "swapToolLabel": "SWAP",
+  "duplicateToolLabel": "DUPLICATE"
 }
