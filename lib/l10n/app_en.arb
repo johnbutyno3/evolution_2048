@@ -345,5 +345,24 @@
   "adminFiftyUsesGoldPrice": "50 uses · Gold price",
   "uidLabel": "Player UID",
   "statusOpen": "Open",
-  "statusClosed": "Closed"
+  "statusClosed": "Closed",
+  "highestProgress": "Highest: {current} / {target}",
+  "selectTileForTool": "Select a tile for {tool}",
+  "@highestProgress": {
+    "placeholders": {
+      "current": {
+        "type": "Object"
+      },
+      "target": {
+        "type": "Object"
+      }
+    }
+  },
+  "@selectTileForTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  }
 }
