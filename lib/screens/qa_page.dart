@@ -1,38 +1,23 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 
 class QAPage extends StatelessWidget {
   const QAPage({super.key});
 
-  static const _items = [
-    (
-      'How do I play Rebirth 2048?',
-      'Swipe or use the keyboard to move life forms. Matching life forms evolve into the next stage. Reach the chapter target to progress.'
-    ),
-    (
-      'What happens when I discover a creature?',
-      'A discovered creature is permanently recorded in your Creature Collection and will remain unlocked after replaying or restarting.'
-    ),
-    (
-      'What are Lives?',
-      'Lives allow you to continue playing after a game ends. Membership benefits may change the available life rules.'
-    ),
-    (
-      'What is Gold?',
-      'Gold is the in-game currency used for eligible shop purchases such as Lives and Evolution Tools.'
-    ),
-    (
-      'What do the Evolution Tools do?',
-      'UNDO rewinds a move, REMOVE removes a selected life form, SWAP exchanges positions, and DUPLICATE creates a copy of a selected life form.'
-    ),
-    (
-      'How do I report a problem?',
-      'Open Contact / Feedback from your Personal page and choose Bug Report. You can describe the problem and send it to the game team.'
-    ),
-  ];
+
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final items = <(String, String)>[
+      (l10n.faqQuestion1, l10n.faqAnswer1),
+      (l10n.faqQuestion2, l10n.faqAnswer2),
+      (l10n.faqQuestion3, l10n.faqAnswer3),
+      (l10n.faqQuestion4, l10n.faqAnswer4),
+      (l10n.faqQuestion5, l10n.faqAnswer5),
+      (l10n.faqQuestion6, l10n.faqAnswer6),
+    ];
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.qaTitle)),
       body: ListView(
@@ -43,7 +28,7 @@ class QAPage extends StatelessWidget {
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          for (final item in _items)
+          for (final item in items)
             Card(
               margin: const EdgeInsets.only(bottom: 10),
               child: ExpansionTile(
