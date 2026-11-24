@@ -468,5 +468,14 @@
         "type": "Object"
       }
     }
+  },
+  "toolUsed": "已使用",
+  "toolUsesRemaining": "剩餘 {count} 次",
+  "@toolUsesRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
   }
 }
