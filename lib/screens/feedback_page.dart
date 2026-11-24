@@ -10,9 +10,19 @@ class FeedbackPage extends StatefulWidget {
 
 class _FeedbackPageState extends State<FeedbackPage> {
   final _controller = TextEditingController();
-  String _type = 'Question';
+  String _type = 'question';
   bool _sending = false;
-  static const _types = ['Question', 'Suggestion', 'Bug Report', 'Other'];
+  static const _types = ['question', 'suggestion', 'bug_report', 'other'];
+
+  String _typeLabel(String type) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (type) {
+      'question' => l10n.feedbackQuestion,
+      'suggestion' => l10n.feedbackSuggestion,
+      'bug_report' => l10n.feedbackBugReport,
+      _ => l10n.feedbackOther,
+    };
+  }
 
   @override
   void dispose() { _controller.dispose(); super.dispose(); }
@@ -23,7 +33,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     if (text.isEmpty || user == null || _sending) return;
     setState(() => _sending = true);
     try {
-      final subject = '$_type: ${text.length > 140 ? text.substring(0, 140) : text}';
+      final subject = '${_typeLabel(_type)}: ${text.length > 140 ? text.substring(0, 140) : text}';
       final ticket = await SupabaseBackend.client.from('support_tickets')
           .insert({'user_id': user.id, 'category': 'GENERAL', 'subject': subject})
           .select('id').single();
@@ -31,7 +41,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
         'ticket_id': ticket['id'],
         'sender_user_id': user.id,
         'sender_role': 'player',
-        'body': '[$_type] $text',
+        'body': '[${_typeLabel(_type)}] $text',
       });
       if (!mounted) return;
       _controller.clear();
@@ -62,7 +72,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
         DropdownButtonFormField<String>(
           initialValue: _type,
           decoration: InputDecoration(labelText: AppLocalizations.of(context)!.feedbackType, border: const OutlineInputBorder()),
-          items: [for (final type in _types) DropdownMenuItem(value: type, child: Text(type))],
+          items: [for (final type in _types) DropdownMenuItem(value: type, child: Text(_typeLabel(type)))],
           onChanged: (value) { if (value != null) setState(() => _type = value); },
         ),
         const SizedBox(height: 16),
