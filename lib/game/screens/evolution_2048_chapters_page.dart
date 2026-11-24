@@ -359,7 +359,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       final value = _tiles[index]!;
       if (value >= 512) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(AppLocalizations.of(context)!.duplicateLimit),
           ),
         );
