@@ -44,13 +44,13 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           : await SupabaseAuthService.signInWithEmail(email: email, password: password);
 
       if (response.session == null) {
-        _showError('Check your email to confirm the account, then sign in.');
+        _showError(AppLocalizations.of(context)!.authConfirmEmail);
         return;
       }
     } on AuthException catch (error) {
       if (mounted) _showError(_authError(AppLocalizations.of(context)!, error.code ?? ''));
     } catch (error) {
-      if (mounted) _showError('Authentication failed: $error');
+      if (mounted) _showError(AppLocalizations.of(context)!.authFailed);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -67,14 +67,14 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
         provider: provider,
         redirectTo: kIsWeb ? Uri.base.origin : SupabaseAuthService.nativeOAuthRedirectUri,
       );
-      if (!started && mounted) _showError('The sign-in provider could not be opened.');
+      if (!started && mounted) _showError(AppLocalizations.of(context)!.authProviderUnavailable);
       // OAuth completes through the registered deep-link redirect. The root
       // auth-state stream performs the route transition after Supabase stores
       // the resulting session.
     } on AuthException catch (error) {
-      if (mounted) _showError(error.message);
+      if (mounted) _showError(_authError(AppLocalizations.of(context)!, error.code ?? ''));
     } catch (error) {
-      if (mounted) _showError('Sign-in failed: $error');
+      if (mounted) _showError(AppLocalizations.of(context)!.authFailed);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
