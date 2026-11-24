@@ -869,4 +869,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statusClosed => '已關閉';
+
+  @override
+  String highestProgress(Object current, Object target) => '最高進度：$current／$target';
+
+  @override
+  String selectTileForTool(String tool) => '選擇要使用 $tool 的生物';
 }
