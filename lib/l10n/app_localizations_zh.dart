@@ -1157,4 +1157,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String chapterScoreSummary(Object score, Object highest) => '分數 $score    最高進度 $highest';
+  @override
+  String get toolUsed => '已使用';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String toolUsesRemaining(Object count) => '剩餘 $count 次';
 }
