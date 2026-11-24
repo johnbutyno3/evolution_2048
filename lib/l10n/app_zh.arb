@@ -195,5 +195,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "undoToolLabel": "撤銷",
+  "removeToolLabel": "移除",
+  "swapToolLabel": "交換",
+  "duplicateToolLabel": "複製"
 }
