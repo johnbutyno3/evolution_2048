@@ -345,5 +345,24 @@
   "adminFiftyUsesGoldPrice": "50 次使用・金幣價格",
   "uidLabel": "玩家 UID",
   "statusOpen": "開啟",
-  "statusClosed": "已關閉"
+  "statusClosed": "已關閉",
+  "highestProgress": "最高進度：{current}／{target}",
+  "selectTileForTool": "選擇要使用 {tool} 的生物",
+  "@highestProgress": {
+    "placeholders": {
+      "current": {
+        "type": "Object"
+      },
+      "target": {
+        "type": "Object"
+      }
+    }
+  },
+  "@selectTileForTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  }
 }
