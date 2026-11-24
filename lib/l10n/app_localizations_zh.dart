@@ -566,4 +566,97 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get duplicateToolLabel => '複製';
+
+  @override
+  String get gameOverTitle => '遊戲結束';
+
+  @override
+  String get noMoreMoves => '沒有可移動的步數。';
+
+  @override
+  String get scoreLabel => '分數';
+
+  @override
+  String get useTool => '使用道具';
+
+  @override
+  String get restartButton => '重新開始';
+
+  @override
+  String get duplicateLimit => '複製道具僅能複製數值 256 以下的生物。';
+
+  @override
+  String get noEmptyPosition => '目前沒有空格可放置。';
+
+  @override
+  String get nextChapterStartFailed => '無法開始下一章，請確認生命數量。';
+
+  @override
+  String get nextChapterStartRetry => '無法開始下一章，請再試一次。';
+
+  @override
+  String get chapterVerifyPending => '章節驗證目前尚未完成，請稍後再試。';
+
+  @override
+  String get nextChapter => '下一章';
+
+  @override
+  String get home => '首頁';
+
+  @override
+  String get cancelTool => '取消';
+
+  @override
+  String getTool(String tool) => '取得 $tool';
+
+  @override
+  String get rewardedAdToolDescription => '觀看獎勵廣告即可取得額外使用次數。';
+
+  @override
+  String get goToShop => '前往商城';
+
+  @override
+  String get feedbackTitle => '聯絡我們／意見回饋';
+
+  @override
+  String get feedbackSendTitle => '傳送訊息';
+
+  @override
+  String get feedbackDescription => '歡迎提出問題、建議或回報錯誤。';
+
+  @override
+  String get feedbackType => '類別';
+
+  @override
+  String get feedbackMessage => '訊息內容';
+
+  @override
+  String get feedbackSending => '傳送中……';
+
+  @override
+  String get feedbackSend => '傳送訊息';
+
+  @override
+  String get feedbackSent => '訊息已成功傳送。';
+
+  @override
+  String get feedbackSendFailed => '無法傳送訊息，請確認網路後重試。';
+
+  @override
+  String get feedbackQuestion => '問題';
+
+  @override
+  String get feedbackSuggestion => '建議';
+
+  @override
+  String get feedbackBugReport => '錯誤回報';
+
+  @override
+  String get feedbackOther => '其他';
+
+  @override
+  String get qaTitle => '常見問題';
+
+  @override
+  String get faqTitle => '常見問題集';
 }
