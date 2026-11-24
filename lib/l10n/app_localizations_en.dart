@@ -720,7 +720,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shopParametersSaved => 'Shop parameters saved.';
 
   @override
-  String shopParametersSaveFailed(Object error) => 'Could not save shop parameters: $error';
+  String get shopParametersSaveFailed => 'Could not save shop parameters. Please retry online.';
 
   @override
   String get goldPackagesUsd => 'Gold Packages (USD)';
@@ -741,7 +741,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qaMigrationPending => 'Q&A management will be migrated to Supabase next.';
 
   @override
-  String unableLoadMessages(Object error) => 'Unable to load messages: $error';
+  String get unableLoadMessages => 'Unable to load player messages. Please retry online.';
 
   @override
   String get noPlayerMessages => 'No player messages yet.';
@@ -838,4 +838,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get simulatorApplied => 'Local test purchase applied. This is not a real transaction.';
+
+  @override
+  String get authConfirmEmail => 'Check your email to confirm the account, then sign in.';
+
+  @override
+  String get authProviderUnavailable => 'The sign-in provider could not be opened.';
+
+  @override
+  String get adminGold300Usd => '300 Gold (USD)';
+
+  @override
+  String get adminGold1000Usd => '1,000 Gold (USD)';
+
+  @override
+  String get adminGold4000Usd => '4,000 Gold (USD)';
+
+  @override
+  String get adminGold10000Usd => '10,000 Gold (USD)';
+
+  @override
+  String get adminPremiumUsd => 'Premium membership (USD)';
+
+  @override
+  String get adminGoldenUsd => 'Golden membership (USD)';
+
+  @override
+  String get adminGoldenUpgradeUsd => 'Premium to Golden upgrade (USD)';
+
+  @override
+  String get adminOneUseGoldPrice => '1 use · Gold price';
+
+  @override
+  String get adminFiveUsesGoldPrice => '5 uses · Gold price';
+
+  @override
+  String get adminTwentyUsesGoldPrice => '20 uses · Gold price';
+
+  @override
+  String get adminFiftyUsesGoldPrice => '50 uses · Gold price';
+
+  @override
+  String get uidLabel => 'Player UID';
+
+  @override
+  String get statusOpen => 'Open';
+
+  @override
+  String get statusClosed => 'Closed';
 }
