@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class QAPage extends StatelessWidget {
   const QAPage({super.key});
@@ -33,12 +34,12 @@ class QAPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Q&A')),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.qaTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Frequently Asked Questions',
+          Text(
+            AppLocalizations.of(context)!.faqTitle,
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
