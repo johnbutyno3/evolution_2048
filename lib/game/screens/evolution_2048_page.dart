@@ -1239,7 +1239,7 @@ class _ChapterCompletePage extends StatelessWidget {
   final FutureOr<void> Function() onNextChapter;
   final VoidCallback onHome;
   String get _background => switch (chapter) { GameChapter.ocean => 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg', GameChapter.land => 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg', GameChapter.sky => 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg', GameChapter.history => 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png', GameChapter.tech => 'assets/backgrounds/chapter_05_tech/tech_complete.png', GameChapter.universe => 'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg' };
-  String get _title {
+  String _title(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return switch (chapter) {
       GameChapter.ocean => l10n.oceanRestored,
@@ -1265,7 +1265,7 @@ class _ChapterCompletePage extends StatelessWidget {
               children: [
                 const Spacer(),
                 Text(
-                  _title,
+                  _title(context),
                   style: const TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
