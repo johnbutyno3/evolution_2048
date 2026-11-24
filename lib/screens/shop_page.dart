@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import 'gold_page.dart';
 import 'membership_page.dart';
 import 'tools_page.dart';
@@ -11,15 +13,15 @@ class ShopPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shop'),
+        title: Text(AppLocalizations.of(context)!.shop),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           _ShopEntry(
             icon: Icons.workspace_premium_outlined,
-            title: 'Membership',
-            subtitle: 'Premium and Golden membership',
+            title: AppLocalizations.of(context)!.shopMembership,
+            subtitle: AppLocalizations.of(context)!.shopMembershipSubtitle,
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -30,8 +32,8 @@ class ShopPage extends StatelessWidget {
           ),
           _ShopEntry(
             icon: Icons.monetization_on_outlined,
-            title: 'Gold',
-            subtitle: 'Purchase Gold packages',
+            title: AppLocalizations.of(context)!.shopGold,
+            subtitle: AppLocalizations.of(context)!.shopGoldSubtitle,
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -42,8 +44,8 @@ class ShopPage extends StatelessWidget {
           ),
           _ShopEntry(
             icon: Icons.build_outlined,
-            title: 'Tools',
-            subtitle: 'UNDO, REMOVE, SWAP and DUPLICATE',
+            title: AppLocalizations.of(context)!.shopTools,
+            subtitle: AppLocalizations.of(context)!.shopToolsSubtitle,
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
