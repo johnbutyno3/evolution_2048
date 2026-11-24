@@ -59,7 +59,7 @@ class _MembershipPageState extends State<MembershipPage> {
               _membershipCard(
                 title: AppLocalizations.of(context)!.membershipPremium,
                 description: AppLocalizations.of(context)!.membershipPremiumDescription,
-                price: '\$${ShopConfigService.usdPrice(config, 'premiumUsdPrice')} · Permanent',
+                price: '\${ShopConfigService.usdPrice(config, 'premiumUsdPrice')} · ${AppLocalizations.of(context)!.permanentLabel}',
                 current: current == 'premium',
               ),
               _membershipCard(
