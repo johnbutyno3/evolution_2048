@@ -237,5 +237,52 @@
         "type": "String"
       }
     }
+  },
+  "adminRequired": "需要管理員權限。",
+  "adminTitle": "管理員管理",
+  "adminShopParameters": "商城參數",
+  "adminShopSubtitle": "金幣、道具與會員設定",
+  "adminQAManagement": "常見問題管理",
+  "adminQASubtitle": "管理常見問題",
+  "adminPlayerMessages": "玩家訊息",
+  "adminMessagesSubtitle": "查看玩家意見回饋",
+  "adminPlayerSearch": "玩家搜尋",
+  "adminPlayerSearchSubtitle": "玩家查詢功能尚未啟用",
+  "adminGameParameters": "遊戲參數",
+  "adminGameParametersSubtitle": "章節與遊戲設定",
+  "adminComingSoon": "{name}管理功能將於後續版本加入。",
+  "shopParametersSaved": "商城參數已儲存。",
+  "shopParametersSaveFailed": "無法儲存商城參數：{error}",
+  "goldPackagesUsd": "金幣方案（美元）",
+  "permanentMembershipUsd": "永久會員方案（美元）",
+  "evolutionToolsGold": "進化道具（金幣）",
+  "saving": "儲存中……",
+  "saveParameters": "儲存參數",
+  "qaMigrationPending": "常見問題管理功能將於後續版本遷移至 Supabase。",
+  "unableLoadMessages": "無法載入訊息：{error}",
+  "noPlayerMessages": "目前沒有玩家訊息。",
+  "playerMessage": "玩家訊息",
+  "openStatus": "開啟",
+  "testControlsTitle": "測試控制",
+  "@adminComingSoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@shopParametersSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "@unableLoadMessages": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
   }
 }
