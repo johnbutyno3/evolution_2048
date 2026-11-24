@@ -45,7 +45,7 @@ class _ToolsPageState extends State<ToolsPage> {
     if (!mounted) return;
 
     setState(() {});
-    _message(AppLocalizations.of(context)!.purchaseSuccess.replaceFirst('{amount}', '$amount').replaceFirst('{tool}', name));
+    _message(AppLocalizations.of(context)!.purchaseSuccess(amount, name));
   }
 
   void _message(String text) {
@@ -133,7 +133,7 @@ class _ToolsPageState extends State<ToolsPage> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '$name · ${AppLocalizations.of(context)!.ownedUses.replaceFirst('{count}', ownedLabel)}',
+                    '$name · ${AppLocalizations.of(context)!.ownedUses(ownedLabel)}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
