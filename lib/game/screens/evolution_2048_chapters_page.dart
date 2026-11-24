@@ -812,10 +812,10 @@ class _Tools extends StatelessWidget {
   final VoidCallback onCancel;
 
   String _name(_Tool tool) => switch (tool) {
-    _Tool.revive => 'REMOVE',
-    _Tool.rewind => 'UNDO',
-    _Tool.swap => 'POSITION SWAP',
-    _Tool.duplicate => 'DUPLICATE',
+    _Tool.revive => AppLocalizations.of(context)!.removeToolLabel,
+    _Tool.rewind => AppLocalizations.of(context)!.undoToolLabel,
+    _Tool.swap => AppLocalizations.of(context)!.swapToolLabel,
+    _Tool.duplicate => AppLocalizations.of(context)!.duplicateToolLabel,
   };
 
   IconData _icon(_Tool tool) => switch (tool) {
