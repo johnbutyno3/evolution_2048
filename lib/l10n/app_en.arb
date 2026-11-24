@@ -237,5 +237,52 @@
         "type": "String"
       }
     }
+  },
+  "adminRequired": "Administrator access required.",
+  "adminTitle": "Admin Management",
+  "adminShopParameters": "Shop Parameters",
+  "adminShopSubtitle": "Gold, Tools and Membership settings",
+  "adminQAManagement": "Q&A Management",
+  "adminQASubtitle": "Manage frequently asked questions",
+  "adminPlayerMessages": "Player Messages",
+  "adminMessagesSubtitle": "Read player feedback",
+  "adminPlayerSearch": "Player Search",
+  "adminPlayerSearchSubtitle": "Player lookup will be connected here",
+  "adminGameParameters": "Game Parameters",
+  "adminGameParametersSubtitle": "Chapter and gameplay settings",
+  "adminComingSoon": "{name} management will be added next.",
+  "shopParametersSaved": "Shop parameters saved.",
+  "shopParametersSaveFailed": "Could not save shop parameters: {error}",
+  "goldPackagesUsd": "Gold Packages (USD)",
+  "permanentMembershipUsd": "Permanent Membership (USD)",
+  "evolutionToolsGold": "Evolution Tools (Gold)",
+  "saving": "Saving...",
+  "saveParameters": "Save Parameters",
+  "qaMigrationPending": "Q&A management will be migrated to Supabase next.",
+  "unableLoadMessages": "Unable to load messages: {error}",
+  "noPlayerMessages": "No player messages yet.",
+  "playerMessage": "Player message",
+  "openStatus": "open",
+  "testControlsTitle": "Test Controls",
+  "@adminComingSoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@shopParametersSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
+  "@unableLoadMessages": {
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
   }
 }
