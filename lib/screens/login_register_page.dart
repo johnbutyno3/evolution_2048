@@ -44,7 +44,7 @@ class _LoginRegisterPageState extends State<LoginRegisterPage> {
           : await SupabaseAuthService.signInWithEmail(email: email, password: password);
 
       if (response.session == null) {
-        _showError(AppLocalizations.of(context)!.authConfirmEmail);
+        if (mounted) _showError(AppLocalizations.of(context)!.authConfirmEmail);
         return;
       }
     } on AuthException catch (error) {
