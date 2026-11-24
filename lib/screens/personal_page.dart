@@ -523,7 +523,7 @@ class _CollectionPageState extends State<CollectionPage> {
       l10n.chapterTechnology,
       l10n.chapterSpace,
     ];
-    return l10n.chapterLabel(index + 1, names[index]);
+    return l10n.chapterLabel(names[index], index + 1);
   }
 
   String _chapterShortName(BuildContext context, int index) {
