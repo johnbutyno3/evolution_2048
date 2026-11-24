@@ -1021,6 +1021,37 @@ abstract class AppLocalizations {
   String get removeToolLabel;
   String get swapToolLabel;
   String get duplicateToolLabel;
+  String get gameOverTitle;
+  String get noMoreMoves;
+  String get scoreLabel;
+  String get useTool;
+  String get restartButton;
+  String get duplicateLimit;
+  String get noEmptyPosition;
+  String get nextChapterStartFailed;
+  String get nextChapterStartRetry;
+  String get chapterVerifyPending;
+  String get nextChapter;
+  String get home;
+  String get cancelTool;
+  String getTool(String tool);
+  String get rewardedAdToolDescription;
+  String get goToShop;
+  String get feedbackTitle;
+  String get feedbackSendTitle;
+  String get feedbackDescription;
+  String get feedbackType;
+  String get feedbackMessage;
+  String get feedbackSending;
+  String get feedbackSend;
+  String get feedbackSent;
+  String get feedbackSendFailed;
+  String get feedbackQuestion;
+  String get feedbackSuggestion;
+  String get feedbackBugReport;
+  String get feedbackOther;
+  String get qaTitle;
+  String get faqTitle;
 }
 
 class _AppLocalizationsDelegate
