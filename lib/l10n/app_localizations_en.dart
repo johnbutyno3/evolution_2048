@@ -583,4 +583,97 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get duplicateToolLabel => 'DUPLICATE';
+
+  @override
+  String get gameOverTitle => 'GAME OVER';
+
+  @override
+  String get noMoreMoves => 'No more moves.';
+
+  @override
+  String get scoreLabel => 'SCORE';
+
+  @override
+  String get useTool => 'USE TOOL';
+
+  @override
+  String get restartButton => 'RESTART';
+
+  @override
+  String get duplicateLimit => 'Duplicate is limited to tiles up to 256.';
+
+  @override
+  String get noEmptyPosition => 'No empty position available.';
+
+  @override
+  String get nextChapterStartFailed => 'Unable to start the next chapter. Please check your Life.';
+
+  @override
+  String get nextChapterStartRetry => 'Unable to start the next chapter. Please try again.';
+
+  @override
+  String get chapterVerifyPending => 'Chapter verification is still unavailable. Please try again.';
+
+  @override
+  String get nextChapter => 'Next Chapter';
+
+  @override
+  String get home => 'Home';
+
+  @override
+  String get cancelTool => 'CANCEL';
+
+  @override
+  String getTool(String tool) => 'Get $tool';
+
+  @override
+  String get rewardedAdToolDescription => 'Watch a rewarded ad to get additional uses.';
+
+  @override
+  String get goToShop => 'Go to Shop';
+
+  @override
+  String get feedbackTitle => 'Contact / Feedback';
+
+  @override
+  String get feedbackSendTitle => 'Send a message';
+
+  @override
+  String get feedbackDescription => 'Questions, suggestions and bug reports are welcome.';
+
+  @override
+  String get feedbackType => 'Type';
+
+  @override
+  String get feedbackMessage => 'Message';
+
+  @override
+  String get feedbackSending => 'Sending...';
+
+  @override
+  String get feedbackSend => 'Send Message';
+
+  @override
+  String get feedbackSent => 'Your message has been sent.';
+
+  @override
+  String get feedbackSendFailed => 'Could not send your message. Please retry online.';
+
+  @override
+  String get feedbackQuestion => 'Question';
+
+  @override
+  String get feedbackSuggestion => 'Suggestion';
+
+  @override
+  String get feedbackBugReport => 'Bug Report';
+
+  @override
+  String get feedbackOther => 'Other';
+
+  @override
+  String get qaTitle => 'Q&A';
+
+  @override
+  String get faqTitle => 'Frequently Asked Questions';
 }
