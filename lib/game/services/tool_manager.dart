@@ -23,8 +23,10 @@ class ToolManager {
   static final Map<GameToolType, int> _sessionUses = {};
   static bool _allToolsEnabledForTest = false;
   static String? _lastPurchaseError;
+  static String? _lastPurchaseErrorCode;
 
   static String? get lastPurchaseError => _lastPurchaseError;
+  static String? get lastPurchaseErrorCode => _lastPurchaseErrorCode;
 
   static bool get allToolsEnabledForTest => _allToolsEnabledForTest;
 
@@ -35,6 +37,7 @@ class ToolManager {
     _sessionUses.clear();
     _allToolsEnabledForTest = false;
     _lastPurchaseError = null;
+    _lastPurchaseErrorCode = null;
   }
 
   final List<ToolState> _tools = <ToolState>[];
@@ -206,6 +209,7 @@ class ToolManager {
       return true;
     } on SupabaseToolPurchaseException catch (error) {
       _lastPurchaseError = error.message;
+      _lastPurchaseErrorCode = error.code;
       return false;
     }
   }
