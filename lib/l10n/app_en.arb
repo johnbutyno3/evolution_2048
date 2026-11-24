@@ -284,5 +284,17 @@
         "type": "Object"
       }
     }
-  }
+  },
+  "faqQuestion1": "How do I play Rebirth 2048?",
+  "faqAnswer1": "Swipe or use the keyboard to move life forms. Matching life forms evolve into the next stage. Reach the chapter target to progress.",
+  "faqQuestion2": "What happens when I discover a creature?",
+  "faqAnswer2": "A discovered creature is permanently recorded in your Creature Collection and will remain unlocked after replaying or restarting.",
+  "faqQuestion3": "What are Lives?",
+  "faqAnswer3": "Lives allow you to continue playing after a game ends. Membership benefits may change the available life rules.",
+  "faqQuestion4": "What is Gold?",
+  "faqAnswer4": "Gold is the in-game currency used for eligible shop purchases such as Lives and Evolution Tools.",
+  "faqQuestion5": "What do the Evolution Tools do?",
+  "faqAnswer5": "UNDO rewinds a move, REMOVE removes a selected life form, SWAP exchanges positions, and DUPLICATE creates a copy of a selected life form.",
+  "faqQuestion6": "How do I report a problem?",
+  "faqAnswer6": "Open Contact / Feedback from your Personal page and choose Bug Report. You can describe the problem and send it to the game team."
 }
