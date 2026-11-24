@@ -1174,4 +1174,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String chapterScoreSummary(Object score, Object highest) => 'Score $score    Highest $highest';
+  @override
+  String get toolUsed => 'USED';
+
+  @override
+  String get cancel => 'CANCEL';
+
+  @override
+  String toolUsesRemaining(Object count) => '$count USE';
 }
