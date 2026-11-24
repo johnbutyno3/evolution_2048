@@ -1003,8 +1003,8 @@ abstract class AppLocalizations {
   String get permanentLabel;
   String get upgradeLabel;
   String get currentLabel;
-  String get ownedUses;
-  String get purchaseSuccess;
+  String ownedUses(Object count);
+  String purchaseSuccess(Object amount, String tool);
   String get purchaseFailed;
   String get invalidToolQuantity;
   String get signInBeforePurchase;
