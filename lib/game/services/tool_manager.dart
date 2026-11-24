@@ -56,7 +56,7 @@ class ToolManager {
       // silently grant a use. New accounts receive the initial C1 UNDO from
       // the server inventory initializer, which is synchronized before any
       // flow that requires authoritative tool state.
-      final initialUses = _serverUses[type] ?? 0;
+      final initialUses = savedUsesFor(type);
 
       _tools.add(ToolState(tool: gameTool, uses: initialUses));
     }
@@ -82,7 +82,7 @@ class ToolManager {
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
       return true;
     }
-    return getTool(type)?.canUse ?? false;
+    return getTool(type) != null && savedUsesFor(type) > 0;
   }
 
   void refreshFromSavedProgress() {
@@ -231,9 +231,10 @@ class ToolManager {
       return true;
     }
 
-    if (!tool.canUse) return false;
+    final remaining = savedUsesFor(type);
+    if (remaining <= 0) return false;
 
-    tool.usesRemaining -= 1;
+    tool.usesRemaining = remaining - 1;
     // The account inventory is not settled until the active session is
     // restarted/completed. Track this use separately so an account inventory
     // refresh cannot resurrect the tool during BACK/re-entry.
