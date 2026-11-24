@@ -754,4 +754,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get testControlsTitle => 'Test Controls';
+
+  @override
+  String get faqQuestion1 => 'How do I play Rebirth 2048?';
+
+  @override
+  String get faqAnswer1 => 'Swipe or use the keyboard to move life forms. Matching life forms evolve into the next stage. Reach the chapter target to progress.';
+
+  @override
+  String get faqQuestion2 => 'What happens when I discover a creature?';
+
+  @override
+  String get faqAnswer2 => 'A discovered creature is permanently recorded in your Creature Collection and will remain unlocked after replaying or restarting.';
+
+  @override
+  String get faqQuestion3 => 'What are Lives?';
+
+  @override
+  String get faqAnswer3 => 'Lives allow you to continue playing after a game ends. Membership benefits may change the available life rules.';
+
+  @override
+  String get faqQuestion4 => 'What is Gold?';
+
+  @override
+  String get faqAnswer4 => 'Gold is the in-game currency used for eligible shop purchases such as Lives and Evolution Tools.';
+
+  @override
+  String get faqQuestion5 => 'What do the Evolution Tools do?';
+
+  @override
+  String get faqAnswer5 => 'UNDO rewinds a move, REMOVE removes a selected life form, SWAP exchanges positions, and DUPLICATE creates a copy of a selected life form.';
+
+  @override
+  String get faqQuestion6 => 'How do I report a problem?';
+
+  @override
+  String get faqAnswer6 => 'Open Contact / Feedback from your Personal page and choose Bug Report. You can describe the problem and send it to the game team.';
 }
