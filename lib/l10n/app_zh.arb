@@ -199,5 +199,43 @@
   "undoToolLabel": "撤銷",
   "removeToolLabel": "移除",
   "swapToolLabel": "交換",
-  "duplicateToolLabel": "複製"
+  "duplicateToolLabel": "複製",
+  "gameOverTitle": "遊戲結束",
+  "noMoreMoves": "沒有可移動的步數。",
+  "scoreLabel": "分數",
+  "useTool": "使用道具",
+  "restartButton": "重新開始",
+  "duplicateLimit": "複製道具僅能複製數值 256 以下的生物。",
+  "noEmptyPosition": "目前沒有空格可放置。",
+  "nextChapterStartFailed": "無法開始下一章，請確認生命數量。",
+  "nextChapterStartRetry": "無法開始下一章，請再試一次。",
+  "chapterVerifyPending": "章節驗證目前尚未完成，請稍後再試。",
+  "nextChapter": "下一章",
+  "home": "首頁",
+  "cancelTool": "取消",
+  "getTool": "取得 {tool}",
+  "rewardedAdToolDescription": "觀看獎勵廣告即可取得額外使用次數。",
+  "goToShop": "前往商城",
+  "feedbackTitle": "聯絡我們／意見回饋",
+  "feedbackSendTitle": "傳送訊息",
+  "feedbackDescription": "歡迎提出問題、建議或回報錯誤。",
+  "feedbackType": "類別",
+  "feedbackMessage": "訊息內容",
+  "feedbackSending": "傳送中……",
+  "feedbackSend": "傳送訊息",
+  "feedbackSent": "訊息已成功傳送。",
+  "feedbackSendFailed": "無法傳送訊息，請確認網路後重試。",
+  "feedbackQuestion": "問題",
+  "feedbackSuggestion": "建議",
+  "feedbackBugReport": "錯誤回報",
+  "feedbackOther": "其他",
+  "qaTitle": "常見問題",
+  "faqTitle": "常見問題集",
+  "@getTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  }
 }
