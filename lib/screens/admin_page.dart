@@ -267,6 +267,16 @@ class AdminQAPage extends StatelessWidget {
   }
 }
 
+
+String _messageStatus(BuildContext context, Object? status) {
+  final l10n = AppLocalizations.of(context)!;
+  return switch (status?.toString()) {
+    'open' => l10n.statusOpen,
+    'closed' => l10n.statusClosed,
+    _ => status?.toString() ?? l10n.statusOpen,
+  };
+}
+
 class AdminMessagesPage extends StatelessWidget {
   const AdminMessagesPage({super.key});
 
@@ -297,8 +307,8 @@ class AdminMessagesPage extends StatelessWidget {
               return Card(
                 child: ListTile(
                   leading: const Icon(Icons.mail_outline),
-                  title: Text('${ticketData['subject'] ?? AppLocalizations.of(context)!.playerMessage} · ${ticketData['status'] ?? 'open'}'),
-                  subtitle: Text('${data['body'] ?? ''}\nUID: ${ticketData['user_id'] ?? ''}'),
+                  title: Text('${ticketData['subject'] ?? AppLocalizations.of(context)!.playerMessage} · ${_messageStatus(context, ticketData['status'])}'),
+                  subtitle: Text('${data['body'] ?? ''}\n${AppLocalizations.of(context)!.uidLabel}: ${ticketData['user_id'] ?? ''}'),
                   isThreeLine: true,
                 ),
               );
