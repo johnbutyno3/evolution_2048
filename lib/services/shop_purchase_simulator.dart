@@ -4,6 +4,7 @@ import '../game/models/tools/game_tool.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
+import 'shop_config_service.dart';
 
 /// Debug-only local purchase simulator. It never calls a payment provider,
 /// writes to Supabase, or creates a server-authoritative entitlement.
@@ -37,7 +38,29 @@ class ShopPurchaseSimulator {
 
   static void simulateToolPurchase(GameToolType type, int amount) {
     _requireDebugBuild();
-    if (amount <= 0) throw ArgumentError.value(amount, 'amount');
+    if (!const [1, 5, 20, 50].contains(amount)) {
+      throw ArgumentError.value(amount, 'amount');
+    }
+    if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
+      throw StateError('GOLDEN_UNDO_UNLIMITED');
+    }
+    if (LifeManager.membership == 'general' && amount != 1) {
+      throw StateError('FREE_SINGLE_TOOL_ONLY');
+    }
+
+    final toolKey = switch (type) {
+      GameToolType.timeRewind => 'undo',
+      GameToolType.revive => 'remove',
+      GameToolType.positionSwap => 'swap',
+      GameToolType.duplicate => 'duplicate',
+    };
+    final cost = ShopConfigService.price(
+      ShopConfigService.defaults,
+      '$toolKey${amount}Price',
+    );
+    if (GoldManager.balance < cost) {
+      throw StateError('INSUFFICIENT_GOLD');
+    }
 
     final undo = LifeManager.isGoldenMember
         ? 0
@@ -52,6 +75,7 @@ class ShopPurchaseSimulator {
       'SWAP': swap + (type == GameToolType.positionSwap ? amount : 0),
       'DUPLICATE': duplicate + (type == GameToolType.duplicate ? amount : 0),
     };
+    GoldManager.applySupabaseBalance(GoldManager.balance - cost);
     ToolManager.applySupabaseInventory(inventory);
   }
 }
