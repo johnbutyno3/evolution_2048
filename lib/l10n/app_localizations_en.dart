@@ -571,4 +571,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get purchaseVerificationFailed => 'Could not verify the purchase. No local wallet change was applied.';
+
+  @override
+  String get undoToolLabel => 'UNDO';
+
+  @override
+  String get removeToolLabel => 'REMOVE';
+
+  @override
+  String get swapToolLabel => 'SWAP';
+
+  @override
+  String get duplicateToolLabel => 'DUPLICATE';
 }
