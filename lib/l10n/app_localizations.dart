@@ -1017,6 +1017,10 @@ abstract class AppLocalizations {
   String get purchaseProtectionUnavailable;
   String get invalidPurchaseResponse;
   String get purchaseVerificationFailed;
+  String get undoToolLabel;
+  String get removeToolLabel;
+  String get swapToolLabel;
+  String get duplicateToolLabel;
 }
 
 class _AppLocalizationsDelegate
