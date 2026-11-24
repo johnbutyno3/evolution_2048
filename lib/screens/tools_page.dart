@@ -38,7 +38,21 @@ class _ToolsPageState extends State<ToolsPage> {
     required int amount,
   }) async {
     if (!await ToolManager.purchase(type, amount)) {
-      _message(AppLocalizations.of(context)!.purchaseFailed);
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      final message = switch (ToolManager.lastPurchaseErrorCode) {
+        'UNAUTHORIZED' => l10n.signInBeforePurchase,
+        'INSUFFICIENT_GOLD' => l10n.insufficientGold,
+        'FREE_SINGLE_TOOL_ONLY' => l10n.freeSingleToolOnly,
+        'GOLDEN_UNDO_UNLIMITED' => l10n.goldenUndoUnlimited,
+        'ACCOUNT_RESTRICTED' || 'MEMBERSHIP_REQUIRES_REVIEW' => l10n.accountRestricted,
+        'IDEMPOTENCY_CONFLICT' => l10n.idempotencyConflict,
+        'PURCHASE_SAFETY_STORAGE_UNAVAILABLE' => l10n.purchaseProtectionUnavailable,
+        'INVALID_RESPONSE' => l10n.invalidPurchaseResponse,
+        'NETWORK_OR_SERVER_ERROR' => l10n.purchaseVerificationFailed,
+        _ => l10n.purchaseRetryOnline,
+      };
+      _message(message);
       return;
     }
 
@@ -73,28 +87,28 @@ class _ToolsPageState extends State<ToolsPage> {
               _tool(
                 config,
                 GameToolType.timeRewind,
-                'UNDO',
+                AppLocalizations.of(context)!.undoToolLabel,
                 Icons.undo,
                 'undo',
               ),
               _tool(
                 config,
                 GameToolType.revive,
-                'REMOVE',
+                AppLocalizations.of(context)!.removeToolLabel,
                 Icons.remove_circle_outline,
                 'remove',
               ),
               _tool(
                 config,
                 GameToolType.positionSwap,
-                'SWAP',
+                AppLocalizations.of(context)!.swapToolLabel,
                 Icons.swap_horiz,
                 'swap',
               ),
               _tool(
                 config,
                 GameToolType.duplicate,
-                'DUPLICATE',
+                AppLocalizations.of(context)!.duplicateToolLabel,
                 Icons.copy_outlined,
                 'duplicate',
               ),
@@ -158,7 +172,7 @@ class _ToolsPageState extends State<ToolsPage> {
                         amount: amounts[i],
                       ),
                       child: Text(
-                        '${amounts[i]} · ${ShopConfigService.price(config, '$key${amounts[i]}Price')} Gold',
+                        '${amounts[i]} · ${ShopConfigService.price(config, '$key${amounts[i]}Price')} ${AppLocalizations.of(context)!.gold}',
                       ),
                     ),
                 ],
