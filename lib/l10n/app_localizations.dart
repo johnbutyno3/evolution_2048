@@ -1081,6 +1081,9 @@ abstract class AppLocalizations {
   String get simulatorTitle;
   String highestProgress(Object current, Object target);
   String selectTileForTool(String tool);
+  String get toolUsed;
+  String get cancel;
+  String toolUsesRemaining(Object count);
   String get creatureC1V2;
   String get creatureC1V4;
   String get creatureC1V8;
