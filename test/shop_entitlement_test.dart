@@ -4,6 +4,7 @@ import 'package:rebirth_2048/game/models/tools/game_tool.dart';
 import 'package:rebirth_2048/game/services/gold_manager.dart';
 import 'package:rebirth_2048/game/services/life_manager.dart';
 import 'package:rebirth_2048/game/services/tool_manager.dart';
+import 'package:rebirth_2048/services/shop_purchase_simulator.dart';
 
 void main() {
   setUp(() {
@@ -70,6 +71,43 @@ void main() {
     expect(LifeManager.lifeCount, -1);
     expect(manager.canUse(GameToolType.timeRewind), isTrue);
     expect(manager.consumeLocal(GameToolType.timeRewind), isTrue);
+  });
+
+  test('debug Premium simulation unlocks unlimited lives locally', () {
+    ShopPurchaseSimulator.simulateMembershipPurchase('PREMIUM');
+
+    expect(LifeManager.membership, 'premium');
+    expect(LifeManager.lifeCount, -1);
+    expect(LifeManager.optimisticConsumeLife(), isTrue);
+  });
+
+  test('debug Golden simulation unlocks unlimited lives and UNDO locally', () {
+    ShopPurchaseSimulator.simulateMembershipPurchase('GOLDEN');
+    ToolManager.applySupabaseInventory({
+      'UNDO': 0,
+      'REMOVE': 0,
+      'SWAP': 0,
+      'DUPLICATE': 0,
+    });
+
+    final manager = ToolManager(chapter: GameChapter.ocean);
+    expect(LifeManager.membership, 'golden');
+    expect(manager.canUse(GameToolType.timeRewind), isTrue);
+  });
+
+  test('debug Gold and tool simulations update local cached permissions', () {
+    ShopPurchaseSimulator.simulateGoldPurchase(300);
+    ShopPurchaseSimulator.simulateToolPurchase(GameToolType.positionSwap, 1);
+    ToolManager.applySupabaseInventory({
+      'UNDO': 0,
+      'REMOVE': 0,
+      'SWAP': 1,
+      'DUPLICATE': 0,
+    });
+
+    expect(GoldManager.balance, 300);
+    final manager = ToolManager(chapter: GameChapter.sky);
+    expect(manager.canUse(GameToolType.positionSwap), isTrue);
   });
 
   test('zero account inventory never unlocks a purchasable tool', () {
