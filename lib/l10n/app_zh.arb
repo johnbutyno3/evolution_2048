@@ -178,5 +178,22 @@
   "purchaseRetryOnline": "道具購買未能完成，請確認網路後重試。",
   "purchaseProtectionUnavailable": "無法儲存購買保護資料，請重試。",
   "invalidPurchaseResponse": "道具購買服務回傳的資料無效。",
-  "purchaseVerificationFailed": "無法驗證購買結果，本機金幣與道具數量未變更。"
+  "purchaseVerificationFailed": "無法驗證購買結果，本機金幣與道具數量未變更。",
+  "@ownedUses": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@purchaseSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "Object"
+      },
+      "tool": {
+        "type": "String"
+      }
+    }
+  }
 }
