@@ -943,7 +943,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       GameChapter.tech => l10n.chapterTechnology,
       GameChapter.universe => l10n.chapterSpace,
     };
-    return l10n.chapterLabel(_chapterNumber, name);
+    return l10n.chapterLabel(name, _chapterNumber);
   }
   int get _chapterNumber => switch (_engine.chapter) { GameChapter.ocean => 1, GameChapter.land => 2, GameChapter.sky => 3, GameChapter.history => 4, GameChapter.tech => 5, GameChapter.universe => 6 };
 
