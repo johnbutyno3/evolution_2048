@@ -298,7 +298,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           ),
         ),
       );
-    } on PlayerProfileException catch (error) {
+    } on PlayerProfileException {
       if (!mounted) return;
 
       ScaffoldMessenger.of(
