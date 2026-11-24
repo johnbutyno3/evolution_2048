@@ -308,7 +308,7 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppLocalizations.of(context)!.playerNameUpdateError} $error')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.playerNameUpdateError)),
       );
     }
   }
