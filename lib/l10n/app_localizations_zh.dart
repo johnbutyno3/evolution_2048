@@ -737,4 +737,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get testControlsTitle => '測試控制';
+
+  @override
+  String get faqQuestion1 => '如何遊玩重生 2048？';
+
+  @override
+  String get faqAnswer1 => '滑動棋盤或使用鍵盤移動生命形態。合併相同的生命形態即可進化至下一階段，達成章節目標即可繼續前進。';
+
+  @override
+  String get faqQuestion2 => '發現生物後會怎樣？';
+
+  @override
+  String get faqAnswer2 => '已發現的生物會永久記錄在生物圖鑑中，即使重玩或重新開始，也不會再次鎖定。';
+
+  @override
+  String get faqQuestion3 => '生命有什麼用途？';
+
+  @override
+  String get faqAnswer3 => '生命用於開始遊戲挑戰。不同會員資格會影響生命上限與相關權益。';
+
+  @override
+  String get faqQuestion4 => '金幣是什麼？';
+
+  @override
+  String get faqAnswer4 => '金幣是遊戲內貨幣，可用於商城中開放購買的項目，例如進化道具。';
+
+  @override
+  String get faqQuestion5 => '進化道具有什麼功能？';
+
+  @override
+  String get faqAnswer5 => '撤銷可回復上一步；移除可移除指定生物；交換可對調兩個生物的位置；複製可複製指定生物。';
+
+  @override
+  String get faqQuestion6 => '如何回報問題？';
+
+  @override
+  String get faqAnswer6 => '進入個人資訊頁的「聯絡我們／意見回饋」，選擇「錯誤回報」，描述問題後即可傳送給開發團隊。';
 }
