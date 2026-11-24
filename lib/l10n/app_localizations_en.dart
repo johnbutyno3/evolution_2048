@@ -790,4 +790,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get faqAnswer6 => 'Open Contact / Feedback from your Personal page and choose Bug Report. You can describe the problem and send it to the game team.';
+
+  @override
+  String get simulatorTitle => 'Local Purchase Simulator';
+
+  @override
+  String get simulatorNotice => 'Debug only. Changes are local and temporary; the next account sync replaces them. No real payment is made.';
+
+  @override
+  String get simulatePremium => 'Simulate Premium purchase';
+
+  @override
+  String get simulateGolden => 'Simulate Golden purchase';
+
+  @override
+  String get simulateGold => 'Simulate 300 Gold purchase';
+
+  @override
+  String get simulateUndo => 'Simulate UNDO ×1 purchase';
+
+  @override
+  String get simulateRemove => 'Simulate REMOVE ×1 purchase';
+
+  @override
+  String get simulateSwap => 'Simulate SWAP ×1 purchase';
+
+  @override
+  String get simulateDuplicate => 'Simulate DUPLICATE ×1 purchase';
+
+  @override
+  String get simulatorCurrentState => 'Current local test state';
+
+  @override
+  String get simulatorDebugOnly => 'The purchase simulator is available only in debug builds.';
+
+  @override
+  String simulatorMembership(Object tier) => 'Membership: $tier';
+
+  @override
+  String simulatorLives(Object count) => 'Lives: $count';
+
+  @override
+  String simulatorGold(Object count) => 'Gold: $count';
+
+  @override
+  String simulatorToolUses(String tool, Object count) => '$tool: $count';
+
+  @override
+  String get simulatorApplied => 'Local test purchase applied. This is not a real transaction.';
 }
