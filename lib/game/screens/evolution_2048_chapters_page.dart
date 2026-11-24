@@ -848,10 +848,10 @@ class _Tools extends StatelessWidget {
           icon: Icon(_icon(tool)),
           label: Text(
             used.contains(tool)
-                ? '${_name(context, tool)} USED'
+                ? '${_name(context, tool)} ${AppLocalizations.of(context)!.toolUsed}'
                 : selecting == tool
-                ? 'CANCEL'
-                : '${_name(tool)} 1 USE',
+                ? AppLocalizations.of(context)!.cancel
+                : '${_name(context, tool)} ${AppLocalizations.of(context)!.toolUsesRemaining(1)}',
           ),
         ),
     ],
