@@ -514,10 +514,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get currentLabel => '目前方案';
 
   @override
-  String get ownedUses => '持有數量：{count}';
+  String ownedUses(Object count) => '持有數量：$count';
 
   @override
-  String get purchaseSuccess => '已購買 {amount} 個 {tool} 道具使用次數。';
+  String purchaseSuccess(Object amount, String tool) => '已購買 $amount 個 $tool 道具使用次數。';
 
   @override
   String get purchaseFailed => '道具購買失敗。';
