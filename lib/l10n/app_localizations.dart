@@ -1066,14 +1066,14 @@ abstract class AppLocalizations {
   String get adminGameParametersSubtitle;
   String adminComingSoon(Object name);
   String get shopParametersSaved;
-  String shopParametersSaveFailed(Object error);
+  String get shopParametersSaveFailed;
   String get goldPackagesUsd;
   String get permanentMembershipUsd;
   String get evolutionToolsGold;
   String get saving;
   String get saveParameters;
   String get qaMigrationPending;
-  String unableLoadMessages(Object error);
+  String get unableLoadMessages;
   String get noPlayerMessages;
   String get playerMessage;
   String get openStatus;
@@ -1140,4 +1140,20 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
     'that was used.',
   );
+  String get authConfirmEmail;
+  String get authProviderUnavailable;
+  String get adminGold300Usd;
+  String get adminGold1000Usd;
+  String get adminGold4000Usd;
+  String get adminGold10000Usd;
+  String get adminPremiumUsd;
+  String get adminGoldenUsd;
+  String get adminGoldenUpgradeUsd;
+  String get adminOneUseGoldPrice;
+  String get adminFiveUsesGoldPrice;
+  String get adminTwentyUsesGoldPrice;
+  String get adminFiftyUsesGoldPrice;
+  String get uidLabel;
+  String get statusOpen;
+  String get statusClosed;
 }
