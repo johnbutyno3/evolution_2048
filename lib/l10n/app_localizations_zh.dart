@@ -461,4 +461,97 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get profileSetupFailed => '建立玩家資料失敗，請再試一次。';
+
+  @override
+  String get shopMembership => '會員方案';
+
+  @override
+  String get shopMembershipSubtitle => 'Premium 與 Golden 會員方案';
+
+  @override
+  String get shopGold => '金幣';
+
+  @override
+  String get shopGoldSubtitle => '購買金幣';
+
+  @override
+  String get shopTools => '道具';
+
+  @override
+  String get shopToolsSubtitle => 'UNDO、REMOVE、SWAP 與 DUPLICATE';
+
+  @override
+  String get goldBalanceTitle => '金幣餘額';
+
+  @override
+  String get paymentUnavailable => '目前尚未開放真實貨幣付款。';
+
+  @override
+  String get membershipGeneral => '一般會員';
+
+  @override
+  String get membershipPremium => 'Premium 會員';
+
+  @override
+  String get membershipGolden => 'Golden 會員';
+
+  @override
+  String get membershipGeneralDescription => '免費・5 點生命・每 40 分鐘恢復 1 點生命';
+
+  @override
+  String get membershipPremiumDescription => '永久會員・無強制廣告・無限生命・每日 20 金幣';
+
+  @override
+  String get membershipGoldenDescription => '永久會員・無廣告・無限生命・每日 50 金幣';
+
+  @override
+  String get permanentLabel => '永久';
+
+  @override
+  String get upgradeLabel => '升級';
+
+  @override
+  String get currentLabel => '目前方案';
+
+  @override
+  String get ownedUses => '持有數量：{count}';
+
+  @override
+  String get purchaseSuccess => '已購買 {amount} 個 {tool} 道具使用次數。';
+
+  @override
+  String get purchaseFailed => '道具購買失敗。';
+
+  @override
+  String get invalidToolQuantity => '道具購買數量無效。';
+
+  @override
+  String get signInBeforePurchase => '請先登入再購買道具。';
+
+  @override
+  String get insufficientGold => '金幣不足，無法完成購買。';
+
+  @override
+  String get freeSingleToolOnly => '一般會員每次只能購買 1 個道具。';
+
+  @override
+  String get goldenUndoUnlimited => 'Golden 會員擁有無限次 UNDO。';
+
+  @override
+  String get accountRestricted => '帳號目前受到限制，仍可聯絡客服。';
+
+  @override
+  String get idempotencyConflict => '此購買請求與先前請求衝突，請重新操作。';
+
+  @override
+  String get purchaseRetryOnline => '道具購買未能完成，請確認網路後重試。';
+
+  @override
+  String get purchaseProtectionUnavailable => '無法儲存購買保護資料，請重試。';
+
+  @override
+  String get invalidPurchaseResponse => '道具購買服務回傳的資料無效。';
+
+  @override
+  String get purchaseVerificationFailed => '無法驗證購買結果，本機金幣與道具數量未變更。';
 }
