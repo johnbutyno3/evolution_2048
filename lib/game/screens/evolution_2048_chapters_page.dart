@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 
 enum _Chapter { ocean, land, sky, history, tech, universe }
@@ -299,12 +300,12 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('GAME OVER'),
-        content: Text('No more moves.\n\nSCORE  $_score'),
+        title: Text(AppLocalizations.of(context)!.gameOverTitle),
+        content: Text('${AppLocalizations.of(context)!.noMoreMoves}\n\n${AppLocalizations.of(context)!.scoreLabel}  $_score'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('USE TOOL'),
+            child: Text(AppLocalizations.of(context)!.useTool),
           ),
           FilledButton(
             onPressed: () {
@@ -312,7 +313,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
               setState(_resetBoard);
               _focus.requestFocus();
             },
-            child: const Text('RESTART'),
+            child: Text(AppLocalizations.of(context)!.restartButton),
           ),
         ],
       ),
@@ -359,7 +360,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       if (value >= 512) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Duplicate is limited to tiles up to 256.'),
+            content: Text(AppLocalizations.of(context)!.duplicateLimit),
           ),
         );
         return;
