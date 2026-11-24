@@ -892,4 +892,286 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String selectTileForTool(String tool) => 'Select a tile for $tool';
+
+  @override
+  String get creatureC1V2 => 'Diatom';
+
+  @override
+  String get creatureC1V4 => 'Flagellate';
+
+  @override
+  String get creatureC1V8 => 'Krill';
+
+  @override
+  String get creatureC1V16 => 'Clownfish';
+
+  @override
+  String get creatureC1V32 => 'Jellyfish';
+
+  @override
+  String get creatureC1V64 => 'Squid';
+
+  @override
+  String get creatureC1V128 => 'Sea Turtle';
+
+  @override
+  String get creatureC1V256 => 'Yellowfin Tuna';
+
+  @override
+  String get creatureC1V512 => 'Shark';
+
+  @override
+  String get creatureC1V1024 => 'Orca';
+
+  @override
+  String get creatureC1V2048 => 'Blue Whale';
+
+  @override
+  String get creatureC1V4096 => 'Seabed Human';
+
+  @override
+  String get creatureC2V2 => 'Land Plant';
+
+  @override
+  String get creatureC2V4 => 'Fern';
+
+  @override
+  String get creatureC2V8 => 'Arthropod';
+
+  @override
+  String get creatureC2V16 => 'Insect';
+
+  @override
+  String get creatureC2V32 => 'Amphibian';
+
+  @override
+  String get creatureC2V64 => 'Reptile';
+
+  @override
+  String get creatureC2V128 => 'Small Mammal';
+
+  @override
+  String get creatureC2V256 => 'Large Mammal';
+
+  @override
+  String get creatureC2V512 => 'Primate';
+
+  @override
+  String get creatureC2V1024 => 'Early Human';
+
+  @override
+  String get creatureC2V2048 => 'Homo Sapiens';
+
+  @override
+  String get creatureC2V4096 => 'Civilized Human';
+
+  @override
+  String get creatureC2V8192 => 'Future Human';
+
+  @override
+  String get creatureC3V2 => 'Hairy Cell Organism';
+
+  @override
+  String get creatureC3V4 => 'Mosquito';
+
+  @override
+  String get creatureC3V8 => 'Dragonfly';
+
+  @override
+  String get creatureC3V16 => 'Archaeopteryx';
+
+  @override
+  String get creatureC3V32 => 'Eagle';
+
+  @override
+  String get creatureC3V64 => 'Pterosaur';
+
+  @override
+  String get creatureC3V128 => 'Bat';
+
+  @override
+  String get creatureC3V256 => 'Glider';
+
+  @override
+  String get creatureC3V512 => 'Early Aircraft';
+
+  @override
+  String get creatureC3V1024 => 'Jet Fighter';
+
+  @override
+  String get creatureC3V2048 => 'Stealth Fighter';
+
+  @override
+  String get creatureC3V4096 => 'Aircraft';
+
+  @override
+  String get creatureC3V8192 => 'Wing Suit';
+
+  @override
+  String get creatureC3V16384 => 'Winged Human';
+
+  @override
+  String get creatureC4V2 => 'Fire';
+
+  @override
+  String get creatureC4V4 => 'Tribe';
+
+  @override
+  String get creatureC4V8 => 'Pyramid';
+
+  @override
+  String get creatureC4V16 => 'Roman Architecture';
+
+  @override
+  String get creatureC4V32 => 'Tang Architecture';
+
+  @override
+  String get creatureC4V64 => 'Mongol Invasion';
+
+  @override
+  String get creatureC4V128 => 'Age of Exploration';
+
+  @override
+  String get creatureC4V256 => 'American Independence';
+
+  @override
+  String get creatureC4V512 => 'Industrial Revolution';
+
+  @override
+  String get creatureC4V1024 => 'Communication Revolution';
+
+  @override
+  String get creatureC4V2048 => 'Automobile Invention';
+
+  @override
+  String get creatureC4V4096 => 'Airplane Invention';
+
+  @override
+  String get creatureC4V8192 => 'World War II';
+
+  @override
+  String get creatureC4V16384 => 'Space Exploration';
+
+  @override
+  String get creatureC4V32768 => 'Information Age';
+
+  @override
+  String get creatureC5V2 => 'Watch';
+
+  @override
+  String get creatureC5V4 => 'Camera';
+
+  @override
+  String get creatureC5V8 => 'Radio';
+
+  @override
+  String get creatureC5V16 => 'Television';
+
+  @override
+  String get creatureC5V32 => 'Washing Machine';
+
+  @override
+  String get creatureC5V64 => 'Refrigerator';
+
+  @override
+  String get creatureC5V128 => 'Microwave';
+
+  @override
+  String get creatureC5V256 => 'Remote Control';
+
+  @override
+  String get creatureC5V512 => 'Computer';
+
+  @override
+  String get creatureC5V1024 => 'Mobile Phone';
+
+  @override
+  String get creatureC5V2048 => 'Tablet';
+
+  @override
+  String get creatureC5V4096 => 'Drone';
+
+  @override
+  String get creatureC5V8192 => 'VR Device';
+
+  @override
+  String get creatureC5V16384 => 'Robot';
+
+  @override
+  String get creatureC5V32768 => 'Chip';
+
+  @override
+  String get creatureC5V65536 => 'Future Technology';
+
+  @override
+  String get creatureC6V2 => 'Big Bang';
+
+  @override
+  String get creatureC6V4 => 'Planet Formation';
+
+  @override
+  String get creatureC6V8 => 'Sun';
+
+  @override
+  String get creatureC6V16 => 'Earth';
+
+  @override
+  String get creatureC6V32 => 'Moon';
+
+  @override
+  String get creatureC6V64 => 'Mars';
+
+  @override
+  String get creatureC6V128 => 'Ring Space Station';
+
+  @override
+  String get creatureC6V256 => 'Asteroid Mining';
+
+  @override
+  String get creatureC6V512 => 'Solar System Expansion';
+
+  @override
+  String get creatureC6V1024 => 'Alien Life';
+
+  @override
+  String get creatureC6V2048 => 'Alien';
+
+  @override
+  String get creatureC6V4096 => 'First Contact';
+
+  @override
+  String get creatureC6V8192 => 'Interstellar Travel';
+
+  @override
+  String get creatureC6V16384 => 'Galaxy Exploration';
+
+  @override
+  String get creatureC6V32768 => 'Cosmic Civilization';
+
+  @override
+  String get creatureC6V65536 => 'Earth Development';
+
+  @override
+  String get creatureC6V131072 => 'Divine Perspective';
+
+  @override
+  String get oceanRestored => 'Ocean Restored';
+
+  @override
+  String get landRestored => 'Land Restored';
+
+  @override
+  String get skyRestored => 'Sky Restored';
+
+  @override
+  String get historyRestored => 'History Restored';
+
+  @override
+  String get technologyRestored => 'Technology Restored';
+
+  @override
+  String get universeRestored => 'Universe Restored';
+
+  @override
+  String chapterScoreSummary(Object score, Object highest) => 'Score $score    Highest $highest';
 }
