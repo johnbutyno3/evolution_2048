@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/admin_service.dart';
 import '../services/supabase_backend.dart';
 import '../l10n/app_localizations.dart';
+import 'admin_test_page.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
