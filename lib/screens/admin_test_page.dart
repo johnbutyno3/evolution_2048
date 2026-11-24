@@ -18,6 +18,7 @@ class AdminTestPage extends StatefulWidget {
 
 class _AdminTestPageState extends State<AdminTestPage> {
   void _simulate(VoidCallback action) {
+    final l10n = AppLocalizations.of(context)!;
     try {
       action();
       if (!mounted) return;
@@ -25,10 +26,21 @@ class _AdminTestPageState extends State<AdminTestPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.simulatorApplied)),
       );
+    } on StateError catch (error) {
+      if (!mounted) return;
+      final message = switch (error.message) {
+        'INSUFFICIENT_GOLD' => l10n.insufficientGold,
+        'FREE_SINGLE_TOOL_ONLY' => l10n.freeSingleToolOnly,
+        'GOLDEN_UNDO_UNLIMITED' => l10n.goldenUndoUnlimited,
+        _ => l10n.purchaseFailed,
+      };
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.purchaseFailed)),
+        SnackBar(content: Text(l10n.purchaseFailed)),
       );
     }
   }
