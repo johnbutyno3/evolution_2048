@@ -886,4 +886,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusClosed => 'Closed';
+
+  @override
+  String highestProgress(Object current, Object target) => 'Highest: $current / $target';
+
+  @override
+  String selectTileForTool(String tool) => 'Select a tile for $tool';
 }
