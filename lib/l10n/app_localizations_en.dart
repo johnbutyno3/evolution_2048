@@ -531,10 +531,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get currentLabel => 'Current';
 
   @override
-  String get ownedUses => 'Owned: {count}';
+  String ownedUses(Object count) => 'Owned: $count';
 
   @override
-  String get purchaseSuccess => 'Purchased {amount} {tool} use(s).';
+  String purchaseSuccess(Object amount, String tool) => 'Purchased $amount $tool use(s).';
 
   @override
   String get purchaseFailed => 'Tool purchase failed.';
