@@ -37,7 +37,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     } on PlayerProfileException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
+          SnackBar(content: Text(AppLocalizations.of(context)!.profileSetupFailed)),
         );
       }
     } catch (_) {
