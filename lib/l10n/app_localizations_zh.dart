@@ -875,4 +875,286 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String selectTileForTool(String tool) => '選擇要使用 $tool 的生物';
+
+  @override
+  String get creatureC1V2 => '矽藻';
+
+  @override
+  String get creatureC1V4 => '鞭毛蟲';
+
+  @override
+  String get creatureC1V8 => '磷蝦';
+
+  @override
+  String get creatureC1V16 => '小丑魚';
+
+  @override
+  String get creatureC1V32 => '水母';
+
+  @override
+  String get creatureC1V64 => '魷魚';
+
+  @override
+  String get creatureC1V128 => '海龜';
+
+  @override
+  String get creatureC1V256 => '黃鰭鮪魚';
+
+  @override
+  String get creatureC1V512 => '鯊魚';
+
+  @override
+  String get creatureC1V1024 => '虎鯨';
+
+  @override
+  String get creatureC1V2048 => '藍鯨';
+
+  @override
+  String get creatureC1V4096 => '海底人類';
+
+  @override
+  String get creatureC2V2 => '陸生植物';
+
+  @override
+  String get creatureC2V4 => '蕨類';
+
+  @override
+  String get creatureC2V8 => '節肢動物';
+
+  @override
+  String get creatureC2V16 => '昆蟲';
+
+  @override
+  String get creatureC2V32 => '兩棲類';
+
+  @override
+  String get creatureC2V64 => '爬蟲類';
+
+  @override
+  String get creatureC2V128 => '小型哺乳類';
+
+  @override
+  String get creatureC2V256 => '大型哺乳類';
+
+  @override
+  String get creatureC2V512 => '靈長類';
+
+  @override
+  String get creatureC2V1024 => '早期人類';
+
+  @override
+  String get creatureC2V2048 => '智人';
+
+  @override
+  String get creatureC2V4096 => '文明人類';
+
+  @override
+  String get creatureC2V8192 => '未來人類';
+
+  @override
+  String get creatureC3V2 => '毛狀細胞生物';
+
+  @override
+  String get creatureC3V4 => '蚊子';
+
+  @override
+  String get creatureC3V8 => '蜻蜓';
+
+  @override
+  String get creatureC3V16 => '始祖鳥';
+
+  @override
+  String get creatureC3V32 => '老鷹';
+
+  @override
+  String get creatureC3V64 => '翼龍';
+
+  @override
+  String get creatureC3V128 => '蝙蝠';
+
+  @override
+  String get creatureC3V256 => '滑翔翼';
+
+  @override
+  String get creatureC3V512 => '早期飛機';
+
+  @override
+  String get creatureC3V1024 => '噴射戰鬥機';
+
+  @override
+  String get creatureC3V2048 => '隱形戰機';
+
+  @override
+  String get creatureC3V4096 => '飛行器';
+
+  @override
+  String get creatureC3V8192 => '翼裝飛行服';
+
+  @override
+  String get creatureC3V16384 => '翼人';
+
+  @override
+  String get creatureC4V2 => '火';
+
+  @override
+  String get creatureC4V4 => '部落';
+
+  @override
+  String get creatureC4V8 => '金字塔';
+
+  @override
+  String get creatureC4V16 => '羅馬建築';
+
+  @override
+  String get creatureC4V32 => '唐代建築';
+
+  @override
+  String get creatureC4V64 => '蒙古入侵';
+
+  @override
+  String get creatureC4V128 => '大航海時代';
+
+  @override
+  String get creatureC4V256 => '美國獨立';
+
+  @override
+  String get creatureC4V512 => '工業革命';
+
+  @override
+  String get creatureC4V1024 => '通訊革命';
+
+  @override
+  String get creatureC4V2048 => '汽車發明';
+
+  @override
+  String get creatureC4V4096 => '飛機發明';
+
+  @override
+  String get creatureC4V8192 => '第二次世界大戰';
+
+  @override
+  String get creatureC4V16384 => '太空探索';
+
+  @override
+  String get creatureC4V32768 => '資訊時代';
+
+  @override
+  String get creatureC5V2 => '手錶';
+
+  @override
+  String get creatureC5V4 => '相機';
+
+  @override
+  String get creatureC5V8 => '收音機';
+
+  @override
+  String get creatureC5V16 => '電視';
+
+  @override
+  String get creatureC5V32 => '洗衣機';
+
+  @override
+  String get creatureC5V64 => '冰箱';
+
+  @override
+  String get creatureC5V128 => '微波爐';
+
+  @override
+  String get creatureC5V256 => '遙控器';
+
+  @override
+  String get creatureC5V512 => '電腦';
+
+  @override
+  String get creatureC5V1024 => '手機';
+
+  @override
+  String get creatureC5V2048 => '平板電腦';
+
+  @override
+  String get creatureC5V4096 => '無人機';
+
+  @override
+  String get creatureC5V8192 => 'VR 裝置';
+
+  @override
+  String get creatureC5V16384 => '機器人';
+
+  @override
+  String get creatureC5V32768 => '晶片';
+
+  @override
+  String get creatureC5V65536 => '未來科技';
+
+  @override
+  String get creatureC6V2 => '大爆炸';
+
+  @override
+  String get creatureC6V4 => '行星形成';
+
+  @override
+  String get creatureC6V8 => '太陽';
+
+  @override
+  String get creatureC6V16 => '地球';
+
+  @override
+  String get creatureC6V32 => '月球';
+
+  @override
+  String get creatureC6V64 => '火星';
+
+  @override
+  String get creatureC6V128 => '環形太空站';
+
+  @override
+  String get creatureC6V256 => '小行星採礦';
+
+  @override
+  String get creatureC6V512 => '太陽系拓展';
+
+  @override
+  String get creatureC6V1024 => '外星生命';
+
+  @override
+  String get creatureC6V2048 => '外星人';
+
+  @override
+  String get creatureC6V4096 => '首次接觸';
+
+  @override
+  String get creatureC6V8192 => '星際旅行';
+
+  @override
+  String get creatureC6V16384 => '星系探索';
+
+  @override
+  String get creatureC6V32768 => '宇宙文明';
+
+  @override
+  String get creatureC6V65536 => '地球演化';
+
+  @override
+  String get creatureC6V131072 => '神之視角';
+
+  @override
+  String get oceanRestored => '海洋重現';
+
+  @override
+  String get landRestored => '陸地重現';
+
+  @override
+  String get skyRestored => '天空重現';
+
+  @override
+  String get historyRestored => '歷史重現';
+
+  @override
+  String get technologyRestored => '科技重現';
+
+  @override
+  String get universeRestored => '宇宙重現';
+
+  @override
+  String chapterScoreSummary(Object score, Object highest) => '分數 $score    最高進度 $highest';
 }
