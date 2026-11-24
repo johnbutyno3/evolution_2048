@@ -773,4 +773,52 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get faqAnswer6 => '進入個人資訊頁的「聯絡我們／意見回饋」，選擇「錯誤回報」，描述問題後即可傳送給開發團隊。';
+
+  @override
+  String get simulatorTitle => '本機模擬購買';
+
+  @override
+  String get simulatorNotice => '僅供除錯測試。變更只存在本機且為暫時狀態；下次同步帳號時會被伺服器資料取代。本功能不會進行真實付款。';
+
+  @override
+  String get simulatePremium => '模擬購買 Premium';
+
+  @override
+  String get simulateGolden => '模擬購買 Golden';
+
+  @override
+  String get simulateGold => '模擬購買 300 金幣';
+
+  @override
+  String get simulateUndo => '模擬購買 UNDO ×1';
+
+  @override
+  String get simulateRemove => '模擬購買 REMOVE ×1';
+
+  @override
+  String get simulateSwap => '模擬購買 SWAP ×1';
+
+  @override
+  String get simulateDuplicate => '模擬購買 DUPLICATE ×1';
+
+  @override
+  String get simulatorCurrentState => '目前本機測試狀態';
+
+  @override
+  String get simulatorDebugOnly => '模擬購買功能僅能在除錯版本使用。';
+
+  @override
+  String simulatorMembership(Object tier) => '會員資格：$tier';
+
+  @override
+  String simulatorLives(Object count) => '生命：$count';
+
+  @override
+  String simulatorGold(Object count) => '金幣：$count';
+
+  @override
+  String simulatorToolUses(String tool, Object count) => '$tool：$count';
+
+  @override
+  String get simulatorApplied => '本機測試購買已套用。這不是真實交易。';
 }
