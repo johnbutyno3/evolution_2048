@@ -985,6 +985,38 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to set up your profile.'**
   String get profileSetupFailed;
+
+  String get shopMembership;
+  String get shopMembershipSubtitle;
+  String get shopGold;
+  String get shopGoldSubtitle;
+  String get shopTools;
+  String get shopToolsSubtitle;
+  String get goldBalanceTitle;
+  String get paymentUnavailable;
+  String get membershipGeneral;
+  String get membershipPremium;
+  String get membershipGolden;
+  String get membershipGeneralDescription;
+  String get membershipPremiumDescription;
+  String get membershipGoldenDescription;
+  String get permanentLabel;
+  String get upgradeLabel;
+  String get currentLabel;
+  String get ownedUses;
+  String get purchaseSuccess;
+  String get purchaseFailed;
+  String get invalidToolQuantity;
+  String get signInBeforePurchase;
+  String get insufficientGold;
+  String get freeSingleToolOnly;
+  String get goldenUndoUnlimited;
+  String get accountRestricted;
+  String get idempotencyConflict;
+  String get purchaseRetryOnline;
+  String get purchaseProtectionUnavailable;
+  String get invalidPurchaseResponse;
+  String get purchaseVerificationFailed;
 }
 
 class _AppLocalizationsDelegate
