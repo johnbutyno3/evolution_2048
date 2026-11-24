@@ -659,4 +659,82 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get faqTitle => '常見問題集';
+
+  @override
+  String get adminRequired => '需要管理員權限。';
+
+  @override
+  String get adminTitle => '管理員管理';
+
+  @override
+  String get adminShopParameters => '商城參數';
+
+  @override
+  String get adminShopSubtitle => '金幣、道具與會員設定';
+
+  @override
+  String get adminQAManagement => '常見問題管理';
+
+  @override
+  String get adminQASubtitle => '管理常見問題';
+
+  @override
+  String get adminPlayerMessages => '玩家訊息';
+
+  @override
+  String get adminMessagesSubtitle => '查看玩家意見回饋';
+
+  @override
+  String get adminPlayerSearch => '玩家搜尋';
+
+  @override
+  String get adminPlayerSearchSubtitle => '玩家查詢功能尚未啟用';
+
+  @override
+  String get adminGameParameters => '遊戲參數';
+
+  @override
+  String get adminGameParametersSubtitle => '章節與遊戲設定';
+
+  @override
+  String adminComingSoon(String name) => '$name管理功能將於後續版本加入。';
+
+  @override
+  String get shopParametersSaved => '商城參數已儲存。';
+
+  @override
+  String shopParametersSaveFailed(Object error) => '無法儲存商城參數：$error';
+
+  @override
+  String get goldPackagesUsd => '金幣方案（美元）';
+
+  @override
+  String get permanentMembershipUsd => '永久會員方案（美元）';
+
+  @override
+  String get evolutionToolsGold => '進化道具（金幣）';
+
+  @override
+  String get saving => '儲存中……';
+
+  @override
+  String get saveParameters => '儲存參數';
+
+  @override
+  String get qaMigrationPending => '常見問題管理功能將於後續版本遷移至 Supabase。';
+
+  @override
+  String unableLoadMessages(Object error) => '無法載入訊息：$error';
+
+  @override
+  String get noPlayerMessages => '目前沒有玩家訊息。';
+
+  @override
+  String get playerMessage => '玩家訊息';
+
+  @override
+  String get openStatus => '開啟';
+
+  @override
+  String get testControlsTitle => '測試控制';
 }
