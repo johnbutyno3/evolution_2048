@@ -770,8 +770,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
   Future<void> _showToolUnavailable(String toolName) async {
     if (!mounted) return; await showModalBottomSheet<void>(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(leading: const Icon(Icons.ondemand_video_outlined), title: Text('取得 $toolName'), subtitle: const Text('可觀看 Rewarded Ad 取得額外使用次數'), onTap: () => Navigator.pop(context)),
-      ListTile(leading: const Icon(Icons.store_outlined), title: const Text('前往商城'), onTap: () { Navigator.pop(context); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())); }),
+      ListTile(leading: const Icon(Icons.ondemand_video_outlined), title: Text(AppLocalizations.of(context)!.getTool(toolName)), subtitle: Text(AppLocalizations.of(context)!.rewardedAdToolDescription), onTap: () => Navigator.pop(context)),
+      ListTile(leading: const Icon(Icons.store_outlined), title: Text(AppLocalizations.of(context)!.goToShop), onTap: () { Navigator.pop(context); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())); }),
     ])));
   }
   Future<void> _selectToolTile(int index) async {
@@ -893,9 +893,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'Chapter verification is still unavailable. Please try again.',
-                      ),
+                      content: Text(AppLocalizations.of(context)!.chapterVerifyPending),
                     ),
                   );
                 }
@@ -963,7 +961,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Unable to start the next chapter. Please check your Life.'),
+            content: Text(AppLocalizations.of(context)!.nextChapterStartFailed),
           ),
         );
       }
@@ -1054,7 +1052,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Unable to start the next chapter. Please try again.'),
+            content: Text(AppLocalizations.of(context)!.nextChapterStartRetry),
           ),
         );
       }).catchError((_) async {
@@ -1073,7 +1071,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Widget _buildToolButton(GameToolType type) {
     final mode = _toolModeForType(type); final matching = _engine.toolManager.tools.where((state) => state.tool.type == type); final state = matching.isEmpty ? null : matching.first; final unlocked = state != null; final enabled = unlocked && state.canUse && switch (type) { GameToolType.revive => _engine.canUseRevive, GameToolType.timeRewind => _engine.canUseTimeRewind, GameToolType.positionSwap => _engine.canUsePositionSwap, GameToolType.duplicate => _engine.canUseDuplicate };
     final selected = _toolMode == mode; final pressed = _pressedToolMode == mode; final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35); final canOpenShop = unlocked && !state.canUse; final canTap = selected || enabled || canOpenShop || mode == 'rewind';
-    return GestureDetector(behavior: HitTestBehavior.opaque, onTapDown: canTap ? (_) { if (mounted) setState(() => _pressedToolMode = mode); } : null, onTapUp: canTap ? (_) { if (!mounted) return; setState(() => _pressedToolMode = null); if (selected) { unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel)); setState(() { _toolMode = null; _firstSwapIndex = null; _pressedToolMode = null; }); _focusNode.requestFocus(); } else { unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect)); unawaited(_startTool(mode)); } } : null, onTapCancel: canTap ? () { if (mounted) setState(() => _pressedToolMode = null); } : null, child: Opacity(opacity: opacity, child: SizedBox(height: 112, child: Stack(alignment: Alignment.center, children: [Column(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 76, height: 72, child: Image.asset(_toolImagePath(mode, pressed: pressed), fit: BoxFit.contain)), const SizedBox(height: 1), Text(selected ? 'CANCEL' : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)), const SizedBox(height: 1), Text(state == null ? '?' : (LifeManager.isGoldenMember && type == GameToolType.timeRewind ? '∞' : '${state.usesRemaining}'), style: const TextStyle(fontSize: 8))]), if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)), if (selected) const Positioned(top: 2, child: Text('CANCEL', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))) ]))));
+    return GestureDetector(behavior: HitTestBehavior.opaque, onTapDown: canTap ? (_) { if (mounted) setState(() => _pressedToolMode = mode); } : null, onTapUp: canTap ? (_) { if (!mounted) return; setState(() => _pressedToolMode = null); if (selected) { unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel)); setState(() { _toolMode = null; _firstSwapIndex = null; _pressedToolMode = null; }); _focusNode.requestFocus(); } else { unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect)); unawaited(_startTool(mode)); } } : null, onTapCancel: canTap ? () { if (mounted) setState(() => _pressedToolMode = null); } : null, child: Opacity(opacity: opacity, child: SizedBox(height: 112, child: Stack(alignment: Alignment.center, children: [Column(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 76, height: 72, child: Image.asset(_toolImagePath(mode, pressed: pressed), fit: BoxFit.contain)), const SizedBox(height: 1), Text(selected ? AppLocalizations.of(context)!.cancelTool : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)), const SizedBox(height: 1), Text(state == null ? '?' : (LifeManager.isGoldenMember && type == GameToolType.timeRewind ? '∞' : '${state.usesRemaining}'), style: const TextStyle(fontSize: 8))]), if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)), if (selected) Positioned(top: 2, child: Text(AppLocalizations.of(context)!.cancelTool, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))) ]))));
   }
   Widget _buildEvolutionNotice() { final value = _evolutionValue ?? _engine.highestEvolutionValue; final name = _evolutionCreatureName ?? _creatureNameForValue(value); if (name.isEmpty) return const SizedBox.shrink(); return Container(width: double.infinity, margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.black.withValues(alpha: 0.68), border: Border.all(color: Colors.white.withValues(alpha: 0.45))), child: Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Colors.white))); }
   String _formatDuration(Duration duration) { final totalSeconds = duration.inSeconds; final minutes = totalSeconds ~/ 60; final seconds = totalSeconds % 60; return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'; }
@@ -1082,7 +1080,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Widget build(BuildContext context) {
     final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount; final lifeRemaining = LifeManager.regenerationRemaining; final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
     return PopScope<void>(canPop: _allowSystemPop, onPopInvokedWithResult: (didPop, result) { if (didPop || _allowSystemPop) return; unawaited(_handleSystemBack()); }, child: Scaffold(appBar: AppBar(title: Text(_chapterTitle), actions: []), body: SafeArea(child: Focus(autofocus: true, focusNode: _focusNode, onKeyEvent: _handleKey, child: GestureDetector(behavior: HitTestBehavior.opaque, onPanStart: _handleDragStart, onPanUpdate: _handleDragUpdate, onPanEnd: _handleDragEnd, child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: Padding(padding: const EdgeInsets.all(16), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Score ${_engine.score}', style: Theme.of(context).textTheme.titleMedium), Text('Best ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium)]), const SizedBox(height: 12),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${AppLocalizations.of(context)!.scoreLabel} ${_engine.score}', style: Theme.of(context).textTheme.titleMedium), Text('${AppLocalizations.of(context)!.best} ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium)]), const SizedBox(height: 12),
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _showResetMenu(); }, tooltip: AppLocalizations.of(context)!.restart, visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20))])]), const SizedBox(height: 12),
       Text(_toolMode == null ? 'Highest: ${_engine.highestValue} / ${_engine.targetValue}' : 'Select a tile for ${_toolMode == 'swap' ? 'Swap' : _toolMode == 'duplicate' ? 'Duplicate' : 'REMOVE'}', style: Theme.of(context).textTheme.bodyLarge), const SizedBox(height: 10), _buildEvolutionNotice(),
       AspectRatio(aspectRatio: 1, child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Stack(fit: StackFit.expand, children: [Image.asset(background, fit: BoxFit.cover), Container(color: Colors.black.withValues(alpha: 0.18)), GridView.builder(physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.all(8), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 6, mainAxisSpacing: 6), itemCount: 16, itemBuilder: (context, index) { final tile = _engine.board.tiles[index]; final selected = _firstSwapIndex == index; final cell = Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: selected ? Border.all(width: 3, color: Colors.yellow) : null, color: tile == null ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.82)), padding: EdgeInsets.all(_engine.chapter == GameChapter.universe ? 2 : 6), child: tile == null ? const SizedBox.shrink() : Image.asset(tile.creature.imagePath, fit: BoxFit.contain)); return _toolMode == null ? cell : GestureDetector(onTap: () => unawaited(_selectToolTile(index)), child: cell); }), _buildCompletionAnimation()]))), const SizedBox(height: 12), Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Row(children: [Expanded(child: _buildToolButton(GameToolType.timeRewind)), Expanded(child: _buildToolButton(GameToolType.positionSwap)), Expanded(child: _buildToolButton(GameToolType.revive)), Expanded(child: _buildToolButton(GameToolType.duplicate))]))
@@ -1150,7 +1148,7 @@ class _ChapterCompletePage extends StatelessWidget {
                               );
                               unawaited(Future<void>.sync(onNextChapter));
                             },
-                            child: const Text('Next Chapter'),
+                            child: Text(AppLocalizations.of(context)!.nextChapter),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -1163,7 +1161,7 @@ class _ChapterCompletePage extends StatelessWidget {
                               );
                               onHome();
                             },
-                            child: const Text('Home'),
+                            child: Text(AppLocalizations.of(context)!.home),
                           ),
                         ),
                       ],
