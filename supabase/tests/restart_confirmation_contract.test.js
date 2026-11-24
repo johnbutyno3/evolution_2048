@@ -207,8 +207,8 @@ test("Premium to Golden upgrade price is wired through config, admin, and member
   assert.match(shop, /'membership_upgrade_golden': 'goldenUpgradeUsdPrice'/);
   assert.match(adminService, /'goldenUpgradeUsdPrice': \('membership_upgrade_golden', 'priceUsd'\)/);
   assert.match(adminPage, /adminGoldenUpgradeUsd/);
-  assert.match(english, /\"adminGoldenUpgradeUsd\": \"Premium to Golden upgrade \\(USD\\)\"/);
-  assert.match(chinese, /\"adminGoldenUpgradeUsd\": \"Premium 升級 Golden 價格（美元）\"/);
+  assert.ok(english.includes('"adminGoldenUpgradeUsd": "Premium to Golden upgrade (USD)"'));
+  assert.ok(chinese.includes('"adminGoldenUpgradeUsd": "Premium 升級 Golden 價格（美元）"'));
   assert.match(adminFunction, /goldenUpgradeUsdPrice: \{ product: "membership_upgrade_golden", field: "priceUsd"/);
   assert.match(membershipPage, /current == 'premium'/);
   assert.match(membershipPage, /'goldenUpgradeUsdPrice'/);
@@ -223,8 +223,8 @@ test("Real-money membership checkout remains blocked until store verification is
   const english = read("lib/l10n/app_en.arb");
   const chinese = read("lib/l10n/app_zh.arb");
   assert.match(page, /AppLocalizations\.of\(context\)!\.paymentUnavailable/);
-  assert.match(english, /\"paymentUnavailable\": \"Real-money payment is not connected yet\.\"/);
-  assert.match(chinese, /\"paymentUnavailable\": \"目前尚未開放真實貨幣付款。\"/);
+  assert.ok(english.includes('"paymentUnavailable": "Real-money payment is not connected yet."'));
+  assert.ok(chinese.includes('"paymentUnavailable": "目前尚未開放真實貨幣付款。"'));
   assert.match(page, /onPressed: _unavailable/);
   assert.doesNotMatch(page, /functions\.invoke|purchase-membership|verify-store-purchase/);
 });
