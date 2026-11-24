@@ -1062,7 +1062,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _focusNode.requestFocus();
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(AppLocalizations.of(context)!.nextChapterStartRetry),
           ),
         );
