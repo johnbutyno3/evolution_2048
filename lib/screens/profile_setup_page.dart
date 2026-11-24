@@ -34,7 +34,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         MaterialPageRoute(builder: (_) => const HomePage()),
         (route) => false,
       );
-    } on PlayerProfileException catch (error) {
+    } on PlayerProfileException {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context)!.profileSetupFailed)),
