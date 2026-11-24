@@ -170,7 +170,7 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.shopParametersSaveFailed(error))),
+          SnackBar(content: Text(AppLocalizations.of(context)!.shopParametersSaveFailed)),
         );
       }
     } finally {
@@ -212,16 +212,16 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
         children: [
           Text(AppLocalizations.of(context)!.goldPackagesUsd, style: _headingStyle),
           const SizedBox(height: 12),
-          _field('gold300UsdPrice', '300 Gold USD', decimal: true),
-          _field('gold1000UsdPrice', '1,000 Gold USD', decimal: true),
-          _field('gold4000UsdPrice', '4,000 Gold USD', decimal: true),
-          _field('gold10000UsdPrice', '10,000 Gold USD', decimal: true),
+          _field('gold300UsdPrice', AppLocalizations.of(context)!.adminGold300Usd, decimal: true),
+          _field('gold1000UsdPrice', AppLocalizations.of(context)!.adminGold1000Usd, decimal: true),
+          _field('gold4000UsdPrice', AppLocalizations.of(context)!.adminGold4000Usd, decimal: true),
+          _field('gold10000UsdPrice', AppLocalizations.of(context)!.adminGold10000Usd, decimal: true),
           const SizedBox(height: 12),
           Text(AppLocalizations.of(context)!.permanentMembershipUsd, style: _headingStyle),
           const SizedBox(height: 12),
-          _field('premiumUsdPrice', 'Premium Member USD', decimal: true),
-          _field('goldenUsdPrice', 'Golden Member USD', decimal: true),
-          _field('goldenUpgradeUsdPrice', 'Premium → Golden Upgrade USD', decimal: true),
+          _field('premiumUsdPrice', AppLocalizations.of(context)!.adminPremiumUsd, decimal: true),
+          _field('goldenUsdPrice', AppLocalizations.of(context)!.adminGoldenUsd, decimal: true),
+          _field('goldenUpgradeUsdPrice', AppLocalizations.of(context)!.adminGoldenUpgradeUsd, decimal: true),
           const SizedBox(height: 12),
           Text(AppLocalizations.of(context)!.evolutionToolsGold, style: _headingStyle),
           const SizedBox(height: 12),
@@ -233,10 +233,10 @@ class _AdminShopParametersPageState extends State<AdminShopParametersPage> {
           ]) ...[
             Text(tool.$2, style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            _field('${tool.$1}1Price', '1 use Gold price'),
-            _field('${tool.$1}5Price', '5 uses Gold price'),
-            _field('${tool.$1}20Price', '20 uses Gold price'),
-            _field('${tool.$1}50Price', '50 uses Gold price'),
+            _field('${tool.$1}1Price', AppLocalizations.of(context)!.adminOneUseGoldPrice),
+            _field('${tool.$1}5Price', AppLocalizations.of(context)!.adminFiveUsesGoldPrice),
+            _field('${tool.$1}20Price', AppLocalizations.of(context)!.adminTwentyUsesGoldPrice),
+            _field('${tool.$1}50Price', AppLocalizations.of(context)!.adminFiftyUsesGoldPrice),
             const SizedBox(height: 8),
           ],
           FilledButton.icon(
@@ -281,7 +281,7 @@ class AdminMessagesPage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text(AppLocalizations.of(context)!.unableLoadMessages(snapshot.error ?? '')));
+            return Center(child: Text(AppLocalizations.of(context)!.unableLoadMessages));
           }
           final messages = snapshot.data ?? const <Map<String, dynamic>>[];
           if (messages.isEmpty) {
