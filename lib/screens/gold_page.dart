@@ -108,7 +108,7 @@ class _GoldPageState extends State<GoldPage> {
         ),
         leading: const Icon(Icons.monetization_on_outlined),
         title: Text(
-          '${AppLocalizations.of(context)!.goldAmount(amount)}',
+          AppLocalizations.of(context)!.goldAmount(amount),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         trailing: FilledButton(
