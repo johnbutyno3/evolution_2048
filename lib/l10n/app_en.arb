@@ -252,14 +252,14 @@
   "adminGameParametersSubtitle": "Chapter and gameplay settings",
   "adminComingSoon": "{name} management will be added next.",
   "shopParametersSaved": "Shop parameters saved.",
-  "shopParametersSaveFailed": "Could not save shop parameters: {error}",
+  "shopParametersSaveFailed": "Could not save shop parameters. Please retry online.",
   "goldPackagesUsd": "Gold Packages (USD)",
   "permanentMembershipUsd": "Permanent Membership (USD)",
   "evolutionToolsGold": "Evolution Tools (Gold)",
   "saving": "Saving...",
   "saveParameters": "Save Parameters",
   "qaMigrationPending": "Q&A management will be migrated to Supabase next.",
-  "unableLoadMessages": "Unable to load messages: {error}",
+  "unableLoadMessages": "Unable to load player messages. Please retry online.",
   "noPlayerMessages": "No player messages yet.",
   "playerMessage": "Player message",
   "openStatus": "open",
@@ -268,20 +268,6 @@
     "placeholders": {
       "name": {
         "type": "String"
-      }
-    }
-  },
-  "@shopParametersSaveFailed": {
-    "placeholders": {
-      "error": {
-        "type": "Object"
-      }
-    }
-  },
-  "@unableLoadMessages": {
-    "placeholders": {
-      "error": {
-        "type": "Object"
       }
     }
   },
@@ -343,5 +329,21 @@
         "type": "Object"
       }
     }
-  }
+  },
+  "authConfirmEmail": "Check your email to confirm the account, then sign in.",
+  "authProviderUnavailable": "The sign-in provider could not be opened.",
+  "adminGold300Usd": "300 Gold (USD)",
+  "adminGold1000Usd": "1,000 Gold (USD)",
+  "adminGold4000Usd": "4,000 Gold (USD)",
+  "adminGold10000Usd": "10,000 Gold (USD)",
+  "adminPremiumUsd": "Premium membership (USD)",
+  "adminGoldenUsd": "Golden membership (USD)",
+  "adminGoldenUpgradeUsd": "Premium to Golden upgrade (USD)",
+  "adminOneUseGoldPrice": "1 use · Gold price",
+  "adminFiveUsesGoldPrice": "5 uses · Gold price",
+  "adminTwentyUsesGoldPrice": "20 uses · Gold price",
+  "adminFiftyUsesGoldPrice": "50 uses · Gold price",
+  "uidLabel": "Player UID",
+  "statusOpen": "Open",
+  "statusClosed": "Closed"
 }
