@@ -18,6 +18,7 @@ import '../../services/player_progress_service.dart';
 import '../services/life_manager.dart';
 import '../services/tool_manager.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/creature_localization.dart';
 
 class Evolution2048Page extends StatefulWidget {
   const Evolution2048Page({super.key, this.initialChapter});
@@ -535,116 +536,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   void _showEvolutionNotice(int value) { if (!mounted) return; setState(() { _evolutionValue = value; _evolutionCreatureName = _creatureNameForValue(value); }); }
-  String _creatureNameForValue(int value) {
-    final l10n = AppLocalizations.of(context)!;
-    return switch (_engine.chapter) {
-      GameChapter.ocean => switch (value) {
-        2 => l10n.creatureC1V2,
-        4 => l10n.creatureC1V4,
-        8 => l10n.creatureC1V8,
-        16 => l10n.creatureC1V16,
-        32 => l10n.creatureC1V32,
-        64 => l10n.creatureC1V64,
-        128 => l10n.creatureC1V128,
-        256 => l10n.creatureC1V256,
-        512 => l10n.creatureC1V512,
-        1024 => l10n.creatureC1V1024,
-        2048 => l10n.creatureC1V2048,
-        4096 => l10n.creatureC1V4096,
-        _ => '',
-      },
-      GameChapter.land => switch (value) {
-        2 => l10n.creatureC2V2,
-        4 => l10n.creatureC2V4,
-        8 => l10n.creatureC2V8,
-        16 => l10n.creatureC2V16,
-        32 => l10n.creatureC2V32,
-        64 => l10n.creatureC2V64,
-        128 => l10n.creatureC2V128,
-        256 => l10n.creatureC2V256,
-        512 => l10n.creatureC2V512,
-        1024 => l10n.creatureC2V1024,
-        2048 => l10n.creatureC2V2048,
-        4096 => l10n.creatureC2V4096,
-        8192 => l10n.creatureC2V8192,
-        _ => '',
-      },
-      GameChapter.sky => switch (value) {
-        2 => l10n.creatureC3V2,
-        4 => l10n.creatureC3V4,
-        8 => l10n.creatureC3V8,
-        16 => l10n.creatureC3V16,
-        32 => l10n.creatureC3V32,
-        64 => l10n.creatureC3V64,
-        128 => l10n.creatureC3V128,
-        256 => l10n.creatureC3V256,
-        512 => l10n.creatureC3V512,
-        1024 => l10n.creatureC3V1024,
-        2048 => l10n.creatureC3V2048,
-        4096 => l10n.creatureC3V4096,
-        8192 => l10n.creatureC3V8192,
-        16384 => l10n.creatureC3V16384,
-        _ => '',
-      },
-      GameChapter.history => switch (value) {
-        2 => l10n.creatureC4V2,
-        4 => l10n.creatureC4V4,
-        8 => l10n.creatureC4V8,
-        16 => l10n.creatureC4V16,
-        32 => l10n.creatureC4V32,
-        64 => l10n.creatureC4V64,
-        128 => l10n.creatureC4V128,
-        256 => l10n.creatureC4V256,
-        512 => l10n.creatureC4V512,
-        1024 => l10n.creatureC4V1024,
-        2048 => l10n.creatureC4V2048,
-        4096 => l10n.creatureC4V4096,
-        8192 => l10n.creatureC4V8192,
-        16384 => l10n.creatureC4V16384,
-        32768 => l10n.creatureC4V32768,
-        _ => '',
-      },
-      GameChapter.tech => switch (value) {
-        2 => l10n.creatureC5V2,
-        4 => l10n.creatureC5V4,
-        8 => l10n.creatureC5V8,
-        16 => l10n.creatureC5V16,
-        32 => l10n.creatureC5V32,
-        64 => l10n.creatureC5V64,
-        128 => l10n.creatureC5V128,
-        256 => l10n.creatureC5V256,
-        512 => l10n.creatureC5V512,
-        1024 => l10n.creatureC5V1024,
-        2048 => l10n.creatureC5V2048,
-        4096 => l10n.creatureC5V4096,
-        8192 => l10n.creatureC5V8192,
-        16384 => l10n.creatureC5V16384,
-        32768 => l10n.creatureC5V32768,
-        65536 => l10n.creatureC5V65536,
-        _ => '',
-      },
-      GameChapter.universe => switch (value) {
-        2 => l10n.creatureC6V2,
-        4 => l10n.creatureC6V4,
-        8 => l10n.creatureC6V8,
-        16 => l10n.creatureC6V16,
-        32 => l10n.creatureC6V32,
-        64 => l10n.creatureC6V64,
-        128 => l10n.creatureC6V128,
-        256 => l10n.creatureC6V256,
-        512 => l10n.creatureC6V512,
-        1024 => l10n.creatureC6V1024,
-        2048 => l10n.creatureC6V2048,
-        4096 => l10n.creatureC6V4096,
-        8192 => l10n.creatureC6V8192,
-        16384 => l10n.creatureC6V16384,
-        32768 => l10n.creatureC6V32768,
-        65536 => l10n.creatureC6V65536,
-        131072 => l10n.creatureC6V131072,
-        _ => '',
-      },
-    };
-  }
+  String _creatureNameForValue(int value) =>
+      localizedCreatureName(AppLocalizations.of(context)!, _chapterNumber, value);
 
   Future<bool> _reset() async {
     if (!mounted || _completionAnimationPlaying || _restartInProgress) {
