@@ -6,6 +6,7 @@ import 'life_manager.dart';
 import 'gold_manager.dart';
 import '../../services/supabase_account_service.dart';
 import '../../services/supabase_tool_purchase_service.dart';
+import '../../services/supabase_backend.dart';
 
 class ToolManager {
   ToolManager({required this.chapter}) {
@@ -125,6 +126,7 @@ class ToolManager {
   }
 
   static Future<void> _refreshInventoryFromServer() async {
+    if (!SupabaseBackend.isAuthenticated) return;
     try {
       final snapshot = await SupabaseAccountService.fetchSnapshot();
       const mapping = <String, GameToolType>{
