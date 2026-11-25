@@ -248,11 +248,12 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
   Future<void> _loadProfile() async {
     final user = SupabaseAuthService.currentUser;
+    _avatarIndex = SaveManager.avatarIndex;
+    _nameController.text = SaveManager.profileName ?? '';
+    _playerId = SaveManager.playerId ?? '';
 
     if (user == null) {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
       return;
     }
 
