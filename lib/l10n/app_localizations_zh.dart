@@ -214,7 +214,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authTooManyRequests => '請求次數過多，請稍後再試。';
 
   @override
-  String get life => '生命';
+  String get life => '剩餘免費局數';
 
   @override
   String get playerInfo => '玩家資訊';
