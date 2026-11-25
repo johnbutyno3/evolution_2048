@@ -15,6 +15,7 @@ import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
 import '../../services/player_progress_service.dart';
 import '../services/life_manager.dart';
+import '../services/gold_manager.dart';
 import '../services/tool_manager.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/creature_localization.dart';
@@ -510,6 +511,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _completionVerificationFuture = progress.completeChapter(
       chapterIndex: _chapterNumber - 1,
       replayLog: Map<String, dynamic>.from(replayLog),
+      effectiveScore: _engine.score,
+      newSpeciesCount: _engine.speciesMergedThisGame.length,
+      highestValue: _engine.highestValue,
     );
     setState(() {
       _completionAnimationPlaying = true;
@@ -801,9 +805,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         : null;
     final chapter = _engine.chapter.name;
 
-    // Keep the terminal board and replay log until the server confirms
-    // settlement. If the network is unavailable, Home can retry settlement
-    // from this durable snapshot instead of orphaning an ACTIVE session.
+    // Settle local Gold once for this gameId before clearing the terminal
+    // session. The wallet ledger makes duplicate callbacks idempotent.
+    if (sessionId != null) {
+      await GoldManager.settleGame(
+        gameId: sessionId,
+        effectiveScore: _engine.score,
+        newSpeciesCount: _engine.speciesMergedThisGame.length,
+        highestValue: _engine.highestValue,
+      );
+    }
     await SaveManager.save(saveData);
     _gameSessionGeneration++;
     final settled = sessionId == null
@@ -864,6 +875,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final future = progress.completeChapter(
         chapterIndex: _chapterNumber - 1,
         replayLog: completionReplay,
+        effectiveScore: _engine.score,
+        newSpeciesCount: _engine.speciesMergedThisGame.length,
+        highestValue: _engine.highestValue,
       );
       _completionVerificationFuture = future;
       unawaited(future.then<void>(
