@@ -226,11 +226,6 @@ class _HomePageState extends State<HomePage> {
     final l = AppLocalizations.of(context)!;
     final playerName = SaveManager.profileName ?? l.notAvailable;
     final playerId = SaveManager.playerId ?? l.notAvailable;
-    final membership = switch (LifeManager.membership) {
-      'premium' => l.premiumMember,
-      'golden' => l.goldenMember,
-      _ => l.generalMember,
-    };
     return Scaffold(
       body: Stack(
         children: [
@@ -287,14 +282,6 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 2),
                           Text(
                             playerId,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            membership,
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
