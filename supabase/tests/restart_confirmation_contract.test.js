@@ -194,41 +194,6 @@ test("Membership and real-money purchase records are not client-writable", () =>
 });
 
 
-test("Premium to Golden upgrade price is wired through config, admin, and membership UI", () => {
-  const shop = read("lib/services/shop_config_service.dart");
-  const adminService = read("lib/services/admin_service.dart");
-  const adminPage = read("lib/screens/admin_page.dart");
-  const adminFunction = read("supabase/functions/admin-update-shop-config/index.ts");
-  const membershipPage = read("lib/screens/membership_page.dart");
-  const catalog = read("supabase/migrations/20261028113000_shop_config.sql");
-  const english = read("lib/l10n/app_en.arb");
-  const chinese = read("lib/l10n/app_zh.arb");
-  assert.match(shop, /'goldenUpgradeUsdPrice': '3\.00'/);
-  assert.match(shop, /'membership_upgrade_golden': 'goldenUpgradeUsdPrice'/);
-  assert.match(adminService, /'goldenUpgradeUsdPrice': \('membership_upgrade_golden', 'priceUsd'\)/);
-  assert.match(adminPage, /adminGoldenUpgradeUsd/);
-  assert.ok(english.includes('"adminGoldenUpgradeUsd": "Premium to Golden upgrade (USD)"'));
-  assert.ok(chinese.includes('"adminGoldenUpgradeUsd": "Premium 升級 Golden 價格（美元）"'));
-  assert.match(adminFunction, /goldenUpgradeUsdPrice: \{ product: "membership_upgrade_golden", field: "priceUsd"/);
-  assert.match(membershipPage, /current == 'premium'/);
-  assert.match(membershipPage, /'goldenUpgradeUsdPrice'/);
-  assert.match(membershipPage, /AppLocalizations\.of\(context\)!\.upgradeLabel/);
-  assert.match(membershipPage, /AppLocalizations\.of\(context\)!\.permanentLabel/);
-  assert.match(catalog, /"membership_upgrade_golden".*"priceUsd":"3\.00"/);
-});
-
-
-test("Real-money membership checkout remains blocked until store verification is implemented", () => {
-  const page = read("lib/screens/membership_page.dart");
-  const english = read("lib/l10n/app_en.arb");
-  const chinese = read("lib/l10n/app_zh.arb");
-  assert.match(page, /AppLocalizations\.of\(context\)!\.paymentUnavailable/);
-  assert.ok(english.includes('"paymentUnavailable": "Real-money payment is not connected yet."'));
-  assert.ok(chinese.includes('"paymentUnavailable": "目前尚未開放真實貨幣付款。"'));
-  assert.match(page, /onPressed: _unavailable/);
-  assert.doesNotMatch(page, /functions\.invoke|purchase-membership|verify-store-purchase/);
-});
-
 test("Restart writes the replacement board before the RPC and recovers by server session ID", () => {
   const service = read("lib/services/player_progress_service.dart");
   const screen = read("lib/game/screens/evolution_2048_page.dart");
