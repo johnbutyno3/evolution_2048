@@ -223,7 +223,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           await GoldManager.settleGame(
             gameId: activeSessionId,
             effectiveScore: saved['score'] is num
-                ? (saved['score'] as num).toInt().clamp(0, 1 << 30)
+                ? (saved['score'] as num).toInt().clamp(0, 1 << 30).toInt()
                 : 0,
             newSpeciesCount: saved['speciesMergedThisGame'] is List
                 ? (saved['speciesMergedThisGame'] as List)
