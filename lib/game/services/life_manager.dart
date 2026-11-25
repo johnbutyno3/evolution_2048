@@ -1,4 +1,5 @@
 import '../../services/supabase_account_service.dart';
+import '../../services/supabase_backend.dart';
 
 /// Local-first life presentation with Supabase account-snapshot verification.
 /// Gameplay uses an optimistic decrement; session RPCs remain authoritative.
@@ -92,6 +93,10 @@ class LifeManager {
   /// that existed when it started, so an older response can never overwrite a
   /// newer local mutation or server mutation.
   static Future<void> refreshFromServer({bool fromRegeneration = false}) async {
+    if (!SupabaseBackend.isAuthenticated) {
+      enableGuestMode();
+      return;
+    }
     final requestGeneration = fromRegeneration
         ? _lifeStateGeneration
         : ++_lifeStateGeneration;
