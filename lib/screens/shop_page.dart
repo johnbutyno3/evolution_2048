@@ -3,7 +3,6 @@
 import '../l10n/app_localizations.dart';
 
 import 'gold_page.dart';
-import 'membership_page.dart';
 import 'tools_page.dart';
 
 class ShopPage extends StatelessWidget {
@@ -18,18 +17,6 @@ class ShopPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _ShopEntry(
-            icon: Icons.workspace_premium_outlined,
-            title: AppLocalizations.of(context)!.shopMembership,
-            subtitle: AppLocalizations.of(context)!.shopMembershipSubtitle,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const MembershipPage(),
-                ),
-              );
-            },
-          ),
           _ShopEntry(
             icon: Icons.monetization_on_outlined,
             title: AppLocalizations.of(context)!.shopGold,
