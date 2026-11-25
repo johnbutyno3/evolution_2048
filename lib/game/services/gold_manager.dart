@@ -26,7 +26,7 @@ class GoldManager {
   static Future<void> initialize() => initializeLocal();
 
   static Future<void> initializeLocal() async {
-    await _pendingWrite;
+    await _pendingWrite.catchError((_) {});
     _preferences = await SharedPreferences.getInstance();
     final raw = _preferences!.getString(_walletKey);
     if (raw != null && raw.isNotEmpty) {
@@ -99,10 +99,16 @@ class GoldManager {
   static Future<void> _persist(Map<String, dynamic> next) async {
     await _ensureInitialized();
     final encoded = jsonEncode(next);
-    final operation = _pendingWrite.then<void>((_) async {
-      final saved = await _preferences!.setString(_walletKey, encoded);
-      if (!saved) throw StateError('Could not persist the local Gold wallet.');
-    });
+    final operation = _pendingWrite.then<void>(
+      (_) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist the local Gold wallet.');
+      },
+      onError: (_, _) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist the local Gold wallet.');
+      },
+    );
     _pendingWrite = operation;
     await operation;
     _state = next;
@@ -282,10 +288,16 @@ class GoldManager {
     final next = _copyState()..['toolInventory'] = inventory;
     _state = next;
     final encoded = jsonEncode(next);
-    _pendingWrite = _pendingWrite.then<void>((_) async {
-      final saved = await _preferences!.setString(_walletKey, encoded);
-      if (!saved) throw StateError('Could not persist tool consumption.');
-    });
+    _pendingWrite = _pendingWrite.then<void>(
+      (_) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist tool consumption.');
+      },
+      onError: (_, _) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist tool consumption.');
+      },
+    );
     unawaited(_pendingWrite.catchError((_) {}));
     return true;
   }
