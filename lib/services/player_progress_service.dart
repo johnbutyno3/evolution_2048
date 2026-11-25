@@ -5,6 +5,7 @@ import 'dart:math';
 
 
 import '../game/services/life_manager.dart';
+import '../game/services/gold_manager.dart';
 import '../game/services/save_manager.dart';
 import '../game/services/tool_manager.dart';
 import 'session_generation.dart';
@@ -588,15 +589,38 @@ class PlayerProgressService {
   Future<bool> completeChapter({
     required int chapterIndex,
     required Map<String, dynamic> replayLog,
+    int? effectiveScore,
+    int newSpeciesCount = 0,
+    int highestValue = 0,
   }) async {
     if (chapterIndex < 0 || chapterIndex > 5) return false;
     if (!SupabaseBackend.isAuthenticated) {
+      final gameId = _activeGameSessionId ?? SaveManager.gameSessionId;
+      final score = effectiveScore ??
+          ((replayLog['finalScore'] is num)
+              ? (replayLog['finalScore'] as num).toInt()
+              : 0);
+      final highest = highestValue > 0
+          ? highestValue
+          : ((replayLog['highestValue'] is num)
+              ? (replayLog['highestValue'] as num).toInt()
+              : (1 << (chapterIndex + 12)));
+      if (gameId != null) {
+        await GoldManager.settleGame(
+          gameId: gameId,
+          effectiveScore: score.clamp(0, 1 << 30),
+          newSpeciesCount: newSpeciesCount,
+          highestValue: highest,
+        );
+      }
       await SaveManager.saveLocalChapterCompletion(
         chapterIndex: chapterIndex,
-        score: (replayLog['finalScore'] is num)
-            ? (replayLog['finalScore'] as num).toInt()
-            : 0,
+        score: score,
       );
+      await GoldManager.awardChapterCompletion(chapterIndex);
+      if (SaveManager.localChapterProgress.length >= 6) {
+        await GoldManager.awardAllChaptersCompletion();
+      }
       if (_activeGameChapterIndex == chapterIndex) {
         _activeGameSessionId = null;
         _activeGameChapterIndex = null;
