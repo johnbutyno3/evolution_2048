@@ -191,6 +191,7 @@ class GameEngine {
   bool _hasPreviousState = false;
 
   final List<int> _newEvolutionValuesThisMove = <int>[];
+  final Set<int> _speciesMergedThisGame = <int>{};
 
   GameBoard get board => _board;
   GameChapter get chapter => _chapter;
@@ -232,6 +233,7 @@ class GameEngine {
   /// New stages first reached by the most recent action, in order.
   List<int> get newEvolutionValuesThisMove =>
       List.unmodifiable(_newEvolutionValuesThisMove);
+  Set<int> get speciesMergedThisGame => Set.unmodifiable(_speciesMergedThisGame);
 
   bool hasReached2048 = false;
   bool hasReached4096 = false;
@@ -278,6 +280,7 @@ class GameEngine {
       'hasReached8192': hasReached8192,
       'hasReached16384': hasReached16384,
       'highestEvolutionValue': _highestEvolutionValue,
+      'speciesMergedThisGame': _speciesMergedThisGame.toList()..sort(),
       'gameOver': gameOver,
       'chapterComplete': chapterComplete,
 
@@ -364,6 +367,16 @@ class GameEngine {
     }
 
     _chapter = restoredChapter;
+    _speciesMergedThisGame
+      ..clear()
+      ..addAll(
+        data['speciesMergedThisGame'] is List
+            ? (data['speciesMergedThisGame'] as List)
+                .whereType<num>()
+                .map((value) => value.toInt())
+                .where((value) => value >= 2)
+            : const <int>[],
+      );
 
     // Rebuild the pending tool-use overlay from the persisted local replay
     // before creating ToolManager, so an unfinished session that already used
@@ -863,6 +876,7 @@ class GameEngine {
 
   void _updateEvolutionHistory() {
     for (final value in _board.lastMergedValues) {
+      _speciesMergedThisGame.add(value);
       _recordHighestEvolutionValue(value);
     }
   }
