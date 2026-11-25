@@ -11,6 +11,9 @@ class SupabaseBackend {
 
   static bool get isInitialized => _initialized;
 
+  static bool get isAuthenticated =>
+      _initialized && Supabase.instance.client.auth.currentUser != null;
+
   static SupabaseClient get client {
     if (!_initialized) {
       throw StateError('SupabaseBackend.initialize() must run first.');
