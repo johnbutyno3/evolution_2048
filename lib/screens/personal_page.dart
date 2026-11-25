@@ -7,19 +7,14 @@ import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
 import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
-import '../services/admin_service.dart';
 
 import '../game/services/audio_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/save_manager.dart';
 import 'shop_page.dart';
-import 'feedback_page.dart';
-import 'admin_page.dart';
 
 class PersonalPage extends StatelessWidget {
   const PersonalPage({super.key});
-
-  Future<bool> _isAdmin() => AdminService.checkAdmin();
 
   @override
   Widget build(BuildContext context) {
@@ -73,30 +68,6 @@ class PersonalPage extends StatelessWidget {
             onTap: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const VersionInfoPage())),
-          ),
-          _SectionCard(
-            icon: Icons.feedback_outlined,
-            title: AppLocalizations.of(context)!.messagesFeedback,
-            subtitle: AppLocalizations.of(context)!.messagesFeedbackSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const FeedbackPage()),
-            ),
-          ),
-          FutureBuilder<bool>(
-            future: _isAdmin(),
-            builder: (context, snapshot) {
-              if (snapshot.data != true) {
-                return const SizedBox.shrink();
-              }
-              return _SectionCard(
-                icon: Icons.admin_panel_settings_outlined,
-                title: AppLocalizations.of(context)!.testControls,
-                subtitle: AppLocalizations.of(context)!.testControlsSubtitle,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AdminPage()),
-                ),
-              );
-            },
           ),
           _SectionCard(
             icon: Icons.info_outline,
