@@ -9,6 +9,7 @@ import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../game/services/save_manager.dart';
 import '../services/player_progress_service.dart';
+import '../services/supabase_account_service.dart';
 import '../services/supabase_backend.dart';
 import 'personal_page.dart';
 import 'profile_setup_page.dart';
