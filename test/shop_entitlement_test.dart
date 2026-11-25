@@ -1,161 +1,90 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rebirth_2048/game/models/game_tile.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:rebirth_2048/game/models/tools/game_tool.dart';
 import 'package:rebirth_2048/game/services/gold_manager.dart';
 import 'package:rebirth_2048/game/services/life_manager.dart';
 import 'package:rebirth_2048/game/services/tool_manager.dart';
-import 'package:rebirth_2048/services/shop_purchase_simulator.dart';
 
 void main() {
-  setUp(() {
-    LifeManager.clearCachedState();
-    GoldManager.clearCachedState();
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await LifeManager.initializeLocal();
+    await GoldManager.initializeLocal();
     ToolManager.clearCachedInventory();
   });
 
-  test('a validated FREE account snapshot unlocks only owned tools', () {
-    LifeManager.applySupabaseSnapshot(
-      lives: 5,
-      unlimited: false,
-      membershipTier: 'FREE',
-      nextRegenAt: null,
-    );
-    GoldManager.applySupabaseBalance(250);
-    ToolManager.applySupabaseInventory({
-      'UNDO': 1,
-      'REMOVE': 0,
-      'SWAP': 0,
-      'DUPLICATE': 0,
-    });
-
-    final manager = ToolManager(chapter: GameChapter.ocean);
-    expect(LifeManager.membership, 'general');
+  test('FREE starts with five permanent new-game starts and no regeneration', () {
     expect(LifeManager.lifeCount, 5);
-    expect(GoldManager.balance, 250);
-    expect(manager.canUse(GameToolType.timeRewind), isTrue);
-    expect(manager.canUse(GameToolType.revive), isFalse);
-    expect(manager.consumeLocal(GameToolType.timeRewind), isTrue);
-    expect(manager.canUse(GameToolType.timeRewind), isFalse);
+    expect(LifeManager.hasUnlimitedLives, isFalse);
+    expect(LifeManager.regenerationRemaining, isNull);
+    expect(LifeManager.optimisticConsumeLife(), isTrue,
+        reason: 'preflight checks availability without charging twice');
+    expect(LifeManager.lifeCount, 5);
   });
 
-  test('a validated PREMIUM snapshot grants unlimited lives', () {
-    LifeManager.applySupabaseSnapshot(
-      lives: 0,
-      unlimited: true,
-      membershipTier: 'PREMIUM',
-      nextRegenAt: null,
-    );
-
-    expect(LifeManager.membership, 'premium');
-    expect(LifeManager.lifeCount, -1);
-    expect(LifeManager.optimisticConsumeLife(), isTrue);
-  });
-
-  test('a validated GOLDEN snapshot grants unlimited lives and UNDO', () {
-    LifeManager.applySupabaseSnapshot(
-      lives: 0,
-      unlimited: true,
-      membershipTier: 'GOLDEN',
-      nextRegenAt: null,
-    );
-    ToolManager.applySupabaseInventory({
-      'UNDO': 0,
-      'REMOVE': 0,
-      'SWAP': 0,
-      'DUPLICATE': 0,
-    });
-
-    final manager = ToolManager(chapter: GameChapter.ocean);
-    expect(LifeManager.membership, 'golden');
-    expect(LifeManager.isGoldenMember, isTrue);
-    expect(LifeManager.lifeCount, -1);
-    expect(manager.canUse(GameToolType.timeRewind), isTrue);
-    expect(manager.consumeLocal(GameToolType.timeRewind), isTrue);
-  });
-
-  test('debug Premium simulation unlocks unlimited lives locally', () {
-    ShopPurchaseSimulator.simulateMembershipPurchase('PREMIUM');
-
-    expect(LifeManager.membership, 'premium');
-    expect(LifeManager.lifeCount, -1);
-    expect(LifeManager.optimisticConsumeLife(), isTrue);
-  });
-
-  test('debug Golden simulation unlocks unlimited lives and UNDO locally', () {
-    ShopPurchaseSimulator.simulateMembershipPurchase('GOLDEN');
-    ToolManager.applySupabaseInventory({
-      'UNDO': 0,
-      'REMOVE': 0,
-      'SWAP': 0,
-      'DUPLICATE': 0,
-    });
-
-    final manager = ToolManager(chapter: GameChapter.ocean);
-    expect(LifeManager.membership, 'golden');
-    expect(manager.canUse(GameToolType.timeRewind), isTrue);
-  });
-
-  test('debug purchase unlocks a tool in an already active game manager', () {
-    final manager = ToolManager(chapter: GameChapter.sky);
-    expect(manager.canUse(GameToolType.positionSwap), isFalse);
-
-    ShopPurchaseSimulator.simulateGoldPurchase(300);
-    ShopPurchaseSimulator.simulateToolPurchase(GameToolType.positionSwap, 1);
-
-    expect(GoldManager.balance, 100);
-    expect(manager.canUse(GameToolType.positionSwap), isTrue);
-    expect(manager.consumeLocal(GameToolType.positionSwap), isTrue);
-    expect(manager.canUse(GameToolType.positionSwap), isFalse);
-  });
-
-  test('debug tool simulation rejects purchases without enough Gold', () {
+  test('local Gold reward is idempotent and persists', () async {
     expect(
-      () => ShopPurchaseSimulator.simulateToolPurchase(
-        GameToolType.duplicate,
-        1,
-      ),
-      throwsA(isA<StateError>()),
+      await GoldManager.awardOnce(rewardId: 'test:first', amount: 300),
+      isTrue,
     );
+    expect(
+      await GoldManager.awardOnce(rewardId: 'test:first', amount: 300),
+      isFalse,
+    );
+    expect(GoldManager.balance, 300);
+
+    await GoldManager.initializeLocal();
+    expect(GoldManager.balance, 300);
+    expect(GoldManager.claimedRewardIds, contains('test:first'));
+  });
+
+  test('local tool package purchases use confirmed Gold prices', () async {
+    await GoldManager.awardOnce(rewardId: 'test:seed-wallet', amount: 1000);
+    final manager = ToolManager(chapter: GameChapter.ocean);
+
+    expect(ToolManager.packagePrice(GameToolType.timeRewind, 1), 50);
+    expect(ToolManager.packagePrice(GameToolType.timeRewind, 5), 225);
+    expect(ToolManager.packagePrice(GameToolType.timeRewind, 20), 700);
+    expect(ToolManager.packagePrice(GameToolType.timeRewind, 50), 1500);
+
+    expect(await ToolManager.purchase(GameToolType.timeRewind, 5), isTrue);
+    expect(GoldManager.balance, 775);
+    expect(ToolManager.savedUsesFor(GameToolType.timeRewind), 5);
+    expect(manager.canUse(GameToolType.timeRewind), isTrue);
+
+    expect(manager.consumeLocal(GameToolType.timeRewind), isTrue);
+    expect(ToolManager.savedUsesFor(GameToolType.timeRewind), 4);
+
+    await GoldManager.initializeLocal();
+    expect(GoldManager.balance, 775);
+    expect(GoldManager.toolUses('UNDO'), 4);
+  });
+
+  test('tool package purchase is rejected without enough Gold', () async {
+    expect(await ToolManager.purchase(GameToolType.duplicate, 1), isFalse);
     expect(GoldManager.balance, 0);
     expect(ToolManager.savedUsesFor(GameToolType.duplicate), 0);
   });
 
-  test('debug tool simulation enforces the FREE single-use package limit', () {
-    LifeManager.applySupabaseSnapshot(
-      lives: 5,
-      unlimited: false,
-      membershipTier: 'FREE',
-      nextRegenAt: null,
-    );
-    GoldManager.applySupabaseBalance(1000);
+  test('tool availability follows chapter rules without membership tiers', () async {
+    await GoldManager.awardOnce(rewardId: 'test:seed-tools', amount: 10000);
+    expect(await ToolManager.purchase(GameToolType.revive, 5), isTrue);
+    expect(await ToolManager.purchase(GameToolType.positionSwap, 5), isTrue);
+    expect(await ToolManager.purchase(GameToolType.duplicate, 5), isTrue);
 
-    expect(
-      () => ShopPurchaseSimulator.simulateToolPurchase(
-        GameToolType.timeRewind,
-        5,
-      ),
-      throwsA(isA<StateError>()),
-    );
-    expect(GoldManager.balance, 1000);
-    expect(ToolManager.savedUsesFor(GameToolType.timeRewind), 0);
-  });
+    final ocean = ToolManager(chapter: GameChapter.ocean);
+    final land = ToolManager(chapter: GameChapter.land);
+    final sky = ToolManager(chapter: GameChapter.sky);
+    final history = ToolManager(chapter: GameChapter.history);
 
-  test('zero account inventory never unlocks a purchasable tool', () {
-    LifeManager.applySupabaseSnapshot(
-      lives: 5,
-      unlimited: false,
-      membershipTier: 'FREE',
-      nextRegenAt: null,
-    );
-    ToolManager.applySupabaseInventory({
-      'UNDO': 0,
-      'REMOVE': 0,
-      'SWAP': 0,
-      'DUPLICATE': 0,
-    });
-
-    final manager = ToolManager(chapter: GameChapter.ocean);
-    expect(manager.canUse(GameToolType.timeRewind), isFalse);
-    expect(manager.consumeLocal(GameToolType.timeRewind), isFalse);
+    expect(ocean.getTool(GameToolType.revive), isNull);
+    expect(land.getTool(GameToolType.revive), isNotNull);
+    expect(land.getTool(GameToolType.positionSwap), isNull);
+    expect(sky.getTool(GameToolType.positionSwap), isNotNull);
+    expect(sky.getTool(GameToolType.duplicate), isNull);
+    expect(history.getTool(GameToolType.duplicate), isNotNull);
   });
 }
