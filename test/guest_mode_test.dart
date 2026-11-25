@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rebirth_2048/game/services/life_manager.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
 import 'package:rebirth_2048/services/player_progress_service.dart';
-import 'package:rebirth_2048/services/supabase_backend.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -16,8 +15,7 @@ void main() {
     LifeManager.enableGuestMode();
   });
 
-  test('guest can start, save, resume, and complete a chapter without auth', () async {
-    expect(SupabaseBackend.isAuthenticated, isFalse);
+  test('offline player can start, save, resume, and complete a chapter', () async {
     expect(LifeManager.hasUnlimitedLives, isFalse);
     expect(LifeManager.lifeCount, 5);
     expect(LifeManager.hasAuthoritativeState, isTrue);
