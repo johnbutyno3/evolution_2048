@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'game/services/save_manager.dart';
 import 'game/services/life_manager.dart';
 import 'game/services/gold_manager.dart';
+import 'services/creature_collection_service.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
@@ -16,6 +17,7 @@ Future<void> main() async {
   await SaveManager.initialize();
   await LifeManager.initializeLocal();
   await GoldManager.initializeLocal();
+  await CreatureCollectionService.reconcileCollectionRewards();
 
   runApp(const Rebirth2048App());
 }
