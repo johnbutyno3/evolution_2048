@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/admin_service.dart';
 import '../services/supabase_backend.dart';
 import '../l10n/app_localizations.dart';
-import 'admin_test_page.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -83,14 +82,6 @@ class _AdminPageState extends State<AdminPage> {
             title: AppLocalizations.of(context)!.adminGameParameters,
             subtitle: AppLocalizations.of(context)!.adminGameParametersSubtitle,
             onTap: () => _showComingSoon(AppLocalizations.of(context)!.adminGameParameters),
-          ),
-          _AdminCard(
-            icon: Icons.science_outlined,
-            title: AppLocalizations.of(context)!.testControls,
-            subtitle: AppLocalizations.of(context)!.simulatorTitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AdminTestPage()),
-            ),
           ),
         ],
       ),
