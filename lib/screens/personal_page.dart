@@ -11,7 +11,6 @@ import '../services/supabase_backend.dart';
 import '../services/admin_service.dart';
 
 import '../game/services/audio_manager.dart';
-import '../game/services/tool_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
@@ -205,7 +204,9 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
   }
 
   Future<void> _loadProfile() async {
-    final user = SupabaseAuthService.currentUser;
+    final user = SupabaseBackend.isAuthenticated
+        ? SupabaseBackend.client.auth.currentUser
+        : null;
     _avatarIndex = SaveManager.avatarIndex;
     _nameController.text = SaveManager.profileName ?? '';
     _playerId = SaveManager.playerId ?? '';
