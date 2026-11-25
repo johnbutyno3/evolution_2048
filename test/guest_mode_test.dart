@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../lib/game/services/life_manager.dart';
-import '../lib/game/services/save_manager.dart';
-import '../lib/services/player_progress_service.dart';
-import '../lib/services/supabase_backend.dart';
+import 'package:rebirth_2048/game/services/life_manager.dart';
+import 'package:rebirth_2048/game/services/save_manager.dart';
+import 'package:rebirth_2048/services/player_progress_service.dart';
+import 'package:rebirth_2048/services/supabase_backend.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
