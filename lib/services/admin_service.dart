@@ -6,11 +6,13 @@ class AdminService {
   AdminService._();
 
   static bool get isAdmin {
+    if (!SupabaseBackend.isAuthenticated) return false;
     final user = SupabaseBackend.client.auth.currentUser;
     return user?.appMetadata['role'] == 'admin';
   }
 
   static Future<bool> checkAdmin() async {
+    if (!SupabaseBackend.isAuthenticated) return false;
     final user = SupabaseBackend.client.auth.currentUser;
     return user != null && user.appMetadata['role'] == 'admin';
   }
