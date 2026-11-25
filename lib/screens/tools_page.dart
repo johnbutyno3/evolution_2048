@@ -6,6 +6,7 @@ import '../game/services/gold_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../services/shop_config_service.dart';
 import '../l10n/app_localizations.dart';
+import '../services/supabase_backend.dart';
 
 class ToolsPage extends StatefulWidget {
   const ToolsPage({super.key});
@@ -41,7 +42,7 @@ class _ToolsPageState extends State<ToolsPage> {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
       final message = switch (ToolManager.lastPurchaseErrorCode) {
-        'UNAUTHORIZED' => l10n.signInBeforePurchase,
+        'UNAUTHORIZED' => l10n.paymentUnavailable,
         'INSUFFICIENT_GOLD' => l10n.insufficientGold,
         'FREE_SINGLE_TOOL_ONLY' => l10n.freeSingleToolOnly,
         'GOLDEN_UNDO_UNLIMITED' => l10n.goldenUndoUnlimited,
@@ -164,7 +165,8 @@ class _ToolsPageState extends State<ToolsPage> {
                 children: [
                   for (var i = 0; i < amounts.length; i++)
                     FilledButton(
-                      onPressed: LifeManager.membership == 'general' && amounts[i] != 1
+                      onPressed: !SupabaseBackend.isAuthenticated ||
+                              (LifeManager.membership == 'general' && amounts[i] != 1)
                           ? null
                           : () => _buy(
                         type: type,
