@@ -220,6 +220,21 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             saved['gameOver'] == true &&
             savedSessionId == activeSessionId &&
             savedReplay is Map) {
+          await GoldManager.settleGame(
+            gameId: activeSessionId,
+            effectiveScore: saved['score'] is num
+                ? (saved['score'] as num).toInt().clamp(0, 1 << 30)
+                : 0,
+            newSpeciesCount: saved['speciesMergedThisGame'] is List
+                ? (saved['speciesMergedThisGame'] as List)
+                    .whereType<num>()
+                    .toSet()
+                    .length
+                : 0,
+            highestValue: saved['highestEvolutionValue'] is num
+                ? (saved['highestEvolutionValue'] as num).toInt()
+                : 0,
+          );
           final settled = await progress.abandonGameSession(
             sessionId: activeSessionId,
             replayLog: Map<String, dynamic>.from(savedReplay),
