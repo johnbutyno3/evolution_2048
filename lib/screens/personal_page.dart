@@ -7,7 +7,7 @@ import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
 import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
-import '../services/supabase_auth_service.dart';
+import '../services/supabase_backend.dart';
 import '../services/admin_service.dart';
 
 import '../game/services/audio_manager.dart';
@@ -15,7 +15,6 @@ import '../game/services/tool_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
-import 'login_register_page.dart';
 import 'shop_page.dart';
 import 'feedback_page.dart';
 import 'admin_page.dart';
@@ -27,7 +26,9 @@ class PersonalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = SupabaseAuthService.currentUser;
+    final user = SupabaseBackend.isAuthenticated
+        ? SupabaseBackend.client.auth.currentUser
+        : null;
 
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.personalTitle)),
@@ -113,55 +114,12 @@ class PersonalPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (user != null)
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: Text(AppLocalizations.of(context)!.logOut),
-              onTap: () => _logout(context),
-            ),
         ],
       ),
     );
   }
 
-  Future<void> _logout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.logOut),
-          content: Text(
-            AppLocalizations.of(context)!.logoutConfirm,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(AppLocalizations.of(context)!.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(AppLocalizations.of(context)!.logOut),
-            ),
-          ],
-        );
-      },
-    );
 
-    if (confirmed != true) return;
-
-    ToolManager.clearCachedInventory();
-    LifeManager.clearCachedState();
-    GoldManager.clearCachedState();
-    await SupabaseAuthService.signOut();
-
-    if (!context.mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginRegisterPage()),
-      (route) => false,
-    );
-  }
-}
 
 class PlayerInfoPage extends StatefulWidget {
   const PlayerInfoPage({super.key});
