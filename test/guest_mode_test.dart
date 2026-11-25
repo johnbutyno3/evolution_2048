@@ -12,12 +12,14 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     await SaveManager.initialize();
+    await LifeManager.initializeLocal();
     LifeManager.enableGuestMode();
   });
 
   test('guest can start, save, resume, and complete a chapter without auth', () async {
     expect(SupabaseBackend.isAuthenticated, isFalse);
-    expect(LifeManager.hasUnlimitedLives, isTrue);
+    expect(LifeManager.hasUnlimitedLives, isFalse);
+    expect(LifeManager.lifeCount, 5);
     expect(LifeManager.hasAuthoritativeState, isTrue);
 
     final progress = PlayerProgressService.instance;
@@ -36,6 +38,7 @@ void main() {
       },
     );
     expect(started, isTrue);
+    expect(LifeManager.lifeCount, 4);
     expect(await progress.waitForPendingStartSession(), isTrue);
     expect(progress.activeGameSessionId, isNotNull);
 
@@ -43,6 +46,7 @@ void main() {
       await progress.resumeGameSession(0),
       isTrue,
     );
+    expect(LifeManager.lifeCount, 4, reason: 'resuming the same gameId must not charge another play');
     expect(
       await progress.completeChapter(
         chapterIndex: 0,
@@ -53,6 +57,47 @@ void main() {
 
     expect(SaveManager.localUnlockedChapterIndex, 1);
     await progress.refresh();
-    expect(progress.isChapterUnlocked(1), isTrue);
+    expect(progress.isChapterUnlocked(1), isFalse,
+        reason: 'FREE remains limited to Ocean even after recording local progress');
+
+    // Four more new gameIds consume the remaining lifetime allowance.
+    for (var i = 0; i < 4; i++) {
+      final created = await progress.startGameSession(
+        0,
+        initialTiles: <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+        initialSave: <String, dynamic>{
+          'chapter': 'ocean',
+          'tiles': <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      );
+      expect(created, isTrue);
+      await progress.abandonGameSession(
+        sessionId: progress.activeGameSessionId,
+        reason: 'TEST_END',
+      );
+    }
+    expect(LifeManager.lifeCount, 0);
+    expect(
+      await progress.startGameSession(
+        0,
+        initialTiles: <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+        initialSave: <String, dynamic>{
+          'chapter': 'ocean',
+          'tiles': <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      ),
+      isFalse,
+      reason: 'the sixth new game must be blocked',
+    );
+    expect(LifeManager.lifeCount, 0);
+
+    // The allowance survives a fresh manager initialization (app restart).
+    await LifeManager.initializeLocal();
+    expect(LifeManager.lifeCount, 0);
+    expect(LifeManager.regenerationRemaining, isNull);
   });
 }
