@@ -157,6 +157,23 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _enter(BuildContext context, int index) async {
     if (_enterInProgress) return;
+    if (!LifeManager.hasUnlimitedLives && LifeManager.lifeCount <= 0) {
+      final l10n = AppLocalizations.of(context)!;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.freeGamesExhaustedTitle),
+          content: Text(l10n.freeGamesExhaustedMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.ok),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     // Do not open a chargeable game session using an unverified placeholder
     // Life balance after a failed backend read.
     if (!LifeManager.hasAuthoritativeState) return;
