@@ -1,5 +1,6 @@
 import '../../services/supabase_account_service.dart';
 import '../../services/supabase_backend.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Local-first life presentation with Supabase account-snapshot verification.
 /// Gameplay uses an optimistic decrement; session RPCs remain authoritative.
@@ -7,7 +8,14 @@ class LifeManager {
   LifeManager._();
 
   static const int normalCap = 5;
-  static const int _regenIntervalMillis = 40 * 60 * 1000;
+  static const String _freeGamesKey = 'rebirth_2048_free_new_games_remaining_v1';
+  static const String _permanentUnlockKey = 'rebirth_2048_permanent_unlock_v1';
+  static const int initialFreeGames = 5;
+  static SharedPreferences? _preferences;
+  static bool _guestMode = true;
+  static bool _localStateInitialized = false;
+  static int _freeGamesRemaining = initialFreeGames;
+  static bool _permanentUnlock = false;
 
   static int _lifeCount = normalCap;
   static bool _hasAuthoritativeState = false;
@@ -17,15 +25,71 @@ class LifeManager {
   static int? _nextLifeAtMillis;
   static int _lifeStateGeneration = 0;
 
-  /// Guest single-player mode has no Life cap or regeneration requirement.
+  /// Loads the permanent local free-new-game allowance and Play entitlement cache.
+  /// This must run before the first Home screen is shown.
+  static Future<void> initializeLocal() async {
+    _preferences = await SharedPreferences.getInstance();
+    _freeGamesRemaining = (_preferences!.getInt(_freeGamesKey) ?? initialFreeGames)
+        .clamp(0, initialFreeGames);
+    _permanentUnlock = _preferences!.getBool(_permanentUnlockKey) ?? false;
+    _localStateInitialized = true;
+    enableGuestMode();
+  }
+
+  /// Guest play is local-only. FREE has five lifetime new-game starts, not lives.
   static void enableGuestMode() {
+    _guestMode = true;
     _lifeStateGeneration++;
-    _lifeCount = -1;
-    _infiniteLives = true;
+    _lifeCount = _permanentUnlock ? -1 : _freeGamesRemaining;
+    _infiniteLives = _permanentUnlock;
     _membership = 'general';
     _lifeMode = 'normal';
     _nextLifeAtMillis = null;
-    _hasAuthoritativeState = true;
+    _hasAuthoritativeState = _localStateInitialized;
+  }
+
+  /// Called only after Google Play Billing has verified the permanent product.
+  static Future<void> applyVerifiedPermanentUnlock() async {
+    _preferences ??= await SharedPreferences.getInstance();
+    final saved = await _preferences!.setBool(_permanentUnlockKey, true);
+    if (!saved) throw StateError('Could not persist permanent purchase entitlement.');
+    _permanentUnlock = true;
+    enableGuestMode();
+  }
+
+  static bool get hasPermanentUnlock => _permanentUnlock;
+  static int get freeGamesRemaining => _freeGamesRemaining;
+
+  /// Atomically persists one new-game debit. Resuming the same game never calls this.
+  static Future<bool> consumeFreeGame() async {
+    if (!_localStateInitialized) await initializeLocal();
+    if (_permanentUnlock) return true;
+    if (_freeGamesRemaining <= 0) return false;
+    final previous = _freeGamesRemaining;
+    _freeGamesRemaining = previous - 1;
+    try {
+      final saved = await _preferences!.setInt(_freeGamesKey, _freeGamesRemaining);
+      if (!saved) throw StateError('Could not persist free-game allowance.');
+      _lifeCount = _freeGamesRemaining;
+      _lifeStateGeneration++;
+      return true;
+    } catch (_) {
+      _freeGamesRemaining = previous;
+      _lifeCount = previous;
+      return false;
+    }
+  }
+
+  /// Roll back only when creating a new game failed before it became playable.
+  static Future<void> refundFailedGameCreation() async {
+    if (!_localStateInitialized) await initializeLocal();
+    if (_permanentUnlock || _freeGamesRemaining >= initialFreeGames) return;
+    final next = _freeGamesRemaining + 1;
+    final saved = await _preferences!.setInt(_freeGamesKey, next);
+    if (!saved) throw StateError('Could not restore failed new-game debit.');
+    _freeGamesRemaining = next;
+    _lifeCount = next;
+    _lifeStateGeneration++;
   }
 
   static Future<void> initialize() async {
@@ -41,6 +105,7 @@ class LifeManager {
     required String membershipTier,
     required DateTime? nextRegenAt,
   }) {
+    _guestMode = false;
     if (lives < 0) throw ArgumentError.value(lives, 'lives');
     if (!const {'FREE', 'PREMIUM', 'GOLDEN'}.contains(membershipTier)) {
       throw ArgumentError.value(membershipTier, 'membershipTier');
@@ -73,6 +138,9 @@ class LifeManager {
   /// rejected immediately; otherwise the server response is authoritative and
   /// replaces this value.
   static bool optimisticConsumeLife() {
+    // In local guest mode this is a preflight check only. The actual persistent
+    // debit is performed once by PlayerProgressService when a new gameId is committed.
+    if (_guestMode) return _permanentUnlock || _freeGamesRemaining > 0;
     // Never charge from the placeholder balance before the server has
     // confirmed this account's actual life state.
     if (!_hasAuthoritativeState) return false;
@@ -81,10 +149,7 @@ class LifeManager {
 
     final nextLives = _lifeCount - 1;
     _lifeCount = nextLives;
-    _nextLifeAtMillis = nextLives < normalCap
-        ? (_nextLifeAtMillis ??
-            DateTime.now().millisecondsSinceEpoch + _regenIntervalMillis)
-        : null;
+    _nextLifeAtMillis = null;
     _lifeStateGeneration++;
     return true;
   }
@@ -94,6 +159,7 @@ class LifeManager {
   /// newer local mutation or server mutation.
   static Future<void> refreshFromServer({bool fromRegeneration = false}) async {
     if (!SupabaseBackend.isAuthenticated) {
+      if (!_localStateInitialized) await initializeLocal();
       enableGuestMode();
       return;
     }
@@ -181,18 +247,18 @@ class LifeManager {
 
   static bool get hasAuthoritativeState => _hasAuthoritativeState;
 
-  static bool get isGoldenMember => _lifeMode == 'golden';
+  static bool get isGoldenMember => !_guestMode && _lifeMode == 'golden';
 
-  static bool get hasUnlimitedLives => _infiniteLives;
+  static bool get hasUnlimitedLives => _guestMode ? _permanentUnlock : _infiniteLives;
 
   static String get lifeMode => _lifeMode;
 
-  static int get lifeCount => _infiniteLives ? -1 : _lifeCount;
+  static int get lifeCount => _guestMode ? (_permanentUnlock ? -1 : _freeGamesRemaining) : (_infiniteLives ? -1 : _lifeCount);
 
   static String get membership => _membership;
 
   static int? get nextLifeAtMillis =>
-      _infiniteLives ? null : _nextLifeAtMillis;
+      _guestMode || _infiniteLives ? null : _nextLifeAtMillis;
 
   /// Advances the local regeneration state as soon as the countdown expires.
   ///
@@ -201,6 +267,8 @@ class LifeManager {
   /// the background. A stale response can no longer roll the just-regenerated
   /// Life back down.
   static void tickRegeneration() {
+    // Regeneration is removed from the single-player product rules.
+    if (_guestMode) return;
     if (_infiniteLives || _lifeCount < 0 || _nextLifeAtMillis == null) return;
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -229,6 +297,7 @@ class LifeManager {
   }
 
   static Duration? get regenerationRemaining {
+    if (_guestMode) return null;
     final next = nextLifeAtMillis;
     if (next == null) return null;
 
