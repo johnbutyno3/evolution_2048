@@ -395,6 +395,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }
 
       final startedFuture = progress.waitForPendingStartSession();
+      final newGameId = progress.activeGameSessionId;
+      if (newGameId != null && newReplay is Map) {
+        unawaited(CreatureCollectionService.discover(
+          newEngine.chapter.name,
+          initialTiles.whereType<int>(),
+          gameId: newGameId,
+          replayLog: Map<String, dynamic>.from(newReplay),
+        ));
+      }
       _engine.stopGameTimer();
       _engine = newEngine;
       newEngine.startGameTimer();
