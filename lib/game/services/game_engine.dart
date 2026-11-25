@@ -734,6 +734,7 @@ class GameEngine {
     _hasPreviousState = false;
 
     _newEvolutionValuesThisMove.clear();
+    _speciesMergedThisGame.clear();
 
     _highestEvolutionValue = 2;
     _toolPenaltyTotal = 0;
