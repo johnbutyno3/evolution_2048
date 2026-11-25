@@ -608,7 +608,7 @@ class PlayerProgressService {
       if (gameId != null) {
         await GoldManager.settleGame(
           gameId: gameId,
-          effectiveScore: score.clamp(0, 1 << 30),
+          effectiveScore: score.clamp(0, 1 << 30).toInt(),
           newSpeciesCount: newSpeciesCount,
           highestValue: highest,
         );
