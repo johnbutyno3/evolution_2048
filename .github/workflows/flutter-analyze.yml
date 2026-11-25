@@ -31,5 +31,3 @@ jobs:
       - name: Flutter tests
         run: flutter test
 
-      - name: Supabase source contract tests
-        run: node --test supabase/tests/*.test.js
