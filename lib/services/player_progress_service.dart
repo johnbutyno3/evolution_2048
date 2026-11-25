@@ -87,7 +87,9 @@ class PlayerProgressService {
 
   Future<void> refresh() async {
     if (!SupabaseBackend.isAuthenticated) {
-      _unlockedChapterIndex = SaveManager.localUnlockedChapterIndex;
+      _unlockedChapterIndex = LifeManager.hasPermanentUnlock
+          ? SaveManager.localUnlockedChapterIndex
+          : 0;
       _chapterProgress
         ..clear()
         ..addAll(SaveManager.localChapterProgress);
@@ -175,7 +177,11 @@ class PlayerProgressService {
   }) async {
     if (chapterIndex < 0 || chapterIndex > 5) return false;
     if (!SupabaseBackend.isAuthenticated) {
-      if (chapterIndex > SaveManager.localUnlockedChapterIndex) return false;
+      final maximumUnlocked = LifeManager.hasPermanentUnlock
+          ? SaveManager.localUnlockedChapterIndex
+          : 0;
+      if (chapterIndex > maximumUnlocked) return false;
+      if (!await LifeManager.consumeFreeGame()) return false;
       final gameId = _newUuid();
       try {
         await SaveManager.setGameSessionId(gameId);
@@ -192,6 +198,7 @@ class PlayerProgressService {
         return true;
       } catch (_) {
         await SaveManager.clearGameSessionId();
+        await LifeManager.refundFailedGameCreation();
         return false;
       }
     }
@@ -377,6 +384,16 @@ class PlayerProgressService {
       return RestartGameSessionResult.rejected;
     }
     if (!SupabaseBackend.isAuthenticated) {
+      final maximumUnlocked = LifeManager.hasPermanentUnlock
+          ? SaveManager.localUnlockedChapterIndex
+          : 0;
+      if (chapterIndex > maximumUnlocked) {
+        return RestartGameSessionResult.rejected;
+      }
+      if (!await LifeManager.consumeFreeGame()) {
+        return RestartGameSessionResult.rejected;
+      }
+      final previousBinding = SaveManager.gameSessionId;
       final gameId = _newUuid();
       try {
         await SaveManager.setGameSessionId(gameId);
@@ -390,6 +407,12 @@ class PlayerProgressService {
         ToolManager.clearSessionUsage();
         return RestartGameSessionResult.committed;
       } catch (_) {
+        if (previousBinding == null) {
+          await SaveManager.clearGameSessionId();
+        } else {
+          await SaveManager.setGameSessionId(previousBinding);
+        }
+        await LifeManager.refundFailedGameCreation();
         return RestartGameSessionResult.rejected;
       }
     }
