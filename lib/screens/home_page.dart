@@ -167,7 +167,7 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.ok),
+              child: Text(l10n.cancel),
             ),
           ],
         ),
