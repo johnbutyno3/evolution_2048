@@ -72,7 +72,7 @@ class GameEngine {
 
   int get lives => LifeManager.lifeCount;
 
-  bool get hasLife => LifeManager.isGoldenMember || lives > 0;
+  bool get hasLife => LifeManager.hasUnlimitedLives || lives > 0;
 
   /// Marks the current board as finished after Game Over without mutating Life.
   bool markGameOver() {
