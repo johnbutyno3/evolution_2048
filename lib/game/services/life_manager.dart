@@ -52,7 +52,6 @@ class LifeManager {
   static int get freeGamesRemaining => _freeGamesRemaining;
   static bool get hasAuthoritativeState => _initialized;
   static bool get hasUnlimitedLives => _permanentUnlock;
-  static bool get isGoldenMember => false;
   static String get membership => _permanentUnlock ? 'purchased' : 'free';
   static String get lifeMode => 'normal';
   static int get lifeCount => _permanentUnlock ? -1 : _freeGamesRemaining;
