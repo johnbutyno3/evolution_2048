@@ -63,7 +63,7 @@ class PlayerProgressService {
   int chapterScore(int chapterIndex) =>
       _chapterProgress[_chapterNames[chapterIndex]]?['score'] ?? 0;
 
-  bool get loadedFromServer => _loadedLocally;
+  bool get loadedLocally => _loadedLocally;
   String? get activeGameSessionId => _activeGameSessionId;
   int? get activeGameChapterIndex => _activeGameChapterIndex;
   bool get hasUnfinishedGame => _activeGameSessionId != null;
