@@ -117,8 +117,7 @@ class PersonalPage extends StatelessWidget {
       ),
     );
   }
-
-
+}
 
 class PlayerInfoPage extends StatefulWidget {
   const PlayerInfoPage({super.key});
