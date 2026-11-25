@@ -61,6 +61,19 @@ class CreatureCollectionService {
     }
   }
 
+  static Future<void> reconcileCollectionRewards() async {
+    final preferences = await SharedPreferences.getInstance();
+    final collection = _decodeLocal(preferences.getString(_localCollectionKey));
+    final uniqueSpeciesCount = collection.values.fold<int>(
+      0,
+      (total, species) => total + species.length,
+    );
+    await GoldManager.awardCollectionMilestones(
+      uniqueSpeciesCount: uniqueSpeciesCount,
+      allSpeciesCollected: uniqueSpeciesCount >= _totalSpeciesCount,
+    );
+  }
+
   static Future<Set<int>> loadDiscovered(String chapterKey) async {
     final preferences = await SharedPreferences.getInstance();
     final collection = _decodeLocal(preferences.getString(_localCollectionKey));
