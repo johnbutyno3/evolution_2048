@@ -80,7 +80,7 @@ Audit date: 2026-11-24
 ## Guest-first single-player change (2026-11-25)
 
 - The app no longer routes to a Google/Apple/email sign-in page. The sign-in screen and its auth facade have been removed from the Flutter client.
-- Supabase initialization is optional; an unconfigured client no longer prevents local gameplay from starting.
+- Supabase initialization is optional; an unconfigured client no longer prevents local gameplay from starting. The Android guest APK workflow builds without injecting Supabase URL or publishable-key secrets.
 - Guest gameplay uses the existing local save namespace, local session IDs, local chapter completion progress, and unlimited lives. No sign-in or account snapshot is required for guest game entry/resume/restart/completion.
 - Guest profile name and avatar changes are stored locally. Cloud collection and account inventory refreshes are skipped for guests.
 - Account-backed tool purchases are disabled in guest mode. Gold and membership real-money purchase buttons remain unavailable because no payment provider is integrated; they must not imply a completed transaction.
