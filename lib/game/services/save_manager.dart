@@ -24,6 +24,7 @@ class SaveManager {
   static int _activeSaveSlot = 1;
   static int _saveSequence = 0;
   static const String _onboardingKey = 'rebirth_2048_onboarding_completed_v1';
+  static const String _localProgressKey = 'rebirth_2048_local_chapter_progress_v1';
   static const String _legacyProfileNameKey = 'rebirth_2048_profile_name_v1';
   static const String _legacyPlayerIdKey = 'rebirth_2048_player_id_v1';
   static const String _legacyAvatarIndexKey = 'rebirth_2048_avatar_index_v1';
@@ -453,6 +454,58 @@ class SaveManager {
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.setString(_localeKey, safeCode);
     localeCodeNotifier.value = safeCode;
+  }
+
+  static Map<String, Map<String, int>> get localChapterProgress {
+    final raw = _preferences?.getString(_localProgressKey);
+    if (raw == null || raw.isEmpty) return <String, Map<String, int>>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, Map<String, int>>{};
+      return <String, Map<String, int>>{
+        for (final entry in decoded.entries)
+          if (entry.value is Map)
+            entry.key.toString(): <String, int>{
+              for (final value in (entry.value as Map).entries)
+                if (value.value is num)
+                  value.key.toString(): (value.value as num).toInt(),
+            },
+      };
+    } catch (_) {
+      return <String, Map<String, int>>{};
+    }
+  }
+
+  static int get localUnlockedChapterIndex {
+    final progress = localChapterProgress;
+    var unlocked = 0;
+    for (var index = 0; index < 6; index++) {
+      final highestStage = progress['C${index + 1}']?['highestStage'] ?? 0;
+      if (highestStage >= index + 12) {
+        unlocked = (index + 1).clamp(0, 5);
+      }
+    }
+    return unlocked;
+  }
+
+  static Future<void> saveLocalChapterCompletion({
+    required int chapterIndex,
+    required int score,
+  }) async {
+    if (chapterIndex < 0 || chapterIndex > 5) {
+      throw ArgumentError.value(chapterIndex, 'chapterIndex');
+    }
+    _preferences ??= await SharedPreferences.getInstance();
+    final progress = localChapterProgress;
+    final key = 'C${chapterIndex + 1}';
+    final previous = progress[key] ?? const <String, int>{};
+    final next = <String, int>{
+      'highestStage': chapterIndex + 12,
+      'highestValue': 1 << (chapterIndex + 12),
+      'score': score > (previous['score'] ?? 0) ? score : (previous['score'] ?? 0),
+    };
+    progress[key] = next;
+    await _preferences!.setString(_localProgressKey, jsonEncode(progress));
   }
 
   static bool get hasCompletedOnboarding {
