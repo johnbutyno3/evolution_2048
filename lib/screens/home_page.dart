@@ -8,8 +8,8 @@ import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../game/services/save_manager.dart';
-import '../services/supabase_account_service.dart';
 import '../services/player_progress_service.dart';
+import '../services/supabase_backend.dart';
 import 'personal_page.dart';
 import 'profile_setup_page.dart';
 
@@ -123,19 +123,26 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _load() async {
     try {
-      final snapshot = await SupabaseAccountBootstrapService.synchronize();
-      if (!mounted) return;
-      if (SupabaseAccountBootstrapService.requiresProfileSetup(snapshot)) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ProfileSetupPage()),
-          (route) => false,
-        );
-        return;
+      if (!SupabaseBackend.isAuthenticated) {
+        // Guest progress and unlimited play are fully local. No account
+        // snapshot or network request is needed to enter a chapter.
+        LifeManager.enableGuestMode();
+        await _progress.refresh();
+      } else {
+        final snapshot = await SupabaseAccountBootstrapService.synchronize();
+        if (!mounted) return;
+        if (SupabaseAccountBootstrapService.requiresProfileSetup(snapshot)) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const ProfileSetupPage()),
+            (route) => false,
+          );
+          return;
+        }
+        await _progress.refresh();
       }
-      await _progress.refresh();
     } catch (_) {
-      // Keep the home shell available, but gameplay remains disabled until
-      // the authoritative account snapshot has been loaded successfully.
+      // A signed-in account keeps the existing fail-closed server behavior.
+      // Guest gameplay does not depend on this network path.
     }
     if (mounted) setState(() => _loading = false);
   }
