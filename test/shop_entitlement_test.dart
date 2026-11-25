@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:rebirth_2048/game/models/tools/game_tool.dart';
+import 'package:rebirth_2048/game/models/game_tile.dart';
 import 'package:rebirth_2048/game/services/gold_manager.dart';
 import 'package:rebirth_2048/game/services/life_manager.dart';
 import 'package:rebirth_2048/game/services/tool_manager.dart';
