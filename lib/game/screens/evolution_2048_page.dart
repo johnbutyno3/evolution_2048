@@ -474,14 +474,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!changed) return;
     final newEvolutionValues = _engine.newEvolutionValuesThisMove;
     final mergedValues = _engine.board.lastMergedValues;
-    if (mergedValues.isNotEmpty) {
+    final discoveredValues = <int>{
+      ...mergedValues,
+      ..._engine.board.tiles.whereType<GameTile>().map((tile) => tile.value),
+    };
+    if (discoveredValues.isNotEmpty) {
       final saveData = _engine.createSaveData();
       final replayLog = saveData['replayLog'];
       final gameId = PlayerProgressService.instance.activeGameSessionId;
       if (gameId != null && replayLog is Map) {
         unawaited(CreatureCollectionService.discover(
           _engine.chapter.name,
-          mergedValues,
+          discoveredValues,
           gameId: gameId,
           replayLog: Map<String, dynamic>.from(replayLog),
         ));
