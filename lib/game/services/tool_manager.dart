@@ -275,6 +275,18 @@ class ToolManager {
     return true;
   }
 
+  static int packagePrice(GameToolType type, int amount) {
+    const packages = <GameToolType, List<int>>{
+      GameToolType.timeRewind: [50, 225, 700, 1500],
+      GameToolType.revive: [100, 450, 1400, 3000],
+      GameToolType.positionSwap: [200, 900, 2800, 6000],
+      GameToolType.duplicate: [500, 2250, 7000, 15000],
+    };
+    final index = const [1, 5, 20, 50].indexOf(amount);
+    if (index < 0) throw ArgumentError.value(amount, 'amount');
+    return packages[type]![index];
+  }
+
   static String _toolCode(GameToolType type) => switch (type) {
     GameToolType.timeRewind => 'UNDO',
     GameToolType.revive => 'REMOVE',
