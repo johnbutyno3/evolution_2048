@@ -86,16 +86,21 @@ class PlayerProgressService {
   }
 
   Future<void> refresh() async {
-    final user = SupabaseBackend.client.auth.currentUser;
-    if (user == null) {
-      _unlockedChapterIndex = 0;
-      _loadedFromServer = false;
-      _activeGameSessionId = null;
+    if (!SupabaseBackend.isAuthenticated) {
+      _unlockedChapterIndex = SaveManager.localUnlockedChapterIndex;
+      _chapterProgress
+        ..clear()
+        ..addAll(SaveManager.localChapterProgress);
+      final unfinished = SaveManager.unfinishedChapter;
+      _activeGameChapterIndex = unfinished == null
+          ? null
+          : _chapterNames.indexOf(unfinished);
+      _activeGameSessionId = unfinished == null ? null : SaveManager.gameSessionId;
       _activeGameRequestId = null;
-      _activeGameChapterIndex = null;
-      _chapterProgress.clear();
+      _loadedFromServer = true;
       return;
     }
+    final user = SupabaseBackend.client.auth.currentUser!;
     final generation = _sessionIdentityGeneration.current;
     final owner = _activeGameSessionId;
     try {
@@ -168,8 +173,30 @@ class PlayerProgressService {
     required List<dynamic> initialTiles,
     Map<String, dynamic>? initialSave,
   }) async {
+    if (chapterIndex < 0 || chapterIndex > 5) return false;
+    if (!SupabaseBackend.isAuthenticated) {
+      if (chapterIndex > SaveManager.localUnlockedChapterIndex) return false;
+      final gameId = _newUuid();
+      try {
+        await SaveManager.setGameSessionId(gameId);
+        if (initialSave != null) {
+          final candidate = Map<String, dynamic>.from(initialSave)
+            ..['gameSessionId'] = gameId;
+          await SaveManager.save(candidate);
+        }
+        _activeGameSessionId = gameId;
+        _activeGameChapterIndex = chapterIndex;
+        _activeGameRequestId = null;
+        _loadedFromServer = true;
+        ToolManager.clearSessionUsage();
+        return true;
+      } catch (_) {
+        await SaveManager.clearGameSessionId();
+        return false;
+      }
+    }
     final user = SupabaseBackend.client.auth.currentUser;
-    if (user == null || chapterIndex < 0 || chapterIndex > 5) return false;
+    if (user == null) return false;
 
     // A second normal start while the first local-first start is still
     // being verified is already covered by that first operation. Return
@@ -292,11 +319,24 @@ class PlayerProgressService {
     int chapterIndex, {
     String? sessionId,
   }) async {
-    if (SupabaseBackend.client.auth.currentUser == null ||
-        chapterIndex < 0 || chapterIndex > 5) {
-      return false;
-    }
+    if (chapterIndex < 0 || chapterIndex > 5) return false;
     final gameId = sessionId ?? _activeGameSessionId;
+    if (!SupabaseBackend.isAuthenticated) {
+      if (gameId == null || gameId != SaveManager.gameSessionId) return false;
+      final saved = SaveManager.loadCached(chapter: _chapterNames[chapterIndex]);
+      final playable = saved != null &&
+          saved['gameSessionId'] == gameId &&
+          saved['gameOver'] != true &&
+          saved['chapterComplete'] != true &&
+          saved['tiles'] is List &&
+          (saved['tiles'] as List).length == 16;
+      if (!playable) return false;
+      _activeGameSessionId = gameId;
+      _activeGameChapterIndex = chapterIndex;
+      _loadedFromServer = true;
+      return true;
+    }
+    if (SupabaseBackend.client.auth.currentUser == null) return false;
     if (gameId == null) return false;
     final saved = SaveManager.loadCached(chapter: _chapterNames[chapterIndex]);
     final playable = saved != null &&
@@ -333,10 +373,28 @@ class PlayerProgressService {
     required List<dynamic> initialTiles,
     required Map<String, dynamic> replacementSave,
   }) async {
-    final user = SupabaseBackend.client.auth.currentUser;
-    if (user == null || chapterIndex < 0 || chapterIndex > 5) {
+    if (chapterIndex < 0 || chapterIndex > 5) {
       return RestartGameSessionResult.rejected;
     }
+    if (!SupabaseBackend.isAuthenticated) {
+      final gameId = _newUuid();
+      try {
+        await SaveManager.setGameSessionId(gameId);
+        final candidate = Map<String, dynamic>.from(replacementSave)
+          ..['gameSessionId'] = gameId;
+        await SaveManager.save(candidate);
+        _activeGameSessionId = gameId;
+        _activeGameChapterIndex = chapterIndex;
+        _activeGameRequestId = null;
+        _loadedFromServer = true;
+        ToolManager.clearSessionUsage();
+        return RestartGameSessionResult.committed;
+      } catch (_) {
+        return RestartGameSessionResult.rejected;
+      }
+    }
+    final user = SupabaseBackend.client.auth.currentUser;
+    if (user == null) return RestartGameSessionResult.rejected;
 
     _sessionIdentityGeneration.begin();
     final pending = _pendingStartSession;
@@ -452,6 +510,21 @@ class PlayerProgressService {
     // Returning home preserves the active session so the player can resume it.
     if (unfinishedExit) return true;
     final gameId = sessionId ?? _activeGameSessionId;
+    if (!SupabaseBackend.isAuthenticated) {
+      if (gameId == null) return true;
+      if (_activeGameSessionId != null && _activeGameSessionId != gameId) {
+        return false;
+      }
+      await SaveManager.clearGameSessionId();
+      if (_activeGameChapterIndex != null) {
+        await SaveManager.clearChapter(_chapterNames[_activeGameChapterIndex!]);
+      }
+      _activeGameSessionId = null;
+      _activeGameChapterIndex = null;
+      _activeGameRequestId = null;
+      _loadedFromServer = true;
+      return true;
+    }
     if (gameId == null) return true;
     if (replayLog == null) return false;
     await _awaitPendingStartSession();
@@ -493,10 +566,23 @@ class PlayerProgressService {
     required int chapterIndex,
     required Map<String, dynamic> replayLog,
   }) async {
-    if (SupabaseBackend.client.auth.currentUser == null ||
-        chapterIndex < 0 || chapterIndex > 5) {
-      return false;
+    if (chapterIndex < 0 || chapterIndex > 5) return false;
+    if (!SupabaseBackend.isAuthenticated) {
+      await SaveManager.saveLocalChapterCompletion(
+        chapterIndex: chapterIndex,
+        score: (replayLog['finalScore'] is num)
+            ? (replayLog['finalScore'] as num).toInt()
+            : 0,
+      );
+      if (_activeGameChapterIndex == chapterIndex) {
+        _activeGameSessionId = null;
+        _activeGameChapterIndex = null;
+        await SaveManager.clearGameSessionId();
+      }
+      await refresh();
+      return true;
     }
+    if (SupabaseBackend.client.auth.currentUser == null) return false;
     if (!await _awaitPendingStartSession()) {
       final initialTiles = replayLog['initialTiles'];
       if (initialTiles is! List || initialTiles.length != 16) return false;
