@@ -4,9 +4,7 @@ import '../game/models/tools/game_tool.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/tool_manager.dart';
-import '../services/shop_config_service.dart';
 import '../l10n/app_localizations.dart';
-import '../services/supabase_backend.dart';
 
 class ToolsPage extends StatefulWidget {
   const ToolsPage({super.key});
@@ -16,21 +14,19 @@ class ToolsPage extends StatefulWidget {
 }
 
 class _ToolsPageState extends State<ToolsPage> {
-  late Future<Map<String, dynamic>> _configFuture;
+  late Future<void> _loadFuture;
 
   @override
   void initState() {
     super.initState();
-    _configFuture = _load();
+    _loadFuture = _load();
   }
 
-  Future<Map<String, dynamic>> _load() async {
-    final results = await Future.wait([
+  Future<void> _load() async {
+    await Future.wait([
       ToolManager.refreshInventory(),
       GoldManager.refresh(),
-      ShopConfigService.load(),
     ]);
-    return results[2] as Map<String, dynamic>;
   }
 
   Future<void> _buy({
@@ -73,45 +69,36 @@ class _ToolsPageState extends State<ToolsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.tools)),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _configFuture,
+      body: FutureBuilder<void>(
+        future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final config = snapshot.data ?? ShopConfigService.defaults;
-
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              _balanceTile(),
               _tool(
-                config,
                 GameToolType.timeRewind,
                 AppLocalizations.of(context)!.undoToolLabel,
                 Icons.undo,
-                'undo',
               ),
               _tool(
-                config,
                 GameToolType.revive,
                 AppLocalizations.of(context)!.removeToolLabel,
                 Icons.remove_circle_outline,
-                'remove',
               ),
               _tool(
-                config,
                 GameToolType.positionSwap,
                 AppLocalizations.of(context)!.swapToolLabel,
                 Icons.swap_horiz,
-                'swap',
               ),
               _tool(
-                config,
                 GameToolType.duplicate,
                 AppLocalizations.of(context)!.duplicateToolLabel,
                 Icons.copy_outlined,
-                'duplicate',
               ),
             ],
           );
@@ -120,12 +107,21 @@ class _ToolsPageState extends State<ToolsPage> {
     );
   }
 
+  Widget _balanceTile() => Card(
+    child: ListTile(
+      leading: const Icon(Icons.monetization_on_outlined),
+      title: Text(AppLocalizations.of(context)!.goldBalanceTitle),
+      trailing: Text(
+        '${GoldManager.balance} Gold',
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+    ),
+  );
+
   Widget _tool(
-    Map<String, dynamic> config,
     GameToolType type,
     String name,
     IconData icon,
-    String key,
   ) {
     final isGoldenUndo =
         LifeManager.isGoldenMember &&
@@ -165,16 +161,13 @@ class _ToolsPageState extends State<ToolsPage> {
                 children: [
                   for (var i = 0; i < amounts.length; i++)
                     FilledButton(
-                      onPressed: !SupabaseBackend.isAuthenticated ||
-                              (LifeManager.membership == 'general' && amounts[i] != 1)
-                          ? null
-                          : () => _buy(
+                      onPressed: () => _buy(
                         type: type,
                         name: name,
                         amount: amounts[i],
                       ),
                       child: Text(
-                        '${amounts[i]} · ${ShopConfigService.price(config, '$key${amounts[i]}Price')} ${AppLocalizations.of(context)!.gold}',
+                        '${amounts[i]} · ${ToolManager.packagePrice(type, amounts[i])} ${AppLocalizations.of(context)!.gold}',
                       ),
                     ),
                 ],
