@@ -1,10 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../game/services/gold_manager.dart';
-import 'supabase_backend.dart';
 
 class CreatureCollectionService {
   static const String _localCollectionKey = 'rebirth_2048_local_creature_collection_v1';
@@ -65,17 +62,6 @@ class CreatureCollectionService {
   }
 
   static Future<Set<int>> loadDiscovered(String chapterKey) async {
-    if (SupabaseBackend.isAuthenticated) {
-      final client = SupabaseBackend.client;
-      final rows = await client
-          .from('creature_collection')
-          .select('creature_value')
-          .eq('chapter_code', _chapterCode(chapterKey));
-      return rows
-          .map<int>((row) => (row['creature_value'] as num).toInt())
-          .toSet();
-    }
-
     final preferences = await SharedPreferences.getInstance();
     final collection = _decodeLocal(preferences.getString(_localCollectionKey));
     return collection[normalizeChapterKey(chapterKey)] ?? <int>{};
@@ -99,25 +85,6 @@ class CreatureCollectionService {
         value >= 2 &&
         value <= limit &&
         (value & (value - 1)) == 0);
-    if (SupabaseBackend.isAuthenticated) {
-      if (valid.isEmpty) return;
-      final client = SupabaseBackend.client;
-      final response = await client.functions.invoke(
-        'discover-creature',
-        method: HttpMethod.post,
-        body: <String, dynamic>{
-          'gameId': gameId,
-          'chapterCode': _chapterCode(chapterKey),
-          'values': valid.toList(growable: false),
-          'replayLog': replayLog,
-        },
-      );
-      if (response.status < 200 || response.status >= 300) {
-        throw StateError('Creature collection sync failed.');
-      }
-      return;
-    }
-
     final preferences = await SharedPreferences.getInstance();
     final collection = _decodeLocal(preferences.getString(_localCollectionKey));
     final key = normalizeChapterKey(chapterKey);
