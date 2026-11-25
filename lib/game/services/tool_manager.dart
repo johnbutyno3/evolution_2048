@@ -184,6 +184,7 @@ class ToolManager {
 
   static Future<bool> purchase(GameToolType type, int amount) async {
     _lastPurchaseError = null;
+    _lastPurchaseErrorCode = null;
     if (!const [1, 5, 20, 50].contains(amount)) {
       _lastPurchaseError = 'Invalid tool package quantity.';
       return false;
@@ -195,6 +196,29 @@ class ToolManager {
       GameToolType.positionSwap => 'SWAP',
       GameToolType.duplicate => 'DUPLICATE',
     };
+
+    if (!SupabaseBackend.isAuthenticated) {
+      const packages = <GameToolType, List<int>>{
+        GameToolType.timeRewind: [50, 225, 700, 1500],
+        GameToolType.revive: [100, 450, 1400, 3000],
+        GameToolType.positionSwap: [200, 900, 2800, 6000],
+        GameToolType.duplicate: [500, 2250, 7000, 15000],
+      };
+      final packageIndex = const [1, 5, 20, 50].indexOf(amount);
+      final cost = packages[type]![packageIndex];
+      final purchased = await GoldManager.purchaseTool(
+        toolCode: toolCode,
+        amount: amount,
+        cost: cost,
+        transactionId: 'tool-purchase:$toolCode:${DateTime.now().microsecondsSinceEpoch}',
+      );
+      if (!purchased) {
+        _lastPurchaseErrorCode = 'INSUFFICIENT_GOLD';
+        _lastPurchaseError = 'Not enough Gold or purchase could not be saved.';
+        return false;
+      }
+      return true;
+    }
 
     try {
       final data = await SupabaseToolPurchaseService.purchase(
@@ -225,6 +249,13 @@ class ToolManager {
     final tool = getTool(type);
     if (tool == null) return false;
 
+    if (!SupabaseBackend.isAuthenticated) {
+      final consumed = GoldManager.consumeToolLocal(_toolCode(type));
+      if (!consumed) return false;
+      tool.usesRemaining = savedUsesFor(type);
+      return true;
+    }
+
     // GOLDEN UNDO is unlimited even when the authoritative inventory has
     // never contained a purchased UNDO. Check membership before the normal
     // inventory gate so a stale/empty local inventory cannot block it.
@@ -244,7 +275,17 @@ class ToolManager {
     return true;
   }
 
+  static String _toolCode(GameToolType type) => switch (type) {
+    GameToolType.timeRewind => 'UNDO',
+    GameToolType.revive => 'REMOVE',
+    GameToolType.positionSwap => 'SWAP',
+    GameToolType.duplicate => 'DUPLICATE',
+  };
+
   static int savedUsesFor(GameToolType type) {
+    if (!SupabaseBackend.isAuthenticated) {
+      return GoldManager.toolUses(_toolCode(type));
+    }
     if (LifeManager.isGoldenMember && type == GameToolType.timeRewind) {
       return _unlimitedUses;
     }
