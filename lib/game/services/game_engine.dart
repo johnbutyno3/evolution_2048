@@ -192,6 +192,7 @@ class GameEngine {
 
   final List<int> _newEvolutionValuesThisMove = <int>[];
   final Set<int> _speciesMergedThisGame = <int>{};
+  final Set<int> _previousSpeciesMergedThisGame = <int>{};
 
   GameBoard get board => _board;
   GameChapter get chapter => _chapter;
@@ -281,6 +282,7 @@ class GameEngine {
       'hasReached16384': hasReached16384,
       'highestEvolutionValue': _highestEvolutionValue,
       'speciesMergedThisGame': _speciesMergedThisGame.toList()..sort(),
+      'previousSpeciesMergedThisGame': _previousSpeciesMergedThisGame.toList()..sort(),
       'gameOver': gameOver,
       'chapterComplete': chapterComplete,
 
@@ -372,6 +374,16 @@ class GameEngine {
       ..addAll(
         data['speciesMergedThisGame'] is List
             ? (data['speciesMergedThisGame'] as List)
+                .whereType<num>()
+                .map((value) => value.toInt())
+                .where((value) => value >= 2)
+            : const <int>[],
+      );
+    _previousSpeciesMergedThisGame
+      ..clear()
+      ..addAll(
+        data['previousSpeciesMergedThisGame'] is List
+            ? (data['previousSpeciesMergedThisGame'] as List)
                 .whereType<num>()
                 .map((value) => value.toInt())
                 .where((value) => value >= 2)
@@ -665,6 +677,9 @@ class GameEngine {
 
   void _savePreviousState() {
     _previousBoard = _board.tiles.map<int?>((tile) => tile?.value).toList();
+    _previousSpeciesMergedThisGame
+      ..clear()
+      ..addAll(_speciesMergedThisGame);
 
     _previousScore = score;
 
@@ -683,6 +698,10 @@ class GameEngine {
     final snapshot = _previousBoard;
 
     if (snapshot == null) return;
+
+    _speciesMergedThisGame
+      ..clear()
+      ..addAll(_previousSpeciesMergedThisGame);
 
     _board = GameBoard(size: boardSize);
 
@@ -735,6 +754,7 @@ class GameEngine {
 
     _newEvolutionValuesThisMove.clear();
     _speciesMergedThisGame.clear();
+    _previousSpeciesMergedThisGame.clear();
 
     _highestEvolutionValue = 2;
     _toolPenaltyTotal = 0;
