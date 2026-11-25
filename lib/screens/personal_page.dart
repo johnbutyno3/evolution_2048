@@ -500,17 +500,9 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
   Future<void> _loadCollection() async {
-    final user = SupabaseAuthService.currentUser;
-    if (user == null) {
-      if (!context.mounted) return;
-
-      setState(() {
-        _discovered.clear();
-        _loading = false;
-      });
-      return;
-    }
-
+    final accountUserId = SupabaseBackend.isAuthenticated
+        ? SupabaseBackend.client.auth.currentUser?.id
+        : null;
     final result = <String, Set<int>>{};
     try {
       // The first creature is the chapter's starting creature. It becomes
@@ -540,7 +532,9 @@ class _CollectionPageState extends State<CollectionPage> {
     }
 
     if (!context.mounted) return;
-    if (SupabaseAuthService.currentUser?.id != user.id) {
+    if (accountUserId != null &&
+        (!SupabaseBackend.isAuthenticated ||
+            SupabaseBackend.client.auth.currentUser?.id != accountUserId)) {
       setState(() {
         _discovered.clear();
         _loading = false;
