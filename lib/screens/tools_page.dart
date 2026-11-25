@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
-import '../game/services/life_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../l10n/app_localizations.dart';
@@ -37,18 +36,9 @@ class _ToolsPageState extends State<ToolsPage> {
     if (!await ToolManager.purchase(type, amount)) {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
-      final message = switch (ToolManager.lastPurchaseErrorCode) {
-        'UNAUTHORIZED' => l10n.paymentUnavailable,
-        'INSUFFICIENT_GOLD' => l10n.insufficientGold,
-        'FREE_SINGLE_TOOL_ONLY' => l10n.freeSingleToolOnly,
-        'GOLDEN_UNDO_UNLIMITED' => l10n.goldenUndoUnlimited,
-        'ACCOUNT_RESTRICTED' || 'MEMBERSHIP_REQUIRES_REVIEW' => l10n.accountRestricted,
-        'IDEMPOTENCY_CONFLICT' => l10n.idempotencyConflict,
-        'PURCHASE_SAFETY_STORAGE_UNAVAILABLE' => l10n.purchaseProtectionUnavailable,
-        'INVALID_RESPONSE' => l10n.invalidPurchaseResponse,
-        'NETWORK_OR_SERVER_ERROR' => l10n.purchaseVerificationFailed,
-        _ => l10n.purchaseRetryOnline,
-      };
+      final message = ToolManager.lastPurchaseErrorCode == 'INSUFFICIENT_GOLD'
+          ? l10n.insufficientGold
+          : l10n.purchaseFailed;
       _message(message);
       return;
     }
@@ -123,12 +113,8 @@ class _ToolsPageState extends State<ToolsPage> {
     String name,
     IconData icon,
   ) {
-    final isGoldenUndo =
-        LifeManager.isGoldenMember &&
-        type == GameToolType.timeRewind;
-
     final owned = ToolManager.savedUsesFor(type);
-    final ownedLabel = isGoldenUndo ? '∞' : '$owned';
+    final ownedLabel = '$owned';
 
     final amounts = [1, 5, 20, 50];
     return Card(
@@ -154,8 +140,7 @@ class _ToolsPageState extends State<ToolsPage> {
               ],
             ),
             const SizedBox(height: 12),
-            if (!isGoldenUndo)
-              Wrap(
+            Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
