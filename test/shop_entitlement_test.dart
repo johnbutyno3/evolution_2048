@@ -58,6 +58,7 @@ void main() {
     expect(manager.consumeLocal(GameToolType.timeRewind), isTrue);
     expect(ToolManager.savedUsesFor(GameToolType.timeRewind), 4);
 
+    await GoldManager.flushLocalChanges();
     await GoldManager.initializeLocal();
     expect(GoldManager.balance, 775);
     expect(GoldManager.toolUses('UNDO'), 4);
