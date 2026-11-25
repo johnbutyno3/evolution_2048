@@ -1,4 +1,5 @@
 import '../../services/supabase_account_service.dart';
+import '../../services/supabase_backend.dart';
 
 /// Client facade for the server-authoritative Gold wallet.
 class GoldManager {
@@ -41,6 +42,7 @@ class GoldManager {
   }
 
   static Future<int?> refresh() async {
+    if (!SupabaseBackend.isAuthenticated) return _cachedBalance ?? 0;
     try {
       // Use the same timezone-aware, fully validated snapshot path as account
       // bootstrap. Calling account-snapshot with an empty body is rejected by
