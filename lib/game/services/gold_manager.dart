@@ -28,6 +28,15 @@ class GoldManager {
   static Future<void> initializeLocal() async {
     await _pendingWrite.catchError((_) {});
     _preferences = await SharedPreferences.getInstance();
+    _state = <String, dynamic>{
+      'balance': 0,
+      'lifetimeSpent': 0,
+      'cumulativeScore': 0,
+      'transactions': <String>[],
+      'claimedRewards': <String>[],
+      'settledGames': <String>[],
+      'toolInventory': <String, int>{},
+    };
     final raw = _preferences!.getString(_walletKey);
     if (raw != null && raw.isNotEmpty) {
       try {
