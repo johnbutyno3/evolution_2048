@@ -25,10 +25,6 @@ class PersonalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = SupabaseBackend.isAuthenticated
-        ? SupabaseBackend.client.auth.currentUser
-        : null;
-
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.personalTitle)),
       body: ListView(
