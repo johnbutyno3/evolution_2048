@@ -21,7 +21,7 @@ Audit date: 2026-11-24
 - `lib/screens/home_page.dart`: home navigation, chapter cards, shop entry, game continuation.
 - `lib/screens/onboarding_page.dart`: onboarding slides and first-run navigation.
 - `lib/screens/profile_setup_page.dart`: player name/profile setup.
-- `lib/screens/login_register_page.dart`: sign-in, registration and provider buttons.
+- No sign-in or registration screen is part of the guest-first app flow. The app opens the local game after onboarding.
 
 ### Account, collection and settings
 - `lib/screens/personal_page.dart`: personal menu, player profile, avatar picker, creature collection, Gold summary, settings, game guide, version and about pages.
@@ -42,7 +42,7 @@ Audit date: 2026-11-24
 
 - Game/domain labels: `lib/game/models/creature.dart`, `lib/game/models/tools/game_tool.dart`, `lib/game/models/game_tile.dart`.
 - Game state and tool flows: `lib/game/services/game_engine.dart`, `tool_manager.dart`, `life_manager.dart`, `gold_manager.dart`, `save_manager.dart`, `audio_manager.dart`, `haptic_service.dart`.
-- Account and profile errors: `lib/services/supabase_account_service.dart`, `supabase_auth_service.dart`, `supabase_player_profile_service.dart`, `player_profile_service.dart`, `player_progress_service.dart`.
+- Account and profile errors: `lib/services/supabase_account_service.dart`, `supabase_player_profile_service.dart`, `player_profile_service.dart`, `player_progress_service.dart`. Guest profile and chapter progress are stored locally.
 - Purchase/configuration: `lib/services/supabase_tool_purchase_service.dart`, `shop_config_service.dart`, `admin_service.dart`.
 - Backend error identifiers and messages: Supabase Edge Functions under `supabase/functions/`, shared auth validators under `supabase/functions/_shared/`, and SQL/RPC errors under `supabase/migrations/`. Machine-readable codes remain stable identifiers; user-facing messages must be translated in the Flutter UI.
 - Assets: image/audio filenames and internal asset IDs are not UI translations. Any text embedded inside artwork must be reviewed separately.
@@ -73,5 +73,16 @@ Audit date: 2026-11-24
 - `test/localization_arb_test.dart` enforces locale key and placeholder parity.
 - `test/creature_localization_test.dart` verifies all 87 creature names across all six chapters exist in both languages.
 - `test/shop_entitlement_test.dart` covers validated FREE/PREMIUM/GOLDEN entitlements, debug-only simulated purchases, Gold deductions, FREE package limits, and unlocking a tool in an already active game manager.
+- `test/guest_mode_test.dart` covers guest startup, unlimited local play, local session persistence/resume, and local chapter unlock without an authenticated Supabase session.
 - `lib/services/shop_purchase_simulator.dart` and `AdminTestPage` provide an administrator-only, debug-build-only local simulator for membership, Gold and tool purchases. Simulated tool purchases deduct local Gold and enforce FREE package limits; no simulator action writes to Supabase or records a real-money transaction.
 - Verification on commit `7c4e923615b3c69975d0f03a3757132703b5ce3b`: Flutter analyze passed; all 48 Flutter tests passed; Supabase source audit, Functions audit and disposable local Supabase migration/database integration tests passed. Android Debug APK build initially hit Maven Central HTTP 429 rate limiting, then passed on retry. Artifact `rebirth-2048-android-supabase-debug` was uploaded successfully (artifact ID `14902692833`, SHA-256 `97e2a5830e07ae9112140aab4559c7fc7f9a55e61eaae985cb1fa5d8b2e91487`, expires 2026-12-08).
+
+## Guest-first single-player change (2026-11-25)
+
+- The app no longer routes to a Google/Apple/email sign-in page. The sign-in screen and its auth facade have been removed from the Flutter client.
+- Supabase initialization is optional; an unconfigured client no longer prevents local gameplay from starting.
+- Guest gameplay uses the existing local save namespace, local session IDs, local chapter completion progress, and unlimited lives. No sign-in or account snapshot is required for guest game entry/resume/restart/completion.
+- Guest profile name and avatar changes are stored locally. Cloud collection and account inventory refreshes are skipped for guests.
+- Account-backed tool purchases are disabled in guest mode. Gold and membership real-money purchase buttons remain unavailable because no payment provider is integrated; they must not imply a completed transaction.
+- Android and iOS OAuth callback deep links have been removed.
+- This change is under CI validation; do not install or distribute an APK until the latest Android Debug APK workflow succeeds and the guest gameplay test passes.
