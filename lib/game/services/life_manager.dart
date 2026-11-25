@@ -260,51 +260,10 @@ class LifeManager {
   static int? get nextLifeAtMillis =>
       _guestMode || _infiniteLives ? null : _nextLifeAtMillis;
 
-  /// Advances the local regeneration state as soon as the countdown expires.
-  ///
-  /// The local transition is immediate so the UI never remains at
-  /// "4 (00:00)" while waiting for Supabase. The server is then queried in
-  /// the background. A stale response can no longer roll the just-regenerated
-  /// Life back down.
-  static void tickRegeneration() {
-    // Regeneration is removed from the single-player product rules.
-    if (_guestMode) return;
-    if (_infiniteLives || _lifeCount < 0 || _nextLifeAtMillis == null) return;
+  /// Regeneration is permanently disabled in the single-player product.
+  static void tickRegeneration() {}
 
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now < _nextLifeAtMillis!) return;
-
-    final elapsed = now - _nextLifeAtMillis!;
-    final recovered = 1 + (elapsed ~/ _regenIntervalMillis);
-    final nextLives = (_lifeCount + recovered).clamp(0, normalCap).toInt();
-    _lifeCount = nextLives;
-
-    if (_lifeCount >= normalCap) {
-      _nextLifeAtMillis = null;
-    } else {
-      _nextLifeAtMillis =
-          _nextLifeAtMillis! + recovered * _regenIntervalMillis;
-    }
-
-    // This local mutation invalidates every older life read. Always issue the
-    // background verification, even if a previous regeneration request is
-    // still in flight; the older request will be discarded by generation.
-    _lifeStateGeneration++;
-    refreshFromServer(fromRegeneration: true).catchError((_) {
-      // Keep the optimistic local regeneration visible if Supabase is
-      // temporarily unavailable. A later refresh/re-entry will retry.
-    });
-  }
-
-  static Duration? get regenerationRemaining {
-    if (_guestMode) return null;
-    final next = nextLifeAtMillis;
-    if (next == null) return null;
-
-    final remaining =
-        Duration(milliseconds: next - DateTime.now().millisecondsSinceEpoch);
-    return remaining.isNegative ? Duration.zero : remaining;
-  }
+  static Duration? get regenerationRemaining => null;
 
   /// Life is deducted only by start/restart-game-session transactions.
   /// Kept as a compatibility guard so callers cannot double-charge life.
