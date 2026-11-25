@@ -7,7 +7,6 @@ import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
 import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
-import '../services/supabase_backend.dart';
 import '../services/admin_service.dart';
 
 import '../game/services/audio_manager.dart';
@@ -198,37 +197,18 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
   }
 
   Future<void> _loadProfile() async {
-    final user = SupabaseBackend.isAuthenticated
-        ? SupabaseBackend.client.auth.currentUser
-        : null;
     _avatarIndex = SaveManager.avatarIndex;
     _nameController.text = SaveManager.profileName ?? '';
     _playerId = SaveManager.playerId ?? '';
 
-    if (user == null) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
-
-    try {
-      await PlayerProfileService.ensureProfile();
-
+    await PlayerProfileService.ensureProfile();
+    if (!mounted) return;
+    setState(() {
       _avatarIndex = SaveManager.avatarIndex;
       _nameController.text = SaveManager.profileName ?? '';
       _playerId = SaveManager.playerId ?? '';
-
-      if (!context.mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-    } catch (_) {
-      if (!context.mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-    }
+      _loading = false;
+    });
   }
 
   Future<void> _saveName() async {
@@ -490,9 +470,6 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
   Future<void> _loadCollection() async {
-    final accountUserId = SupabaseBackend.isAuthenticated
-        ? SupabaseBackend.client.auth.currentUser?.id
-        : null;
     final result = <String, Set<int>>{};
     try {
       // The first creature is the chapter's starting creature. It becomes
@@ -522,16 +499,6 @@ class _CollectionPageState extends State<CollectionPage> {
     }
 
     if (!context.mounted) return;
-    if (accountUserId != null &&
-        (!SupabaseBackend.isAuthenticated ||
-            SupabaseBackend.client.auth.currentUser?.id != accountUserId)) {
-      setState(() {
-        _discovered.clear();
-        _loading = false;
-      });
-      return;
-    }
-
     setState(() {
       _discovered
         ..clear()
