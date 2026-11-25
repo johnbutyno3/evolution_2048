@@ -512,6 +512,10 @@ abstract class AppLocalizations {
   /// **'Life'**
   String get life;
 
+  String get freeGamesExhaustedTitle;
+
+  String get freeGamesExhaustedMessage;
+
   /// No description provided for @playerInfo.
   ///
   /// In en, this message translates to:
