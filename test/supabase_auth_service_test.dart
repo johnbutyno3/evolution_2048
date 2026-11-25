@@ -1,12 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rebirth_2048/services/supabase_auth_service.dart';
 
 void main() {
-  test('native OAuth callback has the expected Android deep-link components', () {
-    final callback = Uri.parse(SupabaseAuthService.nativeOAuthRedirectUri);
+  test('app entry does not expose a sign-in screen or OAuth callback', () {
+    final mainSource = File('lib/main.dart').readAsStringSync();
+    final manifest = File('android/app/src/main/AndroidManifest.xml')
+        .readAsStringSync();
 
-    expect(callback.scheme, 'io.supabase.rebirth2048');
-    expect(callback.host, 'login-callback');
-    expect(callback.path, '/');
+    expect(mainSource, isNot(contains('LoginRegisterPage')));
+    expect(mainSource, contains('return const HomePage();'));
+    expect(
+      File('lib/screens/login_register_page.dart').existsSync(),
+      isFalse,
+    );
+    expect(manifest, isNot(contains('login-callback')));
   });
 }
