@@ -6,7 +6,6 @@ import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
 import 'services/supabase_backend.dart';
-import 'services/supabase_auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
