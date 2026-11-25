@@ -15,9 +15,11 @@ class SupabaseAuthService {
 
   static GoTrueClient get _auth => SupabaseBackend.client.auth;
 
-  static Session? get currentSession => _auth.currentSession;
+  static Session? get currentSession =>
+      SupabaseBackend.isInitialized ? _auth.currentSession : null;
 
-  static User? get currentUser => _auth.currentUser;
+  static User? get currentUser =>
+      SupabaseBackend.isInitialized ? _auth.currentUser : null;
 
   /// Logs only event names and session presence; never tokens or credentials.
   static Stream<AuthState> get authStateChanges =>
