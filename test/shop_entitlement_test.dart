@@ -64,6 +64,56 @@ void main() {
     expect(GoldManager.toolUses('UNDO'), 4);
   });
 
+  test('completed games grant Gold once and cumulative milestones are permanent', () async {
+    final first = await GoldManager.settleGame(
+      gameId: 'game-1',
+      effectiveScore: 10500,
+      newSpeciesCount: 3,
+      highestValue: 131072,
+    );
+    expect(first, 223,
+        reason: '23 per-game Gold + 50 score milestone + 50 single-game achievement + 100 highest-species achievement');
+    expect(GoldManager.balance, 223);
+    expect(GoldManager.cumulativeScore, 10500);
+
+    expect(
+      await GoldManager.settleGame(
+        gameId: 'game-1',
+        effectiveScore: 10500,
+        newSpeciesCount: 3,
+        highestValue: 131072,
+      ),
+      0,
+      reason: 'the same gameId must never pay twice',
+    );
+    expect(GoldManager.balance, 223);
+
+    await GoldManager.flushLocalChanges();
+    await GoldManager.initializeLocal();
+    expect(GoldManager.balance, 223);
+    expect(GoldManager.settledGameIds, contains('game-1'));
+  });
+
+  test('chapter and collection milestones are each granted only once', () async {
+    expect(await GoldManager.awardChapterCompletion(0), 200);
+    expect(await GoldManager.awardChapterCompletion(0), 0);
+    expect(
+      await GoldManager.awardCollectionMilestones(
+        uniqueSpeciesCount: 25,
+        allSpeciesCollected: false,
+      ),
+      150,
+    );
+    expect(
+      await GoldManager.awardCollectionMilestones(
+        uniqueSpeciesCount: 25,
+        allSpeciesCollected: false,
+      ),
+      0,
+    );
+    expect(GoldManager.balance, 350);
+  });
+
   test('tool package purchase is rejected without enough Gold', () async {
     expect(await ToolManager.purchase(GameToolType.duplicate, 1), isFalse);
     expect(GoldManager.balance, 0);
