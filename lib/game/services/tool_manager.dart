@@ -11,7 +11,6 @@ class ToolManager {
 
   final GameChapter chapter;
 
-  static const int _unlimitedUses = 999999;
   static String? _lastPurchaseError;
   static String? _lastPurchaseErrorCode;
   static bool _allToolsEnabledForTest = false;
