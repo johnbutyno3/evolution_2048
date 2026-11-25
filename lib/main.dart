@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'game/services/save_manager.dart';
+import 'game/services/life_manager.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
@@ -22,6 +23,7 @@ Future<void> main() async {
   debugPrint('[APP] Supabase optional initialization ready=$supabaseReady');
 
   await SaveManager.initialize();
+  await LifeManager.initializeLocal();
 
   runApp(const Rebirth2048App());
 }
