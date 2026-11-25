@@ -16,6 +16,17 @@ class LifeManager {
   static int? _nextLifeAtMillis;
   static int _lifeStateGeneration = 0;
 
+  /// Guest single-player mode has no Life cap or regeneration requirement.
+  static void enableGuestMode() {
+    _lifeStateGeneration++;
+    _lifeCount = -1;
+    _infiniteLives = true;
+    _membership = 'general';
+    _lifeMode = 'normal';
+    _nextLifeAtMillis = null;
+    _hasAuthoritativeState = true;
+  }
+
   static Future<void> initialize() async {
     await refreshFromServer();
   }
@@ -166,6 +177,8 @@ class LifeManager {
   static bool get hasAuthoritativeState => _hasAuthoritativeState;
 
   static bool get isGoldenMember => _lifeMode == 'golden';
+
+  static bool get hasUnlimitedLives => _infiniteLives;
 
   static String get lifeMode => _lifeMode;
 
