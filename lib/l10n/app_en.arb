@@ -69,6 +69,8 @@
   "authSkip": "Skip and enter the game",
   "authTooManyRequests": "Too many requests. Please try again later.",
   "life": "Free games left",
+  "freeGamesExhaustedTitle": "Free trial completed",
+  "freeGamesExhaustedMessage": "You have used all 5 free games. Permanent purchase is not available yet.",
   "playerInfo": "Player Info",
   "shop": "Shop",
   "gameTime": "Game Time",
