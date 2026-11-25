@@ -7,21 +7,11 @@ import 'l10n/app_localizations.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
-import 'services/supabase_backend.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Supabase is optional for guest gameplay and online shop configuration.
-  // No account sign-in is required to play.
-  final supabaseReady = await SupabaseBackend.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL'),
-    publishableKey: const String.fromEnvironment(
-      'SUPABASE_PUBLISHABLE_KEY',
-      defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'),
-    ),
-  );
-  debugPrint('[APP] Supabase optional initialization ready=$supabaseReady');
+  // Single-player startup is fully local; no auth or backend bootstrap.
 
   await SaveManager.initialize();
   await LifeManager.initializeLocal();
