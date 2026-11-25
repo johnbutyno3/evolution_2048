@@ -39,8 +39,8 @@ class CreatureCollectionService {
   }
 
   static Future<Set<int>> loadDiscovered(String chapterKey) async {
+    if (!SupabaseBackend.isAuthenticated) return <int>{};
     final client = SupabaseBackend.client;
-    if (client.auth.currentUser == null) return <int>{};
     final rows = await client
         .from('creature_collection')
         .select('creature_value')
@@ -56,8 +56,8 @@ class CreatureCollectionService {
     required String gameId,
     required Map<String, dynamic> replayLog,
   }) async {
+    if (!SupabaseBackend.isAuthenticated) return;
     final client = SupabaseBackend.client;
-    if (client.auth.currentUser == null) return;
     final limit = switch (_chapterCode(chapterKey)) {
       'C1' => 4096,
       'C2' => 8192,
