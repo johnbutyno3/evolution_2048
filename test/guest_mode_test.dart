@@ -22,7 +22,7 @@ void main() {
 
     final progress = PlayerProgressService.instance;
     await progress.refresh();
-    expect(progress.loadedFromServer, isTrue);
+    expect(progress.loadedLocally, isTrue);
     expect(progress.isChapterUnlocked(0), isTrue);
 
     final started = await progress.startGameSession(
