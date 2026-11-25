@@ -222,6 +222,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get life => 'Free games left';
 
   @override
+  String get freeGamesExhaustedTitle => 'Free trial completed';
+
+  @override
+  String get freeGamesExhaustedMessage => 'You have used all 5 free games. Permanent purchase is not available yet.';
+
+  @override
   String get playerInfo => 'Player Info';
 
   @override
