@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../game/services/gold_manager.dart';
 import '../l10n/app_localizations.dart';
-import '../services/shop_config_service.dart';
 
 class GoldPage extends StatefulWidget {
   const GoldPage({super.key});
@@ -12,49 +11,32 @@ class GoldPage extends StatefulWidget {
 }
 
 class _GoldPageState extends State<GoldPage> {
-  late Future<Map<String, dynamic>> _configFuture;
+  late Future<int?> _loadFuture;
 
   @override
   void initState() {
     super.initState();
-    _configFuture = _load();
-  }
-
-  Future<Map<String, dynamic>> _load() async {
-    await GoldManager.refresh();
-    return ShopConfigService.load();
-  }
-
-  void _unavailable() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.paymentUnavailable),
-        ),
-      );
+    _loadFuture = GoldManager.refresh();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.gold)),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _configFuture,
+      appBar: AppBar(title: Text(l10n.gold)),
+      body: FutureBuilder<int?>(
+        future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          final config = snapshot.data ?? ShopConfigService.defaults;
-
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.monetization_on, size: 34),
-                  title: Text(AppLocalizations.of(context)!.goldBalanceTitle),
+                  title: Text(l10n.goldBalanceTitle),
                   trailing: Text(
                     '${GoldManager.balance}',
                     style: const TextStyle(
@@ -65,56 +47,16 @@ class _GoldPageState extends State<GoldPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              _goldPackage(
-                config,
-                300,
-                'gold300UsdPrice',
-              ),
-              _goldPackage(
-                config,
-                1000,
-                'gold1000UsdPrice',
-              ),
-              _goldPackage(
-                config,
-                4000,
-                'gold4000UsdPrice',
-              ),
-              _goldPackage(
-                config,
-                10000,
-                'gold10000UsdPrice',
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.storefront_outlined),
+                  title: Text(l10n.shopGold),
+                  subtitle: Text(l10n.paymentUnavailable),
+                ),
               ),
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _goldPackage(
-    Map<String, dynamic> config,
-    int amount,
-    String priceKey,
-  ) {
-    final price = ShopConfigService.usdPrice(config, priceKey);
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 18,
-          vertical: 8,
-        ),
-        leading: const Icon(Icons.monetization_on_outlined),
-        title: Text(
-          AppLocalizations.of(context)!.goldAmount(amount),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        trailing: FilledButton(
-          onPressed: _unavailable,
-          child: Text('\$$price'),
-        ),
       ),
     );
   }
