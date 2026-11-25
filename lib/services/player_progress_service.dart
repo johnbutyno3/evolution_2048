@@ -1,17 +1,9 @@
-﻿// ignore_for_file: avoid_print
-
-import 'dart:async';
 import 'dart:math';
 
-
-import '../game/services/life_manager.dart';
 import '../game/services/gold_manager.dart';
+import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 import '../game/services/tool_manager.dart';
-import 'session_generation.dart';
-import 'supabase_account_service.dart';
-import 'supabase_backend.dart';
-import 'supabase_game_session_service.dart';
 
 enum RestartGameSessionResult {
   committed,
@@ -19,7 +11,8 @@ enum RestartGameSessionResult {
   pending,
 }
 
-/// Server-verified account progression with local-first gameplay entry.
+/// Local-only chapter progression and game-session lifecycle.
+/// There is no account, server session, or network dependency in this service.
 class PlayerProgressService {
   PlayerProgressService._();
 
@@ -34,50 +27,51 @@ class PlayerProgressService {
     'universe',
   ];
 
-
   static final Random _uuidRandom = Random.secure();
+
   static String _newUuid() {
     final bytes = List<int>.generate(16, (_) => _uuidRandom.nextInt(256));
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     final hex = bytes.map((v) => v.toRadixString(16).padLeft(2, '0')).join();
-    return '${hex.substring(0,8)}-${hex.substring(8,12)}-${hex.substring(12,16)}-${hex.substring(16,20)}-${hex.substring(20)}';
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
+
   static List<int?> _initialBoard(List<dynamic> values) {
-    if (values.length != 16) throw ArgumentError.value(values.length, 'initialTiles.length');
+    if (values.length != 16) {
+      throw ArgumentError.value(values.length, 'initialTiles.length');
+    }
     return values.map<int?>((value) {
       if (value == null || value == 0) return null;
       if (value is num && (value == 2 || value == 4)) return value.toInt();
       throw ArgumentError.value(value, 'initialTiles');
     }).toList(growable: false);
   }
-  int _unlockedChapterIndex = 0;
-  final Map<String, Map<String, int>> _chapterProgress = {};
-  bool _loadedFromServer = false;
-  String? _activeGameSessionId;
-  String? _activeGameRequestId;
-  int? _activeGameChapterIndex;
-  Future<bool>? _pendingStartSession;
-  int _sessionOperationGeneration = 0;
-  final SessionGeneration _sessionIdentityGeneration = SessionGeneration();
 
-  int get unlockedChapterIndex => _unlockedChapterIndex;
+  int _unlockedChapterIndex = 0;
+  final Map<String, Map<String, int>> _chapterProgress = <String, Map<String, int>>{};
+  bool _loadedLocally = false;
+  String? _activeGameSessionId;
+  int? _activeGameChapterIndex;
+
+  int get unlockedChapterIndex =>
+      LifeManager.hasPermanentUnlock ? 5 : _unlockedChapterIndex;
+
   int chapterHighestValue(int chapterIndex) =>
       _chapterProgress[_chapterNames[chapterIndex]]?['highestValue'] ?? 0;
+
   int chapterScore(int chapterIndex) =>
       _chapterProgress[_chapterNames[chapterIndex]]?['score'] ?? 0;
-  bool get loadedFromServer => _loadedFromServer;
+
+  bool get loadedFromServer => _loadedLocally;
   String? get activeGameSessionId => _activeGameSessionId;
   int? get activeGameChapterIndex => _activeGameChapterIndex;
   bool get hasUnfinishedGame => _activeGameSessionId != null;
 
   bool isChapterUnlocked(int chapterIndex) {
-    // A cached chapter index is not proof of current account access. If the
-    // authoritative snapshot failed (or belongs to a previous account), keep
-    // every chapter locked until the server progress has been refreshed.
-    return _loadedFromServer &&
-        chapterIndex >= 0 &&
-        chapterIndex <= _unlockedChapterIndex &&
+    if (!_loadedLocally || chapterIndex < 0 || chapterIndex > 5) return false;
+    if (LifeManager.hasPermanentUnlock) return true;
+    return chapterIndex == 0 &&
         !isChapterBlockedByUnfinishedGame(chapterIndex);
   }
 
@@ -86,89 +80,44 @@ class PlayerProgressService {
     return activeChapter != null && activeChapter != chapterIndex;
   }
 
+  /// Restores the local save pointer, including terminal boards awaiting
+  /// completion/Game Over settlement after an interrupted app shutdown.
   Future<void> refresh() async {
-    if (!SupabaseBackend.isAuthenticated) {
-      _unlockedChapterIndex = LifeManager.hasPermanentUnlock
-          ? SaveManager.localUnlockedChapterIndex
-          : 0;
-      _chapterProgress
-        ..clear()
-        ..addAll(SaveManager.localChapterProgress);
+    await LifeManager.initializeLocal();
+    final gameId = SaveManager.gameSessionId;
+    final saved = SaveManager.loadCached();
+    final savedChapter = saved?['chapter'];
+    final savedGameId = saved?['gameSessionId'];
+    final chapterIndex = savedChapter is String
+        ? _chapterNames.indexOf(savedChapter)
+        : -1;
+
+    _chapterProgress
+      ..clear()
+      ..addAll(SaveManager.localChapterProgress);
+
+    _unlockedChapterIndex = LifeManager.hasPermanentUnlock
+        ? 5
+        : 0;
+
+    if (gameId != null &&
+        savedGameId == gameId &&
+        chapterIndex >= 0 &&
+        chapterIndex <= 5) {
+      _activeGameSessionId = gameId;
+      _activeGameChapterIndex = chapterIndex;
+    } else {
       final unfinished = SaveManager.unfinishedChapter;
-      _activeGameChapterIndex = unfinished == null
-          ? null
-          : _chapterNames.indexOf(unfinished);
-      _activeGameSessionId = unfinished == null ? null : SaveManager.gameSessionId;
-      _activeGameRequestId = null;
-      _loadedFromServer = true;
-      return;
+      _activeGameSessionId =
+          unfinished == null ? null : SaveManager.gameSessionId;
+      _activeGameChapterIndex =
+          unfinished == null ? null : _chapterNames.indexOf(unfinished);
     }
-    final user = SupabaseBackend.client.auth.currentUser!;
-    final generation = _sessionIdentityGeneration.current;
-    final owner = _activeGameSessionId;
-    try {
-      final snapshot = await SupabaseAccountService.fetchSnapshot();
-      if (!_sessionIdentityGeneration.isCurrent(generation) ||
-          _activeGameSessionId != owner || snapshot.userId != user.id) {
-        return;
-      }
-      var unlocked = 0;
-      for (final entry in snapshot.chapterProgress.entries) {
-        final chapter = int.tryParse(entry.key.replaceFirst('C', ''));
-        if (chapter == null) continue;
-        if ((entry.value['highestStage'] ?? 0) >= chapter + 11) {
-          unlocked = chapter.clamp(1, 5).toInt();
-        }
-      }
-      final activeId = snapshot.activeGameId;
-      _activeGameRequestId = snapshot.activeGameRequestId;
-      final activeChapter = snapshot.activeChapterCode == null
-          ? null
-          : int.tryParse(snapshot.activeChapterCode!.replaceFirst('C', ''))! - 1;
-      _unlockedChapterIndex = unlocked;
-      _chapterProgress
-        ..clear()
-        ..addAll(snapshot.legacyChapterProgress);
-      _activeGameSessionId = activeId;
-      _activeGameChapterIndex = activeChapter;
-      if (activeId == null) {
-        await SaveManager.clearGameSessionIdIf(() =>
-            _sessionIdentityGeneration.isCurrent(generation) &&
-            _activeGameSessionId == null);
-      } else {
-        // Both A/B slots may contain a valid board: one can be a prospective
-        // replacement written just before a restart RPC. Select only the slot
-        // whose session ID matches the authoritative server pointer.
-        if (activeChapter != null) {
-          try {
-            await SaveManager.restoreSnapshotForSession(
-              chapter: _chapterNames[activeChapter],
-              sessionId: activeId,
-            );
-          } catch (_) {
-            // Keep account refresh authoritative; game entry will fail closed
-            // if no matching local snapshot can be recovered.
-          }
-        }
-        await SaveManager.setGameSessionIdIf(activeId, () =>
-            _sessionIdentityGeneration.isCurrent(generation) &&
-            _activeGameSessionId == activeId);
-      }
-      if (_sessionIdentityGeneration.isCurrent(generation) &&
-          _activeGameSessionId == activeId) {
-        _loadedFromServer = true;
-      }
-    } on SupabaseAccountException {
-      if (_sessionIdentityGeneration.isCurrent(generation) &&
-          _activeGameSessionId == owner) {
-        _loadedFromServer = false;
-      }
-    }
+    _loadedLocally = true;
   }
 
-  /// Starts the game locally first. The server still creates and validates the
-  /// charged session in the background; its authoritative response replaces
-  /// the optimistic Life state as soon as it arrives.
+  /// Creates one new gameId and charges exactly one FREE start.
+  /// The charge is rolled back only if the local game could not be created.
   Future<bool> startGameSession(
     int chapterIndex, {
     bool replaceActiveSession = false,
@@ -177,175 +126,49 @@ class PlayerProgressService {
     Map<String, dynamic>? initialSave,
   }) async {
     if (chapterIndex < 0 || chapterIndex > 5) return false;
-    if (!SupabaseBackend.isAuthenticated) {
-      final maximumUnlocked = LifeManager.hasPermanentUnlock
-          ? SaveManager.localUnlockedChapterIndex
-          : 0;
-      if (chapterIndex > maximumUnlocked) return false;
-      if (!await LifeManager.consumeFreeGame()) return false;
-      final gameId = _newUuid();
-      try {
-        await SaveManager.setGameSessionId(gameId);
-        if (initialSave != null) {
-          final candidate = Map<String, dynamic>.from(initialSave)
-            ..['gameSessionId'] = gameId;
-          await SaveManager.save(candidate);
-        }
-        _activeGameSessionId = gameId;
-        _activeGameChapterIndex = chapterIndex;
-        _activeGameRequestId = null;
-        _loadedFromServer = true;
-        ToolManager.clearSessionUsage();
-        return true;
-      } catch (_) {
-        await SaveManager.clearGameSessionId();
-        await LifeManager.refundFailedGameCreation();
-        return false;
-      }
-    }
-    final user = SupabaseBackend.client.auth.currentUser;
-    if (user == null) return false;
+    if (!isChapterUnlocked(chapterIndex)) return false;
+    if (_activeGameSessionId != null && !replaceActiveSession) return false;
+    _initialBoard(initialTiles);
 
-    // A second normal start while the first local-first start is still
-    // being verified is already covered by that first operation. Return
-    // immediately so duplicate UI calls never wait on Supabase and never
-    // create another charged session. Completion recovery is the one
-    // intentional exception: it must wait for the failed start before retrying.
-    final pendingStart = _pendingStartSession;
-    if (pendingStart != null) {
-      // A second caller has no matching locally persisted board/request IDs.
-      // Fail closed instead of claiming that its unrelated board was started.
-      if (!retryAfterPendingFailure) return false;
-      final pendingResult = await _awaitPendingStartSession();
-      if (pendingResult) return true;
-    }
-
-    // Do not let a known-empty local/server snapshot start a game. For a
-    // normal positive balance, decrement locally so board creation is not
-    // blocked by network latency.
-    if (!LifeManager.optimisticConsumeLife()) return false;
-
-    final operationGeneration = ++_sessionOperationGeneration;
-    final previousSessionId = _activeGameSessionId;
+    if (!await LifeManager.consumeFreeGame()) return false;
+    final previousBinding = SaveManager.gameSessionId;
     final gameId = _newUuid();
-    final requestId = _newUuid();
-
-    if (initialSave != null) {
-      final previousBinding = SaveManager.gameSessionId;
-      try {
-        // Persist and bind the new board before the request. If the app closes
-        // after the server commits but before its response, startup can match
-        // this snapshot to the server's active game ID.
-        await SaveManager.setGameSessionId(gameId);
-        final candidateSave = Map<String, dynamic>.from(initialSave)
-          ..['gameSessionId'] = gameId;
-        await SaveManager.save(candidateSave);
-      } catch (_) {
-        if (previousBinding == null) {
-          await SaveManager.clearGameSessionId();
-        } else {
-          await SaveManager.setGameSessionId(previousBinding);
-        }
-        await LifeManager.refreshFromServer().catchError((_) {});
-        return false;
-      }
-    }
-
-    final pending = _startGameSessionOnServer(
-      chapterIndex,
-      replaceActiveSession: replaceActiveSession,
-      initialTiles: initialTiles,
-      operationGeneration: operationGeneration,
-      requestId: requestId,
-      gameId: gameId,
-      previousSessionId: previousSessionId,
-    );
-    _pendingStartSession = pending;
-    return true;
-  }
-
-  Future<bool> _startGameSessionOnServer(
-    int chapterIndex, {
-    required bool replaceActiveSession,
-    required List<dynamic> initialTiles,
-    required int operationGeneration,
-    required String requestId,
-    required String gameId,
-    required String? previousSessionId,
-  }) async {
     try {
-      final result = await SupabaseGameSessionService.startGameSession(
-        requestId: requestId,
-        gameId: gameId,
-        chapterCode: 'C${chapterIndex + 1}',
-        previousGameId: replaceActiveSession ? previousSessionId : null,
-        initialTiles: _initialBoard(initialTiles),
-      );
-      if (operationGeneration != _sessionOperationGeneration ||
-          result['gameId'] != gameId || result['state'] != 'ACTIVE') {
-        return false;
+      await SaveManager.setGameSessionId(gameId);
+      if (initialSave != null) {
+        final candidate = Map<String, dynamic>.from(initialSave)
+          ..['gameSessionId'] = gameId;
+        await SaveManager.save(candidate);
       }
       _activeGameSessionId = gameId;
       _activeGameChapterIndex = chapterIndex;
-      await SaveManager.setGameSessionId(gameId);
-      await refresh();
-      await LifeManager.refreshFromServer();
-      return _activeGameSessionId == gameId;
+      _loadedLocally = true;
+      ToolManager.clearSessionUsage();
+      return true;
     } catch (_) {
-      if (operationGeneration != _sessionOperationGeneration) return false;
-      await refresh();
-      final committed = _activeGameSessionId == gameId &&
-          _activeGameChapterIndex == chapterIndex;
-      if (!committed) await LifeManager.refreshFromServer();
-      return committed;
+      if (previousBinding == null) {
+        await SaveManager.clearGameSessionId();
+      } else {
+        await SaveManager.setGameSessionId(previousBinding);
+      }
+      await LifeManager.refundFailedGameCreation();
+      return false;
     }
   }
 
-  /// Resolves the server-side result for the local-first start operation.
-  /// The caller may await this without delaying the initial local board save.
-  Future<bool> waitForPendingStartSession() => _awaitPendingStartSession();
+  Future<bool> waitForPendingStartSession() async =>
+      _activeGameSessionId != null;
 
-  Future<bool> _awaitPendingStartSession() async {
-    final pending = _pendingStartSession;
-    if (pending == null) return _activeGameSessionId != null;
-    try {
-      final result = await pending;
-      if (identical(_pendingStartSession, pending)) {
-        _pendingStartSession = null;
-      }
-      return result;
-    } catch (_) {
-      if (identical(_pendingStartSession, pending)) {
-        _pendingStartSession = null;
-      }
-      rethrow;
-    }
-  }
-
-  /// Re-enters the server-owned unfinished session.
+  /// Resumes the exact saved gameId. This path never consumes a free start.
   Future<bool> resumeGameSession(
     int chapterIndex, {
     String? sessionId,
   }) async {
     if (chapterIndex < 0 || chapterIndex > 5) return false;
     final gameId = sessionId ?? _activeGameSessionId;
-    if (!SupabaseBackend.isAuthenticated) {
-      if (gameId == null || gameId != SaveManager.gameSessionId) return false;
-      final saved = SaveManager.loadCached(chapter: _chapterNames[chapterIndex]);
-      final playable = saved != null &&
-          saved['gameSessionId'] == gameId &&
-          saved['gameOver'] != true &&
-          saved['chapterComplete'] != true &&
-          saved['tiles'] is List &&
-          (saved['tiles'] as List).length == 16;
-      if (!playable) return false;
-      _activeGameSessionId = gameId;
-      _activeGameChapterIndex = chapterIndex;
-      _loadedFromServer = true;
-      return true;
-    }
-    if (SupabaseBackend.client.auth.currentUser == null) return false;
-    if (gameId == null) return false;
+    if (gameId == null || gameId != SaveManager.gameSessionId) return false;
+    if (!isChapterUnlocked(chapterIndex)) return false;
+
     final saved = SaveManager.loadCached(chapter: _chapterNames[chapterIndex]);
     final playable = saved != null &&
         saved['gameSessionId'] == gameId &&
@@ -354,26 +177,15 @@ class PlayerProgressService {
         saved['tiles'] is List &&
         (saved['tiles'] as List).length == 16;
     if (!playable) return false;
-    final generation = ++_sessionOperationGeneration;
-    try {
-      final result = await SupabaseGameSessionService.resumeGameSession(gameId: gameId);
-      if (generation != _sessionOperationGeneration ||
-          result['gameId'] != gameId ||
-          result['chapterCode'] != 'C${chapterIndex + 1}' ||
-          result['state'] != 'ACTIVE') {
-        return false;
-      }
-      _activeGameSessionId = gameId;
-      _activeGameChapterIndex = chapterIndex;
-      await SaveManager.setGameSessionId(gameId);
-      await refresh();
-      return _activeGameSessionId == gameId;
-    } catch (_) {
-      if (generation == _sessionOperationGeneration) await refresh();
-      return false;
-    }
+
+    _activeGameSessionId = gameId;
+    _activeGameChapterIndex = chapterIndex;
+    _loadedLocally = true;
+    return true;
   }
 
+  /// Reset/restart creates a new gameId and therefore consumes one more FREE
+  /// start. A failed local write restores the prior game binding and allowance.
   Future<RestartGameSessionResult> restartGameSession(
     int chapterIndex, {
     Map<String, dynamic>? replayLog,
@@ -381,211 +193,71 @@ class PlayerProgressService {
     required List<dynamic> initialTiles,
     required Map<String, dynamic> replacementSave,
   }) async {
-    if (chapterIndex < 0 || chapterIndex > 5) {
+    if (chapterIndex < 0 ||
+        chapterIndex > 5 ||
+        !isChapterUnlocked(chapterIndex)) {
       return RestartGameSessionResult.rejected;
     }
-    if (!SupabaseBackend.isAuthenticated) {
-      final maximumUnlocked = LifeManager.hasPermanentUnlock
-          ? SaveManager.localUnlockedChapterIndex
-          : 0;
-      if (chapterIndex > maximumUnlocked) {
-        return RestartGameSessionResult.rejected;
-      }
-      if (!await LifeManager.consumeFreeGame()) {
-        return RestartGameSessionResult.rejected;
-      }
-      final previousBinding = SaveManager.gameSessionId;
-      final gameId = _newUuid();
-      try {
-        await SaveManager.setGameSessionId(gameId);
-        final candidate = Map<String, dynamic>.from(replacementSave)
-          ..['gameSessionId'] = gameId;
-        await SaveManager.save(candidate);
-        _activeGameSessionId = gameId;
-        _activeGameChapterIndex = chapterIndex;
-        _activeGameRequestId = null;
-        _loadedFromServer = true;
-        ToolManager.clearSessionUsage();
-        return RestartGameSessionResult.committed;
-      } catch (_) {
-        if (previousBinding == null) {
-          await SaveManager.clearGameSessionId();
-        } else {
-          await SaveManager.setGameSessionId(previousBinding);
-        }
-        await LifeManager.refundFailedGameCreation();
-        return RestartGameSessionResult.rejected;
-      }
-    }
-    final user = SupabaseBackend.client.auth.currentUser;
-    if (user == null) return RestartGameSessionResult.rejected;
-
-    _sessionIdentityGeneration.begin();
-    final pending = _pendingStartSession;
-    if (pending != null) await _awaitPendingStartSession();
-    final generation = ++_sessionOperationGeneration;
-    final previousGameId = _activeGameSessionId ?? replaySessionId;
-    if (previousGameId != null && replayLog == null) {
-      return RestartGameSessionResult.rejected;
-    }
-
-    final requestId = _newUuid();
-    final gameId = _newUuid();
-    final eventId = _newUuid();
-
     try {
-      final tiles = _initialBoard(initialTiles);
-      // Persist the replacement board before contacting Supabase. The
-      // previous board remains in the other A/B slot. Bootstrap later selects
-      // whichever snapshot matches the server-owned active game ID.
-      final previousBinding = SaveManager.gameSessionId;
-      await SaveManager.setGameSessionId(gameId);
-      final candidateSave = Map<String, dynamic>.from(replacementSave)
-        ..['gameSessionId'] = gameId;
-      try {
-        await SaveManager.save(candidateSave);
-      } catch (_) {
-        if (previousBinding == null) {
-          await SaveManager.clearGameSessionId();
-        } else {
-          await SaveManager.setGameSessionId(previousBinding);
-        }
-        return RestartGameSessionResult.rejected;
-      }
-
-      final Map<String, dynamic> result;
-      if (previousGameId == null) {
-        result = await SupabaseGameSessionService.startGameSession(
-          requestId: requestId,
-          gameId: gameId,
-          chapterCode: 'C${chapterIndex + 1}',
-          initialTiles: tiles,
-        );
-      } else {
-        result = await SupabaseGameSessionService.restartGameSession(
-          requestId: requestId,
-          gameId: gameId,
-          previousGameId: previousGameId,
-          eventId: eventId,
-          chapterCode: 'C${chapterIndex + 1}',
-          initialTiles: tiles,
-          replayLog: replayLog!,
-        );
-      }
-
-      if (generation != _sessionOperationGeneration) {
-        return RestartGameSessionResult.pending;
-      }
-      await refresh();
-      if (_activeGameSessionId == gameId &&
-          _activeGameRequestId == requestId &&
-          result['gameId'] == gameId &&
-          result['requestId'] == requestId &&
-          result['state'] == 'ACTIVE') {
-        await LifeManager.refreshFromServer();
-        await ToolManager.refreshInventory();
-        return RestartGameSessionResult.committed;
-      }
-
-      if (_loadedFromServer && _activeGameSessionId == previousGameId) {
-        await LifeManager.refreshFromServer();
-        return RestartGameSessionResult.rejected;
-      }
-      if (_loadedFromServer && previousGameId == null &&
-          _activeGameSessionId == null) {
-        await LifeManager.refreshFromServer();
-        return RestartGameSessionResult.rejected;
-      }
-      return RestartGameSessionResult.pending;
+      _initialBoard(initialTiles);
     } catch (_) {
-      if (generation != _sessionOperationGeneration) {
-        return RestartGameSessionResult.pending;
+      return RestartGameSessionResult.rejected;
+    }
+    if (!await LifeManager.consumeFreeGame()) {
+      return RestartGameSessionResult.rejected;
+    }
+
+    final previousBinding = SaveManager.gameSessionId;
+    final gameId = _newUuid();
+    try {
+      await SaveManager.setGameSessionId(gameId);
+      final candidate = Map<String, dynamic>.from(replacementSave)
+        ..['gameSessionId'] = gameId;
+      await SaveManager.save(candidate);
+      _activeGameSessionId = gameId;
+      _activeGameChapterIndex = chapterIndex;
+      _loadedLocally = true;
+      ToolManager.clearSessionUsage();
+      return RestartGameSessionResult.committed;
+    } catch (_) {
+      if (previousBinding == null) {
+        await SaveManager.clearGameSessionId();
+      } else {
+        await SaveManager.setGameSessionId(previousBinding);
       }
-      await refresh();
-      if (_loadedFromServer &&
-          _activeGameSessionId == gameId &&
-          _activeGameRequestId == requestId) {
-        await LifeManager.refreshFromServer();
-        await ToolManager.refreshInventory();
-        return RestartGameSessionResult.committed;
-      }
-      if (_loadedFromServer && _activeGameSessionId == previousGameId) {
-        await LifeManager.refreshFromServer();
-        return RestartGameSessionResult.rejected;
-      }
-      if (_loadedFromServer && previousGameId == null &&
-          _activeGameSessionId == null) {
-        await LifeManager.refreshFromServer();
-        return RestartGameSessionResult.rejected;
-      }
-      // A failed refresh cannot prove whether the transaction committed.
-      // Keep both snapshots and let the next account refresh select by the
-      // authoritative server session ID. The UI must remain frozen meanwhile.
-      return RestartGameSessionResult.pending;
+      await LifeManager.refundFailedGameCreation();
+      return RestartGameSessionResult.rejected;
     }
   }
 
+  /// Returning Home with unfinishedExit preserves the exact local game.
+  /// Game Over/abandonment ends that gameId but never refunds its start.
   Future<bool> abandonGameSession({
     String? sessionId,
     Map<String, dynamic>? replayLog,
     String reason = 'PLAYER_ABANDONED',
     bool unfinishedExit = false,
   }) async {
-    // Returning home preserves the active session so the player can resume it.
     if (unfinishedExit) return true;
     final gameId = sessionId ?? _activeGameSessionId;
-    if (!SupabaseBackend.isAuthenticated) {
-      if (gameId == null) return true;
-      if (_activeGameSessionId != null && _activeGameSessionId != gameId) {
-        return false;
-      }
-      await SaveManager.clearGameSessionId();
-      if (_activeGameChapterIndex != null) {
-        await SaveManager.clearChapter(_chapterNames[_activeGameChapterIndex!]);
-      }
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
-      _activeGameRequestId = null;
-      _loadedFromServer = true;
-      return true;
-    }
     if (gameId == null) return true;
-    if (replayLog == null) return false;
-    await _awaitPendingStartSession();
-    if (_activeGameSessionId != gameId) {
-      return _loadedFromServer && _activeGameSessionId == null;
-    }
-
-    final generation = ++_sessionOperationGeneration;
-    try {
-      await SupabaseGameSessionService.abandonGameSession(
-        gameId: gameId,
-        eventId: _newUuid(),
-        reason: reason,
-        replayLog: replayLog,
-      );
-      if (generation != _sessionOperationGeneration) return false;
-      _activeGameSessionId = null;
-      _activeGameChapterIndex = null;
-      await SaveManager.clearGameSessionId();
-      await refresh();
-      if (!_loadedFromServer || _activeGameSessionId == gameId) return false;
-      await ToolManager.refreshInventory();
-      return true;
-    } catch (_) {
-      if (generation != _sessionOperationGeneration) return false;
-      await refresh();
-      // A lost response is successful only when a fresh authoritative
-      // snapshot confirms that the server no longer owns this active session.
-      if (_loadedFromServer && _activeGameSessionId != gameId) {
-        await SaveManager.clearGameSessionId();
-        await ToolManager.refreshInventory();
-        return true;
-      }
+    if (_activeGameSessionId != null && _activeGameSessionId != gameId) {
       return false;
     }
+
+    final chapterIndex = _activeGameChapterIndex;
+    await SaveManager.clearGameSessionId();
+    if (chapterIndex != null) {
+      await SaveManager.clearChapter(_chapterNames[chapterIndex]);
+    }
+    _activeGameSessionId = null;
+    _activeGameChapterIndex = null;
+    _loadedLocally = true;
+    ToolManager.clearSessionUsage();
+    return true;
   }
 
+  /// Completes local chapter progress and grants each Gold reward once.
   Future<bool> completeChapter({
     required int chapterIndex,
     required Map<String, dynamic> replayLog,
@@ -594,85 +266,50 @@ class PlayerProgressService {
     int highestValue = 0,
   }) async {
     if (chapterIndex < 0 || chapterIndex > 5) return false;
-    if (!SupabaseBackend.isAuthenticated) {
-      final gameId = _activeGameSessionId ?? SaveManager.gameSessionId;
-      final score = effectiveScore ??
-          ((replayLog['finalScore'] is num)
-              ? (replayLog['finalScore'] as num).toInt()
-              : 0);
-      final highest = highestValue > 0
-          ? highestValue
-          : ((replayLog['highestValue'] is num)
-              ? (replayLog['highestValue'] as num).toInt()
-              : (1 << (chapterIndex + 12)));
-      if (gameId != null) {
-        await GoldManager.settleGame(
-          gameId: gameId,
-          effectiveScore: score.clamp(0, 1 << 30).toInt(),
-          newSpeciesCount: newSpeciesCount,
-          highestValue: highest,
-        );
-      }
-      await SaveManager.saveLocalChapterCompletion(
-        chapterIndex: chapterIndex,
-        score: score,
-      );
-      await GoldManager.awardChapterCompletion(chapterIndex);
-      if (SaveManager.localChapterProgress.length >= 6) {
-        await GoldManager.awardAllChaptersCompletion();
-      }
-      if (_activeGameChapterIndex == chapterIndex) {
-        _activeGameSessionId = null;
-        _activeGameChapterIndex = null;
-        await SaveManager.clearGameSessionId();
-      }
-      await refresh();
-      return true;
-    }
-    if (SupabaseBackend.client.auth.currentUser == null) return false;
-    if (!await _awaitPendingStartSession()) {
-      final initialTiles = replayLog['initialTiles'];
-      if (initialTiles is! List || initialTiles.length != 16) return false;
-      final recovered = await startGameSession(
-        chapterIndex,
-        initialTiles: List<dynamic>.from(initialTiles),
-        retryAfterPendingFailure: true,
-      );
-      if (!recovered || !await _awaitPendingStartSession()) return false;
-    }
-    final gameId = _activeGameSessionId;
-    if (gameId == null || _activeGameChapterIndex != chapterIndex) return false;
-    final generation = ++_sessionOperationGeneration;
-    try {
-      final result = await SupabaseGameSessionService.finishChapter(
+    if (!LifeManager.hasPermanentUnlock && chapterIndex != 0) return false;
+
+    final gameId = _activeGameSessionId ?? SaveManager.gameSessionId;
+    final saved = SaveManager.loadCached(chapter: _chapterNames[chapterIndex]);
+    final score = (effectiveScore ??
+            (saved?['score'] is num ? (saved!['score'] as num).toInt() : 0))
+        .clamp(0, 1 << 30)
+        .toInt();
+    final highest = highestValue > 0
+        ? highestValue
+        : (saved?['highestEvolutionValue'] is num
+            ? (saved!['highestEvolutionValue'] as num).toInt()
+            : (1 << (chapterIndex + 12)));
+    final speciesCount = newSpeciesCount > 0
+        ? newSpeciesCount
+        : (saved?['speciesMergedThisGame'] is List
+            ? (saved!['speciesMergedThisGame'] as List).whereType<num>().toSet().length
+            : 0);
+
+    if (gameId != null) {
+      await GoldManager.settleGame(
         gameId: gameId,
-        eventId: _newUuid(),
-        replayLog: replayLog,
+        effectiveScore: score,
+        newSpeciesCount: speciesCount,
+        highestValue: highest,
       );
-      if (generation != _sessionOperationGeneration ||
-          result['gameId'] != gameId || result['state'] != 'COMPLETED') {
-        return false;
-      }
+    }
+
+    await SaveManager.saveLocalChapterCompletion(
+      chapterIndex: chapterIndex,
+      score: score,
+    );
+    await GoldManager.awardChapterCompletion(chapterIndex);
+    if (SaveManager.localChapterProgress.length >= 6) {
+      await GoldManager.awardAllChaptersCompletion();
+    }
+
+    if (_activeGameChapterIndex == chapterIndex ||
+        (gameId != null && SaveManager.gameSessionId == gameId)) {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
       await SaveManager.clearGameSessionId();
-      await refresh();
-      await LifeManager.refreshFromServer();
-      await ToolManager.refreshInventory();
-      return _activeGameSessionId == null &&
-          chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
-    } catch (_) {
-      if (generation != _sessionOperationGeneration) return false;
-      await refresh();
-      final completed = _activeGameSessionId == null &&
-          chapterHighestValue(chapterIndex) >= (1 << (chapterIndex + 12));
-      if (completed) {
-        await SaveManager.clearGameSessionId();
-        await ToolManager.refreshInventory();
-      }
-      return completed;
     }
+    await refresh();
+    return true;
   }
-
 }
-
