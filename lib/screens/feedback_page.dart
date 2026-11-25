@@ -29,7 +29,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
   Future<void> _send() async {
     final text = _controller.text.trim();
-    final user = SupabaseBackend.client.auth.currentUser;
+    final user = SupabaseBackend.isAuthenticated
+        ? SupabaseBackend.client.auth.currentUser
+        : null;
     if (text.isEmpty || user == null || _sending) return;
     setState(() => _sending = true);
     try {
