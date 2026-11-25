@@ -12,7 +12,6 @@ import '../services/admin_service.dart';
 
 import '../game/services/audio_manager.dart';
 import '../game/services/gold_manager.dart';
-import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
 import 'shop_page.dart';
 import 'feedback_page.dart';
@@ -277,8 +276,6 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final membership = LifeManager.membership;
-
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.playerInfo)),
       body: ListView(
@@ -334,20 +331,13 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
           Card(
             child: ListTile(
-              leading: const Icon(Icons.workspace_premium_outlined),
-              title: Text(AppLocalizations.of(context)!.membership),
-              subtitle: Text(
-                membership == 'golden'
-                    ? AppLocalizations.of(context)!.goldenMember
-                    : membership == 'premium'
-                    ? AppLocalizations.of(context)!.premiumMember
-                    : AppLocalizations.of(context)!.generalMember,
-              ),
+              leading: const Icon(Icons.storefront_outlined),
+              title: Text(AppLocalizations.of(context)!.shop),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const ShopPage()));
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ShopPage()),
+                );
               },
             ),
           ),
