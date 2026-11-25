@@ -71,6 +71,12 @@ class SupabaseToolPurchaseService {
     required String toolCode,
     required int quantity,
   }) async {
+    if (!SupabaseBackend.isAuthenticated) {
+      throw const SupabaseToolPurchaseException(
+        'UNAUTHORIZED',
+        'Sign-in is required for account-backed purchases.',
+      );
+    }
     final client = SupabaseBackend.client;
     if (client.auth.currentSession == null) {
       throw const SupabaseToolPurchaseException(
