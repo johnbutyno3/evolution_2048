@@ -217,6 +217,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get life => '剩餘免費局數';
 
   @override
+  String get freeGamesExhaustedTitle => '免費體驗已結束';
+
+  @override
+  String get freeGamesExhaustedMessage => '五局免費體驗額度已用完，目前買斷功能尚未開放。';
+
+  @override
   String get playerInfo => '玩家資訊';
 
   @override
