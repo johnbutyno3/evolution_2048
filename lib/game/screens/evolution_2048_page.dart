@@ -176,12 +176,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // whether this entry is a resume or a genuinely new game. The board
       // itself remains local-first; this refresh only decides which existing
       // session must be restored.
-      if (!progress.loadedFromServer) {
+      if (!progress.loadedLocally) {
         await progress.refresh();
         if (!mounted || generation != _gameSessionGeneration) return false;
         // Without an authoritative session pointer we must not guess that
         // this is a new game. Guessing here can consume a Life and discard an
-        // unfinished local board during a transient Supabase/network failure.
+        // unfinished local board during a temporary local storage failure.
         if (!progress.loadedFromServer) return false;
       }
 
@@ -197,7 +197,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
 
         // Terminal boards are not resumable. Keep their replay until the
-        // matching server settlement is confirmed, then allow a fresh game.
+        // matching local settlement is confirmed, then allow a fresh game.
         final savedSessionId = saved?['gameSessionId'];
         final savedReplay = saved?['replayLog'];
         if (saved != null &&
@@ -310,7 +310,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
               cachedPausedSaved != null &&
               (cachedPausedSaved['gameOver'] == true ||
                   cachedPausedSaved['chapterComplete'] == true))) {
-        // No server-owned ACTIVE session means this local board is no longer
+        // No active local game session means this local board is no longer
         // resumable. This also discards an uncommitted candidate left by a
         // next-chapter start that was interrupted before its RPC committed.
         await SaveManager.clearChapter(_engine.chapter.name);
@@ -352,11 +352,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return false;
       }
 
-      // With no active server session, a zero-life account cannot be shown a
+      // With no active local game session, a zero-life account cannot be shown a
       // fabricated new board. Only a real session owns a Life and a playable
       // board.
       if (!LifeManager.hasUnlimitedLives &&
-          !LifeManager.isGoldenMember &&
           LifeManager.lifeCount <= 0) {
         return false;
       }
@@ -414,7 +413,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         startedFuture.then((started) async {
           if (!mounted || generation != _gameSessionGeneration) return;
           if (!started) {
-            // The server authoritatively rejected the start. The refresh has
+            // The locally rejected the start. The refresh has
             // restored the previous session binding, so the candidate board
             // can be discarded without overwriting the old snapshot.
             newEngine.stopGameTimer(persist: false);
@@ -458,7 +457,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _startUiRefreshTimer() {
     _uiRefreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-      LifeManager.tickRegeneration();
       if (mounted) setState(() {});
     });
   }
@@ -666,7 +664,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           return;
         }
 
-        // The server confirms the previous session is still active. Its
+        // The local session is committed the previous session is still active. Its
         // matching local snapshot has already been selected by refresh().
         newEngine.stopGameTimer(persist: false);
         await LifeManager.refreshFromServer().catchError((_) {});
@@ -1132,17 +1130,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   Widget _buildToolButton(GameToolType type) {
     final mode = _toolModeForType(type); final matching = _engine.toolManager.tools.where((state) => state.tool.type == type); final state = matching.isEmpty ? null : matching.first; final unlocked = state != null; final enabled = unlocked && state.canUse && switch (type) { GameToolType.revive => _engine.canUseRevive, GameToolType.timeRewind => _engine.canUseTimeRewind, GameToolType.positionSwap => _engine.canUsePositionSwap, GameToolType.duplicate => _engine.canUseDuplicate };
     final selected = _toolMode == mode; final pressed = _pressedToolMode == mode; final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35); final canOpenShop = unlocked && !state.canUse; final canTap = selected || enabled || canOpenShop || mode == 'rewind';
-    return GestureDetector(behavior: HitTestBehavior.opaque, onTapDown: canTap ? (_) { if (mounted) setState(() => _pressedToolMode = mode); } : null, onTapUp: canTap ? (_) { if (!mounted) return; setState(() => _pressedToolMode = null); if (selected) { unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel)); setState(() { _toolMode = null; _firstSwapIndex = null; _pressedToolMode = null; }); _focusNode.requestFocus(); } else { unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect)); unawaited(_startTool(mode)); } } : null, onTapCancel: canTap ? () { if (mounted) setState(() => _pressedToolMode = null); } : null, child: Opacity(opacity: opacity, child: SizedBox(height: 112, child: Stack(alignment: Alignment.center, children: [Column(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 76, height: 72, child: Image.asset(_toolImagePath(mode, pressed: pressed), fit: BoxFit.contain)), const SizedBox(height: 1), Text(selected ? AppLocalizations.of(context)!.cancelTool : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)), const SizedBox(height: 1), Text(state == null ? '?' : (LifeManager.isGoldenMember && type == GameToolType.timeRewind ? '∞' : '${state.usesRemaining}'), style: const TextStyle(fontSize: 8))]), if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)), if (selected) Positioned(top: 2, child: Text(AppLocalizations.of(context)!.cancelTool, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))) ]))));
+    return GestureDetector(behavior: HitTestBehavior.opaque, onTapDown: canTap ? (_) { if (mounted) setState(() => _pressedToolMode = mode); } : null, onTapUp: canTap ? (_) { if (!mounted) return; setState(() => _pressedToolMode = null); if (selected) { unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel)); setState(() { _toolMode = null; _firstSwapIndex = null; _pressedToolMode = null; }); _focusNode.requestFocus(); } else { unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect)); unawaited(_startTool(mode)); } } : null, onTapCancel: canTap ? () { if (mounted) setState(() => _pressedToolMode = null); } : null, child: Opacity(opacity: opacity, child: SizedBox(height: 112, child: Stack(alignment: Alignment.center, children: [Column(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 76, height: 72, child: Image.asset(_toolImagePath(mode, pressed: pressed), fit: BoxFit.contain)), const SizedBox(height: 1), Text(selected ? AppLocalizations.of(context)!.cancelTool : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)), const SizedBox(height: 1), Text(state == null ? '?' : '${state.usesRemaining}', style: const TextStyle(fontSize: 8))]), if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)), if (selected) Positioned(top: 2, child: Text(AppLocalizations.of(context)!.cancelTool, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))) ]))));
   }
   Widget _buildEvolutionNotice() { final value = _evolutionValue ?? _engine.highestEvolutionValue; final name = _evolutionCreatureName ?? _creatureNameForValue(value); if (name.isEmpty) return const SizedBox.shrink(); return Container(width: double.infinity, margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.black.withValues(alpha: 0.68), border: Border.all(color: Colors.white.withValues(alpha: 0.45))), child: Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Colors.white))); }
-  String _formatDuration(Duration duration) { final totalSeconds = duration.inSeconds; final minutes = totalSeconds ~/ 60; final seconds = totalSeconds % 60; return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'; }
-
+  
   @override
   Widget build(BuildContext context) {
     final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount; final lifeRemaining = LifeManager.regenerationRemaining; final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
     return PopScope<void>(canPop: _allowSystemPop, onPopInvokedWithResult: (didPop, result) { if (didPop || _allowSystemPop) return; unawaited(_handleSystemBack()); }, child: Scaffold(appBar: AppBar(title: Text(_chapterTitle), actions: []), body: SafeArea(child: Focus(autofocus: true, focusNode: _focusNode, onKeyEvent: _handleKey, child: GestureDetector(behavior: HitTestBehavior.opaque, onPanStart: _handleDragStart, onPanUpdate: _handleDragUpdate, onPanEnd: _handleDragEnd, child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: Padding(padding: const EdgeInsets.all(16), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${AppLocalizations.of(context)!.scoreLabel} ${_engine.score}', style: Theme.of(context).textTheme.titleMedium), Text('${AppLocalizations.of(context)!.best} ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium)]), const SizedBox(height: 12),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _showResetMenu(); }, tooltip: AppLocalizations.of(context)!.restart, visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20))])]), const SizedBox(height: 12),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _showResetMenu(); }, tooltip: AppLocalizations.of(context)!.restart, visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20))])]), const SizedBox(height: 12),
       Text(
                 _toolMode == null
                     ? l10n.highestProgress(_engine.highestValue, _engine.targetValue)
