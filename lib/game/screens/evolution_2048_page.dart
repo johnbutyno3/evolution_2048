@@ -339,7 +339,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // With no active server session, a zero-life account cannot be shown a
       // fabricated new board. Only a real session owns a Life and a playable
       // board.
-      if (!LifeManager.isGoldenMember && LifeManager.lifeCount <= 0) {
+      if (!LifeManager.hasUnlimitedLives &&
+          !LifeManager.isGoldenMember &&
+          LifeManager.lifeCount <= 0) {
         return false;
       }
 
