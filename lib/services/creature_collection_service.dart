@@ -1,8 +1,15 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../game/services/gold_manager.dart';
 import 'supabase_backend.dart';
 
 class CreatureCollectionService {
+  static const String _localCollectionKey = 'rebirth_2048_local_creature_collection_v1';
+  static const int _totalSpeciesCount = 87;
+
   static const Map<String, String> _chapterCodes = {
     'ocean': 'C1',
     'chapter1Ocean': 'C1',
@@ -38,16 +45,40 @@ class CreatureCollectionService {
     return code;
   }
 
+  static Map<String, Set<int>> _decodeLocal(String? raw) {
+    if (raw == null || raw.isEmpty) return <String, Set<int>>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, Set<int>>{};
+      return <String, Set<int>>{
+        for (final entry in decoded.entries)
+          if (entry.value is List)
+            entry.key.toString(): (entry.value as List)
+                .whereType<num>()
+                .map((value) => value.toInt())
+                .where((value) => value >= 2)
+                .toSet(),
+      };
+    } catch (_) {
+      return <String, Set<int>>{};
+    }
+  }
+
   static Future<Set<int>> loadDiscovered(String chapterKey) async {
-    if (!SupabaseBackend.isAuthenticated) return <int>{};
-    final client = SupabaseBackend.client;
-    final rows = await client
-        .from('creature_collection')
-        .select('creature_value')
-        .eq('chapter_code', _chapterCode(chapterKey));
-    return rows
-        .map<int>((row) => (row['creature_value'] as num).toInt())
-        .toSet();
+    if (SupabaseBackend.isAuthenticated) {
+      final client = SupabaseBackend.client;
+      final rows = await client
+          .from('creature_collection')
+          .select('creature_value')
+          .eq('chapter_code', _chapterCode(chapterKey));
+      return rows
+          .map<int>((row) => (row['creature_value'] as num).toInt())
+          .toSet();
+    }
+
+    final preferences = await SharedPreferences.getInstance();
+    final collection = _decodeLocal(preferences.getString(_localCollectionKey));
+    return collection[normalizeChapterKey(chapterKey)] ?? <int>{};
   }
 
   static Future<void> discover(
@@ -56,8 +87,6 @@ class CreatureCollectionService {
     required String gameId,
     required Map<String, dynamic> replayLog,
   }) async {
-    if (!SupabaseBackend.isAuthenticated) return;
-    final client = SupabaseBackend.client;
     final limit = switch (_chapterCode(chapterKey)) {
       'C1' => 4096,
       'C2' => 8192,
@@ -70,19 +99,51 @@ class CreatureCollectionService {
         value >= 2 &&
         value <= limit &&
         (value & (value - 1)) == 0);
-    if (valid.isEmpty) return;
-    final response = await client.functions.invoke(
-      'discover-creature',
-      method: HttpMethod.post,
-      body: <String, dynamic>{
-        'gameId': gameId,
-        'chapterCode': _chapterCode(chapterKey),
-        'values': valid.toList(growable: false),
-        'replayLog': replayLog,
-      },
-    );
-    if (response.status < 200 || response.status >= 300) {
-      throw StateError('Creature collection sync failed.');
+    if (SupabaseBackend.isAuthenticated) {
+      if (valid.isEmpty) return;
+      final client = SupabaseBackend.client;
+      final response = await client.functions.invoke(
+        'discover-creature',
+        method: HttpMethod.post,
+        body: <String, dynamic>{
+          'gameId': gameId,
+          'chapterCode': _chapterCode(chapterKey),
+          'values': valid.toList(growable: false),
+          'replayLog': replayLog,
+        },
+      );
+      if (response.status < 200 || response.status >= 300) {
+        throw StateError('Creature collection sync failed.');
+      }
+      return;
     }
+
+    final preferences = await SharedPreferences.getInstance();
+    final collection = _decodeLocal(preferences.getString(_localCollectionKey));
+    final key = normalizeChapterKey(chapterKey);
+    final before = collection[key] ?? <int>{};
+    final after = <int>{...before, ...valid};
+    collection[key] = after;
+
+    final encoded = <String, List<int>>{
+      for (final entry in collection.entries)
+        entry.key: (entry.value.toList()..sort()),
+    };
+    final saved = await preferences.setString(
+      _localCollectionKey,
+      jsonEncode(encoded),
+    );
+    if (!saved) throw StateError('Could not persist local creature collection.');
+
+    // Species identity includes its chapter, because the same numeric stage
+    // represents a different creature in each chapter.
+    final uniqueSpeciesCount = collection.values.fold<int>(
+      0,
+      (total, species) => total + species.length,
+    );
+    await GoldManager.awardCollectionMilestones(
+      uniqueSpeciesCount: uniqueSpeciesCount,
+      allSpeciesCollected: uniqueSpeciesCount >= _totalSpeciesCount,
+    );
   }
 }
