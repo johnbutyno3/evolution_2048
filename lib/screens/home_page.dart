@@ -302,7 +302,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            LifeManager.isGoldenMember
+                            LifeManager.hasUnlimitedLives
                                 ? '${l.life}: ∞'
                                 : LifeManager.hasAuthoritativeState
                                     ? '${l.life}: ${LifeManager.lifeCount}'
