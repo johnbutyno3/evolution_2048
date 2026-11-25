@@ -69,6 +69,8 @@
   "authSkip": "跳過，直接進入遊戲",
   "authTooManyRequests": "請求次數過多，請稍後再試。",
   "life": "剩餘免費局數",
+  "freeGamesExhaustedTitle": "免費體驗已結束",
+  "freeGamesExhaustedMessage": "五局免費體驗額度已用完，目前買斷功能尚未開放。",
   "playerInfo": "玩家資訊",
   "shop": "商城",
   "gameTime": "遊戲時間",
