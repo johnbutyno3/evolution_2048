@@ -1,5 +1,12 @@
 import '../game/services/save_manager.dart';
 
+class PlayerProfileException implements Exception {
+  const PlayerProfileException(this.message);
+  final String message;
+  @override
+  String toString() => message;
+}
+
 /// Local-only profile settings. No account or remote profile is created.
 class PlayerProfileService {
   PlayerProfileService._();
