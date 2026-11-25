@@ -182,7 +182,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         // Without an authoritative session pointer we must not guess that
         // this is a new game. Guessing here can consume a Life and discard an
         // unfinished local board during a temporary local storage failure.
-        if (!progress.loadedFromServer) return false;
+        if (!progress.loadedLocally) return false;
       }
 
       final activeSessionId = progress.activeGameSessionId;
@@ -360,12 +360,12 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return false;
       }
 
-      // New game: there is no active server session, so the previous
+      // New game: there is no active local game session, so the previous
       // session-use overlay must not leak into this new board.
       ToolManager.clearSessionUsage();
 
       // New game: prepare and persist the exact board locally before the
-      // background Supabase request. This is a local write, not a network wait.
+      // background network request. This is a local write, not a network wait.
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
@@ -533,7 +533,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
     // Start the server verification immediately. The 280ms visual animation
-    // now runs in parallel with Supabase validation instead of after it.
+    // now runs in parallel with legacy server validation instead of after it.
     _completionVerificationFuture = progress.completeChapter(
       chapterIndex: _chapterNumber - 1,
       replayLog: Map<String, dynamic>.from(replayLog),
@@ -727,7 +727,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _stopUiRefreshTimer();
 
     if (!wasChapterComplete) {
-      // BACK saves the exact board, then pauses the server session. The Life
+      // BACK saves the exact board, then preserves the local game session. The Life
       // stays reserved by this unfinished board; it is not refunded.
       await _engine.flushLocalSave();
       await SaveManager.save(saveData);
@@ -790,7 +790,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _startTool(String mode) async {
     // Gameplay is local-first. A tool must not become unclickable merely
-    // because the Supabase session response is still in flight.
+    // because the local session save is still in flight.
     if (_restartInProgress || !_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
@@ -1109,7 +1109,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }).catchError((_) async {
         if (!mounted || generation != _gameSessionGeneration) return;
         // Unknown outcome: preserve both snapshots and let account bootstrap
-        // choose by the authoritative server session ID.
+        // choose by the local game session ID.
         newEngine.stopGameTimer(persist: false);
         _stopUiRefreshTimer();
         setState(() {});
@@ -1136,7 +1136,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   
   @override
   Widget build(BuildContext context) {
-    final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount; final lifeRemaining = LifeManager.regenerationRemaining; final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
+    final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount;
     return PopScope<void>(canPop: _allowSystemPop, onPopInvokedWithResult: (didPop, result) { if (didPop || _allowSystemPop) return; unawaited(_handleSystemBack()); }, child: Scaffold(appBar: AppBar(title: Text(_chapterTitle), actions: []), body: SafeArea(child: Focus(autofocus: true, focusNode: _focusNode, onKeyEvent: _handleKey, child: GestureDetector(behavior: HitTestBehavior.opaque, onPanStart: _handleDragStart, onPanUpdate: _handleDragUpdate, onPanEnd: _handleDragEnd, child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: Padding(padding: const EdgeInsets.all(16), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${AppLocalizations.of(context)!.scoreLabel} ${_engine.score}', style: Theme.of(context).textTheme.titleMedium), Text('${AppLocalizations.of(context)!.best} ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium)]), const SizedBox(height: 12),
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _showResetMenu(); }, tooltip: AppLocalizations.of(context)!.restart, visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20))])]), const SizedBox(height: 12),
