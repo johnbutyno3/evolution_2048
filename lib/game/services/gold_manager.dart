@@ -12,6 +12,7 @@ class GoldManager {
   static const String _walletKey = 'rebirth_2048_local_economy_v1';
   static SharedPreferences? _preferences;
   static bool _initialized = false;
+  static Future<void> _pendingWrite = Future<void>.value();
   static Map<String, dynamic> _state = <String, dynamic>{
     'balance': 0,
     'lifetimeSpent': 0,
@@ -25,6 +26,7 @@ class GoldManager {
   static Future<void> initialize() => initializeLocal();
 
   static Future<void> initializeLocal() async {
+    await _pendingWrite;
     _preferences = await SharedPreferences.getInstance();
     final raw = _preferences!.getString(_walletKey);
     if (raw != null && raw.isNotEmpty) {
@@ -96,10 +98,17 @@ class GoldManager {
 
   static Future<void> _persist(Map<String, dynamic> next) async {
     await _ensureInitialized();
-    final saved = await _preferences!.setString(_walletKey, jsonEncode(next));
-    if (!saved) throw StateError('Could not persist the local Gold wallet.');
+    final encoded = jsonEncode(next);
+    final operation = _pendingWrite.then<void>((_) async {
+      final saved = await _preferences!.setString(_walletKey, encoded);
+      if (!saved) throw StateError('Could not persist the local Gold wallet.');
+    });
+    _pendingWrite = operation;
+    await operation;
     _state = next;
   }
+
+  static Future<void> flushLocalChanges() => _pendingWrite;
 
   static Map<String, dynamic> _copyState() => <String, dynamic>{
     'balance': balance,
@@ -272,7 +281,12 @@ class GoldManager {
     inventory[toolCode] = current - 1;
     final next = _copyState()..['toolInventory'] = inventory;
     _state = next;
-    unawaited(_preferences!.setString(_walletKey, jsonEncode(next)));
+    final encoded = jsonEncode(next);
+    _pendingWrite = _pendingWrite.then<void>((_) async {
+      final saved = await _preferences!.setString(_walletKey, encoded);
+      if (!saved) throw StateError('Could not persist tool consumption.');
+    });
+    unawaited(_pendingWrite.catchError((_) {}));
     return true;
   }
 
