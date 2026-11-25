@@ -13,7 +13,7 @@ class ToolManager {
 
   static String? _lastPurchaseError;
   static String? _lastPurchaseErrorCode;
-  static bool _allToolsEnabledForTest = false;
+  static const bool _allToolsEnabledForTest = false;
 
   static String? get lastPurchaseError => _lastPurchaseError;
   static String? get lastPurchaseErrorCode => _lastPurchaseErrorCode;
