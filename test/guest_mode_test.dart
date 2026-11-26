@@ -197,4 +197,36 @@ void main() {
   });
 
 
+
+  test('refresh recovers chapter completion and one-time chapter Gold after shutdown', () async {
+    await LifeManager.consumeFreeGame();
+    const gameId = 'interrupted-chapter-complete';
+    await SaveManager.setGameSessionId(gameId);
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'gameSessionId': gameId,
+      'tiles': <dynamic>[4096, ...List<dynamic>.filled(15, null)],
+      'score': 1000,
+      'highestEvolutionValue': 4096,
+      'speciesMergedThisGame': <int>[4, 8],
+      'gameOver': false,
+      'chapterComplete': true,
+    });
+
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+
+    expect(progress.activeGameSessionId, isNull);
+    expect(SaveManager.gameSessionId, isNull);
+    expect(SaveManager.localChapterProgress['C1']?['highestStage'], 12);
+    expect(LifeManager.lifeCount, 4);
+    expect(GoldManager.balance, 213,
+        reason: '13 per-game Gold plus the 200 first-chapter reward');
+
+    await progress.refresh();
+    expect(GoldManager.balance, 213,
+        reason: 'recovered chapter completion must never award twice');
+  });
+
+
 }
