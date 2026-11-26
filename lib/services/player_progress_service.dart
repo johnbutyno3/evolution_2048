@@ -84,21 +84,70 @@ class PlayerProgressService {
   /// completion/Game Over settlement after an interrupted app shutdown.
   Future<void> refresh() async {
     await LifeManager.initializeLocal();
-    final gameId = SaveManager.gameSessionId;
-    final saved = SaveManager.loadCached();
+    await GoldManager.refresh();
+    var gameId = SaveManager.gameSessionId;
+    var saved = SaveManager.loadCached();
     final savedChapter = saved?['chapter'];
     final savedGameId = saved?['gameSessionId'];
     final chapterIndex = savedChapter is String
         ? _chapterNames.indexOf(savedChapter)
         : -1;
 
+    // Recover terminal sessions idempotently. A process can be killed after
+    // the board becomes Game Over / Chapter Complete but before the session
+    // pointer is cleared. Leaving that pointer active would trap Home on a
+    // dead board and prevent the next legitimate new game.
+    if (gameId != null &&
+        savedGameId == gameId &&
+        chapterIndex >= 0 &&
+        chapterIndex <= 5 &&
+        (saved?['gameOver'] == true || saved?['chapterComplete'] == true)) {
+      final score = (saved?['score'] is num
+              ? (saved!['score'] as num).toInt()
+              : 0)
+          .clamp(0, 1 << 30)
+          .toInt();
+      final speciesCount = saved?['speciesMergedThisGame'] is List
+          ? (saved!['speciesMergedThisGame'] as List)
+              .whereType<num>()
+              .toSet()
+              .length
+          : 0;
+      final highest = saved?['highestEvolutionValue'] is num
+          ? (saved!['highestEvolutionValue'] as num).toInt()
+          : 0;
+
+      await GoldManager.settleGame(
+        gameId: gameId,
+        effectiveScore: score,
+        newSpeciesCount: speciesCount,
+        highestValue: highest,
+      );
+
+      if (saved?['chapterComplete'] == true) {
+        await SaveManager.saveLocalChapterCompletion(
+          chapterIndex: chapterIndex,
+          score: score,
+        );
+        await GoldManager.awardChapterCompletion(chapterIndex);
+        final completed = SaveManager.localChapterProgress.keys.toSet();
+        if (List<String>.generate(6, (index) => 'C${index + 1}')
+            .every(completed.contains)) {
+          await GoldManager.awardAllChaptersCompletion();
+        }
+      }
+
+      await SaveManager.clearGameSessionId();
+      await SaveManager.clearChapter(_chapterNames[chapterIndex]);
+      gameId = null;
+      saved = null;
+    }
+
     _chapterProgress
       ..clear()
       ..addAll(SaveManager.localChapterProgress);
 
-    _unlockedChapterIndex = LifeManager.hasPermanentUnlock
-        ? 5
-        : 0;
+    _unlockedChapterIndex = LifeManager.hasPermanentUnlock ? 5 : 0;
 
     if (gameId != null &&
         savedGameId == gameId &&
