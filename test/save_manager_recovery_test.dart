@@ -105,6 +105,7 @@ void main() {
         },
       }),
     );
+    await SaveManager.initialize();
 
     expect(
       SaveManager.loadCached(chapter: 'C1')?['tiles'],
