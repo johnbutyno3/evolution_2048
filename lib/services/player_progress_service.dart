@@ -331,28 +331,26 @@ class PlayerProgressService {
       return false;
     }
     final score = (effectiveScore ??
-            (saved?['score'] is num ? (saved!['score'] as num).toInt() : 0))
+            (saved['score'] is num ? (saved['score'] as num).toInt() : 0))
         .clamp(0, 1 << 30)
         .toInt();
     final highest = highestValue > 0
         ? highestValue
-        : (saved?['highestEvolutionValue'] is num
-            ? (saved!['highestEvolutionValue'] as num).toInt()
+        : (saved['highestEvolutionValue'] is num
+            ? (saved['highestEvolutionValue'] as num).toInt()
             : (1 << (chapterIndex + 12)));
     final speciesCount = newSpeciesCount > 0
         ? newSpeciesCount
-        : (saved?['speciesMergedThisGame'] is List
-            ? (saved!['speciesMergedThisGame'] as List).whereType<num>().toSet().length
+        : (saved['speciesMergedThisGame'] is List
+            ? (saved['speciesMergedThisGame'] as List).whereType<num>().toSet().length
             : 0);
 
-    if (gameId != null) {
-      await GoldManager.settleGame(
+    await GoldManager.settleGame(
         gameId: gameId,
         effectiveScore: score,
         newSpeciesCount: speciesCount,
         highestValue: highest,
       );
-    }
 
     await SaveManager.saveLocalChapterCompletion(
       chapterIndex: chapterIndex,
@@ -366,7 +364,7 @@ class PlayerProgressService {
     }
 
     if (_activeGameChapterIndex == chapterIndex ||
-        (gameId != null && SaveManager.gameSessionId == gameId)) {
+        SaveManager.gameSessionId == gameId) {
       _activeGameSessionId = null;
       _activeGameChapterIndex = null;
       await SaveManager.clearGameSessionId();
