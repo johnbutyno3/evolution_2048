@@ -302,18 +302,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restartConfirmMessage =>
-      'Replace the current board? No additional Life will be charged.';
+      'Replace the current board? Restarting uses one more free game.';
 
   @override
   String get restart => 'Restart';
 
   @override
   String get restartFailed =>
-      'Unable to restart. Check your Life and try again.';
+      'Unable to restart. Check your remaining free games and try again.';
 
   @override
   String get restartPending =>
-      'Restart is still syncing. Return to Home and reopen this chapter when connected.';
+      'The new board could not be saved. Return Home and try again.';
 
   @override
   String get cancel => 'Cancel';
@@ -379,7 +379,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get goldUsage => 'Gold is used for lives and tool purchases.';
+  String get goldUsage => 'Gold is used to purchase evolution tools.';
 
   @override
   String get backgroundMusic => 'Background Music';
@@ -424,7 +424,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resourcesDescription =>
-      'Lives are used for gameplay attempts. Gold can be used to purchase additional lives and tools. Tool inventory is cumulative across chapters.';
+      'FREE includes five new-game starts. Each new game uses one start, and used starts never regenerate. Permanent purchase unlocks unlimited new games. Gold buys tools, whose inventory is shared across chapters.';
 
   @override
   String get app => 'App';
@@ -460,7 +460,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get artworkServicesDescription =>
-      'Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.';
+      'Artwork, Flutter and third-party package licenses and sources will follow the final release attribution list.';
 
   @override
   String get version => 'Version';
@@ -519,13 +519,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get membershipGolden => 'Golden';
 
   @override
-  String get membershipGeneralDescription => 'Free · 5 lives · 1 Life regenerates every 40 minutes';
+  String get membershipGeneralDescription => 'Free · 5 one-time new-game starts · No regeneration';
 
   @override
-  String get membershipPremiumDescription => 'Permanent membership · No forced ads · Unlimited lives · 20 daily Gold';
+  String get membershipPremiumDescription => 'Legacy membership plan · Not used in the offline single-player edition';
 
   @override
-  String get membershipGoldenDescription => 'Permanent membership · Ad-free · Unlimited lives · 50 daily Gold';
+  String get membershipGoldenDescription => 'Legacy membership plan · Not used in the offline single-player edition';
 
   @override
   String get permanentLabel => 'Permanent';
@@ -612,7 +612,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noEmptyPosition => 'No empty position available.';
 
   @override
-  String get nextChapterStartFailed => 'Unable to start the next chapter. Please check your Life.';
+  String get nextChapterStartFailed => 'Unable to start the next chapter. Check your remaining free games and purchase status.';
 
   @override
   String get nextChapterStartRetry => 'Unable to start the next chapter. Please try again.';
@@ -777,13 +777,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get faqQuestion3 => 'What are Lives?';
 
   @override
-  String get faqAnswer3 => 'Lives allow you to continue playing after a game ends. Membership benefits may change the available life rules.';
+  String get faqAnswer3 => 'FREE includes five one-time new-game starts. Used starts never regenerate; permanent purchase unlocks unlimited new games.';
 
   @override
   String get faqQuestion4 => 'What is Gold?';
 
   @override
-  String get faqAnswer4 => 'Gold is the in-game currency used for eligible shop purchases such as Lives and Evolution Tools.';
+  String get faqAnswer4 => 'Gold is the in-game currency earned through play and used to purchase Evolution Tools.';
 
   @override
   String get faqQuestion5 => 'What do the Evolution Tools do?';
