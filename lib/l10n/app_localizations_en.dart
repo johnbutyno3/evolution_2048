@@ -549,7 +549,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get invalidToolQuantity => 'Invalid tool package quantity.';
 
   @override
-  String get signInBeforePurchase => 'Sign in before purchasing tools.';
+  String get signInBeforePurchase => 'Game account sign-in is not required to purchase tools.';
 
   @override
   String get insufficientGold => 'Not enough Gold for this purchase.';
@@ -558,7 +558,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get freeSingleToolOnly => 'FREE members can only purchase one tool at a time.';
 
   @override
-  String get goldenUndoUnlimited => 'GOLDEN members have unlimited UNDO.';
+  String get goldenUndoUnlimited => 'UNDO uses the purchased tool inventory.';
 
   @override
   String get accountRestricted => 'Account access is restricted. Support remains available.';
@@ -804,10 +804,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simulatorNotice => 'Debug only. Changes are local and temporary; the next account sync replaces them. No real payment is made.';
 
   @override
-  String get simulatePremium => 'Simulate Premium purchase';
+  String get simulatePremium => 'Legacy Premium test';
 
   @override
-  String get simulateGolden => 'Simulate Golden purchase';
+  String get simulateGolden => 'Legacy Golden test';
 
   @override
   String get simulateGold => 'Simulate 300 Gold purchase';
@@ -846,7 +846,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get simulatorApplied => 'Local test purchase applied. This is not a real transaction.';
 
   @override
-  String get authConfirmEmail => 'Check your email to confirm the account, then sign in.';
+  String get authConfirmEmail => 'No game account confirmation is required in this offline edition.';
 
   @override
   String get authProviderUnavailable => 'The sign-in provider could not be opened.';
