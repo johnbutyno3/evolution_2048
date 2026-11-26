@@ -818,9 +818,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     await AudioManager.instance.playSfx(GameSfx.gameOver);
     if (!mounted) return;
 
-    // GAME OVER returns directly to Home. It does not consume another Life
-    // here. The ended session is cleared; the next Home -> Game entry creates
-    // a genuinely new session and consumes exactly one Life.
+    // Show a Game Over result before returning Home. Game Over does not
+    // consume another FREE start; only the next new gameId uses one.
     final sessionId = PlayerProgressService.instance.activeGameSessionId;
     final saveData = _engine.createSaveData();
     final replayLog = saveData['replayLog'];
@@ -832,8 +831,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     // Persist the terminal board first. If the process stops before Gold is
     // settled, startup can see Game Over and safely complete the local ledger.
     await SaveManager.save(saveData);
+    var earnedGold = 0;
     if (sessionId != null) {
-      await GoldManager.settleGame(
+      earnedGold = await GoldManager.settleGame(
         gameId: sessionId,
         effectiveScore: _engine.score,
         newSpeciesCount: _engine.speciesMergedThisGame.length,
@@ -867,7 +867,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             const SizedBox(height: 12),
             Text('${l10n.scoreLabel}: ${_engine.score}'),
             const SizedBox(height: 4),
-            Text('${l10n.gold}: ${GoldManager.balance}'),
+            Text('+ $earnedGold ${l10n.gold}'),
+            const SizedBox(height: 4),
+            Text('${l10n.goldBalanceTitle}: ${GoldManager.balance}'),
           ],
         ),
         actions: [
