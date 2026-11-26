@@ -46,7 +46,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
   Future<bool>? _gameSessionFuture;
-  Future<bool>? _completionVerificationFuture;
+  Future<bool>? _completionSettlementFuture;
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
@@ -430,15 +430,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           }
 
           // The local game session has been created. The candidate snapshot was
-          // already persisted before the request; write the current timer and
+          // already persisted; write the current timer and
           // latest board state with the local gameId binding.
           await newEngine.flushLocalSave();
           await SaveManager.save(newEngine.createSaveData());
           unawaited(_refreshMountedToolInventory(generation));
         }).catchError((_) {
-          // Unknown network outcome: keep the locally persisted board. If the
-          // server committed, bootstrap will match it by game ID; if not, the
-          // account refresh will reject this orphaned local session.
+          // Unexpected local-save outcome: keep the locally persisted board. Startup
+          // will recover the gameId from the committed local snapshot.
         }),
       );
       return true;
@@ -533,7 +532,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
     // Start local chapter settlement immediately. The 280ms visual animation
     // runs while the local Gold and progress records are saved.
-    _completionVerificationFuture = progress.completeChapter(
+    _completionSettlementFuture = progress.completeChapter(
       chapterIndex: _chapterNumber - 1,
       replayLog: Map<String, dynamic>.from(replayLog),
       effectiveScore: _engine.score,
@@ -917,8 +916,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? Map<String, dynamic>.from(replayLog)
         : null;
 
-    Future<bool> verifyCompletion() {
-      final pending = _completionVerificationFuture;
+    Future<bool> settleCompletion() {
+      final pending = _completionSettlementFuture;
       if (pending != null) return pending;
       if (completionReplay == null) return Future<bool>.value(false);
       final future = progress.completeChapter(
@@ -928,16 +927,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         newSpeciesCount: _engine.speciesMergedThisGame.length,
         highestValue: _engine.highestValue,
       );
-      _completionVerificationFuture = future;
+      _completionSettlementFuture = future;
       unawaited(future.then<void>(
         (_) {
-          if (identical(_completionVerificationFuture, future)) {
-            _completionVerificationFuture = null;
+          if (identical(_completionSettlementFuture, future)) {
+            _completionSettlementFuture = null;
           }
         },
         onError: (Object _) {
-          if (identical(_completionVerificationFuture, future)) {
-            _completionVerificationFuture = null;
+          if (identical(_completionSettlementFuture, future)) {
+            _completionSettlementFuture = null;
           }
         },
       ));
@@ -945,7 +944,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
 
     // Start verification while the local completion page is displayed.
-    unawaited(verifyCompletion());
+    unawaited(settleCompletion());
 
     await AudioManager.instance.stopMusic();
     unawaited(AudioManager.instance.playSfx(GameSfx.chapterUnlock));
@@ -962,7 +961,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             if (_completionNextInProgress) return;
             _completionNextInProgress = true;
             try {
-              final accepted = await verifyCompletion();
+              final accepted = await settleCompletion();
               if (!accepted) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -992,7 +991,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     );
 
     if (!mounted) return;
-    _completionVerificationFuture = null;
+    _completionSettlementFuture = null;
     _completionAnimationPlaying = false;
     _completionAnimationIndex = null;
     _completionAnimationImagePath = null;
@@ -1099,8 +1098,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         }
 
         if (result == RestartGameSessionResult.pending) {
-          // Keep the candidate board frozen until a later authoritative
-          // refresh can determine which session actually committed.
+          // Keep the candidate board frozen until a later local
+          // refresh determines which game session was committed.
           newEngine.stopGameTimer();
           _stopUiRefreshTimer();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1131,8 +1130,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
       }).catchError((_) async {
         if (!mounted || generation != _gameSessionGeneration) return;
-        // Unknown outcome: preserve both snapshots and let account bootstrap
-        // choose by the local game session ID.
+        // Unknown local-save outcome: preserve both snapshots and let local startup
+        // choose by the saved gameId.
         newEngine.stopGameTimer(persist: false);
         _stopUiRefreshTimer();
         setState(() {});
