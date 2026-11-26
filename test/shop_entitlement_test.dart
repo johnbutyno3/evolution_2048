@@ -180,4 +180,56 @@ void main() {
   });
 
 
+
+  test('the complete one-time reward plan totals 8350 Gold exactly once', () async {
+    var chapterGold = 0;
+    for (var chapter = 0; chapter < 6; chapter++) {
+      chapterGold += await GoldManager.awardChapterCompletion(chapter);
+    }
+    expect(chapterGold, 2800);
+
+    final collectionGold = await GoldManager.awardCollectionMilestones(
+      uniqueSpeciesCount: 87,
+      allSpeciesCollected: true,
+    );
+    expect(collectionGold, 1450);
+
+    final gameGold = await GoldManager.settleGame(
+      gameId: 'full-reward-plan',
+      effectiveScore: 1000000,
+      newSpeciesCount: 0,
+      highestValue: 131072,
+    );
+    expect(gameGold, 4110,
+        reason: '1010 regular game Gold plus 2150 score milestones and 950 score/species achievements');
+
+    expect(await GoldManager.awardAllChaptersCompletion(), 1000);
+    expect(GoldManager.balance, 9360);
+    expect(GoldManager.balance - 1010, 8350,
+        reason: 'all one-time milestones total 8350 Gold, excluding regular game income');
+
+    for (var chapter = 0; chapter < 6; chapter++) {
+      expect(await GoldManager.awardChapterCompletion(chapter), 0);
+    }
+    expect(
+      await GoldManager.awardCollectionMilestones(
+        uniqueSpeciesCount: 87,
+        allSpeciesCollected: true,
+      ),
+      0,
+    );
+    expect(
+      await GoldManager.settleGame(
+        gameId: 'full-reward-plan',
+        effectiveScore: 1000000,
+        newSpeciesCount: 0,
+        highestValue: 131072,
+      ),
+      0,
+    );
+    expect(await GoldManager.awardAllChaptersCompletion(), 0);
+    expect(GoldManager.balance, 9360);
+  });
+
+
 }
