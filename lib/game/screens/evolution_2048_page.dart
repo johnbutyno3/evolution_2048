@@ -585,9 +585,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? saveData['gameSessionId'] as String
         : null;
 
-    // The Life already charged for this active session remains reserved.
-    // Restart settles its tool usage and replaces the board without a second
-    // Life debit.
+    // Restart creates a genuinely new gameId, so FREE consumes one more
+    // permanent new-game allowance. The old attempt is abandoned without a
+    // completion reward or a refund.
 
     _restartInProgress = true;
     _gameSessionGeneration++;
@@ -754,8 +754,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    // Cancel leaves the current board and Life untouched. Confirming Restart
-    // replaces the active session without charging Life a second time.
+    // Cancel leaves the current board and allowance untouched. Confirming
+    // Restart creates a new gameId and consumes one additional FREE game.
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -854,6 +854,32 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       await SaveManager.clearChapter(chapter);
     }
 
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.gameOverTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.noMoreMoves),
+            const SizedBox(height: 12),
+            Text('${l10n.scoreLabel}: ${_engine.score}'),
+            const SizedBox(height: 4),
+            Text('${l10n.gold}: ${GoldManager.balance}'),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.home),
+          ),
+        ],
+      ),
+    );
     _gameOverDialogShowing = false;
     if (!mounted) return;
     Navigator.of(context).pop();
