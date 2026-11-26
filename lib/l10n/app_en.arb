@@ -211,7 +211,7 @@
   "noEmptyPosition": "No empty position available.",
   "nextChapterStartFailed": "Unable to start the next chapter. Check your remaining free games and purchase status.",
   "nextChapterStartRetry": "Unable to start the next chapter. Please try again.",
-  "chapterVerifyPending": "Chapter verification is still unavailable. Please try again.",
+  "chapterVerifyPending": "Chapter progress could not be saved. Please try again.",
   "nextChapter": "Next Chapter",
   "home": "Home",
   "cancelTool": "CANCEL",
