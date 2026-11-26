@@ -601,7 +601,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nextChapterStartRetry => '無法開始下一章，請再試一次。';
 
   @override
-  String get chapterVerifyPending => '章節驗證目前尚未完成，請稍後再試。';
+  String get chapterVerifyPending => '章節進度尚未成功儲存，請再試一次。';
 
   @override
   String get nextChapter => '下一章';
