@@ -532,9 +532,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     }
     // Start local chapter settlement immediately. The 280ms visual animation
     // runs while the local Gold and progress records are saved.
-    _completionSettlementFuture = progress.completeChapter(
-      chapterIndex: _chapterNumber - 1,
+    _completionSettlementFuture = _settleChapterCompletion(
+      progress: progress,
+      saveData: saveData,
       replayLog: Map<String, dynamic>.from(replayLog),
+      chapterIndex: _chapterNumber - 1,
       effectiveScore: _engine.score,
       newSpeciesCount: _engine.speciesMergedThisGame.length,
       highestValue: _engine.highestValue,
@@ -827,8 +829,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         : null;
     final chapter = _engine.chapter.name;
 
-    // Settle local Gold once for this gameId before clearing the terminal
-    // session. The wallet ledger makes duplicate callbacks idempotent.
+    // Persist the terminal board first. If the process stops before Gold is
+    // settled, startup can see Game Over and safely complete the local ledger.
+    await SaveManager.save(saveData);
     if (sessionId != null) {
       await GoldManager.settleGame(
         gameId: sessionId,
@@ -837,7 +840,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         highestValue: _engine.highestValue,
       );
     }
-    await SaveManager.save(saveData);
     _gameSessionGeneration++;
     final settled = sessionId == null
         ? PlayerProgressService.instance.activeGameSessionId == null
@@ -900,6 +902,29 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
   int get _chapterNumber => switch (_engine.chapter) { GameChapter.ocean => 1, GameChapter.land => 2, GameChapter.sky => 3, GameChapter.history => 4, GameChapter.tech => 5, GameChapter.universe => 6 };
 
+  /// Persist the terminal board before crediting any Gold or chapter
+  /// reward. If the process is killed during settlement, startup can recover
+  /// the terminal snapshot and safely retry the idempotent local ledger entry.
+  Future<bool> _settleChapterCompletion({
+    required PlayerProgressService progress,
+    required Map<String, dynamic> saveData,
+    required Map<String, dynamic> replayLog,
+    required int chapterIndex,
+    required int effectiveScore,
+    required int newSpeciesCount,
+    required int highestValue,
+  }) async {
+    await _engine.flushLocalSave();
+    await SaveManager.save(saveData);
+    return progress.completeChapter(
+      chapterIndex: chapterIndex,
+      replayLog: replayLog,
+      effectiveScore: effectiveScore,
+      newSpeciesCount: newSpeciesCount,
+      highestValue: highestValue,
+    );
+  }
+
   Future<void> _showChapterComplete() async {
     if (_chapterCompleteShowing || !mounted) return;
 
@@ -920,9 +945,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final pending = _completionSettlementFuture;
       if (pending != null) return pending;
       if (completionReplay == null) return Future<bool>.value(false);
-      final future = progress.completeChapter(
-        chapterIndex: _chapterNumber - 1,
+      final future = _settleChapterCompletion(
+        progress: progress,
+        saveData: saveData,
         replayLog: completionReplay,
+        chapterIndex: _chapterNumber - 1,
         effectiveScore: _engine.score,
         newSpeciesCount: _engine.speciesMergedThisGame.length,
         highestValue: _engine.highestValue,
