@@ -417,7 +417,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             // restored the previous session binding, so the candidate board
             // can be discarded without overwriting the old snapshot.
             newEngine.stopGameTimer(persist: false);
-            await LifeManager.refreshFromServer().catchError((_) {});
+            await LifeManager.initializeLocal().catchError((_) {});
             ToolManager.restoreSessionUsageFromReplayLog(
               previousEngine.createSaveData()['replayLog'],
             );
@@ -667,7 +667,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         // The local session is committed the previous session is still active. Its
         // matching local snapshot has already been selected by refresh().
         newEngine.stopGameTimer(persist: false);
-        await LifeManager.refreshFromServer().catchError((_) {});
+        await LifeManager.initializeLocal().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           oldEngine.createSaveData()['replayLog'],
         );
@@ -1116,7 +1116,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         }
 
         newEngine.stopGameTimer(persist: false);
-        await LifeManager.refreshFromServer().catchError((_) {});
+        await LifeManager.initializeLocal().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           previousEngine.createSaveData()['replayLog'],
         );
