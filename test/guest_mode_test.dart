@@ -47,6 +47,14 @@ void main() {
       isTrue,
     );
     expect(LifeManager.lifeCount, 4, reason: 'resuming the same gameId must not charge another play');
+    final completedSave = SaveManager.loadCached(chapter: 'ocean')!;
+    await SaveManager.save(<String, dynamic>{
+      ...completedSave,
+      'chapterComplete': true,
+      'score': 1234,
+      'highestEvolutionValue': 4096,
+      'speciesMergedThisGame': <int>[4],
+    });
     expect(
       await progress.completeChapter(
         chapterIndex: 0,
