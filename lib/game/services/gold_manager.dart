@@ -105,9 +105,13 @@ class GoldManager {
   static Set<String> get settledGameIds =>
       _stringSet(_state['settledGames']).toSet();
 
-  static Future<void> _persist(Map<String, dynamic> next) async {
-    await _ensureInitialized();
+  static Future<void> _persist(Map<String, dynamic> next) {
+    // Every async mutation calls _ensureInitialized before it reads _state.
+    // Reserve the new state synchronously before the first disk await so two
+    // simultaneous rewards/purchases cannot both calculate from a stale
+    // balance or overwrite each other's idempotency keys.
     final encoded = jsonEncode(next);
+    _state = next;
     final operation = _pendingWrite.then<void>(
       (_) async {
         final saved = await _preferences!.setString(_walletKey, encoded);
@@ -119,8 +123,7 @@ class GoldManager {
       },
     );
     _pendingWrite = operation;
-    await operation;
-    _state = next;
+    return operation;
   }
 
   static Future<void> flushLocalChanges() => _pendingWrite;
