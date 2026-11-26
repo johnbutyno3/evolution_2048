@@ -203,7 +203,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authChooseMethod => 'Choose a sign-in method';
 
   @override
-  String get authGoogle => 'Continue with Google';
+  String get authGoogle => 'Google Play account (purchases only)';
 
   @override
   String get authApple => 'Continue with Apple';
@@ -281,7 +281,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testControls => 'Test Controls';
 
   @override
-  String get testControlsSubtitle => 'Membership modes and Gold balance';
+  String get testControlsSubtitle => 'Offline Gold and tool test controls';
 
   @override
   String get aboutGame => 'About Game';
@@ -331,10 +331,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notAvailable => 'Not available';
 
   @override
-  String get goldenMember => 'Golden Member';
+  String get goldenMember => 'Legacy plan Member';
 
   @override
-  String get premiumMember => 'Premium Member';
+  String get premiumMember => 'Legacy plan Member';
 
   @override
   String get generalMember => 'General Member';
@@ -472,7 +472,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerId => 'Player ID';
 
   @override
-  String get membership => 'Membership';
+  String get membership => 'Purchase status';
 
   @override
   String get evolutionProgress => 'Evolution Progress';
@@ -489,7 +489,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shopMembership => 'Membership';
 
   @override
-  String get shopMembershipSubtitle => 'Premium and Golden membership';
+  String get shopMembershipSubtitle => 'Permanent game purchase';
 
   @override
   String get shopGold => 'Gold';
@@ -693,7 +693,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminShopParameters => 'Shop Parameters';
 
   @override
-  String get adminShopSubtitle => 'Gold, Tools and Membership settings';
+  String get adminShopSubtitle => 'Gold and Tool settings';
 
   @override
   String get adminQAManagement => 'Q&A Management';
@@ -732,7 +732,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goldPackagesUsd => 'Gold Packages (USD)';
 
   @override
-  String get permanentMembershipUsd => 'Permanent Membership (USD)';
+  String get permanentMembershipUsd => 'Permanent Game Purchase (USD)';
 
   @override
   String get evolutionToolsGold => 'Evolution Tools (Gold)';
@@ -744,7 +744,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saveParameters => 'Save Parameters';
 
   @override
-  String get qaMigrationPending => 'Q&A management will be migrated to Supabase next.';
+  String get qaMigrationPending => 'FAQ content is available locally in this offline edition.';
 
   @override
   String get unableLoadMessages => 'Unable to load player messages. Please retry online.';
@@ -864,10 +864,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminGold10000Usd => '10,000 Gold (USD)';
 
   @override
-  String get adminPremiumUsd => 'Premium membership (USD)';
+  String get adminPremiumUsd => 'Legacy Premium price (USD)';
 
   @override
-  String get adminGoldenUsd => 'Golden membership (USD)';
+  String get adminGoldenUsd => 'Legacy Golden price (USD)';
 
   @override
   String get adminGoldenUpgradeUsd => 'Premium to Golden upgrade (USD)';
