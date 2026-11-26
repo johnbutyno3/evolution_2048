@@ -21,6 +21,9 @@ void main() {
     expect(LifeManager.lifeCount, 5);
     expect(LifeManager.hasUnlimitedLives, isFalse);
     expect(LifeManager.regenerationRemaining, isNull);
+    LifeManager.tickRegeneration();
+    expect(LifeManager.lifeCount, 5,
+        reason: 'elapsed time must never regenerate a FREE new-game start');
     expect(LifeManager.optimisticConsumeLife(), isTrue,
         reason: 'preflight checks availability without charging twice');
     expect(LifeManager.lifeCount, 5);
