@@ -6,18 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SaveManager {
   SaveManager._();
 
-  static const String _legacySaveKey = 'rebirth_2048_local_save_v1';
-  static const String _legacyGameSessionIdKey = 'rebirth_2048_game_session_id_v1';
-  static String? _activeAccountScope;
-
-  // Guest data remains in the legacy namespace. Authenticated accounts each
-  // receive isolated save and session keys, preventing cross-account resumes.
-  static String get _saveKey => _activeAccountScope == null
-      ? _legacySaveKey
-      : '${_legacySaveKey}_$_activeAccountScope';
-  static String get _gameSessionIdKey => _activeAccountScope == null
-      ? _legacyGameSessionIdKey
-      : '${_legacyGameSessionIdKey}_$_activeAccountScope';
+  // The offline edition has one local save namespace and no game accounts.
+  static const String _saveKey = 'rebirth_2048_local_save_v1';
+  static const String _gameSessionIdKey =
+      'rebirth_2048_game_session_id_v1';
   static String get _saveSlotAKey => '${_saveKey}_slot_a_v2';
   static String get _saveSlotBKey => '${_saveKey}_slot_b_v2';
   static String get _savePointerKey => '${_saveKey}_active_slot_v2';
@@ -28,13 +20,9 @@ class SaveManager {
   static const String _legacyProfileNameKey = 'rebirth_2048_profile_name_v1';
   static const String _legacyPlayerIdKey = 'rebirth_2048_player_id_v1';
   static const String _legacyAvatarIndexKey = 'rebirth_2048_avatar_index_v1';
-  static String get _profileNameKey => _scopedKey(_legacyProfileNameKey);
-  static String get _playerIdKey => _scopedKey(_legacyPlayerIdKey);
-  static String get _avatarIndexKey => _scopedKey(_legacyAvatarIndexKey);
-
-  static String _scopedKey(String legacyKey) => _activeAccountScope == null
-      ? legacyKey
-      : '${legacyKey}_$_activeAccountScope';
+  static const String _profileNameKey = _legacyProfileNameKey;
+  static const String _playerIdKey = _legacyPlayerIdKey;
+  static const String _avatarIndexKey = _legacyAvatarIndexKey;
   static const String _localeKey = 'rebirth_2048_locale_v1';
   static SharedPreferences? _preferences;
   static final ValueNotifier<String> localeCodeNotifier = ValueNotifier('en');
@@ -47,8 +35,7 @@ class SaveManager {
     return value == null || value.isEmpty ? null : value;
   }
 
-  /// Binds the local chapter snapshot to the server-owned game session.
-  /// A local board may only be resumed when this ID matches the server ID.
+  /// Binds a local chapter snapshot to its locally generated gameId.
   static Future<void> setGameSessionId(String sessionId) async {
     final id = sessionId.trim();
     if (id.isEmpty) return;
@@ -111,8 +98,7 @@ class SaveManager {
 
     // Read and rewrite the snapshot only inside the save queue. Capturing
     // _cachedSave before waiting is unsafe: a fresh GameEngine save may still
-    // be queued, and the older captured root could overwrite that new board
-    // when the Firebase session response finally arrives.
+    // be queued, and an older captured root could overwrite the new board.
     _saveQueue = _saveQueue.then(
       (_) => _rebindCachedGameSessionNow(
         chapter: chapter,
@@ -230,9 +216,8 @@ class SaveManager {
     _cachedSave = root;
   }
 
-  /// Selects the A/B snapshot whose chapter binding matches the server-owned
-  /// active game ID. This recovers correctly if the app closes between writing
-  /// a replacement board and the backend session transaction committing.
+  /// Selects the A/B snapshot whose chapter binding matches the locally saved
+  /// gameId. This recovers a replacement board after an interrupted save.
   static Future<bool> restoreSnapshotForSession({
     required String chapter,
     required String sessionId,
@@ -390,50 +375,6 @@ class SaveManager {
     await operation;
     return isOwner();
   }
-
-  /// Switches the local game-save namespace to the authenticated Supabase user.
-  /// Existing guest saves are deliberately not copied into an account scope.
-  static Future<void> bindAccountScope(String userId) async {
-    final id = userId.trim();
-    if (!RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$').hasMatch(id)) {
-      throw ArgumentError.value(userId, 'userId', 'Expected a UUID.');
-    }
-    _preferences ??= await SharedPreferences.getInstance();
-    final operation = _saveQueue.then<void>(
-      (_) async {
-        if (_activeAccountScope == id) return;
-        _activeAccountScope = id;
-        _loadBestSnapshotNow();
-      },
-      onError: (_, _) async {
-        if (_activeAccountScope == id) return;
-        _activeAccountScope = id;
-        _loadBestSnapshotNow();
-      },
-    );
-    _saveQueue = operation;
-    await operation;
-  }
-
-  /// Returns to the guest namespace after sign-out. Account saves remain
-  /// stored under their own IDs and are never merged into guest progress.
-  static Future<void> unbindAccountScope() async {
-    _preferences ??= await SharedPreferences.getInstance();
-    final operation = _saveQueue.then<void>(
-      (_) async {
-        _activeAccountScope = null;
-        _loadBestSnapshotNow();
-      },
-      onError: (_, _) async {
-        _activeAccountScope = null;
-        _loadBestSnapshotNow();
-      },
-    );
-    _saveQueue = operation;
-    await operation;
-  }
-
-  static String? get activeAccountScope => _activeAccountScope;
 
   static Future<void> initialize() async {
     // Refresh the plugin instance on initialization. This also keeps isolated
