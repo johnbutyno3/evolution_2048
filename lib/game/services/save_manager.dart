@@ -491,7 +491,7 @@ class SaveManager {
     await _preferences!.setString(_profileNameKey, name.trim());
   }
 
-  /// Removes the cached profile name when the authenticated account has none.
+  /// Removes the cached local player profile name.
   static Future<void> clearProfile() async {
     _preferences ??= await SharedPreferences.getInstance();
     await _preferences!.remove(_profileNameKey);
