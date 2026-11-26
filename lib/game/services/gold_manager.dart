@@ -314,24 +314,6 @@ class GoldManager {
     return true;
   }
 
-  /// Kept as a compatibility API for old call sites; the single-player app
-  /// never fetches Gold from Supabase.
-  static void clearCachedState() {}
-
-  @Deprecated('Use local wallet operations; remote account balances are retired.')
-  static void applySupabaseBalance(int value) {
-    if (value < 0) throw ArgumentError.value(value, 'balance');
-    final next = _copyState()..['balance'] = value;
-    _state = next;
-    if (_initialized) unawaited(_preferences!.setString(_walletKey, jsonEncode(next)));
-  }
-
-  @Deprecated('Use local wallet operations; remote account balances are retired.')
-  static void applyServerState(Map<String, dynamic> data) {
-    final value = data['balance'];
-    if (value is num && value >= 0) applySupabaseBalance(value.toInt());
-  }
-
   static Future<int?> refresh() async {
     await _ensureInitialized();
     return balance;
