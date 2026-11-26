@@ -67,7 +67,7 @@ class GameEngine {
 
   static const int maxLives = LifeManager.normalCap;
 
-  /// Tracks whether the current board already owns its server-paid Life.
+  /// Tracks whether the current board already owns its FREE new-game debit.
   bool _boardLifeActive = false;
 
   int get lives => LifeManager.lifeCount;
@@ -921,9 +921,9 @@ class GameEngine {
       chapterComplete = true;
 
       // Chapter completion and its Life refund are finalized atomically by
-      // the server completeChapter call. Do not refund here, because this
-      // client-side milestone can be reached more than once before the
-      // server accepts the completion.
+      // local chapter settlement. Do not refund here, because this
+      // milestone can be reached more than once before the local
+      // completion record is saved.
       switch (_chapter) {
         case GameChapter.ocean:
           hasReached4096 = true;
