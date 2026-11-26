@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 
 enum _Chapter { ocean, land, sky, history, tech, universe }
@@ -126,14 +127,18 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
     _Chapter.universe: 131072,
   }[_chapter]!;
 
-  String get _title => const {
-    _Chapter.ocean: 'Ocean Chapter',
-    _Chapter.land: 'Land Chapter',
-    _Chapter.sky: 'Sky Chapter',
-    _Chapter.history: 'History Chapter',
-    _Chapter.tech: 'Technology Chapter',
-    _Chapter.universe: 'Universe Chapter',
-  }[_chapter]!;
+  String get _title {
+    final l10n = AppLocalizations.of(context)!;
+    final chapterName = switch (_chapter) {
+      _Chapter.ocean => l10n.chapterOcean,
+      _Chapter.land => l10n.chapterLand,
+      _Chapter.sky => l10n.chapterSky,
+      _Chapter.history => l10n.chapterHistory,
+      _Chapter.tech => l10n.chapterTechnology,
+      _Chapter.universe => l10n.chapterSpace,
+    };
+    return l10n.chapterLabel(chapterName, _chapter.index + 1);
+  }
 
   List<_Tool> get _tools => switch (_chapter) {
     _Chapter.ocean => const [_Tool.rewind],
@@ -299,12 +304,12 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       context: context,
       barrierDismissible: true,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('GAME OVER'),
-        content: Text('No more moves.\n\nSCORE  $_score'),
+        title: Text(AppLocalizations.of(context)!.gameOverTitle),
+        content: Text('${AppLocalizations.of(context)!.noMoreMoves}\n\n${AppLocalizations.of(context)!.scoreLabel}  $_score'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('USE TOOL'),
+            child: Text(AppLocalizations.of(context)!.useTool),
           ),
           FilledButton(
             onPressed: () {
@@ -312,7 +317,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
               setState(_resetBoard);
               _focus.requestFocus();
             },
-            child: const Text('RESTART'),
+            child: Text(AppLocalizations.of(context)!.restartButton),
           ),
         ],
       ),
@@ -358,8 +363,8 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       final value = _tiles[index]!;
       if (value >= 512) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Duplicate is limited to tiles up to 256.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.duplicateLimit),
           ),
         );
         return;
@@ -367,7 +372,7 @@ class _Evolution2048ChaptersPageState extends State<Evolution2048ChaptersPage> {
       final empty = _tiles.indexWhere((v) => v == null);
       if (empty < 0) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No empty position available.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.noEmptyPosition)),
         );
         return;
       }
@@ -810,11 +815,11 @@ class _Tools extends StatelessWidget {
   final ValueChanged<_Tool> onTool;
   final VoidCallback onCancel;
 
-  String _name(_Tool tool) => switch (tool) {
-    _Tool.revive => 'REMOVE',
-    _Tool.rewind => 'UNDO',
-    _Tool.swap => 'POSITION SWAP',
-    _Tool.duplicate => 'DUPLICATE',
+  String _name(BuildContext context, _Tool tool) => switch (tool) {
+    _Tool.revive => AppLocalizations.of(context)!.removeToolLabel,
+    _Tool.rewind => AppLocalizations.of(context)!.undoToolLabel,
+    _Tool.swap => AppLocalizations.of(context)!.swapToolLabel,
+    _Tool.duplicate => AppLocalizations.of(context)!.duplicateToolLabel,
   };
 
   IconData _icon(_Tool tool) => switch (tool) {
@@ -843,10 +848,10 @@ class _Tools extends StatelessWidget {
           icon: Icon(_icon(tool)),
           label: Text(
             used.contains(tool)
-                ? '${_name(tool)} USED'
+                ? '${_name(context, tool)} ${AppLocalizations.of(context)!.toolUsed}'
                 : selecting == tool
-                ? 'CANCEL'
-                : '${_name(tool)} 1 USE',
+                ? AppLocalizations.of(context)!.cancel
+                : '${_name(context, tool)} ${AppLocalizations.of(context)!.toolUsesRemaining(1)}',
           ),
         ),
     ],

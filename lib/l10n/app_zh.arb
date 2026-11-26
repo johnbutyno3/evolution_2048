@@ -46,7 +46,7 @@
   "profileNameTooLong": "玩家名稱最多30個字元。",
   "profileContinue": "繼續",
   "authTitle": "帳號",
-  "authLoginTitle": "登入",
+  "authLoginTitle": "單機遊戲",
   "authRegisterTitle": "建立帳號",
   "authEmail": "電子郵件",
   "authPassword": "密碼",
@@ -58,17 +58,19 @@
   "authEmailAlreadyInUse": "此電子郵件已被使用。",
   "authWeakPassword": "請選擇更安全的密碼。",
   "authFailed": "驗證失敗，請再試一次。",
-  "authLogin": "登入",
+  "authLogin": "開始",
   "authRegister": "建立帳號",
-  "authSwitchToLogin": "已經有帳號？登入",
+  "authSwitchToLogin": "不需要遊戲帳號",
   "authSwitchToRegister": "還沒有帳號？建立帳號",
-  "authChooseMethod": "選擇登入方式",
-  "authGoogle": "使用 Google 登入",
-  "authApple": "使用 Apple 登入",
+  "authChooseMethod": "不需要登入",
+  "authGoogle": "Google Play 帳戶（僅用於購買）",
+  "authApple": "此版本未使用",
   "authOr": "或",
   "authSkip": "跳過，直接進入遊戲",
   "authTooManyRequests": "請求次數過多，請稍後再試。",
-  "life": "生命",
+  "life": "剩餘免費局數",
+  "freeGamesExhaustedTitle": "免費體驗已結束",
+  "freeGamesExhaustedMessage": "五局免費體驗額度已用完，目前買斷功能尚未開放。",
   "playerInfo": "玩家資訊",
   "shop": "商城",
   "gameTime": "遊戲時間",
@@ -86,7 +88,7 @@
   "messagesFeedback": "留言 / 意見回饋",
   "messagesFeedbackSubtitle": "傳送問題、建議或錯誤回報",
   "testControls": "測試控制",
-  "testControlsSubtitle": "會員模式與金幣測試控制",
+  "testControlsSubtitle": "單機金幣與道具測試控制",
   "aboutGame": "關於遊戲",
   "aboutGameSubtitle": "製作者、音樂、素材與第三方服務資訊",
   "logOut": "登出",
@@ -96,8 +98,8 @@
   "save": "儲存",
   "loading": "載入中……",
   "notAvailable": "無法取得",
-  "goldenMember": "Golden 會員",
-  "premiumMember": "Premium 會員",
+  "goldenMember": "舊方案",
+  "premiumMember": "舊方案",
   "generalMember": "一般會員",
   "playerNameEmpty": "玩家名稱不可為空白。",
   "playerNameUpdated": "玩家名稱已更新。",
@@ -110,7 +112,7 @@
   "goldBalance": "金幣餘額",
   "lifetimeSpent": "累計消費",
   "goldAmount": "{amount} 金幣",
-  "goldUsage": "金幣可用於購買生命與道具。",
+  "goldUsage": "金幣可用於購買進化道具。",
   "backgroundMusic": "背景音樂",
   "musicVolume": "音樂音量",
   "soundEffects": "音效",
@@ -124,7 +126,7 @@
   "sixChapters": "六大章節",
   "chapterSequence": "海洋 → 陸地 → 天空 → 歷史 → 科技 → 宇宙",
   "resources": "資源",
-  "resourcesDescription": "生命用於遊戲挑戰。金幣可購買額外生命與道具，道具庫存會跨章節累積。",
+  "resourcesDescription": "免費版提供五次新局額度，每建立一局扣除一次，用完不會隨時間恢復。永久買斷後可無限開新局。金幣可購買道具，道具庫存跨章節累積。",
   "app": "APP",
   "gameVersion": "遊戲版本",
   "currentDevelopmentBuild": "目前開發版本",
@@ -135,17 +137,347 @@
   "musicSources": "音樂與音效來源",
   "musicSourcesDescription": "音樂與音效資產及其來源，依專案音樂來源紀錄與正式授權清單確認。",
   "artworkServices": "美術與第三方服務",
-  "artworkServicesDescription": "美術素材、Firebase、Flutter 及其他第三方套件的授權與來源，以正式發行版本的授權清單為準。",
+  "artworkServicesDescription": "美術素材、Flutter 及其他第三方套件的授權與來源，以正式發行版本的授權清單為準。",
   "version": "版本",
   "developmentBuild": "開發版本",
   "playerId": "玩家 ID",
-  "membership": "會員資格",
+  "membership": "購買資格",
   "evolutionProgress": "進化進度",
   "chapterLabel": "第 {number} 章 · {name}",
   "profileSetupFailed": "建立玩家資料失敗，請再試一次。",
   "restartConfirmTitle": "重新開始遊戲？",
-  "restartConfirmMessage": "確定要替換目前棋盤嗎？不會再次扣除生命。",
+  "restartConfirmMessage": "確定要替換目前棋盤嗎？重新開始會再扣除一次免費遊玩額度。",
   "restart": "重新開始",
-  "restartFailed": "無法重新開始，請確認生命數量後再試一次。",
-  "restartPending": "重新開始仍在同步中。請返回首頁，連線恢復後再進入本章。"
+  "restartFailed": "無法重新開始，請確認剩餘免費局數後再試一次。",
+  "restartPending": "新棋盤尚未成功儲存。請返回首頁後再試一次。",
+  "shopMembership": "永久買斷",
+  "shopMembershipSubtitle": "永久買斷遊戲",
+  "shopGold": "金幣",
+  "shopGoldSubtitle": "購買金幣",
+  "shopTools": "道具",
+  "shopToolsSubtitle": "UNDO、REMOVE、SWAP 與 DUPLICATE",
+  "goldBalanceTitle": "金幣餘額",
+  "paymentUnavailable": "目前尚未開放真實貨幣付款。",
+  "membershipGeneral": "一般會員",
+  "membershipPremium": "Premium 會員",
+  "membershipGolden": "Golden 會員",
+  "membershipGeneralDescription": "免費・五次新局額度・不會自動恢復",
+  "membershipPremiumDescription": "舊會員方案，不適用於單機版",
+  "membershipGoldenDescription": "舊會員方案，不適用於單機版",
+  "permanentLabel": "永久",
+  "upgradeLabel": "升級",
+  "currentLabel": "目前方案",
+  "ownedUses": "持有數量：{count}",
+  "purchaseSuccess": "已購買 {amount} 個 {tool} 道具使用次數。",
+  "purchaseFailed": "道具購買失敗。",
+  "invalidToolQuantity": "道具購買數量無效。",
+  "signInBeforePurchase": "購買道具不需要遊戲帳號登入。",
+  "insufficientGold": "金幣不足，無法完成購買。",
+  "freeSingleToolOnly": "道具可選擇購買 1、5、20 或 50 個。",
+  "goldenUndoUnlimited": "UNDO 使用已購買的道具庫存。",
+  "accountRestricted": "帳號目前受到限制，仍可聯絡客服。",
+  "idempotencyConflict": "此購買請求與先前請求衝突，請重新操作。",
+  "purchaseRetryOnline": "道具購買未能完成，請確認網路後重試。",
+  "purchaseProtectionUnavailable": "無法儲存購買保護資料，請重試。",
+  "invalidPurchaseResponse": "道具購買服務回傳的資料無效。",
+  "purchaseVerificationFailed": "無法驗證購買結果，本機金幣與道具數量未變更。",
+  "@ownedUses": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@purchaseSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "Object"
+      },
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "undoToolLabel": "撤銷",
+  "removeToolLabel": "移除",
+  "swapToolLabel": "交換",
+  "duplicateToolLabel": "複製",
+  "gameOverTitle": "遊戲結束",
+  "noMoreMoves": "沒有可移動的步數。",
+  "scoreLabel": "分數",
+  "useTool": "使用道具",
+  "restartButton": "重新開始",
+  "duplicateLimit": "複製道具僅能複製數值 256 以下的生物。",
+  "noEmptyPosition": "目前沒有空格可放置。",
+  "nextChapterStartFailed": "無法開始下一章，請確認剩餘免費局數及買斷資格。",
+  "nextChapterStartRetry": "無法開始下一章，請再試一次。",
+  "chapterVerifyPending": "章節進度尚未成功儲存，請再試一次。",
+  "nextChapter": "下一章",
+  "home": "首頁",
+  "cancelTool": "取消",
+  "getTool": "取得 {tool}",
+  "rewardedAdToolDescription": "觀看獎勵廣告即可取得額外使用次數。",
+  "goToShop": "前往商城",
+  "feedbackTitle": "聯絡我們／意見回饋",
+  "feedbackSendTitle": "傳送訊息",
+  "feedbackDescription": "歡迎提出問題、建議或回報錯誤。",
+  "feedbackType": "類別",
+  "feedbackMessage": "訊息內容",
+  "feedbackSending": "傳送中……",
+  "feedbackSend": "傳送訊息",
+  "feedbackSent": "訊息已成功傳送。",
+  "feedbackSendFailed": "無法傳送訊息，請確認網路後重試。",
+  "feedbackQuestion": "問題",
+  "feedbackSuggestion": "建議",
+  "feedbackBugReport": "錯誤回報",
+  "feedbackOther": "其他",
+  "qaTitle": "常見問題",
+  "faqTitle": "常見問題集",
+  "@getTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "adminRequired": "需要管理員權限。",
+  "adminTitle": "管理員管理",
+  "adminShopParameters": "商城參數",
+  "adminShopSubtitle": "金幣與道具設定",
+  "adminQAManagement": "常見問題管理",
+  "adminQASubtitle": "管理常見問題",
+  "adminPlayerMessages": "玩家訊息",
+  "adminMessagesSubtitle": "查看玩家意見回饋",
+  "adminPlayerSearch": "玩家搜尋",
+  "adminPlayerSearchSubtitle": "玩家查詢功能尚未啟用",
+  "adminGameParameters": "遊戲參數",
+  "adminGameParametersSubtitle": "章節與遊戲設定",
+  "adminComingSoon": "{name}管理功能將於後續版本加入。",
+  "shopParametersSaved": "商城參數已儲存。",
+  "shopParametersSaveFailed": "無法儲存商城參數，請確認網路後重試。",
+  "goldPackagesUsd": "金幣方案（美元）",
+  "permanentMembershipUsd": "永久買斷價格（美元）",
+  "evolutionToolsGold": "進化道具（金幣）",
+  "saving": "儲存中……",
+  "saveParameters": "儲存參數",
+  "qaMigrationPending": "此單機版本的常見問題內容儲存在本機。",
+  "unableLoadMessages": "無法載入玩家訊息，請確認網路後重試。",
+  "noPlayerMessages": "目前沒有玩家訊息。",
+  "playerMessage": "玩家訊息",
+  "openStatus": "開啟",
+  "testControlsTitle": "測試控制",
+  "@adminComingSoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "faqQuestion1": "如何遊玩重生 2048？",
+  "faqAnswer1": "滑動棋盤或使用鍵盤移動生命形態。合併相同的生命形態即可進化至下一階段，達成章節目標即可繼續前進。",
+  "faqQuestion2": "發現生物後會怎樣？",
+  "faqAnswer2": "已發現的生物會永久記錄在生物圖鑑中，即使重玩或重新開始，也不會再次鎖定。",
+  "faqQuestion3": "生命有什麼用途？",
+  "faqAnswer3": "免費版有五次永久新局額度，每次建立新局扣除一次，用完不會恢復；永久買斷後可無限開新局。",
+  "faqQuestion4": "金幣是什麼？",
+  "faqAnswer4": "金幣是遊戲內貨幣，可透過遊玩獲得，並用於購買進化道具。",
+  "faqQuestion5": "進化道具有什麼功能？",
+  "faqAnswer5": "撤銷可回復上一步；移除可移除指定生物；交換可對調兩個生物的位置；複製可複製指定生物。",
+  "faqQuestion6": "如何回報問題？",
+  "faqAnswer6": "進入個人資訊頁的「聯絡我們／意見回饋」，選擇「錯誤回報」，描述問題後即可傳送給開發團隊。",
+  "simulatorTitle": "本機模擬購買",
+  "simulatorNotice": "僅供除錯測試。變更只存在本機且為暫時狀態；下次同步帳號時會被伺服器資料取代。本功能不會進行真實付款。",
+  "simulatePremium": "舊 Premium 測試",
+  "simulateGolden": "舊 Golden 測試",
+  "simulateGold": "模擬購買 300 金幣",
+  "simulateUndo": "模擬購買 UNDO ×1",
+  "simulateRemove": "模擬購買 REMOVE ×1",
+  "simulateSwap": "模擬購買 SWAP ×1",
+  "simulateDuplicate": "模擬購買 DUPLICATE ×1",
+  "simulatorCurrentState": "目前本機測試狀態",
+  "simulatorDebugOnly": "模擬購買功能僅能在除錯版本使用。",
+  "simulatorMembership": "本機購買狀態：{tier}",
+  "simulatorLives": "生命：{count}",
+  "simulatorGold": "金幣：{count}",
+  "simulatorToolUses": "{tool}：{count}",
+  "simulatorApplied": "本機測試購買已套用。這不是真實交易。",
+  "@simulatorMembership": {
+    "placeholders": {
+      "tier": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorLives": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorGold": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorToolUses": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      },
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "authConfirmEmail": "此單機版本不需要遊戲帳號驗證。",
+  "authProviderUnavailable": "此版本不使用第三方登入。",
+  "adminGold300Usd": "300 金幣（美元）",
+  "adminGold1000Usd": "1,000 金幣（美元）",
+  "adminGold4000Usd": "4,000 金幣（美元）",
+  "adminGold10000Usd": "10,000 金幣（美元）",
+  "adminPremiumUsd": "舊 Premium 方案價格（美元）",
+  "adminGoldenUsd": "舊 Golden 方案價格（美元）",
+  "adminGoldenUpgradeUsd": "舊升級方案價格（美元）",
+  "adminOneUseGoldPrice": "1 次使用・金幣價格",
+  "adminFiveUsesGoldPrice": "5 次使用・金幣價格",
+  "adminTwentyUsesGoldPrice": "20 次使用・金幣價格",
+  "adminFiftyUsesGoldPrice": "50 次使用・金幣價格",
+  "uidLabel": "玩家 UID",
+  "statusOpen": "開啟",
+  "statusClosed": "已關閉",
+  "highestProgress": "最高進度：{current}／{target}",
+  "selectTileForTool": "選擇要使用 {tool} 的生物",
+  "@highestProgress": {
+    "placeholders": {
+      "current": {
+        "type": "Object"
+      },
+      "target": {
+        "type": "Object"
+      }
+    }
+  },
+  "@selectTileForTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "creatureC1V2": "矽藻",
+  "creatureC1V4": "鞭毛蟲",
+  "creatureC1V8": "磷蝦",
+  "creatureC1V16": "小丑魚",
+  "creatureC1V32": "水母",
+  "creatureC1V64": "魷魚",
+  "creatureC1V128": "海龜",
+  "creatureC1V256": "黃鰭鮪魚",
+  "creatureC1V512": "鯊魚",
+  "creatureC1V1024": "虎鯨",
+  "creatureC1V2048": "藍鯨",
+  "creatureC1V4096": "海底人類",
+  "creatureC2V2": "陸生植物",
+  "creatureC2V4": "蕨類",
+  "creatureC2V8": "節肢動物",
+  "creatureC2V16": "昆蟲",
+  "creatureC2V32": "兩棲類",
+  "creatureC2V64": "爬蟲類",
+  "creatureC2V128": "小型哺乳類",
+  "creatureC2V256": "大型哺乳類",
+  "creatureC2V512": "靈長類",
+  "creatureC2V1024": "早期人類",
+  "creatureC2V2048": "智人",
+  "creatureC2V4096": "文明人類",
+  "creatureC2V8192": "未來人類",
+  "creatureC3V2": "毛狀細胞生物",
+  "creatureC3V4": "蚊子",
+  "creatureC3V8": "蜻蜓",
+  "creatureC3V16": "始祖鳥",
+  "creatureC3V32": "老鷹",
+  "creatureC3V64": "翼龍",
+  "creatureC3V128": "蝙蝠",
+  "creatureC3V256": "滑翔翼",
+  "creatureC3V512": "早期飛機",
+  "creatureC3V1024": "噴射戰鬥機",
+  "creatureC3V2048": "隱形戰機",
+  "creatureC3V4096": "飛行器",
+  "creatureC3V8192": "翼裝飛行服",
+  "creatureC3V16384": "翼人",
+  "creatureC4V2": "火",
+  "creatureC4V4": "部落",
+  "creatureC4V8": "金字塔",
+  "creatureC4V16": "羅馬建築",
+  "creatureC4V32": "唐代建築",
+  "creatureC4V64": "蒙古入侵",
+  "creatureC4V128": "大航海時代",
+  "creatureC4V256": "美國獨立",
+  "creatureC4V512": "工業革命",
+  "creatureC4V1024": "通訊革命",
+  "creatureC4V2048": "汽車發明",
+  "creatureC4V4096": "飛機發明",
+  "creatureC4V8192": "第二次世界大戰",
+  "creatureC4V16384": "太空探索",
+  "creatureC4V32768": "資訊時代",
+  "creatureC5V2": "手錶",
+  "creatureC5V4": "相機",
+  "creatureC5V8": "收音機",
+  "creatureC5V16": "電視",
+  "creatureC5V32": "洗衣機",
+  "creatureC5V64": "冰箱",
+  "creatureC5V128": "微波爐",
+  "creatureC5V256": "遙控器",
+  "creatureC5V512": "電腦",
+  "creatureC5V1024": "手機",
+  "creatureC5V2048": "平板電腦",
+  "creatureC5V4096": "無人機",
+  "creatureC5V8192": "VR 裝置",
+  "creatureC5V16384": "機器人",
+  "creatureC5V32768": "晶片",
+  "creatureC5V65536": "未來科技",
+  "creatureC6V2": "大爆炸",
+  "creatureC6V4": "行星形成",
+  "creatureC6V8": "太陽",
+  "creatureC6V16": "地球",
+  "creatureC6V32": "月球",
+  "creatureC6V64": "火星",
+  "creatureC6V128": "環形太空站",
+  "creatureC6V256": "小行星採礦",
+  "creatureC6V512": "太陽系拓展",
+  "creatureC6V1024": "外星生命",
+  "creatureC6V2048": "外星人",
+  "creatureC6V4096": "首次接觸",
+  "creatureC6V8192": "星際旅行",
+  "creatureC6V16384": "星系探索",
+  "creatureC6V32768": "宇宙文明",
+  "creatureC6V65536": "地球演化",
+  "creatureC6V131072": "神之視角",
+  "oceanRestored": "海洋重現",
+  "landRestored": "陸地重現",
+  "skyRestored": "天空重現",
+  "historyRestored": "歷史重現",
+  "technologyRestored": "科技重現",
+  "universeRestored": "宇宙重現",
+  "chapterScoreSummary": "分數 {score}    最高進度 {highest}",
+  "@chapterScoreSummary": {
+    "placeholders": {
+      "score": {
+        "type": "Object"
+      },
+      "highest": {
+        "type": "Object"
+      }
+    }
+  },
+  "toolUsed": "已使用",
+  "toolUsesRemaining": "剩餘 {count} 次",
+  "@toolUsesRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  }
 }

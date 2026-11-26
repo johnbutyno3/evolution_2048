@@ -1,58 +1,332 @@
-import '../../services/supabase_account_service.dart';
+import 'dart:async';
+import 'dart:convert';
 
-/// Client facade for the server-authoritative Gold wallet.
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Local-first Gold wallet and reward ledger.
+/// One serialized record keeps balance, idempotency keys, score milestones,
+/// and tool inventory together so a reward or purchase cannot be credited twice.
 class GoldManager {
   GoldManager._();
 
-  static int? _cachedBalance;
-  static int? _cachedLifetimeSpent;
+  static const String _walletKey = 'rebirth_2048_local_economy_v1';
+  static SharedPreferences? _preferences;
+  static bool _initialized = false;
+  static Future<void> _pendingWrite = Future<void>.value();
+  static Map<String, dynamic> _state = <String, dynamic>{
+    'balance': 0,
+    'lifetimeSpent': 0,
+    'cumulativeScore': 0,
+    'transactions': <String>[],
+    'claimedRewards': <String>[],
+    'settledGames': <String>[],
+    'toolInventory': <String, int>{},
+  };
 
-  static Future<void> initialize() async {
-    await refresh();
-  }
+  static Future<void> initialize() => initializeLocal();
 
-  /// UI cache only. The server remains the source of truth.
-  static int get balance => _cachedBalance ?? 0;
-  static int get lifetimeSpent => _cachedLifetimeSpent ?? 0;
-
-  /// Clears account-scoped Gold cache when the authenticated account changes.
-  static void clearCachedState() {
-    _cachedBalance = null;
-    _cachedLifetimeSpent = null;
-  }
-
-  /// Applies the validated Supabase account balance without inventing
-  /// lifetime-spend data that the account snapshot does not provide.
-  static void applySupabaseBalance(int balance) {
-    if (balance < 0) throw ArgumentError.value(balance, 'balance');
-    _cachedBalance = balance;
-    _cachedLifetimeSpent = null;
-  }
-
-  static void applyServerState(Map<String, dynamic> data) {
-    final balance = data['balance'];
-    if (balance is num && balance.toInt() >= 0) {
-      _cachedBalance = balance.toInt();
+  static Future<void> initializeLocal() async {
+    await _pendingWrite.catchError((_) {});
+    _preferences = await SharedPreferences.getInstance();
+    _state = <String, dynamic>{
+      'balance': 0,
+      'lifetimeSpent': 0,
+      'cumulativeScore': 0,
+      'transactions': <String>[],
+      'claimedRewards': <String>[],
+      'settledGames': <String>[],
+      'toolInventory': <String, int>{},
+    };
+    final raw = _preferences!.getString(_walletKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          final balance = decoded['balance'];
+          final spent = decoded['lifetimeSpent'];
+          final score = decoded['cumulativeScore'];
+          final inventory = decoded['toolInventory'];
+          _state = <String, dynamic>{
+            'balance': balance is num && balance >= 0 ? balance.toInt() : 0,
+            'lifetimeSpent': spent is num && spent >= 0 ? spent.toInt() : 0,
+            'cumulativeScore': score is num && score >= 0 ? score.toInt() : 0,
+            'transactions': _stringSet(decoded['transactions']),
+            'claimedRewards': _stringSet(decoded['claimedRewards']),
+            'settledGames': _stringSet(decoded['settledGames']),
+            'toolInventory': <String, int>{
+              if (inventory is Map)
+                for (final entry in inventory.entries)
+                  if (entry.value is num && (entry.value as num) >= 0)
+                    entry.key.toString(): (entry.value as num).toInt(),
+            },
+          };
+        }
+      } catch (_) {
+        // A malformed wallet must not grant currency or inventory.
+        _state = <String, dynamic>{
+          'balance': 0,
+          'lifetimeSpent': 0,
+          'cumulativeScore': 0,
+          'transactions': <String>[],
+          'claimedRewards': <String>[],
+          'settledGames': <String>[],
+          'toolInventory': <String, int>{},
+        };
+      }
     }
-    final spent = data['lifetimeSpent'];
-    if (spent is num && spent.toInt() >= 0) {
-      _cachedLifetimeSpent = spent.toInt();
+    _initialized = true;
+  }
+
+  static List<String> _stringSet(dynamic value) =>
+      value is List ? value.whereType<String>().toSet().toList() : <String>[];
+
+  static Future<void> _ensureInitialized() async {
+    if (!_initialized) await initializeLocal();
+  }
+
+  static int get balance => (_state['balance'] as int?) ?? 0;
+  static int get lifetimeSpent => (_state['lifetimeSpent'] as int?) ?? 0;
+  static int get cumulativeScore => (_state['cumulativeScore'] as int?) ?? 0;
+
+  static Map<String, int> get toolInventory {
+    final raw = _state['toolInventory'];
+    if (raw is! Map) return <String, int>{};
+    return <String, int>{
+      for (final entry in raw.entries)
+        if (entry.value is int) entry.key.toString(): entry.value as int,
+    };
+  }
+
+  static int toolUses(String toolCode) => toolInventory[toolCode] ?? 0;
+
+  static Set<String> get claimedRewardIds =>
+      _stringSet(_state['claimedRewards']).toSet();
+
+  static Set<String> get settledGameIds =>
+      _stringSet(_state['settledGames']).toSet();
+
+  static Future<void> _persist(Map<String, dynamic> next) {
+    // Every async mutation calls _ensureInitialized before it reads _state.
+    // Reserve the new state synchronously before the first disk await so two
+    // simultaneous rewards/purchases cannot both calculate from a stale
+    // balance or overwrite each other's idempotency keys.
+    final encoded = jsonEncode(next);
+    final previous = _state;
+    _state = next;
+    final operation = _pendingWrite.then<void>(
+      (_) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist the local Gold wallet.');
+      },
+      onError: (_, _) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist the local Gold wallet.');
+      },
+    );
+    _pendingWrite = operation;
+    return operation.catchError((Object error, StackTrace stackTrace) {
+      // If no later mutation has superseded this state, roll back the in-memory
+      // reservation too. A subsequent queued mutation will instead persist its
+      // newer complete snapshot through the onError branch above.
+      if (identical(_state, next)) _state = previous;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
+  }
+
+  static Future<void> flushLocalChanges() => _pendingWrite;
+
+  static Map<String, dynamic> _copyState() => <String, dynamic>{
+    'balance': balance,
+    'lifetimeSpent': lifetimeSpent,
+    'cumulativeScore': cumulativeScore,
+    'transactions': _stringSet(_state['transactions']),
+    'claimedRewards': _stringSet(_state['claimedRewards']),
+    'settledGames': _stringSet(_state['settledGames']),
+    'toolInventory': toolInventory,
+  };
+
+  /// Adds a one-time reward. The reward ID and balance are saved together.
+  static Future<bool> awardOnce({
+    required String rewardId,
+    required int amount,
+  }) async {
+    if (rewardId.trim().isEmpty || amount < 0) {
+      throw ArgumentError('Invalid reward.');
     }
+    await _ensureInitialized();
+    final claimed = _stringSet(_state['claimedRewards']);
+    if (claimed.contains(rewardId)) return false;
+    final next = _copyState();
+    claimed.add(rewardId);
+    next['claimedRewards'] = claimed;
+    next['balance'] = balance + amount;
+    final transactions = _stringSet(_state['transactions']);
+    transactions.add('reward:$rewardId');
+    next['transactions'] = transactions;
+    await _persist(next);
+    return true;
+  }
+
+  /// Settles a completed or game-over session exactly once.
+  /// Effective score is the final non-negative score after tool penalties.
+  static Future<int> settleGame({
+    required String gameId,
+    required int effectiveScore,
+    required int newSpeciesCount,
+    required int highestValue,
+  }) async {
+    if (gameId.trim().isEmpty) throw ArgumentError.value(gameId, 'gameId');
+    if (effectiveScore < 0 || newSpeciesCount < 0) {
+      throw ArgumentError('Invalid game settlement values.');
+    }
+    await _ensureInitialized();
+    final settled = _stringSet(_state['settledGames']);
+    if (settled.contains(gameId)) return 0;
+
+    final baseReward = 10 + (effectiveScore ~/ 1000) + newSpeciesCount;
+    final next = _copyState();
+    settled.add(gameId);
+    next['settledGames'] = settled;
+    next['balance'] = balance + baseReward;
+    next['cumulativeScore'] = cumulativeScore + effectiveScore;
+    final transactions = _stringSet(_state['transactions']);
+    transactions.add('game:$gameId');
+    next['transactions'] = transactions;
+
+    final claimed = _stringSet(_state['claimedRewards']);
+    final extra = <String, int>{
+      'achievement:first-highest-species': highestValue >= 131072 ? 100 : 0,
+      'achievement:single-score-10000': effectiveScore >= 10000 ? 50 : 0,
+      'achievement:single-score-30000': effectiveScore >= 30000 ? 100 : 0,
+      'achievement:single-score-50000': effectiveScore >= 50000 ? 200 : 0,
+      'achievement:single-score-100000': effectiveScore >= 100000 ? 500 : 0,
+      'score:10000': cumulativeScore + effectiveScore >= 10000 ? 50 : 0,
+      'score:50000': cumulativeScore + effectiveScore >= 50000 ? 100 : 0,
+      'score:100000': cumulativeScore + effectiveScore >= 100000 ? 200 : 0,
+      'score:250000': cumulativeScore + effectiveScore >= 250000 ? 300 : 0,
+      'score:500000': cumulativeScore + effectiveScore >= 500000 ? 500 : 0,
+      'score:1000000': cumulativeScore + effectiveScore >= 1000000 ? 1000 : 0,
+    };
+    var extraTotal = 0;
+    for (final entry in extra.entries) {
+      if (entry.value <= 0 || claimed.contains(entry.key)) continue;
+      claimed.add(entry.key);
+      extraTotal += entry.value;
+      transactions.add('reward:${entry.key}');
+    }
+    next['claimedRewards'] = claimed;
+    next['transactions'] = transactions;
+    next['balance'] = (next['balance'] as int) + extraTotal;
+    await _persist(next);
+    return baseReward + extraTotal;
+  }
+
+  static Future<int> awardChapterCompletion(int chapterIndex) async {
+    if (chapterIndex < 0 || chapterIndex > 5) {
+      throw ArgumentError.value(chapterIndex, 'chapterIndex');
+    }
+    const rewards = <int>[200, 300, 400, 500, 600, 800];
+    final awarded = await awardOnce(
+      rewardId: 'chapter:C${chapterIndex + 1}:first-completion',
+      amount: rewards[chapterIndex],
+    );
+    return awarded ? rewards[chapterIndex] : 0;
+  }
+
+  static Future<int> awardAllChaptersCompletion() async {
+    const reward = 1000;
+    final awarded = await awardOnce(
+      rewardId: 'achievement:all-six-chapters',
+      amount: reward,
+    );
+    return awarded ? reward : 0;
+  }
+
+  static Future<int> awardCollectionMilestones({
+    required int uniqueSpeciesCount,
+    required bool allSpeciesCollected,
+  }) async {
+    const milestones = <int, int>{
+      10: 50,
+      25: 100,
+      50: 200,
+      75: 300,
+    };
+    var awarded = 0;
+    for (final entry in milestones.entries) {
+      if (uniqueSpeciesCount >= entry.key) {
+        if (await awardOnce(
+          rewardId: 'collection:${entry.key}',
+          amount: entry.value,
+        )) {
+          awarded += entry.value;
+        }
+      }
+    }
+    if (allSpeciesCollected &&
+        await awardOnce(rewardId: 'collection:all', amount: 800)) {
+      awarded += 800;
+    }
+    return awarded;
+  }
+
+  /// Atomically deducts Gold and grants a tool package in the same wallet record.
+  static Future<bool> purchaseTool({
+    required String toolCode,
+    required int amount,
+    required int cost,
+    required String transactionId,
+  }) async {
+    await _ensureInitialized();
+    if (toolCode.isEmpty || amount <= 0 || cost < 0 || transactionId.isEmpty) {
+      return false;
+    }
+    final transactions = _stringSet(_state['transactions']);
+    if (transactions.contains(transactionId)) return false;
+    if (balance < cost) return false;
+    final next = _copyState();
+    final inventory = Map<String, int>.from(toolInventory);
+    inventory[toolCode] = (inventory[toolCode] ?? 0) + amount;
+    transactions.add(transactionId);
+    next['toolInventory'] = inventory;
+    next['transactions'] = transactions;
+    next['balance'] = balance - cost;
+    next['lifetimeSpent'] = lifetimeSpent + cost;
+    await _persist(next);
+    return true;
+  }
+
+  /// Synchronous gameplay debit; the in-memory state changes immediately and
+  /// its single-record persistence is queued before returning to the frame.
+  static bool consumeToolLocal(String toolCode) {
+    if (!_initialized) return false;
+    final inventory = Map<String, int>.from(toolInventory);
+    final current = inventory[toolCode] ?? 0;
+    if (current <= 0) return false;
+    inventory[toolCode] = current - 1;
+    final previous = _state;
+    final next = _copyState()..['toolInventory'] = inventory;
+    _state = next;
+    final encoded = jsonEncode(next);
+    final operation = _pendingWrite.then<void>(
+      (_) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist tool consumption.');
+      },
+      onError: (_, _) async {
+        final saved = await _preferences!.setString(_walletKey, encoded);
+        if (!saved) throw StateError('Could not persist tool consumption.');
+      },
+    );
+    _pendingWrite = operation;
+    unawaited(operation.catchError((_) {
+      if (identical(_state, next)) _state = previous;
+    }));
+    return true;
   }
 
   static Future<int?> refresh() async {
-    try {
-      // Use the same timezone-aware, fully validated snapshot path as account
-      // bootstrap. Calling account-snapshot with an empty body is rejected by
-      // the Edge Function (timezone is mandatory), which previously left shop
-      // screens showing a stale Gold cache without surfacing the failure.
-      final snapshot = await SupabaseAccountService.fetchSnapshot();
-      applySupabaseBalance(snapshot.gold);
-      return _cachedBalance;
-    } on SupabaseAccountException {
-      // Keep the last validated balance; a failed read never grants or spends.
-      return null;
-    }
+    await _ensureInitialized();
+    return balance;
   }
-
 }

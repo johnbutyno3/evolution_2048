@@ -1,0 +1,240 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:rebirth_2048/game/services/life_manager.dart';
+import 'package:rebirth_2048/game/services/gold_manager.dart';
+import 'package:rebirth_2048/game/services/save_manager.dart';
+import 'package:rebirth_2048/services/player_progress_service.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await SaveManager.initialize();
+    await LifeManager.initializeLocal();
+    await GoldManager.initializeLocal();
+    LifeManager.enableGuestMode();
+  });
+
+  test('offline player can start, save, resume, and complete a chapter', () async {
+    expect(LifeManager.hasUnlimitedLives, isFalse);
+    expect(LifeManager.lifeCount, 5);
+    expect(LifeManager.hasAuthoritativeState, isTrue);
+
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+    expect(progress.loadedLocally, isTrue);
+    expect(progress.isChapterUnlocked(0), isTrue);
+
+    final started = await progress.startGameSession(
+      0,
+      initialTiles: <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+      initialSave: <String, dynamic>{
+        'chapter': 'ocean',
+        'tiles': <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+        'gameOver': false,
+        'chapterComplete': false,
+      },
+    );
+    expect(started, isTrue);
+    expect(LifeManager.lifeCount, 4);
+    expect(await progress.waitForPendingStartSession(), isTrue);
+    expect(progress.activeGameSessionId, isNotNull);
+
+    expect(
+      await progress.resumeGameSession(0),
+      isTrue,
+    );
+    expect(LifeManager.lifeCount, 4, reason: 'resuming the same gameId must not charge another play');
+    final completedSave = SaveManager.loadCached(chapter: 'ocean')!;
+    await SaveManager.save(<String, dynamic>{
+      ...completedSave,
+      'chapterComplete': true,
+      'score': 1234,
+      'highestEvolutionValue': 4096,
+      'speciesMergedThisGame': <int>[4],
+    });
+    expect(
+      await progress.completeChapter(
+        chapterIndex: 0,
+        replayLog: <String, dynamic>{'finalScore': 1234},
+      ),
+      isTrue,
+    );
+
+    expect(SaveManager.localUnlockedChapterIndex, 1);
+    await progress.refresh();
+    expect(progress.isChapterUnlocked(1), isFalse,
+        reason: 'FREE remains limited to Ocean even after recording local progress');
+
+    // Four more new gameIds consume the remaining lifetime allowance.
+    for (var i = 0; i < 4; i++) {
+      final created = await progress.startGameSession(
+        0,
+        initialTiles: <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+        initialSave: <String, dynamic>{
+          'chapter': 'ocean',
+          'tiles': <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      );
+      expect(created, isTrue);
+      await progress.abandonGameSession(
+        sessionId: progress.activeGameSessionId,
+        reason: 'TEST_END',
+      );
+    }
+    expect(LifeManager.lifeCount, 0);
+    expect(
+      await progress.startGameSession(
+        0,
+        initialTiles: <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+        initialSave: <String, dynamic>{
+          'chapter': 'ocean',
+          'tiles': <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      ),
+      isFalse,
+      reason: 'the sixth new game must be blocked',
+    );
+    expect(LifeManager.lifeCount, 0);
+
+    // The allowance survives a fresh manager initialization (app restart).
+    await LifeManager.initializeLocal();
+    expect(LifeManager.lifeCount, 0);
+    expect(LifeManager.regenerationRemaining, isNull);
+  });
+
+  test('refresh settles a terminal Game Over snapshot after interrupted shutdown', () async {
+    await LifeManager.consumeFreeGame();
+    const gameId = 'interrupted-game-over';
+    await SaveManager.setGameSessionId(gameId);
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'gameSessionId': gameId,
+      'tiles': <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+      'score': 2500,
+      'highestEvolutionValue': 8,
+      'speciesMergedThisGame': <int>[4, 8],
+      'gameOver': true,
+      'chapterComplete': false,
+    });
+
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+
+    expect(progress.activeGameSessionId, isNull);
+    expect(SaveManager.gameSessionId, isNull);
+    expect(SaveManager.unfinishedChapter, isNull);
+    expect(LifeManager.lifeCount, 4);
+    expect(GoldManager.balance, 14,
+        reason: 'terminal game reward must be recovered exactly once');
+
+    await progress.refresh();
+    expect(GoldManager.balance, 14,
+        reason: 'repeated startup recovery must not credit the game twice');
+  });
+
+
+
+  test('restarting creates a new gameId and consumes one additional free game', () async {
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+    final tiles = <dynamic>[2, 4, ...List<dynamic>.filled(14, null)];
+    expect(
+      await progress.startGameSession(
+        0,
+        initialTiles: tiles,
+        initialSave: <String, dynamic>{
+          'chapter': 'ocean',
+          'tiles': tiles,
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      ),
+      isTrue,
+    );
+    final firstGameId = progress.activeGameSessionId;
+    expect(LifeManager.lifeCount, 4);
+
+    final result = await progress.restartGameSession(
+      0,
+      initialTiles: tiles,
+      replacementSave: <String, dynamic>{
+        'chapter': 'ocean',
+        'tiles': tiles,
+        'gameOver': false,
+        'chapterComplete': false,
+      },
+    );
+    expect(result, RestartGameSessionResult.committed);
+    expect(progress.activeGameSessionId, isNot(firstGameId));
+    expect(LifeManager.lifeCount, 3);
+
+    expect(await progress.resumeGameSession(0), isTrue);
+    expect(LifeManager.lifeCount, 3,
+        reason: 'resuming the replacement gameId must not consume another start');
+  });
+
+  test('verified permanent purchase unlocks all chapters and unlimited new games', () async {
+    await LifeManager.applyVerifiedPermanentUnlock();
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+
+    expect(progress.isChapterUnlocked(5), isTrue);
+    expect(LifeManager.lifeCount, -1);
+    final tiles = <dynamic>[2, 4, ...List<dynamic>.filled(14, null)];
+    expect(
+      await progress.startGameSession(
+        5,
+        initialTiles: tiles,
+        initialSave: <String, dynamic>{
+          'chapter': 'universe',
+          'tiles': tiles,
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      ),
+      isTrue,
+    );
+    expect(LifeManager.lifeCount, -1);
+  });
+
+
+
+  test('refresh recovers chapter completion and one-time chapter Gold after shutdown', () async {
+    await LifeManager.consumeFreeGame();
+    const gameId = 'interrupted-chapter-complete';
+    await SaveManager.setGameSessionId(gameId);
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'gameSessionId': gameId,
+      'tiles': <dynamic>[4096, ...List<dynamic>.filled(15, null)],
+      'score': 1000,
+      'highestEvolutionValue': 4096,
+      'speciesMergedThisGame': <int>[4, 8],
+      'gameOver': false,
+      'chapterComplete': true,
+    });
+
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+
+    expect(progress.activeGameSessionId, isNull);
+    expect(SaveManager.gameSessionId, isNull);
+    expect(SaveManager.localChapterProgress['C1']?['highestStage'], 12);
+    expect(LifeManager.lifeCount, 4);
+    expect(GoldManager.balance, 213,
+        reason: '13 per-game Gold plus the 200 first-chapter reward');
+
+    await progress.refresh();
+    expect(GoldManager.balance, 213,
+        reason: 'recovered chapter completion must never award twice');
+  });
+
+
+}

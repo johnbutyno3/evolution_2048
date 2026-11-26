@@ -8,10 +8,8 @@ import '../game/services/gold_manager.dart';
 import '../game/services/life_manager.dart';
 import '../game/services/tool_manager.dart';
 import '../game/services/save_manager.dart';
-import '../services/supabase_account_service.dart';
 import '../services/player_progress_service.dart';
 import 'personal_page.dart';
-import 'profile_setup_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -123,19 +121,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _load() async {
     try {
-      final snapshot = await SupabaseAccountBootstrapService.synchronize();
-      if (!mounted) return;
-      if (SupabaseAccountBootstrapService.requiresProfileSetup(snapshot)) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ProfileSetupPage()),
-          (route) => false,
-        );
-        return;
-      }
+      LifeManager.enableGuestMode();
       await _progress.refresh();
     } catch (_) {
-      // Keep the home shell available, but gameplay remains disabled until
-      // the authoritative account snapshot has been loaded successfully.
+      // Local progress remains available; no account or backend is required.
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -149,8 +138,25 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _enter(BuildContext context, int index) async {
     if (_enterInProgress) return;
+    if (!LifeManager.hasUnlimitedLives && LifeManager.lifeCount <= 0) {
+      final l10n = AppLocalizations.of(context)!;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(l10n.freeGamesExhaustedTitle),
+          content: Text(l10n.freeGamesExhaustedMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.cancel),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     // Do not open a chargeable game session using an unverified placeholder
-    // Life balance after a failed backend read.
+    // Free-game allowance after a failed local-storage read.
     if (!LifeManager.hasAuthoritativeState) return;
     if (!_progress.isChapterUnlocked(index)) return;
     _enterInProgress = true;
@@ -161,10 +167,9 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-    // The server can still own an active session even when its local board
-    // snapshot is missing/stale. Never let Home open a different chapter in
-    // that state; Evolution2048Page would otherwise reject the entry only
-    // after navigation and leave the user on a dead game screen.
+    // A local gameId can remain active even when its board snapshot is missing.
+    // Never open a different chapter in that state; the game screen would
+    // otherwise reject entry after navigation.
     final activeChapter = _progress.activeGameChapterIndex;
       if (_progress.activeGameSessionId != null &&
           activeChapter != null &&
@@ -187,10 +192,10 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    // Home must appear immediately after the game closes. Authoritative
-    // progress, Life, and tools are reconciled in the background.
+    // Home appears immediately after the game closes. Local progress,
+    // free-game allowance, and tool inventory are refreshed in the background.
     unawaited(_progress.refresh().catchError((_) => null));
-    unawaited(LifeManager.refreshFromServer().catchError((_) => null));
+    unawaited(LifeManager.initializeLocal().catchError((_) => null));
     unawaited(ToolManager.refreshInventory().catchError((_) => null));
     if (mounted) setState(() {});
     } finally {
@@ -218,11 +223,6 @@ class _HomePageState extends State<HomePage> {
     final l = AppLocalizations.of(context)!;
     final playerName = SaveManager.profileName ?? l.notAvailable;
     final playerId = SaveManager.playerId ?? l.notAvailable;
-    final membership = switch (LifeManager.membership) {
-      'premium' => l.premiumMember,
-      'golden' => l.goldenMember,
-      _ => l.generalMember,
-    };
     return Scaffold(
       body: Stack(
         children: [
@@ -286,15 +286,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            membership,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            LifeManager.isGoldenMember
+                            LifeManager.hasUnlimitedLives
                                 ? '${l.life}: ∞'
                                 : LifeManager.hasAuthoritativeState
                                     ? '${l.life}: ${LifeManager.lifeCount}'
@@ -364,9 +356,9 @@ class _HomePageState extends State<HomePage> {
                                   ),
                               itemCount: HomePage.chapters.length,
                               itemBuilder: (context, index) {
-                                final serverOpen = _progress.isChapterUnlocked(index);
+                                final chapterOpen = _progress.isChapterUnlocked(index);
                                 final unfinishedChapter = SaveManager.unfinishedChapter;
-                                final open = serverOpen &&
+                                final open = chapterOpen &&
                                     (unfinishedChapter == null ||
                                         unfinishedChapter == _chapterKey(index));
 
@@ -382,7 +374,7 @@ class _HomePageState extends State<HomePage> {
                                   onTap: open
                                       ? () => _enter(context, index)
                                       : null,
-                                  hasUnfinishedOtherChapter: serverOpen &&
+                                  hasUnfinishedOtherChapter: chapterOpen &&
                                       unfinishedChapter != null &&
                                       unfinishedChapter != _chapterKey(index),
                                 );

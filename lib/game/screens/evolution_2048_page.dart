@@ -6,7 +6,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../models/creature.dart';
 import '../models/game_tile.dart';
 import '../models/tools/game_tool.dart';
 import '../services/game_engine.dart';
@@ -16,8 +15,10 @@ import '../services/haptic_service.dart';
 import '../../screens/tools_page.dart';
 import '../../services/player_progress_service.dart';
 import '../services/life_manager.dart';
+import '../services/gold_manager.dart';
 import '../services/tool_manager.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/creature_localization.dart';
 
 class Evolution2048Page extends StatefulWidget {
   const Evolution2048Page({super.key, this.initialChapter});
@@ -45,7 +46,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   String? _evolutionCreatureName;
   Timer? _uiRefreshTimer;
   Future<bool>? _gameSessionFuture;
-  Future<bool>? _completionVerificationFuture;
+  Future<bool>? _completionSettlementFuture;
   bool _completionNextInProgress = false;
   int _gameSessionGeneration = 0;
   bool _restartInProgress = false;
@@ -171,17 +172,17 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final progress = PlayerProgressService.instance;
       if (!mounted || generation != _gameSessionGeneration) return false;
 
-      // The server owns the active-session pointer. Hydrate it before deciding
+      // The local save owns the active-game pointer. Load it before deciding
       // whether this entry is a resume or a genuinely new game. The board
       // itself remains local-first; this refresh only decides which existing
       // session must be restored.
-      if (!progress.loadedFromServer) {
+      if (!progress.loadedLocally) {
         await progress.refresh();
         if (!mounted || generation != _gameSessionGeneration) return false;
-        // Without an authoritative session pointer we must not guess that
+        // Without a successfully loaded local session pointer we must not guess that
         // this is a new game. Guessing here can consume a Life and discard an
-        // unfinished local board during a transient Supabase/network failure.
-        if (!progress.loadedFromServer) return false;
+        // unfinished local board during a temporary local storage failure.
+        if (!progress.loadedLocally) return false;
       }
 
       final activeSessionId = progress.activeGameSessionId;
@@ -196,7 +197,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         );
 
         // Terminal boards are not resumable. Keep their replay until the
-        // matching server settlement is confirmed, then allow a fresh game.
+        // matching local settlement is confirmed, then allow a fresh game.
         final savedSessionId = saved?['gameSessionId'];
         final savedReplay = saved?['replayLog'];
         if (saved != null &&
@@ -219,6 +220,21 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             saved['gameOver'] == true &&
             savedSessionId == activeSessionId &&
             savedReplay is Map) {
+          await GoldManager.settleGame(
+            gameId: activeSessionId,
+            effectiveScore: saved['score'] is num
+                ? (saved['score'] as num).toInt().clamp(0, 1 << 30).toInt()
+                : 0,
+            newSpeciesCount: saved['speciesMergedThisGame'] is List
+                ? (saved['speciesMergedThisGame'] as List)
+                    .whereType<num>()
+                    .toSet()
+                    .length
+                : 0,
+            highestValue: saved['highestEvolutionValue'] is num
+                ? (saved['highestEvolutionValue'] as num).toInt()
+                : 0,
+          );
           final settled = await progress.abandonGameSession(
             sessionId: activeSessionId,
             replayLog: Map<String, dynamic>.from(savedReplay),
@@ -255,7 +271,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             _resumeGameplay();
             _focusNode.requestFocus();
 
-            // Resume validation is authoritative but must never delay the
+            // Local resume validation must never delay the
             // already-restored local board.
             unawaited(
               progress.resumeGameSession(_chapterNumber - 1).then((_) {
@@ -294,7 +310,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
               cachedPausedSaved != null &&
               (cachedPausedSaved['gameOver'] == true ||
                   cachedPausedSaved['chapterComplete'] == true))) {
-        // No server-owned ACTIVE session means this local board is no longer
+        // No active local game session means this local board is no longer
         // resumable. This also discards an uncommitted candidate left by a
         // next-chapter start that was interrupted before its RPC committed.
         await SaveManager.clearChapter(_engine.chapter.name);
@@ -336,19 +352,19 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return false;
       }
 
-      // With no active server session, a zero-life account cannot be shown a
-      // fabricated new board. Only a real session owns a Life and a playable
-      // board.
-      if (!LifeManager.isGoldenMember && LifeManager.lifeCount <= 0) {
+      // With no active local game session, a player with no remaining free games cannot be shown a
+      // fabricated new board. Only a persisted gameId owns a free-game debit and a playable board.
+      if (!LifeManager.hasUnlimitedLives &&
+          LifeManager.lifeCount <= 0) {
         return false;
       }
 
-      // New game: there is no active server session, so the previous
+      // New game: there is no active local game session, so the previous
       // session-use overlay must not leak into this new board.
       ToolManager.clearSessionUsage();
 
-      // New game: prepare and persist the exact board locally before the
-      // background Supabase request. This is a local write, not a network wait.
+      // New game: create the gameId and persist the exact board locally before
+      // enabling gameplay.
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
@@ -377,6 +393,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       }
 
       final startedFuture = progress.waitForPendingStartSession();
+      final newGameId = progress.activeGameSessionId;
+      if (newGameId != null && newReplay is Map) {
+        unawaited(CreatureCollectionService.discover(
+          newEngine.chapter.name,
+          initialTiles.whereType<int>(),
+          gameId: newGameId,
+          replayLog: Map<String, dynamic>.from(newReplay),
+        ));
+      }
       _engine.stopGameTimer();
       _engine = newEngine;
       newEngine.startGameTimer();
@@ -387,11 +412,11 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         startedFuture.then((started) async {
           if (!mounted || generation != _gameSessionGeneration) return;
           if (!started) {
-            // The server authoritatively rejected the start. The refresh has
+            // The local start was rejected. The rollback has
             // restored the previous session binding, so the candidate board
             // can be discarded without overwriting the old snapshot.
             newEngine.stopGameTimer(persist: false);
-            await LifeManager.refreshFromServer().catchError((_) {});
+            await LifeManager.initializeLocal().catchError((_) {});
             ToolManager.restoreSessionUsageFromReplayLog(
               previousEngine.createSaveData()['replayLog'],
             );
@@ -404,16 +429,15 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             return;
           }
 
-          // The server has confirmed this session. The candidate snapshot was
-          // already persisted before the request; write the current timer and
-          // latest board state with the now-authoritative binding.
+          // The local game session has been created. The candidate snapshot was
+          // already persisted; write the current timer and
+          // latest board state with the local gameId binding.
           await newEngine.flushLocalSave();
           await SaveManager.save(newEngine.createSaveData());
           unawaited(_refreshMountedToolInventory(generation));
         }).catchError((_) {
-          // Unknown network outcome: keep the locally persisted board. If the
-          // server committed, bootstrap will match it by game ID; if not, the
-          // account refresh will reject this orphaned local session.
+          // Unexpected local-save outcome: keep the locally persisted board. Startup
+          // will recover the gameId from the committed local snapshot.
         }),
       );
       return true;
@@ -431,7 +455,6 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   void _startUiRefreshTimer() {
     _uiRefreshTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
-      LifeManager.tickRegeneration();
       if (mounted) setState(() {});
     });
   }
@@ -471,14 +494,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!changed) return;
     final newEvolutionValues = _engine.newEvolutionValuesThisMove;
     final mergedValues = _engine.board.lastMergedValues;
-    if (mergedValues.isNotEmpty) {
+    final discoveredValues = <int>{
+      ...mergedValues,
+      ..._engine.board.tiles.whereType<GameTile>().map((tile) => tile.value),
+    };
+    if (discoveredValues.isNotEmpty) {
       final saveData = _engine.createSaveData();
       final replayLog = saveData['replayLog'];
       final gameId = PlayerProgressService.instance.activeGameSessionId;
       if (gameId != null && replayLog is Map) {
         unawaited(CreatureCollectionService.discover(
           _engine.chapter.name,
-          mergedValues,
+          discoveredValues,
           gameId: gameId,
           replayLog: Map<String, dynamic>.from(replayLog),
         ));
@@ -503,11 +530,16 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _showChapterComplete();
       return;
     }
-    // Start the server verification immediately. The 280ms visual animation
-    // now runs in parallel with Supabase validation instead of after it.
-    _completionVerificationFuture = progress.completeChapter(
-      chapterIndex: _chapterNumber - 1,
+    // Start local chapter settlement immediately. The 280ms visual animation
+    // runs while the local Gold and progress records are saved.
+    _completionSettlementFuture = _settleChapterCompletion(
+      progress: progress,
+      saveData: saveData,
       replayLog: Map<String, dynamic>.from(replayLog),
+      chapterIndex: _chapterNumber - 1,
+      effectiveScore: _engine.score,
+      newSpeciesCount: _engine.speciesMergedThisGame.length,
+      highestValue: _engine.highestValue,
     );
     setState(() {
       _completionAnimationPlaying = true;
@@ -535,10 +567,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
   }
 
   void _showEvolutionNotice(int value) { if (!mounted) return; setState(() { _evolutionValue = value; _evolutionCreatureName = _creatureNameForValue(value); }); }
-  String _creatureNameForValue(int value) {
-    final creatures = switch (_engine.chapter) { GameChapter.ocean => Creature.chapter1Ocean, GameChapter.land => Creature.chapter2Land, GameChapter.sky => Creature.chapter3Sky, GameChapter.history => Creature.chapter4History, GameChapter.tech => Creature.chapter5Tech, GameChapter.universe => Creature.chapter6Universe };
-    for (final creature in creatures) { if (creature.value == value) return creature.name; } return '';
-  }
+  String _creatureNameForValue(int value) =>
+      localizedCreatureName(AppLocalizations.of(context)!, _chapterNumber, value);
 
   Future<bool> _reset() async {
     if (!mounted || _completionAnimationPlaying || _restartInProgress) {
@@ -555,9 +585,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         ? saveData['gameSessionId'] as String
         : null;
 
-    // The Life already charged for this active session remains reserved.
-    // Restart settles its tool usage and replaces the board without a second
-    // Life debit.
+    // Restart creates a genuinely new gameId, so FREE consumes one more
+    // permanent new-game allowance. The old attempt is abandoned without a
+    // completion reward or a refund.
 
     _restartInProgress = true;
     _gameSessionGeneration++;
@@ -619,10 +649,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         }
 
         if (result == RestartGameSessionResult.pending) {
-          // The response and the account snapshot could not establish whether
-          // the transaction committed. Keep the replacement board frozen;
-          // the next Home/bootstrap refresh will select the matching A/B slot
-          // from the server's active-session ID.
+          // The local restart result could not be confirmed. Keep the replacement board
+          // frozen; the next Home startup will recover the matching local A/B slot.
           newEngine.stopGameTimer();
           _stopUiRefreshTimer();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -634,10 +662,10 @@ class _Evolution2048PageState extends State<Evolution2048Page>
           return;
         }
 
-        // The server confirms the previous session is still active. Its
+        // The local session is committed the previous session is still active. Its
         // matching local snapshot has already been selected by refresh().
         newEngine.stopGameTimer(persist: false);
-        await LifeManager.refreshFromServer().catchError((_) {});
+        await LifeManager.initializeLocal().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           oldEngine.createSaveData()['replayLog'],
         );
@@ -672,8 +700,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       );
       if (!mounted) return;
       if (restartResult == RestartGameSessionResult.pending) {
-        // Do not abandon or rewrite either board while the server result is
-        // unknown. Home bootstrap will select the slot matching server state.
+        // Do not abandon or rewrite either board while the local save result is
+        // unknown. Home startup will select the most recent committed local slot.
         _engine.pauseGameTimer();
         _stopUiRefreshTimer();
         _allowSystemPop = true;
@@ -697,7 +725,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     _stopUiRefreshTimer();
 
     if (!wasChapterComplete) {
-      // BACK saves the exact board, then pauses the server session. The Life
+      // BACK saves the exact board, then preserves the local game session. The Life
       // stays reserved by this unfinished board; it is not refunded.
       await _engine.flushLocalSave();
       await SaveManager.save(saveData);
@@ -724,8 +752,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return;
     }
 
-    // Cancel leaves the current board and Life untouched. Confirming Restart
-    // replaces the active session without charging Life a second time.
+    // Cancel leaves the current board and allowance untouched. Confirming
+    // Restart creates a new gameId and consumes one additional FREE game.
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -760,18 +788,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
 
   Future<void> _startTool(String mode) async {
     // Gameplay is local-first. A tool must not become unclickable merely
-    // because the Supabase session response is still in flight.
+    // because the local session save is still in flight.
     if (_restartInProgress || !_engine.hasTools || _engine.gameOver || _engine.chapterComplete || _gameOverDialogShowing || _chapterCompleteShowing || _completionAnimationPlaying) return;
     final toolType = switch (mode) { 'revive' => GameToolType.revive, 'rewind' => GameToolType.timeRewind, 'swap' => GameToolType.positionSwap, 'duplicate' => GameToolType.duplicate, _ => null };
     if (toolType == null) return; final toolState = _engine.toolManager.getTool(toolType); if (toolState == null) return;
-    if (!toolState.canUse) { if (!mounted) return; if (mode == 'rewind') { await _showToolUnavailable('UNDO'); return; } Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) async { await ToolManager.refreshInventory(); if (!mounted) return; _engine.toolManager.refreshFromSavedProgress(); setState(() {}); }); return; }
-    if (mode == 'rewind') { if (!_engine.canUseTimeRewind) { await _showToolUnavailable('UNDO'); return; } if (_engine.useTimeRewind()) setState(() {}); _focusNode.requestFocus(); return; }
+    if (!toolState.canUse) { if (!mounted) return; if (mode == 'rewind') { await _showToolUnavailable(_toolLabel(GameToolType.timeRewind)); return; } Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())).then((_) async { await ToolManager.refreshInventory(); if (!mounted) return; _engine.toolManager.refreshFromSavedProgress(); setState(() {}); }); return; }
+    if (mode == 'rewind') { if (!_engine.canUseTimeRewind) { await _showToolUnavailable(_toolLabel(GameToolType.timeRewind)); return; } if (_engine.useTimeRewind()) setState(() {}); _focusNode.requestFocus(); return; }
     setState(() { _toolMode = mode; _firstSwapIndex = null; });
   }
   Future<void> _showToolUnavailable(String toolName) async {
     if (!mounted) return; await showModalBottomSheet<void>(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(leading: const Icon(Icons.ondemand_video_outlined), title: Text('取得 $toolName'), subtitle: const Text('可觀看 Rewarded Ad 取得額外使用次數'), onTap: () => Navigator.pop(context)),
-      ListTile(leading: const Icon(Icons.store_outlined), title: const Text('前往商城'), onTap: () { Navigator.pop(context); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())); }),
+      ListTile(leading: const Icon(Icons.ondemand_video_outlined), title: Text(AppLocalizations.of(context)!.getTool(toolName)), subtitle: Text(AppLocalizations.of(context)!.rewardedAdToolDescription), onTap: () => Navigator.pop(context)),
+      ListTile(leading: const Icon(Icons.store_outlined), title: Text(AppLocalizations.of(context)!.goToShop), onTap: () { Navigator.pop(context); Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ToolsPage())); }),
     ])));
   }
   Future<void> _selectToolTile(int index) async {
@@ -790,9 +818,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     await AudioManager.instance.playSfx(GameSfx.gameOver);
     if (!mounted) return;
 
-    // GAME OVER returns directly to Home. It does not consume another Life
-    // here. The ended session is cleared; the next Home -> Game entry creates
-    // a genuinely new session and consumes exactly one Life.
+    // Show a Game Over result before returning Home. Game Over does not
+    // consume another FREE start; only the next new gameId uses one.
     final sessionId = PlayerProgressService.instance.activeGameSessionId;
     final saveData = _engine.createSaveData();
     final replayLog = saveData['replayLog'];
@@ -801,10 +828,18 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         : null;
     final chapter = _engine.chapter.name;
 
-    // Keep the terminal board and replay log until the server confirms
-    // settlement. If the network is unavailable, Home can retry settlement
-    // from this durable snapshot instead of orphaning an ACTIVE session.
+    // Persist the terminal board first. If the process stops before Gold is
+    // settled, startup can see Game Over and safely complete the local ledger.
     await SaveManager.save(saveData);
+    var earnedGold = 0;
+    if (sessionId != null) {
+      earnedGold = await GoldManager.settleGame(
+        gameId: sessionId,
+        effectiveScore: _engine.score,
+        newSpeciesCount: _engine.speciesMergedThisGame.length,
+        highestValue: _engine.highestValue,
+      );
+    }
     _gameSessionGeneration++;
     final settled = sessionId == null
         ? PlayerProgressService.instance.activeGameSessionId == null
@@ -817,6 +852,34 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       await SaveManager.clearChapter(chapter);
     }
 
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.gameOverTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.noMoreMoves),
+            const SizedBox(height: 12),
+            Text('${l10n.scoreLabel}: ${_engine.score}'),
+            const SizedBox(height: 4),
+            Text('+ $earnedGold ${l10n.gold}'),
+            const SizedBox(height: 4),
+            Text('${l10n.goldBalanceTitle}: ${GoldManager.balance}'),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.home),
+          ),
+        ],
+      ),
+    );
     _gameOverDialogShowing = false;
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -827,8 +890,42 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final backgroundIndex = switch (_engine.chapter) { GameChapter.ocean => stage >= 10 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0, GameChapter.land => stage >= 12 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0, GameChapter.sky => stage >= 13 ? 3 : stage >= 11 ? 2 : stage >= 5 ? 1 : 0, GameChapter.history => stage >= 14 ? 3 : stage >= 12 ? 2 : stage >= 7 ? 1 : 0, GameChapter.tech => stage >= 13 ? 3 : stage >= 9 ? 2 : stage >= 5 ? 1 : 0, GameChapter.universe => stage >= 13 ? 3 : stage >= 7 ? 2 : stage >= 4 ? 1 : 0 };
     return backgrounds[backgroundIndex];
   }
-  String get _chapterTitle => switch (_engine.chapter) { GameChapter.ocean => 'Ocean Chapter', GameChapter.land => 'Land Chapter', GameChapter.sky => 'Sky Chapter', GameChapter.history => 'History Chapter', GameChapter.tech => 'Technology Chapter', GameChapter.universe => 'Universe Chapter' };
+  String get _chapterTitle {
+    final l10n = AppLocalizations.of(context)!;
+    final name = switch (_engine.chapter) {
+      GameChapter.ocean => l10n.chapterOcean,
+      GameChapter.land => l10n.chapterLand,
+      GameChapter.sky => l10n.chapterSky,
+      GameChapter.history => l10n.chapterHistory,
+      GameChapter.tech => l10n.chapterTechnology,
+      GameChapter.universe => l10n.chapterSpace,
+    };
+    return l10n.chapterLabel(name, _chapterNumber);
+  }
   int get _chapterNumber => switch (_engine.chapter) { GameChapter.ocean => 1, GameChapter.land => 2, GameChapter.sky => 3, GameChapter.history => 4, GameChapter.tech => 5, GameChapter.universe => 6 };
+
+  /// Persist the terminal board before crediting any Gold or chapter
+  /// reward. If the process is killed during settlement, startup can recover
+  /// the terminal snapshot and safely retry the idempotent local ledger entry.
+  Future<bool> _settleChapterCompletion({
+    required PlayerProgressService progress,
+    required Map<String, dynamic> saveData,
+    required Map<String, dynamic> replayLog,
+    required int chapterIndex,
+    required int effectiveScore,
+    required int newSpeciesCount,
+    required int highestValue,
+  }) async {
+    await _engine.flushLocalSave();
+    await SaveManager.save(saveData);
+    return progress.completeChapter(
+      chapterIndex: chapterIndex,
+      replayLog: replayLog,
+      effectiveScore: effectiveScore,
+      newSpeciesCount: newSpeciesCount,
+      highestValue: highestValue,
+    );
+  }
 
   Future<void> _showChapterComplete() async {
     if (_chapterCompleteShowing || !mounted) return;
@@ -838,40 +935,45 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final progress = PlayerProgressService.instance;
     final completedChapter = _engine.chapter;
 
-    // The completion page is a local UI result. Server verification continues
-    // in the background and only gates the Next Chapter action.
+    // The completion page is a local UI result. Local chapter settlement runs
+    // in the background and gates the Next Chapter action.
     final saveData = _engine.createSaveData();
     final replayLog = saveData['replayLog'];
     final completionReplay = replayLog is Map
         ? Map<String, dynamic>.from(replayLog)
         : null;
 
-    Future<bool> verifyCompletion() {
-      final pending = _completionVerificationFuture;
+    Future<bool> settleCompletion() {
+      final pending = _completionSettlementFuture;
       if (pending != null) return pending;
       if (completionReplay == null) return Future<bool>.value(false);
-      final future = progress.completeChapter(
-        chapterIndex: _chapterNumber - 1,
+      final future = _settleChapterCompletion(
+        progress: progress,
+        saveData: saveData,
         replayLog: completionReplay,
+        chapterIndex: _chapterNumber - 1,
+        effectiveScore: _engine.score,
+        newSpeciesCount: _engine.speciesMergedThisGame.length,
+        highestValue: _engine.highestValue,
       );
-      _completionVerificationFuture = future;
+      _completionSettlementFuture = future;
       unawaited(future.then<void>(
         (_) {
-          if (identical(_completionVerificationFuture, future)) {
-            _completionVerificationFuture = null;
+          if (identical(_completionSettlementFuture, future)) {
+            _completionSettlementFuture = null;
           }
         },
         onError: (Object _) {
-          if (identical(_completionVerificationFuture, future)) {
-            _completionVerificationFuture = null;
+          if (identical(_completionSettlementFuture, future)) {
+            _completionSettlementFuture = null;
           }
         },
       ));
       return future;
     }
 
-    // Start verification while the local completion page is displayed.
-    unawaited(verifyCompletion());
+    // Start local settlement while the completion page is displayed.
+    unawaited(settleCompletion());
 
     await AudioManager.instance.stopMusic();
     unawaited(AudioManager.instance.playSfx(GameSfx.chapterUnlock));
@@ -888,22 +990,20 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             if (_completionNextInProgress) return;
             _completionNextInProgress = true;
             try {
-              final accepted = await verifyCompletion();
+              final accepted = await settleCompletion();
               if (!accepted) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Chapter verification is still unavailable. Please try again.',
-                      ),
+                    SnackBar(
+                      content: Text(AppLocalizations.of(context)!.chapterVerifyPending),
                     ),
                   );
                 }
                 return;
               }
 
-              // The server has now settled the completed session and any
-              // tool deductions/rewards. Drop the old session overlay before
+              // The local wallet and chapter progress have now settled the completed game
+              // and its rewards. Drop the old session overlay before
               // leaving the completion page.
               ToolManager.clearSessionUsage();
 
@@ -920,7 +1020,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     );
 
     if (!mounted) return;
-    _completionVerificationFuture = null;
+    _completionSettlementFuture = null;
     _completionAnimationPlaying = false;
     _completionAnimationIndex = null;
     _completionAnimationImagePath = null;
@@ -962,8 +1062,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     if (!LifeManager.optimisticConsumeLife()) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to start the next chapter. Please check your Life.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.nextChapterStartFailed),
           ),
         );
       }
@@ -1027,8 +1127,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         }
 
         if (result == RestartGameSessionResult.pending) {
-          // Keep the candidate board frozen until a later authoritative
-          // refresh can determine which session actually committed.
+          // Keep the candidate board frozen until a later local
+          // refresh determines which game session was committed.
           newEngine.stopGameTimer();
           _stopUiRefreshTimer();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1041,7 +1141,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         }
 
         newEngine.stopGameTimer(persist: false);
-        await LifeManager.refreshFromServer().catchError((_) {});
+        await LifeManager.initializeLocal().catchError((_) {});
         ToolManager.restoreSessionUsageFromReplayLog(
           previousEngine.createSaveData()['replayLog'],
         );
@@ -1053,38 +1153,56 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         _focusNode.requestFocus();
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to start the next chapter. Please try again.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.nextChapterStartRetry),
           ),
         );
       }).catchError((_) async {
         if (!mounted || generation != _gameSessionGeneration) return;
-        // Unknown outcome: preserve both snapshots and let account bootstrap
-        // choose by the authoritative server session ID.
+        // Unknown local-save outcome: preserve both snapshots and let local startup
+        // choose by the saved gameId.
         newEngine.stopGameTimer(persist: false);
         _stopUiRefreshTimer();
         setState(() {});
       }),
     );
   }
-  String _toolLabel(GameToolType type) => switch (type) { GameToolType.revive => 'REMOVE', GameToolType.timeRewind => 'UNDO', GameToolType.positionSwap => 'SWAP', GameToolType.duplicate => 'DUPLICATE' };
+  String _toolLabel(GameToolType type) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (type) {
+      GameToolType.revive => l10n.removeToolLabel,
+      GameToolType.timeRewind => l10n.undoToolLabel,
+      GameToolType.positionSwap => l10n.swapToolLabel,
+      GameToolType.duplicate => l10n.duplicateToolLabel,
+    };
+  }
   String _toolModeForType(GameToolType type) => switch (type) { GameToolType.revive => 'revive', GameToolType.timeRewind => 'rewind', GameToolType.positionSwap => 'swap', GameToolType.duplicate => 'duplicate' };
   String _toolImagePath(String mode, {required bool pressed}) => switch (mode) { 'rewind' => pressed ? 'assets/tools/tool_undo_pressed.png' : 'assets/tools/tool_undo.png', 'swap' => pressed ? 'assets/tools/tool_swap_pressed.png' : 'assets/tools/tool_swap.png', 'revive' => pressed ? 'assets/tools/tool_remove_pressed.png' : 'assets/tools/tool_remove.png', 'duplicate' => pressed ? 'assets/tools/tool_duplicate_pressed.png' : 'assets/tools/tool_duplicate.png', _ => '' };
   Widget _buildToolButton(GameToolType type) {
     final mode = _toolModeForType(type); final matching = _engine.toolManager.tools.where((state) => state.tool.type == type); final state = matching.isEmpty ? null : matching.first; final unlocked = state != null; final enabled = unlocked && state.canUse && switch (type) { GameToolType.revive => _engine.canUseRevive, GameToolType.timeRewind => _engine.canUseTimeRewind, GameToolType.positionSwap => _engine.canUsePositionSwap, GameToolType.duplicate => _engine.canUseDuplicate };
     final selected = _toolMode == mode; final pressed = _pressedToolMode == mode; final opacity = selected ? 0.45 : (unlocked ? 1.0 : 0.35); final canOpenShop = unlocked && !state.canUse; final canTap = selected || enabled || canOpenShop || mode == 'rewind';
-    return GestureDetector(behavior: HitTestBehavior.opaque, onTapDown: canTap ? (_) { if (mounted) setState(() => _pressedToolMode = mode); } : null, onTapUp: canTap ? (_) { if (!mounted) return; setState(() => _pressedToolMode = null); if (selected) { unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel)); setState(() { _toolMode = null; _firstSwapIndex = null; _pressedToolMode = null; }); _focusNode.requestFocus(); } else { unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect)); unawaited(_startTool(mode)); } } : null, onTapCancel: canTap ? () { if (mounted) setState(() => _pressedToolMode = null); } : null, child: Opacity(opacity: opacity, child: SizedBox(height: 112, child: Stack(alignment: Alignment.center, children: [Column(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 76, height: 72, child: Image.asset(_toolImagePath(mode, pressed: pressed), fit: BoxFit.contain)), const SizedBox(height: 1), Text(selected ? 'CANCEL' : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)), const SizedBox(height: 1), Text(state == null ? '?' : (LifeManager.isGoldenMember && type == GameToolType.timeRewind ? '∞' : '${state.usesRemaining}'), style: const TextStyle(fontSize: 8))]), if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)), if (selected) const Positioned(top: 2, child: Text('CANCEL', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold))) ]))));
+    return GestureDetector(behavior: HitTestBehavior.opaque, onTapDown: canTap ? (_) { if (mounted) setState(() => _pressedToolMode = mode); } : null, onTapUp: canTap ? (_) { if (!mounted) return; setState(() => _pressedToolMode = null); if (selected) { unawaited(AudioManager.instance.playSfx(GameSfx.buttonCancel)); setState(() { _toolMode = null; _firstSwapIndex = null; _pressedToolMode = null; }); _focusNode.requestFocus(); } else { unawaited(AudioManager.instance.playSfx(GameSfx.toolSelect)); unawaited(_startTool(mode)); } } : null, onTapCancel: canTap ? () { if (mounted) setState(() => _pressedToolMode = null); } : null, child: Opacity(opacity: opacity, child: SizedBox(height: 112, child: Stack(alignment: Alignment.center, children: [Column(mainAxisSize: MainAxisSize.min, children: [SizedBox(width: 76, height: 72, child: Image.asset(_toolImagePath(mode, pressed: pressed), fit: BoxFit.contain)), const SizedBox(height: 1), Text(selected ? AppLocalizations.of(context)!.cancelTool : _toolLabel(type), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)), const SizedBox(height: 1), Text(state == null ? '?' : '${state.usesRemaining}', style: const TextStyle(fontSize: 8))]), if (!unlocked) const Positioned(top: 4, child: Icon(Icons.lock, size: 25)), if (selected) Positioned(top: 2, child: Text(AppLocalizations.of(context)!.cancelTool, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold))) ]))));
   }
   Widget _buildEvolutionNotice() { final value = _evolutionValue ?? _engine.highestEvolutionValue; final name = _evolutionCreatureName ?? _creatureNameForValue(value); if (name.isEmpty) return const SizedBox.shrink(); return Container(width: double.infinity, margin: const EdgeInsets.only(bottom: 10), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.black.withValues(alpha: 0.68), border: Border.all(color: Colors.white.withValues(alpha: 0.45))), child: Text(name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Colors.white))); }
-  String _formatDuration(Duration duration) { final totalSeconds = duration.inSeconds; final minutes = totalSeconds ~/ 60; final seconds = totalSeconds % 60; return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}'; }
-
+  
   @override
   Widget build(BuildContext context) {
-    final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount; final lifeRemaining = LifeManager.regenerationRemaining; final lifeCountdown = lifeRemaining == null ? '' : ' (${_formatDuration(lifeRemaining)})';
+    final background = _backgroundForHighest(_engine.highestValue); final l10n = AppLocalizations.of(context)!; final lifeCount = LifeManager.lifeCount;
     return PopScope<void>(canPop: _allowSystemPop, onPopInvokedWithResult: (didPop, result) { if (didPop || _allowSystemPop) return; unawaited(_handleSystemBack()); }, child: Scaffold(appBar: AppBar(title: Text(_chapterTitle), actions: []), body: SafeArea(child: Focus(autofocus: true, focusNode: _focusNode, onKeyEvent: _handleKey, child: GestureDetector(behavior: HitTestBehavior.opaque, onPanStart: _handleDragStart, onPanUpdate: _handleDragUpdate, onPanEnd: _handleDragEnd, child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: Padding(padding: const EdgeInsets.all(16), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Score ${_engine.score}', style: Theme.of(context).textTheme.titleMedium), Text('Best ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium)]), const SizedBox(height: 12),
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}$lifeCountdown', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _showResetMenu(); }, tooltip: AppLocalizations.of(context)!.restart, visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20))])]), const SizedBox(height: 12),
-      Text(_toolMode == null ? 'Highest: ${_engine.highestValue} / ${_engine.targetValue}' : 'Select a tile for ${_toolMode == 'swap' ? 'Swap' : _toolMode == 'duplicate' ? 'Duplicate' : 'REMOVE'}', style: Theme.of(context).textTheme.bodyLarge), const SizedBox(height: 10), _buildEvolutionNotice(),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${AppLocalizations.of(context)!.scoreLabel} ${_engine.score}', style: Theme.of(context).textTheme.titleMedium), Text('${AppLocalizations.of(context)!.best} ${_engine.bestScore}', style: Theme.of(context).textTheme.titleMedium)]), const SizedBox(height: 12),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('${l10n.life} ${lifeCount < 0 ? '∞' : lifeCount}', style: Theme.of(context).textTheme.titleMedium), Row(mainAxisSize: MainAxisSize.min, children: [Text('${l10n.gameTime} ${_engine.formattedGameTime}', style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: _completionAnimationPlaying ? null : () { unawaited(AudioManager.instance.playSfx(GameSfx.buttonClick)); _showResetMenu(); }, tooltip: AppLocalizations.of(context)!.restart, visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), icon: const Icon(Icons.refresh, size: 20))])]), const SizedBox(height: 12),
+      Text(
+                _toolMode == null
+                    ? l10n.highestProgress(_engine.highestValue, _engine.targetValue)
+                    : l10n.selectTileForTool(
+                        switch (_toolMode) {
+                          'swap' => l10n.swapToolLabel,
+                          'duplicate' => l10n.duplicateToolLabel,
+                          _ => l10n.removeToolLabel,
+                        },
+                      ),
+                style: Theme.of(context).textTheme.bodyLarge,
+              ), const SizedBox(height: 10), _buildEvolutionNotice(),
       AspectRatio(aspectRatio: 1, child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Stack(fit: StackFit.expand, children: [Image.asset(background, fit: BoxFit.cover), Container(color: Colors.black.withValues(alpha: 0.18)), GridView.builder(physics: const NeverScrollableScrollPhysics(), padding: const EdgeInsets.all(8), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 6, mainAxisSpacing: 6), itemCount: 16, itemBuilder: (context, index) { final tile = _engine.board.tiles[index]; final selected = _firstSwapIndex == index; final cell = Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: selected ? Border.all(width: 3, color: Colors.yellow) : null, color: tile == null ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.82)), padding: EdgeInsets.all(_engine.chapter == GameChapter.universe ? 2 : 6), child: tile == null ? const SizedBox.shrink() : Image.asset(tile.creature.imagePath, fit: BoxFit.contain)); return _toolMode == null ? cell : GestureDetector(onTap: () => unawaited(_selectToolTile(index)), child: cell); }), _buildCompletionAnimation()]))), const SizedBox(height: 12), Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Row(children: [Expanded(child: _buildToolButton(GameToolType.timeRewind)), Expanded(child: _buildToolButton(GameToolType.positionSwap)), Expanded(child: _buildToolButton(GameToolType.revive)), Expanded(child: _buildToolButton(GameToolType.duplicate))]))
     ])))))))));
   }
@@ -1105,7 +1223,17 @@ class _ChapterCompletePage extends StatelessWidget {
   final FutureOr<void> Function() onNextChapter;
   final VoidCallback onHome;
   String get _background => switch (chapter) { GameChapter.ocean => 'assets/backgrounds/chapter_01_ocean/ocean_chapter_complete.jpg', GameChapter.land => 'assets/backgrounds/chapter_02_land/land_chapter_complete.jpg', GameChapter.sky => 'assets/backgrounds/chapter_03_sky/sky_chapter_complete.jpg', GameChapter.history => 'assets/backgrounds/chapter_04_history/chapter_04_history_complete.png', GameChapter.tech => 'assets/backgrounds/chapter_05_tech/tech_complete.png', GameChapter.universe => 'assets/backgrounds/chapter_06_universe/universe_chapter_complete.jpg' };
-  String get _title => switch (chapter) { GameChapter.ocean => 'Ocean Restored', GameChapter.land => 'Land Restored', GameChapter.sky => 'Sky Restored', GameChapter.history => 'History Restored', GameChapter.tech => 'Technology Restored', GameChapter.universe => 'Universe Restored' };
+  String _title(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (chapter) {
+      GameChapter.ocean => l10n.oceanRestored,
+      GameChapter.land => l10n.landRestored,
+      GameChapter.sky => l10n.skyRestored,
+      GameChapter.history => l10n.historyRestored,
+      GameChapter.tech => l10n.technologyRestored,
+      GameChapter.universe => l10n.universeRestored,
+    };
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1121,7 +1249,7 @@ class _ChapterCompletePage extends StatelessWidget {
               children: [
                 const Spacer(),
                 Text(
-                  _title,
+                  _title(context),
                   style: const TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
@@ -1131,7 +1259,7 @@ class _ChapterCompletePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Score $score    Highest $highestValue',
+                  AppLocalizations.of(context)!.chapterScoreSummary(score, highestValue),
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                 ),
                 const Spacer(),
@@ -1150,7 +1278,7 @@ class _ChapterCompletePage extends StatelessWidget {
                               );
                               unawaited(Future<void>.sync(onNextChapter));
                             },
-                            child: const Text('Next Chapter'),
+                            child: Text(AppLocalizations.of(context)!.nextChapter),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -1163,7 +1291,7 @@ class _ChapterCompletePage extends StatelessWidget {
                               );
                               onHome();
                             },
-                            child: const Text('Home'),
+                            child: Text(AppLocalizations.of(context)!.home),
                           ),
                         ),
                       ],

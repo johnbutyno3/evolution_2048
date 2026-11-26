@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../game/models/tools/game_tool.dart';
-import '../game/services/life_manager.dart';
 import '../game/services/gold_manager.dart';
 import '../game/services/tool_manager.dart';
-import '../services/shop_config_service.dart';
+import '../l10n/app_localizations.dart';
 
 class ToolsPage extends StatefulWidget {
   const ToolsPage({super.key});
@@ -14,21 +13,19 @@ class ToolsPage extends StatefulWidget {
 }
 
 class _ToolsPageState extends State<ToolsPage> {
-  late Future<Map<String, dynamic>> _configFuture;
+  late Future<void> _loadFuture;
 
   @override
   void initState() {
     super.initState();
-    _configFuture = _load();
+    _loadFuture = _load();
   }
 
-  Future<Map<String, dynamic>> _load() async {
-    final results = await Future.wait([
+  Future<void> _load() async {
+    await Future.wait([
       ToolManager.refreshInventory(),
       GoldManager.refresh(),
-      ShopConfigService.load(),
     ]);
-    return results[2] as Map<String, dynamic>;
   }
 
   Future<void> _buy({
@@ -37,14 +34,19 @@ class _ToolsPageState extends State<ToolsPage> {
     required int amount,
   }) async {
     if (!await ToolManager.purchase(type, amount)) {
-      _message(ToolManager.lastPurchaseError ?? 'Tool purchase failed.');
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      final message = ToolManager.lastPurchaseErrorCode == 'INSUFFICIENT_GOLD'
+          ? l10n.insufficientGold
+          : l10n.purchaseFailed;
+      _message(message);
       return;
     }
 
     if (!mounted) return;
 
     setState(() {});
-    _message('Purchased $amount $name use${amount == 1 ? '' : 's'}.');
+    _message(AppLocalizations.of(context)!.purchaseSuccess(amount, name));
   }
 
   void _message(String text) {
@@ -56,46 +58,37 @@ class _ToolsPageState extends State<ToolsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tools')),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _configFuture,
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.tools)),
+      body: FutureBuilder<void>(
+        future: _loadFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final config = snapshot.data ?? ShopConfigService.defaults;
-
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              _balanceTile(),
               _tool(
-                config,
                 GameToolType.timeRewind,
-                'UNDO',
+                AppLocalizations.of(context)!.undoToolLabel,
                 Icons.undo,
-                'undo',
               ),
               _tool(
-                config,
                 GameToolType.revive,
-                'REMOVE',
+                AppLocalizations.of(context)!.removeToolLabel,
                 Icons.remove_circle_outline,
-                'remove',
               ),
               _tool(
-                config,
                 GameToolType.positionSwap,
-                'SWAP',
+                AppLocalizations.of(context)!.swapToolLabel,
                 Icons.swap_horiz,
-                'swap',
               ),
               _tool(
-                config,
                 GameToolType.duplicate,
-                'DUPLICATE',
+                AppLocalizations.of(context)!.duplicateToolLabel,
                 Icons.copy_outlined,
-                'duplicate',
               ),
             ],
           );
@@ -104,19 +97,24 @@ class _ToolsPageState extends State<ToolsPage> {
     );
   }
 
+  Widget _balanceTile() => Card(
+    child: ListTile(
+      leading: const Icon(Icons.monetization_on_outlined),
+      title: Text(AppLocalizations.of(context)!.goldBalanceTitle),
+      trailing: Text(
+        '${GoldManager.balance} Gold',
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+    ),
+  );
+
   Widget _tool(
-    Map<String, dynamic> config,
     GameToolType type,
     String name,
     IconData icon,
-    String key,
   ) {
-    final isGoldenUndo =
-        LifeManager.isGoldenMember &&
-        type == GameToolType.timeRewind;
-
     final owned = ToolManager.savedUsesFor(type);
-    final ownedLabel = isGoldenUndo ? '∞' : '$owned';
+    final ownedLabel = '$owned';
 
     final amounts = [1, 5, 20, 50];
     return Card(
@@ -132,7 +130,7 @@ class _ToolsPageState extends State<ToolsPage> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '$name · Owned: $ownedLabel',
+                    '$name · ${AppLocalizations.of(context)!.ownedUses(ownedLabel)}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -142,22 +140,19 @@ class _ToolsPageState extends State<ToolsPage> {
               ],
             ),
             const SizedBox(height: 12),
-            if (!isGoldenUndo)
-              Wrap(
+            Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   for (var i = 0; i < amounts.length; i++)
                     FilledButton(
-                      onPressed: LifeManager.membership == 'general' && amounts[i] != 1
-                          ? null
-                          : () => _buy(
+                      onPressed: () => _buy(
                         type: type,
                         name: name,
                         amount: amounts[i],
                       ),
                       child: Text(
-                        '${amounts[i]} · ${ShopConfigService.price(config, '$key${amounts[i]}Price')} Gold',
+                        '${amounts[i]} · ${ToolManager.packagePrice(type, amounts[i])} ${AppLocalizations.of(context)!.gold}',
                       ),
                     ),
                 ],

@@ -1,37 +1,23 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
 import 'game/services/save_manager.dart';
+import 'game/services/life_manager.dart';
+import 'game/services/gold_manager.dart';
+import 'services/creature_collection_service.dart';
 import 'l10n/app_localizations.dart';
-import 'screens/login_register_page.dart';
 import 'screens/onboarding_page.dart';
 import 'screens/home_page.dart';
 import 'screens/shop_page.dart';
-import 'services/supabase_backend.dart';
-import 'services/supabase_auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Supabase Auth and Edge Functions are the active account path.
-  // Only public client keys may be supplied via dart-define.
-  final supabaseReady = await SupabaseBackend.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL'),
-    publishableKey: const String.fromEnvironment(
-      'SUPABASE_PUBLISHABLE_KEY',
-      defaultValue: String.fromEnvironment('SUPABASE_ANON_KEY'),
-    ),
-  );
-  if (!supabaseReady) {
-    throw StateError('SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are required.');
-  }
-  debugPrint(
-    '[AUTH_DIAG] Supabase initialized '
-    'sessionPresent=${SupabaseAuthService.currentSession != null}',
-  );
+  // Single-player startup is fully local; no auth or backend bootstrap.
 
-  // Supabase restores its persisted session before the auth router is built.
   await SaveManager.initialize();
+  await LifeManager.initializeLocal();
+  await GoldManager.initializeLocal();
+  await CreatureCollectionService.reconcileCollectionRewards();
 
   runApp(const Rebirth2048App());
 }
@@ -52,42 +38,8 @@ class _Rebirth2048AppState extends State<Rebirth2048App> {
       });
     }
 
-    // Wait for Supabase Auth to restore its persisted session before routing.
-    return StreamBuilder<AuthState>(
-      stream: SupabaseAuthService.authStateChanges,
-      builder: (context, snapshot) {
-        final currentSession = SupabaseAuthService.currentSession;
-        debugPrint(
-          '[AUTH_DIAG] router state=${snapshot.connectionState.name} '
-          'hasData=${snapshot.hasData} '
-          'event=${snapshot.data?.event.name ?? "none"} '
-          'streamError=${snapshot.hasError} '
-          'sessionPresent=${currentSession != null} '
-          'snapshotSession=${snapshot.data?.session != null}',
-        );
-        if (snapshot.hasError) {
-          debugPrint('[AUTH_DIAG] router stream error: ${snapshot.error}');
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            currentSession == null) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final user = snapshot.data?.session?.user ??
-            SupabaseAuthService.currentUser;
-        // A transient auth-stream error must not discard an already restored
-        // valid Supabase session. Route by the authoritative current session;
-        // when no user exists, keep the login page visible.
-        if (user == null) {
-          return const LoginRegisterPage();
-        }
-
-        return const HomePage();
-      },
-    );
+    // Guest-first single-player entry: never gate gameplay on an account.
+    return const HomePage();
   }
 
   @override

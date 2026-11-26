@@ -67,12 +67,12 @@ class GameEngine {
 
   static const int maxLives = LifeManager.normalCap;
 
-  /// Tracks whether the current board already owns its server-paid Life.
+  /// Tracks whether the current board already owns its FREE new-game debit.
   bool _boardLifeActive = false;
 
   int get lives => LifeManager.lifeCount;
 
-  bool get hasLife => LifeManager.isGoldenMember || lives > 0;
+  bool get hasLife => LifeManager.hasUnlimitedLives || lives > 0;
 
   /// Marks the current board as finished after Game Over without mutating Life.
   bool markGameOver() {
@@ -191,6 +191,8 @@ class GameEngine {
   bool _hasPreviousState = false;
 
   final List<int> _newEvolutionValuesThisMove = <int>[];
+  final Set<int> _speciesMergedThisGame = <int>{};
+  final Set<int> _previousSpeciesMergedThisGame = <int>{};
 
   GameBoard get board => _board;
   GameChapter get chapter => _chapter;
@@ -232,6 +234,7 @@ class GameEngine {
   /// New stages first reached by the most recent action, in order.
   List<int> get newEvolutionValuesThisMove =>
       List.unmodifiable(_newEvolutionValuesThisMove);
+  Set<int> get speciesMergedThisGame => Set.unmodifiable(_speciesMergedThisGame);
 
   bool hasReached2048 = false;
   bool hasReached4096 = false;
@@ -278,6 +281,8 @@ class GameEngine {
       'hasReached8192': hasReached8192,
       'hasReached16384': hasReached16384,
       'highestEvolutionValue': _highestEvolutionValue,
+      'speciesMergedThisGame': _speciesMergedThisGame.toList()..sort(),
+      'previousSpeciesMergedThisGame': _previousSpeciesMergedThisGame.toList()..sort(),
       'gameOver': gameOver,
       'chapterComplete': chapterComplete,
 
@@ -364,6 +369,26 @@ class GameEngine {
     }
 
     _chapter = restoredChapter;
+    _speciesMergedThisGame
+      ..clear()
+      ..addAll(
+        data['speciesMergedThisGame'] is List
+            ? (data['speciesMergedThisGame'] as List)
+                .whereType<num>()
+                .map((value) => value.toInt())
+                .where((value) => value >= 2)
+            : const <int>[],
+      );
+    _previousSpeciesMergedThisGame
+      ..clear()
+      ..addAll(
+        data['previousSpeciesMergedThisGame'] is List
+            ? (data['previousSpeciesMergedThisGame'] as List)
+                .whereType<num>()
+                .map((value) => value.toInt())
+                .where((value) => value >= 2)
+            : const <int>[],
+      );
 
     // Rebuild the pending tool-use overlay from the persisted local replay
     // before creating ToolManager, so an unfinished session that already used
@@ -652,6 +677,9 @@ class GameEngine {
 
   void _savePreviousState() {
     _previousBoard = _board.tiles.map<int?>((tile) => tile?.value).toList();
+    _previousSpeciesMergedThisGame
+      ..clear()
+      ..addAll(_speciesMergedThisGame);
 
     _previousScore = score;
 
@@ -670,6 +698,10 @@ class GameEngine {
     final snapshot = _previousBoard;
 
     if (snapshot == null) return;
+
+    _speciesMergedThisGame
+      ..clear()
+      ..addAll(_previousSpeciesMergedThisGame);
 
     _board = GameBoard(size: boardSize);
 
@@ -721,6 +753,8 @@ class GameEngine {
     _hasPreviousState = false;
 
     _newEvolutionValuesThisMove.clear();
+    _speciesMergedThisGame.clear();
+    _previousSpeciesMergedThisGame.clear();
 
     _highestEvolutionValue = 2;
     _toolPenaltyTotal = 0;
@@ -863,6 +897,7 @@ class GameEngine {
 
   void _updateEvolutionHistory() {
     for (final value in _board.lastMergedValues) {
+      _speciesMergedThisGame.add(value);
       _recordHighestEvolutionValue(value);
     }
   }
@@ -886,9 +921,9 @@ class GameEngine {
       chapterComplete = true;
 
       // Chapter completion and its Life refund are finalized atomically by
-      // the server completeChapter call. Do not refund here, because this
-      // client-side milestone can be reached more than once before the
-      // server accepts the completion.
+      // local chapter settlement. Do not refund here, because this
+      // milestone can be reached more than once before the local
+      // completion record is saved.
       switch (_chapter) {
         case GameChapter.ocean:
           hasReached4096 = true;

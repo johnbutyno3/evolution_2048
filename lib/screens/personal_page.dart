@@ -1,33 +1,23 @@
 ﻿import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../l10n/creature_localization.dart';
 
 import '../game/models/creature.dart';
 import '../services/creature_collection_service.dart';
 import '../services/player_progress_service.dart';
 import '../services/player_profile_service.dart';
-import '../services/supabase_auth_service.dart';
-import '../services/admin_service.dart';
 
 import '../game/services/audio_manager.dart';
-import '../game/services/tool_manager.dart';
 import '../game/services/gold_manager.dart';
-import '../game/services/life_manager.dart';
 import '../game/services/save_manager.dart';
-import 'login_register_page.dart';
 import 'shop_page.dart';
-import 'feedback_page.dart';
-import 'admin_page.dart';
 
 class PersonalPage extends StatelessWidget {
   const PersonalPage({super.key});
 
-  Future<bool> _isAdmin() => AdminService.checkAdmin();
-
   @override
   Widget build(BuildContext context) {
-    final user = SupabaseAuthService.currentUser;
-
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.personalTitle)),
       body: ListView(
@@ -80,30 +70,6 @@ class PersonalPage extends StatelessWidget {
             ).push(MaterialPageRoute(builder: (_) => const VersionInfoPage())),
           ),
           _SectionCard(
-            icon: Icons.feedback_outlined,
-            title: AppLocalizations.of(context)!.messagesFeedback,
-            subtitle: AppLocalizations.of(context)!.messagesFeedbackSubtitle,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const FeedbackPage()),
-            ),
-          ),
-          FutureBuilder<bool>(
-            future: _isAdmin(),
-            builder: (context, snapshot) {
-              if (snapshot.data != true) {
-                return const SizedBox.shrink();
-              }
-              return _SectionCard(
-                icon: Icons.admin_panel_settings_outlined,
-                title: AppLocalizations.of(context)!.testControls,
-                subtitle: AppLocalizations.of(context)!.testControlsSubtitle,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AdminPage()),
-                ),
-              );
-            },
-          ),
-          _SectionCard(
             icon: Icons.info_outline,
             title: AppLocalizations.of(context)!.aboutGame,
             subtitle: AppLocalizations.of(context)!.aboutGameSubtitle,
@@ -112,52 +78,8 @@ class PersonalPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (user != null)
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: Text(AppLocalizations.of(context)!.logOut),
-              onTap: () => _logout(context),
-            ),
         ],
       ),
-    );
-  }
-
-  Future<void> _logout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.logOut),
-          content: Text(
-            AppLocalizations.of(context)!.logoutConfirm,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(AppLocalizations.of(context)!.cancel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(AppLocalizations.of(context)!.logOut),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) return;
-
-    ToolManager.clearCachedInventory();
-    LifeManager.clearCachedState();
-    GoldManager.clearCachedState();
-    await SupabaseAuthService.signOut();
-
-    if (!context.mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginRegisterPage()),
-      (route) => false,
     );
   }
 }
@@ -246,34 +168,18 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
   }
 
   Future<void> _loadProfile() async {
-    final user = SupabaseAuthService.currentUser;
+    _avatarIndex = SaveManager.avatarIndex;
+    _nameController.text = SaveManager.profileName ?? '';
+    _playerId = SaveManager.playerId ?? '';
 
-    if (user == null) {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
-      return;
-    }
-
-    try {
-      await PlayerProfileService.ensureProfile();
-
+    await PlayerProfileService.ensureProfile();
+    if (!mounted) return;
+    setState(() {
       _avatarIndex = SaveManager.avatarIndex;
       _nameController.text = SaveManager.profileName ?? '';
       _playerId = SaveManager.playerId ?? '';
-
-      if (!context.mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-    } catch (_) {
-      if (!context.mounted) return;
-
-      setState(() {
-        _loading = false;
-      });
-    }
+      _loading = false;
+    });
   }
 
   Future<void> _saveName() async {
@@ -298,17 +204,17 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
           ),
         ),
       );
-    } on PlayerProfileException catch (error) {
+    } on PlayerProfileException {
       if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.playerNameUpdateError)));
     } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppLocalizations.of(context)!.playerNameUpdateError} $error')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.playerNameUpdateError)),
       );
     }
   }
@@ -321,8 +227,6 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final membership = LifeManager.membership;
-
     return Scaffold(
       appBar: AppBar(title: Text(AppLocalizations.of(context)!.playerInfo)),
       body: ListView(
@@ -378,20 +282,13 @@ class _PlayerInfoPageState extends State<PlayerInfoPage> {
 
           Card(
             child: ListTile(
-              leading: const Icon(Icons.workspace_premium_outlined),
-              title: Text(AppLocalizations.of(context)!.membership),
-              subtitle: Text(
-                membership == 'golden'
-                    ? AppLocalizations.of(context)!.goldenMember
-                    : membership == 'premium'
-                    ? AppLocalizations.of(context)!.premiumMember
-                    : AppLocalizations.of(context)!.generalMember,
-              ),
+              leading: const Icon(Icons.storefront_outlined),
+              title: Text(AppLocalizations.of(context)!.shop),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                Navigator.of(
-                  context,
-                ).push(MaterialPageRoute(builder: (_) => const ShopPage()));
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ShopPage()),
+                );
               },
             ),
           ),
@@ -522,7 +419,7 @@ class _CollectionPageState extends State<CollectionPage> {
       l10n.chapterTechnology,
       l10n.chapterSpace,
     ];
-    return l10n.chapterLabel(index + 1, names[index]);
+    return l10n.chapterLabel(names[index], index + 1);
   }
 
   String _chapterShortName(BuildContext context, int index) {
@@ -544,17 +441,6 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
   Future<void> _loadCollection() async {
-    final user = SupabaseAuthService.currentUser;
-    if (user == null) {
-      if (!context.mounted) return;
-
-      setState(() {
-        _discovered.clear();
-        _loading = false;
-      });
-      return;
-    }
-
     final result = <String, Set<int>>{};
     try {
       // The first creature is the chapter's starting creature. It becomes
@@ -584,14 +470,6 @@ class _CollectionPageState extends State<CollectionPage> {
     }
 
     if (!context.mounted) return;
-    if (SupabaseAuthService.currentUser?.id != user.id) {
-      setState(() {
-        _discovered.clear();
-        _loading = false;
-      });
-      return;
-    }
-
     setState(() {
       _discovered
         ..clear()
@@ -676,6 +554,7 @@ class _CollectionPageState extends State<CollectionPage> {
 
                         return _CreatureCollectionCard(
                           creature: creature,
+                          chapterNumber: _selectedChapter + 1,
                           discovered: discovered.contains(creature.value),
                         );
                       }, childCount: creatures.length),
@@ -734,10 +613,12 @@ class _CollectionSummary extends StatelessWidget {
 class _CreatureCollectionCard extends StatelessWidget {
   const _CreatureCollectionCard({
     required this.creature,
+    required this.chapterNumber,
     required this.discovered,
   });
 
   final Creature creature;
+  final int chapterNumber;
   final bool discovered;
 
   @override
@@ -763,7 +644,11 @@ class _CreatureCollectionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    creature.name,
+                    localizedCreatureName(
+                      AppLocalizations.of(context)!,
+                      chapterNumber,
+                      creature.value,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,

@@ -4,9 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
 
-const _accountId = '11111111-1111-4111-8111-111111111111';
-const _accountSaveKey = 'rebirth_2048_local_save_v1_$_accountId';
-const _accountSessionKey = 'rebirth_2048_game_session_id_v1_$_accountId';
+const _localSaveKey = 'rebirth_2048_local_save_v1';
+const _localSessionKey = 'rebirth_2048_game_session_id_v1';
 
 Map<String, dynamic> _save(int tile) => <String, dynamic>{
       'chapter': 'C1',
@@ -18,7 +17,6 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await SaveManager.initialize();
-    await SaveManager.bindAccountScope(_accountId);
   });
 
   test('writes versioned checksummed snapshots to alternating slots', () async {
@@ -26,7 +24,7 @@ void main() {
     await SaveManager.save(_save(2));
 
     final preferences = await SharedPreferences.getInstance();
-    final slotA = preferences.getString('${_accountSaveKey}_slot_a_v2');
+    final slotA = preferences.getString('${_localSaveKey}_slot_a_v2');
     expect(slotA, isNotNull);
 
     final first = jsonDecode(slotA!) as Map<String, dynamic>;
@@ -39,11 +37,11 @@ void main() {
     );
 
     await SaveManager.save(_save(4));
-    final slotB = preferences.getString('${_accountSaveKey}_slot_b_v2');
+    final slotB = preferences.getString('${_localSaveKey}_slot_b_v2');
     expect(slotB, isNotNull);
     final second = jsonDecode(slotB!) as Map<String, dynamic>;
     expect(second['sequence'], 2);
-    expect(preferences.getInt('${_accountSaveKey}_active_slot_v2'), 1);
+    expect(preferences.getInt('${_localSaveKey}_active_slot_v2'), 1);
   });
 
   test('falls back to the previous committed snapshot when newest slot is corrupt', () async {
@@ -53,7 +51,7 @@ void main() {
 
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(
-      '${_accountSaveKey}_slot_b_v2',
+      '${_localSaveKey}_slot_b_v2',
       '{corrupted-json',
     );
 
@@ -71,7 +69,7 @@ void main() {
     await SaveManager.save(_save(4));
 
     final preferences = await SharedPreferences.getInstance();
-    final key = '${_accountSaveKey}_slot_b_v2';
+    final key = '${_localSaveKey}_slot_b_v2';
     final envelope = jsonDecode(preferences.getString(key)!) as Map<String, dynamic>;
     final payload = Map<String, dynamic>.from(envelope['payload'] as Map);
     final chapters = Map<String, dynamic>.from(payload['chapters'] as Map);
@@ -91,11 +89,10 @@ void main() {
   });
 
   test('loads the legacy single-key save and migrates it on the next write', () async {
-    await SaveManager.unbindAccountScope();
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(_accountSessionKey, 'session-1');
+        final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_localSessionKey, 'session-1');
     await preferences.setString(
-      _accountSaveKey,
+      _localSaveKey,
       jsonEncode(<String, dynamic>{
         'version': 1,
         'lastChapter': 'C1',
@@ -108,8 +105,8 @@ void main() {
         },
       }),
     );
+    await SaveManager.initialize();
 
-    await SaveManager.bindAccountScope(_accountId);
     expect(
       SaveManager.loadCached(chapter: 'C1')?['tiles'],
       <int>[2, 0, 0, 0],
@@ -117,12 +114,12 @@ void main() {
 
     await SaveManager.save(_save(4));
     expect(
-      preferences.getString('${_accountSaveKey}_slot_a_v2'),
+      preferences.getString('${_localSaveKey}_slot_a_v2'),
       isNotNull,
     );
   });
 
-  test('selects the local snapshot matching the server-owned active session', () async {
+  test('selects the local snapshot matching a saved gameId', () async {
     await SaveManager.setGameSessionId('session-old');
     await SaveManager.save(<String, dynamic>{
       'chapter': 'C1',

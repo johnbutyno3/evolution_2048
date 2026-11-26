@@ -203,7 +203,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authChooseMethod => 'Choose a sign-in method';
 
   @override
-  String get authGoogle => 'Continue with Google';
+  String get authGoogle => 'Google Play account (purchases only)';
 
   @override
   String get authApple => 'Continue with Apple';
@@ -219,7 +219,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Too many requests. Please try again later.';
 
   @override
-  String get life => 'Life';
+  String get life => 'Free games left';
+
+  @override
+  String get freeGamesExhaustedTitle => 'Free trial completed';
+
+  @override
+  String get freeGamesExhaustedMessage => 'You have used all 5 free games. Permanent purchase is not available yet.';
 
   @override
   String get playerInfo => 'Player Info';
@@ -275,7 +281,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get testControls => 'Test Controls';
 
   @override
-  String get testControlsSubtitle => 'Membership modes and Gold balance';
+  String get testControlsSubtitle => 'Offline Gold and tool test controls';
 
   @override
   String get aboutGame => 'About Game';
@@ -296,18 +302,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restartConfirmMessage =>
-      'Replace the current board? No additional Life will be charged.';
+      'Replace the current board? Restarting uses one more free game.';
 
   @override
   String get restart => 'Restart';
 
   @override
   String get restartFailed =>
-      'Unable to restart. Check your Life and try again.';
+      'Unable to restart. Check your remaining free games and try again.';
 
   @override
   String get restartPending =>
-      'Restart is still syncing. Return to Home and reopen this chapter when connected.';
+      'The new board could not be saved. Return Home and try again.';
 
   @override
   String get cancel => 'Cancel';
@@ -325,10 +331,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notAvailable => 'Not available';
 
   @override
-  String get goldenMember => 'Golden Member';
+  String get goldenMember => 'Legacy plan Member';
 
   @override
-  String get premiumMember => 'Premium Member';
+  String get premiumMember => 'Legacy plan Member';
 
   @override
   String get generalMember => 'General Member';
@@ -373,7 +379,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get goldUsage => 'Gold is used for lives and tool purchases.';
+  String get goldUsage => 'Gold is used to purchase evolution tools.';
 
   @override
   String get backgroundMusic => 'Background Music';
@@ -418,7 +424,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resourcesDescription =>
-      'Lives are used for gameplay attempts. Gold can be used to purchase additional lives and tools. Tool inventory is cumulative across chapters.';
+      'FREE includes five new-game starts. Each new game uses one start, and used starts never regenerate. Permanent purchase unlocks unlimited new games. Gold buys tools, whose inventory is shared across chapters.';
 
   @override
   String get app => 'App';
@@ -454,7 +460,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get artworkServicesDescription =>
-      'Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.';
+      'Artwork, Flutter and third-party package licenses and sources will follow the final release attribution list.';
 
   @override
   String get version => 'Version';
@@ -466,7 +472,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerId => 'Player ID';
 
   @override
-  String get membership => 'Membership';
+  String get membership => 'Purchase status';
 
   @override
   String get evolutionProgress => 'Evolution Progress';
@@ -478,4 +484,708 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileSetupFailed => 'Unable to set up your profile.';
+
+  @override
+  String get shopMembership => 'Membership';
+
+  @override
+  String get shopMembershipSubtitle => 'Permanent game purchase';
+
+  @override
+  String get shopGold => 'Gold';
+
+  @override
+  String get shopGoldSubtitle => 'Purchase Gold packages';
+
+  @override
+  String get shopTools => 'Tools';
+
+  @override
+  String get shopToolsSubtitle => 'UNDO, REMOVE, SWAP and DUPLICATE';
+
+  @override
+  String get goldBalanceTitle => 'Gold Balance';
+
+  @override
+  String get paymentUnavailable => 'Real-money payment is not connected yet.';
+
+  @override
+  String get membershipGeneral => 'General';
+
+  @override
+  String get membershipPremium => 'Premium';
+
+  @override
+  String get membershipGolden => 'Golden';
+
+  @override
+  String get membershipGeneralDescription => 'Free · 5 one-time new-game starts · No regeneration';
+
+  @override
+  String get membershipPremiumDescription => 'Legacy membership plan · Not used in the offline single-player edition';
+
+  @override
+  String get membershipGoldenDescription => 'Legacy membership plan · Not used in the offline single-player edition';
+
+  @override
+  String get permanentLabel => 'Permanent';
+
+  @override
+  String get upgradeLabel => 'Upgrade';
+
+  @override
+  String get currentLabel => 'Current';
+
+  @override
+  String ownedUses(Object count) => 'Owned: $count';
+
+  @override
+  String purchaseSuccess(Object amount, String tool) => 'Purchased $amount $tool use(s).';
+
+  @override
+  String get purchaseFailed => 'Tool purchase failed.';
+
+  @override
+  String get invalidToolQuantity => 'Invalid tool package quantity.';
+
+  @override
+  String get signInBeforePurchase => 'Game account sign-in is not required to purchase tools.';
+
+  @override
+  String get insufficientGold => 'Not enough Gold for this purchase.';
+
+  @override
+  String get freeSingleToolOnly => 'FREE members can only purchase one tool at a time.';
+
+  @override
+  String get goldenUndoUnlimited => 'UNDO uses the purchased tool inventory.';
+
+  @override
+  String get accountRestricted => 'Account access is restricted. Support remains available.';
+
+  @override
+  String get idempotencyConflict => 'This purchase request conflicts with an earlier request.';
+
+  @override
+  String get purchaseRetryOnline => 'Tool purchase could not be completed. Please retry online.';
+
+  @override
+  String get purchaseProtectionUnavailable => 'Purchase protection could not be saved. Please retry.';
+
+  @override
+  String get invalidPurchaseResponse => 'The tool purchase service returned an invalid response.';
+
+  @override
+  String get purchaseVerificationFailed => 'Could not verify the purchase. No local wallet change was applied.';
+
+  @override
+  String get undoToolLabel => 'UNDO';
+
+  @override
+  String get removeToolLabel => 'REMOVE';
+
+  @override
+  String get swapToolLabel => 'SWAP';
+
+  @override
+  String get duplicateToolLabel => 'DUPLICATE';
+
+  @override
+  String get gameOverTitle => 'GAME OVER';
+
+  @override
+  String get noMoreMoves => 'No more moves.';
+
+  @override
+  String get scoreLabel => 'SCORE';
+
+  @override
+  String get useTool => 'USE TOOL';
+
+  @override
+  String get restartButton => 'RESTART';
+
+  @override
+  String get duplicateLimit => 'Duplicate is limited to tiles up to 256.';
+
+  @override
+  String get noEmptyPosition => 'No empty position available.';
+
+  @override
+  String get nextChapterStartFailed => 'Unable to start the next chapter. Check your remaining free games and purchase status.';
+
+  @override
+  String get nextChapterStartRetry => 'Unable to start the next chapter. Please try again.';
+
+  @override
+  String get chapterVerifyPending => 'Chapter progress could not be saved. Please try again.';
+
+  @override
+  String get nextChapter => 'Next Chapter';
+
+  @override
+  String get home => 'Home';
+
+  @override
+  String get cancelTool => 'CANCEL';
+
+  @override
+  String getTool(String tool) => 'Get $tool';
+
+  @override
+  String get rewardedAdToolDescription => 'Watch a rewarded ad to get additional uses.';
+
+  @override
+  String get goToShop => 'Go to Shop';
+
+  @override
+  String get feedbackTitle => 'Contact / Feedback';
+
+  @override
+  String get feedbackSendTitle => 'Send a message';
+
+  @override
+  String get feedbackDescription => 'Questions, suggestions and bug reports are welcome.';
+
+  @override
+  String get feedbackType => 'Type';
+
+  @override
+  String get feedbackMessage => 'Message';
+
+  @override
+  String get feedbackSending => 'Sending...';
+
+  @override
+  String get feedbackSend => 'Send Message';
+
+  @override
+  String get feedbackSent => 'Your message has been sent.';
+
+  @override
+  String get feedbackSendFailed => 'Could not send your message. Please retry online.';
+
+  @override
+  String get feedbackQuestion => 'Question';
+
+  @override
+  String get feedbackSuggestion => 'Suggestion';
+
+  @override
+  String get feedbackBugReport => 'Bug Report';
+
+  @override
+  String get feedbackOther => 'Other';
+
+  @override
+  String get qaTitle => 'Q&A';
+
+  @override
+  String get faqTitle => 'Frequently Asked Questions';
+
+  @override
+  String get adminRequired => 'Administrator access required.';
+
+  @override
+  String get adminTitle => 'Admin Management';
+
+  @override
+  String get adminShopParameters => 'Shop Parameters';
+
+  @override
+  String get adminShopSubtitle => 'Gold and Tool settings';
+
+  @override
+  String get adminQAManagement => 'Q&A Management';
+
+  @override
+  String get adminQASubtitle => 'Manage frequently asked questions';
+
+  @override
+  String get adminPlayerMessages => 'Player Messages';
+
+  @override
+  String get adminMessagesSubtitle => 'Read player feedback';
+
+  @override
+  String get adminPlayerSearch => 'Player Search';
+
+  @override
+  String get adminPlayerSearchSubtitle => 'Player lookup will be connected here';
+
+  @override
+  String get adminGameParameters => 'Game Parameters';
+
+  @override
+  String get adminGameParametersSubtitle => 'Chapter and gameplay settings';
+
+  @override
+  String adminComingSoon(String name) => '$name management will be added next.';
+
+  @override
+  String get shopParametersSaved => 'Shop parameters saved.';
+
+  @override
+  String get shopParametersSaveFailed => 'Could not save shop parameters. Please retry online.';
+
+  @override
+  String get goldPackagesUsd => 'Gold Packages (USD)';
+
+  @override
+  String get permanentMembershipUsd => 'Permanent Game Purchase (USD)';
+
+  @override
+  String get evolutionToolsGold => 'Evolution Tools (Gold)';
+
+  @override
+  String get saving => 'Saving...';
+
+  @override
+  String get saveParameters => 'Save Parameters';
+
+  @override
+  String get qaMigrationPending => 'FAQ content is available locally in this offline edition.';
+
+  @override
+  String get unableLoadMessages => 'Unable to load player messages. Please retry online.';
+
+  @override
+  String get noPlayerMessages => 'No player messages yet.';
+
+  @override
+  String get playerMessage => 'Player message';
+
+  @override
+  String get openStatus => 'open';
+
+  @override
+  String get testControlsTitle => 'Test Controls';
+
+  @override
+  String get faqQuestion1 => 'How do I play Rebirth 2048?';
+
+  @override
+  String get faqAnswer1 => 'Swipe or use the keyboard to move life forms. Matching life forms evolve into the next stage. Reach the chapter target to progress.';
+
+  @override
+  String get faqQuestion2 => 'What happens when I discover a creature?';
+
+  @override
+  String get faqAnswer2 => 'A discovered creature is permanently recorded in your Creature Collection and will remain unlocked after replaying or restarting.';
+
+  @override
+  String get faqQuestion3 => 'What are Lives?';
+
+  @override
+  String get faqAnswer3 => 'FREE includes five one-time new-game starts. Used starts never regenerate; permanent purchase unlocks unlimited new games.';
+
+  @override
+  String get faqQuestion4 => 'What is Gold?';
+
+  @override
+  String get faqAnswer4 => 'Gold is the in-game currency earned through play and used to purchase Evolution Tools.';
+
+  @override
+  String get faqQuestion5 => 'What do the Evolution Tools do?';
+
+  @override
+  String get faqAnswer5 => 'UNDO rewinds a move, REMOVE removes a selected life form, SWAP exchanges positions, and DUPLICATE creates a copy of a selected life form.';
+
+  @override
+  String get faqQuestion6 => 'How do I report a problem?';
+
+  @override
+  String get faqAnswer6 => 'Open Contact / Feedback from your Personal page and choose Bug Report. You can describe the problem and send it to the game team.';
+
+  @override
+  String get simulatorTitle => 'Local Purchase Simulator';
+
+  @override
+  String get simulatorNotice => 'Debug only. Changes are local and temporary; the next account sync replaces them. No real payment is made.';
+
+  @override
+  String get simulatePremium => 'Legacy Premium test';
+
+  @override
+  String get simulateGolden => 'Legacy Golden test';
+
+  @override
+  String get simulateGold => 'Simulate 300 Gold purchase';
+
+  @override
+  String get simulateUndo => 'Simulate UNDO ×1 purchase';
+
+  @override
+  String get simulateRemove => 'Simulate REMOVE ×1 purchase';
+
+  @override
+  String get simulateSwap => 'Simulate SWAP ×1 purchase';
+
+  @override
+  String get simulateDuplicate => 'Simulate DUPLICATE ×1 purchase';
+
+  @override
+  String get simulatorCurrentState => 'Current local test state';
+
+  @override
+  String get simulatorDebugOnly => 'The purchase simulator is available only in debug builds.';
+
+  @override
+  String simulatorMembership(Object tier) => 'Membership: $tier';
+
+  @override
+  String simulatorLives(Object count) => 'Lives: $count';
+
+  @override
+  String simulatorGold(Object count) => 'Gold: $count';
+
+  @override
+  String simulatorToolUses(String tool, Object count) => '$tool: $count';
+
+  @override
+  String get simulatorApplied => 'Local test purchase applied. This is not a real transaction.';
+
+  @override
+  String get authConfirmEmail => 'No game account confirmation is required in this offline edition.';
+
+  @override
+  String get authProviderUnavailable => 'The sign-in provider could not be opened.';
+
+  @override
+  String get adminGold300Usd => '300 Gold (USD)';
+
+  @override
+  String get adminGold1000Usd => '1,000 Gold (USD)';
+
+  @override
+  String get adminGold4000Usd => '4,000 Gold (USD)';
+
+  @override
+  String get adminGold10000Usd => '10,000 Gold (USD)';
+
+  @override
+  String get adminPremiumUsd => 'Legacy Premium price (USD)';
+
+  @override
+  String get adminGoldenUsd => 'Legacy Golden price (USD)';
+
+  @override
+  String get adminGoldenUpgradeUsd => 'Premium to Golden upgrade (USD)';
+
+  @override
+  String get adminOneUseGoldPrice => '1 use · Gold price';
+
+  @override
+  String get adminFiveUsesGoldPrice => '5 uses · Gold price';
+
+  @override
+  String get adminTwentyUsesGoldPrice => '20 uses · Gold price';
+
+  @override
+  String get adminFiftyUsesGoldPrice => '50 uses · Gold price';
+
+  @override
+  String get uidLabel => 'Player UID';
+
+  @override
+  String get statusOpen => 'Open';
+
+  @override
+  String get statusClosed => 'Closed';
+
+  @override
+  String highestProgress(Object current, Object target) => 'Highest: $current / $target';
+
+  @override
+  String selectTileForTool(String tool) => 'Select a tile for $tool';
+
+  @override
+  String get creatureC1V2 => 'Diatom';
+
+  @override
+  String get creatureC1V4 => 'Flagellate';
+
+  @override
+  String get creatureC1V8 => 'Krill';
+
+  @override
+  String get creatureC1V16 => 'Clownfish';
+
+  @override
+  String get creatureC1V32 => 'Jellyfish';
+
+  @override
+  String get creatureC1V64 => 'Squid';
+
+  @override
+  String get creatureC1V128 => 'Sea Turtle';
+
+  @override
+  String get creatureC1V256 => 'Yellowfin Tuna';
+
+  @override
+  String get creatureC1V512 => 'Shark';
+
+  @override
+  String get creatureC1V1024 => 'Orca';
+
+  @override
+  String get creatureC1V2048 => 'Blue Whale';
+
+  @override
+  String get creatureC1V4096 => 'Seabed Human';
+
+  @override
+  String get creatureC2V2 => 'Land Plant';
+
+  @override
+  String get creatureC2V4 => 'Fern';
+
+  @override
+  String get creatureC2V8 => 'Arthropod';
+
+  @override
+  String get creatureC2V16 => 'Insect';
+
+  @override
+  String get creatureC2V32 => 'Amphibian';
+
+  @override
+  String get creatureC2V64 => 'Reptile';
+
+  @override
+  String get creatureC2V128 => 'Small Mammal';
+
+  @override
+  String get creatureC2V256 => 'Large Mammal';
+
+  @override
+  String get creatureC2V512 => 'Primate';
+
+  @override
+  String get creatureC2V1024 => 'Early Human';
+
+  @override
+  String get creatureC2V2048 => 'Homo Sapiens';
+
+  @override
+  String get creatureC2V4096 => 'Civilized Human';
+
+  @override
+  String get creatureC2V8192 => 'Future Human';
+
+  @override
+  String get creatureC3V2 => 'Hairy Cell Organism';
+
+  @override
+  String get creatureC3V4 => 'Mosquito';
+
+  @override
+  String get creatureC3V8 => 'Dragonfly';
+
+  @override
+  String get creatureC3V16 => 'Archaeopteryx';
+
+  @override
+  String get creatureC3V32 => 'Eagle';
+
+  @override
+  String get creatureC3V64 => 'Pterosaur';
+
+  @override
+  String get creatureC3V128 => 'Bat';
+
+  @override
+  String get creatureC3V256 => 'Glider';
+
+  @override
+  String get creatureC3V512 => 'Early Aircraft';
+
+  @override
+  String get creatureC3V1024 => 'Jet Fighter';
+
+  @override
+  String get creatureC3V2048 => 'Stealth Fighter';
+
+  @override
+  String get creatureC3V4096 => 'Aircraft';
+
+  @override
+  String get creatureC3V8192 => 'Wing Suit';
+
+  @override
+  String get creatureC3V16384 => 'Winged Human';
+
+  @override
+  String get creatureC4V2 => 'Fire';
+
+  @override
+  String get creatureC4V4 => 'Tribe';
+
+  @override
+  String get creatureC4V8 => 'Pyramid';
+
+  @override
+  String get creatureC4V16 => 'Roman Architecture';
+
+  @override
+  String get creatureC4V32 => 'Tang Architecture';
+
+  @override
+  String get creatureC4V64 => 'Mongol Invasion';
+
+  @override
+  String get creatureC4V128 => 'Age of Exploration';
+
+  @override
+  String get creatureC4V256 => 'American Independence';
+
+  @override
+  String get creatureC4V512 => 'Industrial Revolution';
+
+  @override
+  String get creatureC4V1024 => 'Communication Revolution';
+
+  @override
+  String get creatureC4V2048 => 'Automobile Invention';
+
+  @override
+  String get creatureC4V4096 => 'Airplane Invention';
+
+  @override
+  String get creatureC4V8192 => 'World War II';
+
+  @override
+  String get creatureC4V16384 => 'Space Exploration';
+
+  @override
+  String get creatureC4V32768 => 'Information Age';
+
+  @override
+  String get creatureC5V2 => 'Watch';
+
+  @override
+  String get creatureC5V4 => 'Camera';
+
+  @override
+  String get creatureC5V8 => 'Radio';
+
+  @override
+  String get creatureC5V16 => 'Television';
+
+  @override
+  String get creatureC5V32 => 'Washing Machine';
+
+  @override
+  String get creatureC5V64 => 'Refrigerator';
+
+  @override
+  String get creatureC5V128 => 'Microwave';
+
+  @override
+  String get creatureC5V256 => 'Remote Control';
+
+  @override
+  String get creatureC5V512 => 'Computer';
+
+  @override
+  String get creatureC5V1024 => 'Mobile Phone';
+
+  @override
+  String get creatureC5V2048 => 'Tablet';
+
+  @override
+  String get creatureC5V4096 => 'Drone';
+
+  @override
+  String get creatureC5V8192 => 'VR Device';
+
+  @override
+  String get creatureC5V16384 => 'Robot';
+
+  @override
+  String get creatureC5V32768 => 'Chip';
+
+  @override
+  String get creatureC5V65536 => 'Future Technology';
+
+  @override
+  String get creatureC6V2 => 'Big Bang';
+
+  @override
+  String get creatureC6V4 => 'Planet Formation';
+
+  @override
+  String get creatureC6V8 => 'Sun';
+
+  @override
+  String get creatureC6V16 => 'Earth';
+
+  @override
+  String get creatureC6V32 => 'Moon';
+
+  @override
+  String get creatureC6V64 => 'Mars';
+
+  @override
+  String get creatureC6V128 => 'Ring Space Station';
+
+  @override
+  String get creatureC6V256 => 'Asteroid Mining';
+
+  @override
+  String get creatureC6V512 => 'Solar System Expansion';
+
+  @override
+  String get creatureC6V1024 => 'Alien Life';
+
+  @override
+  String get creatureC6V2048 => 'Alien';
+
+  @override
+  String get creatureC6V4096 => 'First Contact';
+
+  @override
+  String get creatureC6V8192 => 'Interstellar Travel';
+
+  @override
+  String get creatureC6V16384 => 'Galaxy Exploration';
+
+  @override
+  String get creatureC6V32768 => 'Cosmic Civilization';
+
+  @override
+  String get creatureC6V65536 => 'Earth Development';
+
+  @override
+  String get creatureC6V131072 => 'Divine Perspective';
+
+  @override
+  String get oceanRestored => 'Ocean Restored';
+
+  @override
+  String get landRestored => 'Land Restored';
+
+  @override
+  String get skyRestored => 'Sky Restored';
+
+  @override
+  String get historyRestored => 'History Restored';
+
+  @override
+  String get technologyRestored => 'Technology Restored';
+
+  @override
+  String get universeRestored => 'Universe Restored';
+
+  @override
+  String chapterScoreSummary(Object score, Object highest) => 'Score $score    Highest $highest';
+  @override
+  String get toolUsed => 'USED';
+
+  @override
+  String get cancel => 'CANCEL';
+
+  @override
+  String toolUsesRemaining(Object count) => '$count USE';
 }

@@ -1,237 +1,107 @@
-import '../../services/supabase_account_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Local-first life presentation with Supabase account-snapshot verification.
-/// Gameplay uses an optimistic decrement; session RPCs remain authoritative.
+/// Local-only FREE new-game allowance and verified permanent unlock cache.
+/// The legacy "life regeneration" and membership system no longer exists.
 class LifeManager {
   LifeManager._();
 
   static const int normalCap = 5;
-  static const int _regenIntervalMillis = 40 * 60 * 1000;
+  static const int initialFreeGames = 5;
+  static const String _freeGamesKey =
+      'rebirth_2048_free_new_games_remaining_v1';
+  static const String _permanentUnlockKey =
+      'rebirth_2048_permanent_unlock_v1';
 
-  static int _lifeCount = normalCap;
-  static bool _hasAuthoritativeState = false;
-  static bool _infiniteLives = false;
-  static String _membership = 'general';
-  static String _lifeMode = 'normal';
-  static int? _nextLifeAtMillis;
-  static int _lifeStateGeneration = 0;
+  static SharedPreferences? _preferences;
+  static bool _initialized = false;
+  static int _freeGamesRemaining = initialFreeGames;
+  static bool _permanentUnlock = false;
 
-  static Future<void> initialize() async {
-    await refreshFromServer();
+  static Future<void> initialize() => initializeLocal();
+
+  static Future<void> initializeLocal() async {
+    _preferences = await SharedPreferences.getInstance();
+    _freeGamesRemaining =
+        (_preferences!.getInt(_freeGamesKey) ?? initialFreeGames)
+            .clamp(0, initialFreeGames)
+            .toInt();
+    _permanentUnlock =
+        _preferences!.getBool(_permanentUnlockKey) ?? false;
+    _initialized = true;
   }
 
-  /// Applies the life entitlement from the validated Supabase account snapshot.
-  /// This is a local cache update only; the snapshot was already verified by
-  /// the trusted account-snapshot Edge Function.
-  static void applySupabaseSnapshot({
-    required int lives,
-    required bool unlimited,
-    required String membershipTier,
-    required DateTime? nextRegenAt,
-  }) {
-    if (lives < 0) throw ArgumentError.value(lives, 'lives');
-    if (!const {'FREE', 'PREMIUM', 'GOLDEN'}.contains(membershipTier)) {
-      throw ArgumentError.value(membershipTier, 'membershipTier');
+  /// Kept as a compatibility call for guest-first screens.
+  static void enableGuestMode() {}
+
+  /// Called only by a future Google Play Billing verifier after a verified
+  /// permanent non-consumable purchase. Never call this from a UI simulator.
+  static Future<void> applyVerifiedPermanentUnlock() async {
+    await _ensureInitialized();
+    final saved = await _preferences!.setBool(_permanentUnlockKey, true);
+    if (!saved) {
+      throw StateError('Could not persist permanent purchase entitlement.');
     }
-    _lifeStateGeneration++;
-    _lifeCount = lives;
-    _infiniteLives = unlimited;
-    _membership = switch (membershipTier) {
-      'PREMIUM' => 'premium',
-      'GOLDEN' => 'golden',
-      _ => 'general',
-    };
-    _lifeMode = membershipTier == 'GOLDEN' ? 'golden' : 'normal';
-    _nextLifeAtMillis = nextRegenAt?.millisecondsSinceEpoch;
-    _hasAuthoritativeState = true;
+    _permanentUnlock = true;
   }
 
-  /// Applies an authoritative life payload returned by a server mutation.
-  /// Any in-flight regeneration read becomes stale and may no longer
-  /// overwrite this newer mutation result.
-  static void applyServerState(Map<String, dynamic> data) {
-    _lifeStateGeneration++;
-    _applyServerState(data);
+  static Future<void> _ensureInitialized() async {
+    if (!_initialized) await initializeLocal();
   }
 
-  /// Immediately consumes one local Life for game entry.
-  ///
-  /// This is intentionally optimistic: the server transaction is still sent
-  /// by PlayerProgressService in the background. A known-empty local state is
-  /// rejected immediately; otherwise the server response is authoritative and
-  /// replaces this value.
-  static bool optimisticConsumeLife() {
-    // Never charge from the placeholder balance before the server has
-    // confirmed this account's actual life state.
-    if (!_hasAuthoritativeState) return false;
-    if (_infiniteLives) return true;
-    if (_lifeCount <= 0) return false;
+  static bool get hasPermanentUnlock => _permanentUnlock;
+  static int get freeGamesRemaining => _freeGamesRemaining;
+  static bool get hasAuthoritativeState => _initialized;
+  static bool get hasUnlimitedLives => _permanentUnlock;
+  static String get membership => _permanentUnlock ? 'purchased' : 'free';
+  static String get lifeMode => 'normal';
+  static int get lifeCount => _permanentUnlock ? -1 : _freeGamesRemaining;
+  static int? get nextLifeAtMillis => null;
+  static Duration? get regenerationRemaining => null;
 
-    final nextLives = _lifeCount - 1;
-    _lifeCount = nextLives;
-    _nextLifeAtMillis = nextLives < normalCap
-        ? (_nextLifeAtMillis ??
-            DateTime.now().millisecondsSinceEpoch + _regenIntervalMillis)
-        : null;
-    _lifeStateGeneration++;
+  /// Preflight only. The durable debit is committed once when a new gameId is
+  /// created in PlayerProgressService.
+  static bool optimisticConsumeLife() =>
+      _permanentUnlock || (_initialized && _freeGamesRemaining > 0);
+
+  /// Deduct exactly one permanent free-game allowance for a new gameId.
+  /// Resuming an existing game must never call this method.
+  static Future<bool> consumeFreeGame() async {
+    await _ensureInitialized();
+    if (_permanentUnlock) return true;
+    if (_freeGamesRemaining <= 0) return false;
+
+    final previous = _freeGamesRemaining;
+    final next = previous - 1;
+    final saved = await _preferences!.setInt(_freeGamesKey, next);
+    if (!saved) return false;
+    _freeGamesRemaining = next;
     return true;
   }
 
-  /// Reads the authoritative state. Every request is tied to the generation
-  /// that existed when it started, so an older response can never overwrite a
-  /// newer local mutation or server mutation.
-  static Future<void> refreshFromServer({bool fromRegeneration = false}) async {
-    final requestGeneration = fromRegeneration
-        ? _lifeStateGeneration
-        : ++_lifeStateGeneration;
-
-    try {
-      final snapshot = await SupabaseAccountService.fetchSnapshot();
-      if (requestGeneration != _lifeStateGeneration) return;
-      _lifeCount = snapshot.lifeCount;
-      _infiniteLives = snapshot.unlimitedLives;
-      _membership = switch (snapshot.membershipTier) {
-        'PREMIUM' => 'premium',
-        'GOLDEN' => 'golden',
-        _ => 'general',
-      };
-      _lifeMode = snapshot.membershipTier == 'GOLDEN' ? 'golden' : 'normal';
-      _nextLifeAtMillis = snapshot.nextRegenAt?.millisecondsSinceEpoch;
-      _hasAuthoritativeState = true;
-    } on SupabaseAccountException {
-      // A failed snapshot is not permission to change the cached life balance.
-      rethrow;
+  /// Roll back only if a new game failed to become playable after its debit.
+  static Future<void> refundFailedGameCreation() async {
+    await _ensureInitialized();
+    if (_permanentUnlock || _freeGamesRemaining >= initialFreeGames) return;
+    final next = _freeGamesRemaining + 1;
+    final saved = await _preferences!.setInt(_freeGamesKey, next);
+    if (!saved) {
+      throw StateError('Could not restore failed new-game debit.');
     }
+    _freeGamesRemaining = next;
   }
 
-  static void _applyServerState(
-    Map<String, dynamic> data, {
-    bool preserveLocalRegeneration = false,
-  }) {
-    final lives = data['lives'];
-    final infiniteLives = data['infiniteLives'] == true;
-    final membership = data['membership'];
-    final lifeMode = data['lifeMode'];
-    final nextLifeAtMillis = data['nextLifeAtMillis'];
+  /// Compatibility method for older callers; it now means one new game.
+  static Future<bool> consumeLife() => consumeFreeGame();
 
-    if (lives is! int || lives < -1) {
-      throw StateError('Invalid server life state.');
-    }
+  /// Chapter completion never refunds a FREE new-game allowance.
+  static Future<void> refundChapterCompletionLife() async {}
 
-    if (lifeMode != 'normal' && lifeMode != 'golden') {
-      throw StateError('Invalid server life mode.');
-    }
+  /// The offline edition has no regeneration timer.
+  static void tickRegeneration() {}
 
-    if (membership != 'general' &&
-        membership != 'premium' &&
-        membership != 'golden') {
-      throw StateError('Invalid server membership state.');
-    }
-
-    if (nextLifeAtMillis != null && nextLifeAtMillis is! int) {
-      throw StateError('Invalid server regeneration timestamp.');
-    }
-
-    final localLives = _lifeCount;
-    final localNextLifeAtMillis = _nextLifeAtMillis;
-    final preserveOptimisticLife =
-        preserveLocalRegeneration &&
-        !_infiniteLives &&
-        !infiniteLives &&
-        lives < localLives &&
-        localNextLifeAtMillis != null;
-
-    _lifeCount = preserveOptimisticLife ? localLives : lives;
-    _infiniteLives = infiniteLives;
-    _membership = membership as String;
-    _lifeMode = lifeMode as String;
-    _nextLifeAtMillis = preserveOptimisticLife
-        ? localNextLifeAtMillis
-        : nextLifeAtMillis as int?;
-    _hasAuthoritativeState = true;
-  }
-
-  /// Clears account-scoped local state before Supabase sign-out.
-  /// The next account must never inherit the previous account's Life display.
+  /// Does not erase actual local entitlement data.
   static void clearCachedState() {
-    _lifeStateGeneration++;
-    _hasAuthoritativeState = false;
-    _lifeCount = normalCap;
-    _infiniteLives = false;
-    _membership = 'general';
-    _lifeMode = 'normal';
-    _nextLifeAtMillis = null;
+    _preferences = null;
+    _initialized = false;
   }
-
-  static bool get hasAuthoritativeState => _hasAuthoritativeState;
-
-  static bool get isGoldenMember => _lifeMode == 'golden';
-
-  static String get lifeMode => _lifeMode;
-
-  static int get lifeCount => _infiniteLives ? -1 : _lifeCount;
-
-  static String get membership => _membership;
-
-  static int? get nextLifeAtMillis =>
-      _infiniteLives ? null : _nextLifeAtMillis;
-
-  /// Advances the local regeneration state as soon as the countdown expires.
-  ///
-  /// The local transition is immediate so the UI never remains at
-  /// "4 (00:00)" while waiting for Supabase. The server is then queried in
-  /// the background. A stale response can no longer roll the just-regenerated
-  /// Life back down.
-  static void tickRegeneration() {
-    if (_infiniteLives || _lifeCount < 0 || _nextLifeAtMillis == null) return;
-
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now < _nextLifeAtMillis!) return;
-
-    final elapsed = now - _nextLifeAtMillis!;
-    final recovered = 1 + (elapsed ~/ _regenIntervalMillis);
-    final nextLives = (_lifeCount + recovered).clamp(0, normalCap).toInt();
-    _lifeCount = nextLives;
-
-    if (_lifeCount >= normalCap) {
-      _nextLifeAtMillis = null;
-    } else {
-      _nextLifeAtMillis =
-          _nextLifeAtMillis! + recovered * _regenIntervalMillis;
-    }
-
-    // This local mutation invalidates every older life read. Always issue the
-    // background verification, even if a previous regeneration request is
-    // still in flight; the older request will be discarded by generation.
-    _lifeStateGeneration++;
-    refreshFromServer(fromRegeneration: true).catchError((_) {
-      // Keep the optimistic local regeneration visible if Supabase is
-      // temporarily unavailable. A later refresh/re-entry will retry.
-    });
-  }
-
-  static Duration? get regenerationRemaining {
-    final next = nextLifeAtMillis;
-    if (next == null) return null;
-
-    final remaining =
-        Duration(milliseconds: next - DateTime.now().millisecondsSinceEpoch);
-    return remaining.isNegative ? Duration.zero : remaining;
-  }
-
-  /// Life is deducted only by start/restart-game-session transactions.
-  /// Kept as a compatibility guard so callers cannot double-charge life.
-  static Future<bool> consumeLife() async {
-    throw UnsupportedError(
-      'Life can only be consumed by an authoritative game-session transaction.',
-    );
-  }
-
-  /// Chapter completion life is settled by finish-game-chapter on the server.
-  static Future<void> refundChapterCompletionLife() async {
-    throw UnsupportedError(
-      'Chapter completion life is settled by the game-session transaction.',
-    );
-  }
-
 }

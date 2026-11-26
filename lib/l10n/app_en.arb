@@ -62,13 +62,15 @@
   "authRegister": "Create Account",
   "authSwitchToLogin": "Already have an account? Log in",
   "authSwitchToRegister": "New here? Create an account",
-  "authChooseMethod": "Choose a sign-in method",
-  "authGoogle": "Continue with Google",
-  "authApple": "Continue with Apple",
+  "authChooseMethod": "No sign-in required",
+  "authGoogle": "Google Play account (purchases only)",
+  "authApple": "Not used in this edition",
   "authOr": "OR",
   "authSkip": "Skip and enter the game",
   "authTooManyRequests": "Too many requests. Please try again later.",
-  "life": "Life",
+  "life": "Free games left",
+  "freeGamesExhaustedTitle": "Free trial completed",
+  "freeGamesExhaustedMessage": "You have used all 5 free games. Permanent purchase is not available yet.",
   "playerInfo": "Player Info",
   "shop": "Shop",
   "gameTime": "Game Time",
@@ -86,18 +88,18 @@
   "messagesFeedback": "Messages / Feedback",
   "messagesFeedbackSubtitle": "Send questions, suggestions or bug reports",
   "testControls": "Test Controls",
-  "testControlsSubtitle": "Membership modes and Gold balance",
+  "testControlsSubtitle": "Offline Gold and tool test controls",
   "aboutGame": "About Game",
   "aboutGameSubtitle": "Creator, music, assets and third-party services",
   "logOut": "Log Out",
   "logoutConfirm": "Are you sure you want to log out of your account?",
-  "cancel": "Cancel",
+  "cancel": "CANCEL",
   "chooseAvatar": "Choose your avatar",
   "save": "Save",
   "loading": "Loading...",
   "notAvailable": "Not available",
-  "goldenMember": "Golden Member",
-  "premiumMember": "Premium Member",
+  "goldenMember": "Legacy purchase",
+  "premiumMember": "Legacy purchase",
   "generalMember": "General Member",
   "playerNameEmpty": "Player name cannot be empty.",
   "playerNameUpdated": "Player name updated.",
@@ -110,7 +112,7 @@
   "goldBalance": "Gold Balance",
   "lifetimeSpent": "Lifetime Spent",
   "goldAmount": "{amount} Gold",
-  "goldUsage": "Gold is used for lives and tool purchases.",
+  "goldUsage": "Gold is used to purchase evolution tools.",
   "backgroundMusic": "Background Music",
   "musicVolume": "Music Volume",
   "soundEffects": "Sound Effects",
@@ -124,7 +126,7 @@
   "sixChapters": "Six Chapters",
   "chapterSequence": "Ocean → Land → Sky → History → Technology → Space",
   "resources": "Resources",
-  "resourcesDescription": "Lives are used for gameplay attempts. Gold can be used to purchase additional lives and tools. Tool inventory is cumulative across chapters.",
+  "resourcesDescription": "FREE includes five new-game starts. Each new game uses one start, and used starts never regenerate. Permanent purchase unlocks unlimited new games. Gold buys tools, whose inventory is shared across chapters.",
   "app": "App",
   "gameVersion": "Game Version",
   "currentDevelopmentBuild": "Current development build",
@@ -135,17 +137,347 @@
   "musicSources": "Music & Sound Sources",
   "musicSourcesDescription": "Music and sound assets and their sources are documented in the project audio source record and final attribution list.",
   "artworkServices": "Artwork & Third-party Services",
-  "artworkServicesDescription": "Artwork, Firebase, Flutter and third-party package licenses and sources will follow the final release attribution list.",
+  "artworkServicesDescription": "Artwork, Flutter and third-party package licenses and sources will follow the final release attribution list.",
   "version": "Version",
   "developmentBuild": "Development Build",
   "playerId": "Player ID",
-  "membership": "Membership",
+  "membership": "Purchase status",
   "evolutionProgress": "Evolution Progress",
   "chapterLabel": "Chapter {number} · {name}",
   "profileSetupFailed": "Unable to set up your profile.",
   "restartConfirmTitle": "Restart game?",
-  "restartConfirmMessage": "Replace the current board? No additional Life will be charged.",
+  "restartConfirmMessage": "Replace the current board? Restarting uses one more free game.",
   "restart": "Restart",
-  "restartFailed": "Unable to restart. Check your Life and try again.",
-  "restartPending": "Restart is still syncing. Return to Home and reopen this chapter when connected."
+  "restartFailed": "Unable to restart. Check your remaining free games and try again.",
+  "restartPending": "The new board could not be saved. Return Home and try again.",
+  "shopMembership": "Membership",
+  "shopMembershipSubtitle": "Permanent game purchase",
+  "shopGold": "Gold",
+  "shopGoldSubtitle": "Purchase Gold packages",
+  "shopTools": "Tools",
+  "shopToolsSubtitle": "UNDO, REMOVE, SWAP and DUPLICATE",
+  "goldBalanceTitle": "Gold Balance",
+  "paymentUnavailable": "Real-money payment is not connected yet.",
+  "membershipGeneral": "General",
+  "membershipPremium": "Legacy plan",
+  "membershipGolden": "Legacy plan",
+  "membershipGeneralDescription": "Free · 5 one-time new-game starts · No regeneration",
+  "membershipPremiumDescription": "Legacy membership plan · Not used in the offline single-player edition",
+  "membershipGoldenDescription": "Legacy membership plan · Not used in the offline single-player edition",
+  "permanentLabel": "Permanent",
+  "upgradeLabel": "Upgrade",
+  "currentLabel": "Current",
+  "ownedUses": "Owned: {count}",
+  "purchaseSuccess": "Purchased {amount} {tool} use(s).",
+  "purchaseFailed": "Tool purchase failed.",
+  "invalidToolQuantity": "Invalid tool package quantity.",
+  "signInBeforePurchase": "Game account sign-in is not required to purchase tools.",
+  "insufficientGold": "Not enough Gold for this purchase.",
+  "freeSingleToolOnly": "FREE members can only purchase one tool at a time.",
+  "goldenUndoUnlimited": "UNDO uses the purchased tool inventory.",
+  "accountRestricted": "Account access is restricted. Support remains available.",
+  "idempotencyConflict": "This purchase request conflicts with an earlier request.",
+  "purchaseRetryOnline": "Tool purchase could not be completed. Please retry online.",
+  "purchaseProtectionUnavailable": "Purchase protection could not be saved. Please retry.",
+  "invalidPurchaseResponse": "The tool purchase service returned an invalid response.",
+  "purchaseVerificationFailed": "Could not verify the purchase. No local wallet change was applied.",
+  "@ownedUses": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@purchaseSuccess": {
+    "placeholders": {
+      "amount": {
+        "type": "Object"
+      },
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "undoToolLabel": "UNDO",
+  "removeToolLabel": "REMOVE",
+  "swapToolLabel": "SWAP",
+  "duplicateToolLabel": "DUPLICATE",
+  "gameOverTitle": "GAME OVER",
+  "noMoreMoves": "No more moves.",
+  "scoreLabel": "SCORE",
+  "useTool": "USE TOOL",
+  "restartButton": "RESTART",
+  "duplicateLimit": "Duplicate is limited to tiles up to 256.",
+  "noEmptyPosition": "No empty position available.",
+  "nextChapterStartFailed": "Unable to start the next chapter. Check your remaining free games and purchase status.",
+  "nextChapterStartRetry": "Unable to start the next chapter. Please try again.",
+  "chapterVerifyPending": "Chapter progress could not be saved. Please try again.",
+  "nextChapter": "Next Chapter",
+  "home": "Home",
+  "cancelTool": "CANCEL",
+  "getTool": "Get {tool}",
+  "rewardedAdToolDescription": "Watch a rewarded ad to get additional uses.",
+  "goToShop": "Go to Shop",
+  "feedbackTitle": "Contact / Feedback",
+  "feedbackSendTitle": "Send a message",
+  "feedbackDescription": "Questions, suggestions and bug reports are welcome.",
+  "feedbackType": "Type",
+  "feedbackMessage": "Message",
+  "feedbackSending": "Sending...",
+  "feedbackSend": "Send Message",
+  "feedbackSent": "Your message has been sent.",
+  "feedbackSendFailed": "Could not send your message. Please retry online.",
+  "feedbackQuestion": "Question",
+  "feedbackSuggestion": "Suggestion",
+  "feedbackBugReport": "Bug Report",
+  "feedbackOther": "Other",
+  "qaTitle": "Q&A",
+  "faqTitle": "Frequently Asked Questions",
+  "@getTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "adminRequired": "Administrator access required.",
+  "adminTitle": "Admin Management",
+  "adminShopParameters": "Shop Parameters",
+  "adminShopSubtitle": "Gold and Tool settings",
+  "adminQAManagement": "Q&A Management",
+  "adminQASubtitle": "Manage frequently asked questions",
+  "adminPlayerMessages": "Player Messages",
+  "adminMessagesSubtitle": "Read player feedback",
+  "adminPlayerSearch": "Player Search",
+  "adminPlayerSearchSubtitle": "Player lookup will be connected here",
+  "adminGameParameters": "Game Parameters",
+  "adminGameParametersSubtitle": "Chapter and gameplay settings",
+  "adminComingSoon": "{name} management will be added next.",
+  "shopParametersSaved": "Shop parameters saved.",
+  "shopParametersSaveFailed": "Could not save shop parameters. Please retry online.",
+  "goldPackagesUsd": "Gold Packages (USD)",
+  "permanentMembershipUsd": "Permanent Game Purchase (USD)",
+  "evolutionToolsGold": "Evolution Tools (Gold)",
+  "saving": "Saving...",
+  "saveParameters": "Save Parameters",
+  "qaMigrationPending": "FAQ content is available locally in this offline edition.",
+  "unableLoadMessages": "Unable to load player messages. Please retry online.",
+  "noPlayerMessages": "No player messages yet.",
+  "playerMessage": "Player message",
+  "openStatus": "open",
+  "testControlsTitle": "Test Controls",
+  "@adminComingSoon": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "faqQuestion1": "How do I play Rebirth 2048?",
+  "faqAnswer1": "Swipe or use the keyboard to move life forms. Matching life forms evolve into the next stage. Reach the chapter target to progress.",
+  "faqQuestion2": "What happens when I discover a creature?",
+  "faqAnswer2": "A discovered creature is permanently recorded in your Creature Collection and will remain unlocked after replaying or restarting.",
+  "faqQuestion3": "What are Lives?",
+  "faqAnswer3": "FREE includes five one-time new-game starts. Used starts never regenerate; permanent purchase unlocks unlimited new games.",
+  "faqQuestion4": "What is Gold?",
+  "faqAnswer4": "Gold is the in-game currency earned through play and used to purchase Evolution Tools.",
+  "faqQuestion5": "What do the Evolution Tools do?",
+  "faqAnswer5": "UNDO rewinds a move, REMOVE removes a selected life form, SWAP exchanges positions, and DUPLICATE creates a copy of a selected life form.",
+  "faqQuestion6": "How do I report a problem?",
+  "faqAnswer6": "Open Contact / Feedback from your Personal page and choose Bug Report. You can describe the problem and send it to the game team.",
+  "simulatorTitle": "Local Purchase Simulator",
+  "simulatorNotice": "Debug only. Changes are local and temporary; the next account sync replaces them. No real payment is made.",
+  "simulatePremium": "Legacy Premium test",
+  "simulateGolden": "Legacy Golden test",
+  "simulateGold": "Simulate 300 Gold purchase",
+  "simulateUndo": "Simulate UNDO ×1 purchase",
+  "simulateRemove": "Simulate REMOVE ×1 purchase",
+  "simulateSwap": "Simulate SWAP ×1 purchase",
+  "simulateDuplicate": "Simulate DUPLICATE ×1 purchase",
+  "simulatorCurrentState": "Current local test state",
+  "simulatorDebugOnly": "The purchase simulator is available only in debug builds.",
+  "simulatorMembership": "Local purchase status: {tier}",
+  "simulatorLives": "Lives: {count}",
+  "simulatorGold": "Gold: {count}",
+  "simulatorToolUses": "{tool}: {count}",
+  "simulatorApplied": "Local test purchase applied. This is not a real transaction.",
+  "@simulatorMembership": {
+    "placeholders": {
+      "tier": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorLives": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorGold": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "@simulatorToolUses": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      },
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
+  "authConfirmEmail": "No game account confirmation is required in this offline edition.",
+  "authProviderUnavailable": "The sign-in provider could not be opened.",
+  "adminGold300Usd": "300 Gold (USD)",
+  "adminGold1000Usd": "1,000 Gold (USD)",
+  "adminGold4000Usd": "4,000 Gold (USD)",
+  "adminGold10000Usd": "10,000 Gold (USD)",
+  "adminPremiumUsd": "Legacy Premium price (USD)",
+  "adminGoldenUsd": "Legacy Golden price (USD)",
+  "adminGoldenUpgradeUsd": "Legacy upgrade price (USD)",
+  "adminOneUseGoldPrice": "1 use · Gold price",
+  "adminFiveUsesGoldPrice": "5 uses · Gold price",
+  "adminTwentyUsesGoldPrice": "20 uses · Gold price",
+  "adminFiftyUsesGoldPrice": "50 uses · Gold price",
+  "uidLabel": "Player UID",
+  "statusOpen": "Open",
+  "statusClosed": "Closed",
+  "highestProgress": "Highest: {current} / {target}",
+  "selectTileForTool": "Select a tile for {tool}",
+  "@highestProgress": {
+    "placeholders": {
+      "current": {
+        "type": "Object"
+      },
+      "target": {
+        "type": "Object"
+      }
+    }
+  },
+  "@selectTileForTool": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "creatureC1V2": "Diatom",
+  "creatureC1V4": "Flagellate",
+  "creatureC1V8": "Krill",
+  "creatureC1V16": "Clownfish",
+  "creatureC1V32": "Jellyfish",
+  "creatureC1V64": "Squid",
+  "creatureC1V128": "Sea Turtle",
+  "creatureC1V256": "Yellowfin Tuna",
+  "creatureC1V512": "Shark",
+  "creatureC1V1024": "Orca",
+  "creatureC1V2048": "Blue Whale",
+  "creatureC1V4096": "Seabed Human",
+  "creatureC2V2": "Land Plant",
+  "creatureC2V4": "Fern",
+  "creatureC2V8": "Arthropod",
+  "creatureC2V16": "Insect",
+  "creatureC2V32": "Amphibian",
+  "creatureC2V64": "Reptile",
+  "creatureC2V128": "Small Mammal",
+  "creatureC2V256": "Large Mammal",
+  "creatureC2V512": "Primate",
+  "creatureC2V1024": "Early Human",
+  "creatureC2V2048": "Homo Sapiens",
+  "creatureC2V4096": "Civilized Human",
+  "creatureC2V8192": "Future Human",
+  "creatureC3V2": "Hairy Cell Organism",
+  "creatureC3V4": "Mosquito",
+  "creatureC3V8": "Dragonfly",
+  "creatureC3V16": "Archaeopteryx",
+  "creatureC3V32": "Eagle",
+  "creatureC3V64": "Pterosaur",
+  "creatureC3V128": "Bat",
+  "creatureC3V256": "Glider",
+  "creatureC3V512": "Early Aircraft",
+  "creatureC3V1024": "Jet Fighter",
+  "creatureC3V2048": "Stealth Fighter",
+  "creatureC3V4096": "Aircraft",
+  "creatureC3V8192": "Wing Suit",
+  "creatureC3V16384": "Winged Human",
+  "creatureC4V2": "Fire",
+  "creatureC4V4": "Tribe",
+  "creatureC4V8": "Pyramid",
+  "creatureC4V16": "Roman Architecture",
+  "creatureC4V32": "Tang Architecture",
+  "creatureC4V64": "Mongol Invasion",
+  "creatureC4V128": "Age of Exploration",
+  "creatureC4V256": "American Independence",
+  "creatureC4V512": "Industrial Revolution",
+  "creatureC4V1024": "Communication Revolution",
+  "creatureC4V2048": "Automobile Invention",
+  "creatureC4V4096": "Airplane Invention",
+  "creatureC4V8192": "World War II",
+  "creatureC4V16384": "Space Exploration",
+  "creatureC4V32768": "Information Age",
+  "creatureC5V2": "Watch",
+  "creatureC5V4": "Camera",
+  "creatureC5V8": "Radio",
+  "creatureC5V16": "Television",
+  "creatureC5V32": "Washing Machine",
+  "creatureC5V64": "Refrigerator",
+  "creatureC5V128": "Microwave",
+  "creatureC5V256": "Remote Control",
+  "creatureC5V512": "Computer",
+  "creatureC5V1024": "Mobile Phone",
+  "creatureC5V2048": "Tablet",
+  "creatureC5V4096": "Drone",
+  "creatureC5V8192": "VR Device",
+  "creatureC5V16384": "Robot",
+  "creatureC5V32768": "Chip",
+  "creatureC5V65536": "Future Technology",
+  "creatureC6V2": "Big Bang",
+  "creatureC6V4": "Planet Formation",
+  "creatureC6V8": "Sun",
+  "creatureC6V16": "Earth",
+  "creatureC6V32": "Moon",
+  "creatureC6V64": "Mars",
+  "creatureC6V128": "Ring Space Station",
+  "creatureC6V256": "Asteroid Mining",
+  "creatureC6V512": "Solar System Expansion",
+  "creatureC6V1024": "Alien Life",
+  "creatureC6V2048": "Alien",
+  "creatureC6V4096": "First Contact",
+  "creatureC6V8192": "Interstellar Travel",
+  "creatureC6V16384": "Galaxy Exploration",
+  "creatureC6V32768": "Cosmic Civilization",
+  "creatureC6V65536": "Earth Development",
+  "creatureC6V131072": "Divine Perspective",
+  "oceanRestored": "Ocean Restored",
+  "landRestored": "Land Restored",
+  "skyRestored": "Sky Restored",
+  "historyRestored": "History Restored",
+  "technologyRestored": "Technology Restored",
+  "universeRestored": "Universe Restored",
+  "chapterScoreSummary": "Score {score}    Highest {highest}",
+  "@chapterScoreSummary": {
+    "placeholders": {
+      "score": {
+        "type": "Object"
+      },
+      "highest": {
+        "type": "Object"
+      }
+    }
+  },
+  "toolUsed": "USED",
+  "toolUsesRemaining": "{count} USE",
+  "@toolUsesRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  }
 }
