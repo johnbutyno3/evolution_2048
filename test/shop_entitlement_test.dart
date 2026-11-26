@@ -50,6 +50,18 @@ void main() {
     expect(ToolManager.packagePrice(GameToolType.timeRewind, 5), 225);
     expect(ToolManager.packagePrice(GameToolType.timeRewind, 20), 700);
     expect(ToolManager.packagePrice(GameToolType.timeRewind, 50), 1500);
+    expect(ToolManager.packagePrice(GameToolType.revive, 1), 100);
+    expect(ToolManager.packagePrice(GameToolType.revive, 5), 450);
+    expect(ToolManager.packagePrice(GameToolType.revive, 20), 1400);
+    expect(ToolManager.packagePrice(GameToolType.revive, 50), 3000);
+    expect(ToolManager.packagePrice(GameToolType.positionSwap, 1), 200);
+    expect(ToolManager.packagePrice(GameToolType.positionSwap, 5), 900);
+    expect(ToolManager.packagePrice(GameToolType.positionSwap, 20), 2800);
+    expect(ToolManager.packagePrice(GameToolType.positionSwap, 50), 6000);
+    expect(ToolManager.packagePrice(GameToolType.duplicate, 1), 500);
+    expect(ToolManager.packagePrice(GameToolType.duplicate, 5), 2250);
+    expect(ToolManager.packagePrice(GameToolType.duplicate, 20), 7000);
+    expect(ToolManager.packagePrice(GameToolType.duplicate, 50), 15000);
 
     expect(await ToolManager.purchase(GameToolType.timeRewind, 5), isTrue);
     expect(GoldManager.balance, 775);
