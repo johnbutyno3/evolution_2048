@@ -292,16 +292,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restartConfirmTitle => '重新開始遊戲？';
 
   @override
-  String get restartConfirmMessage => '確定要替換目前棋盤嗎？不會再次扣除生命。';
+  String get restartConfirmMessage => '確定要替換目前棋盤嗎？重新開始會再扣除一次免費遊玩額度。';
 
   @override
   String get restart => '重新開始';
 
   @override
-  String get restartFailed => '無法重新開始，請確認生命數量後再試一次。';
+  String get restartFailed => '無法重新開始，請確認剩餘免費局數後再試一次。';
 
   @override
-  String get restartPending => '重新開始仍在同步中。請返回首頁，連線恢復後再進入本章。';
+  String get restartPending => '新棋盤尚未成功儲存。請返回首頁後再試一次。';
 
   @override
   String get cancel => '取消';
@@ -367,7 +367,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get goldUsage => '金幣可用於購買生命與道具。';
+  String get goldUsage => '金幣可用於購買進化道具。';
 
   @override
   String get backgroundMusic => '背景音樂';
@@ -409,7 +409,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resources => '資源';
 
   @override
-  String get resourcesDescription => '生命用於遊戲挑戰。金幣可購買額外生命與道具，道具庫存會跨章節累積。';
+  String get resourcesDescription => '免費版提供五次新局額度，每建立一局扣除一次，用完不會隨時間恢復。永久買斷後可無限開新局。金幣可購買道具，道具庫存跨章節累積。';
 
   @override
   String get app => 'APP';
@@ -443,7 +443,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get artworkServicesDescription =>
-      '美術素材、Firebase、Flutter 及其他第三方套件的授權與來源，以正式發行版本的授權清單為準。';
+      '美術素材、Flutter 及其他第三方套件的授權與來源，以正式發行版本的授權清單為準。';
 
   @override
   String get version => '版本';
@@ -502,13 +502,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get membershipGolden => 'Golden 會員';
 
   @override
-  String get membershipGeneralDescription => '免費・5 點生命・每 40 分鐘恢復 1 點生命';
+  String get membershipGeneralDescription => '免費・五次新局額度・不會自動恢復';
 
   @override
-  String get membershipPremiumDescription => '永久會員・無強制廣告・無限生命・每日 20 金幣';
+  String get membershipPremiumDescription => '舊會員方案，不適用於單機版';
 
   @override
-  String get membershipGoldenDescription => '永久會員・無廣告・無限生命・每日 50 金幣';
+  String get membershipGoldenDescription => '舊會員方案，不適用於單機版';
 
   @override
   String get permanentLabel => '永久';
@@ -595,7 +595,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noEmptyPosition => '目前沒有空格可放置。';
 
   @override
-  String get nextChapterStartFailed => '無法開始下一章，請確認生命數量。';
+  String get nextChapterStartFailed => '無法開始下一章，請確認剩餘免費局數及買斷資格。';
 
   @override
   String get nextChapterStartRetry => '無法開始下一章，請再試一次。';
@@ -760,13 +760,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get faqQuestion3 => '生命有什麼用途？';
 
   @override
-  String get faqAnswer3 => '生命用於開始遊戲挑戰。不同會員資格會影響生命上限與相關權益。';
+  String get faqAnswer3 => '免費版有五次永久新局額度，每次建立新局扣除一次，用完不會恢復；永久買斷後可無限開新局。';
 
   @override
   String get faqQuestion4 => '金幣是什麼？';
 
   @override
-  String get faqAnswer4 => '金幣是遊戲內貨幣，可用於商城中開放購買的項目，例如進化道具。';
+  String get faqAnswer4 => '金幣是遊戲內貨幣，可透過遊玩獲得，並用於購買進化道具。';
 
   @override
   String get faqQuestion5 => '進化道具有什麼功能？';
