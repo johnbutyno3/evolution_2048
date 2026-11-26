@@ -618,7 +618,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nextChapterStartRetry => 'Unable to start the next chapter. Please try again.';
 
   @override
-  String get chapterVerifyPending => 'Chapter verification is still unavailable. Please try again.';
+  String get chapterVerifyPending => 'Chapter progress could not be saved. Please try again.';
 
   @override
   String get nextChapter => 'Next Chapter';
