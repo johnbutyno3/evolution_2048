@@ -787,10 +787,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get simulatorNotice => '僅供除錯測試。變更只存在本機且為暫時狀態；下次同步帳號時會被伺服器資料取代。本功能不會進行真實付款。';
 
   @override
-  String get simulatePremium => '模擬購買 Premium';
+  String get simulatePremium => '舊 Premium 測試';
 
   @override
-  String get simulateGolden => '模擬購買 Golden';
+  String get simulateGolden => '舊 Golden 測試';
 
   @override
   String get simulateGold => '模擬購買 300 金幣';
@@ -829,10 +829,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get simulatorApplied => '本機測試購買已套用。這不是真實交易。';
 
   @override
-  String get authConfirmEmail => '請先查看電子郵件並完成帳號驗證，再登入。';
+  String get authConfirmEmail => '此單機版本不需要遊戲帳號驗證。';
 
   @override
-  String get authProviderUnavailable => '無法開啟第三方登入服務。';
+  String get authProviderUnavailable => '此版本不使用第三方登入。';
 
   @override
   String get adminGold300Usd => '300 金幣（美元）';
