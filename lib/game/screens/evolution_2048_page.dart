@@ -970,7 +970,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       return future;
     }
 
-    // Start verification while the local completion page is displayed.
+    // Start local settlement while the completion page is displayed.
     unawaited(settleCompletion());
 
     await AudioManager.instance.stopMusic();
