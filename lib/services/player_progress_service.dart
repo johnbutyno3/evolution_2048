@@ -318,7 +318,18 @@ class PlayerProgressService {
     if (!LifeManager.hasPermanentUnlock && chapterIndex != 0) return false;
 
     final gameId = _activeGameSessionId ?? SaveManager.gameSessionId;
+    if (gameId == null ||
+        gameId != SaveManager.gameSessionId ||
+        (_activeGameChapterIndex != null &&
+            _activeGameChapterIndex != chapterIndex)) {
+      return false;
+    }
     final saved = SaveManager.loadCached(chapter: _chapterNames[chapterIndex]);
+    if (saved == null ||
+        saved['gameSessionId'] != gameId ||
+        saved['chapterComplete'] != true) {
+      return false;
+    }
     final score = (effectiveScore ??
             (saved?['score'] is num ? (saved!['score'] as num).toInt() : 0))
         .clamp(0, 1 << 30)
