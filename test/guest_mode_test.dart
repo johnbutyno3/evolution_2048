@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:rebirth_2048/game/services/life_manager.dart';
+import 'package:rebirth_2048/game/services/gold_manager.dart';
 import 'package:rebirth_2048/game/services/save_manager.dart';
 import 'package:rebirth_2048/services/player_progress_service.dart';
 
@@ -98,4 +99,36 @@ void main() {
     expect(LifeManager.lifeCount, 0);
     expect(LifeManager.regenerationRemaining, isNull);
   });
+
+  test('refresh settles a terminal Game Over snapshot after interrupted shutdown', () async {
+    await LifeManager.consumeFreeGame();
+    const gameId = 'interrupted-game-over';
+    await SaveManager.setGameSessionId(gameId);
+    await SaveManager.save(<String, dynamic>{
+      'chapter': 'ocean',
+      'gameSessionId': gameId,
+      'tiles': <dynamic>[2, 4, ...List<dynamic>.filled(14, null)],
+      'score': 2500,
+      'highestEvolutionValue': 8,
+      'speciesMergedThisGame': <int>[4, 8],
+      'gameOver': true,
+      'chapterComplete': false,
+    });
+
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+
+    expect(progress.activeGameSessionId, isNull);
+    expect(SaveManager.gameSessionId, isNull);
+    expect(SaveManager.unfinishedChapter, isNull);
+    expect(LifeManager.lifeCount, 4);
+    expect(GoldManager.balance, 14,
+        reason: 'terminal game reward must be recovered exactly once');
+
+    await progress.refresh();
+    expect(GoldManager.balance, 14,
+        reason: 'repeated startup recovery must not credit the game twice');
+  });
+
+
 }
