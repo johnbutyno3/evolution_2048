@@ -96,11 +96,6 @@ class LifeManager {
   /// Chapter completion never refunds a FREE new-game allowance.
   static Future<void> refundChapterCompletionLife() async {}
 
-  /// Compatibility alias used by the old progression service. No server call
-  /// is performed in the offline edition.
-  static Future<void> refreshFromServer({bool fromRegeneration = false}) =>
-      initializeLocal();
-
   /// The offline edition has no regeneration timer.
   static void tickRegeneration() {}
 
