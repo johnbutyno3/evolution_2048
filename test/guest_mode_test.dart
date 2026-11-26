@@ -13,6 +13,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await SaveManager.initialize();
     await LifeManager.initializeLocal();
+    await GoldManager.initializeLocal();
     LifeManager.enableGuestMode();
   });
 
