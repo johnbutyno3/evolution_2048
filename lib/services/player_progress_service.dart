@@ -118,11 +118,11 @@ class PlayerProgressService {
           : 0;
 
       await GoldManager.settleGame(
-        gameId: gameId,
-        effectiveScore: score,
-        newSpeciesCount: speciesCount,
-        highestValue: highest,
-      );
+      gameId: gameId,
+      effectiveScore: score,
+      newSpeciesCount: speciesCount,
+      highestValue: highest,
+    );
 
       if (saved?['chapterComplete'] == true) {
         await SaveManager.saveLocalChapterCompletion(
