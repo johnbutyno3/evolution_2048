@@ -143,13 +143,21 @@ void main() {
     final land = ToolManager(chapter: GameChapter.land);
     final sky = ToolManager(chapter: GameChapter.sky);
     final history = ToolManager(chapter: GameChapter.history);
+    final tech = ToolManager(chapter: GameChapter.tech);
+    final universe = ToolManager(chapter: GameChapter.universe);
 
+    expect(ocean.getTool(GameToolType.timeRewind), isNotNull);
     expect(ocean.getTool(GameToolType.revive), isNull);
     expect(land.getTool(GameToolType.revive), isNotNull);
     expect(land.getTool(GameToolType.positionSwap), isNull);
     expect(sky.getTool(GameToolType.positionSwap), isNotNull);
     expect(sky.getTool(GameToolType.duplicate), isNull);
     expect(history.getTool(GameToolType.duplicate), isNotNull);
+    expect(tech.getTool(GameToolType.duplicate), isNotNull);
+    expect(universe.getTool(GameToolType.timeRewind), isNotNull);
+    expect(universe.getTool(GameToolType.revive), isNull);
+    expect(universe.getTool(GameToolType.positionSwap), isNull);
+    expect(universe.getTool(GameToolType.duplicate), isNull);
   });
 
   test('concurrent Gold rewards and game settlement cannot double-credit', () async {
