@@ -172,14 +172,14 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       final progress = PlayerProgressService.instance;
       if (!mounted || generation != _gameSessionGeneration) return false;
 
-      // The server owns the active-session pointer. Hydrate it before deciding
+      // The local save owns the active-game pointer. Load it before deciding
       // whether this entry is a resume or a genuinely new game. The board
       // itself remains local-first; this refresh only decides which existing
       // session must be restored.
       if (!progress.loadedLocally) {
         await progress.refresh();
         if (!mounted || generation != _gameSessionGeneration) return false;
-        // Without an authoritative session pointer we must not guess that
+        // Without a successfully loaded local session pointer we must not guess that
         // this is a new game. Guessing here can consume a Life and discard an
         // unfinished local board during a temporary local storage failure.
         if (!progress.loadedLocally) return false;
@@ -271,7 +271,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             _resumeGameplay();
             _focusNode.requestFocus();
 
-            // Resume validation is authoritative but must never delay the
+            // Local resume validation must never delay the
             // already-restored local board.
             unawaited(
               progress.resumeGameSession(_chapterNumber - 1).then((_) {
@@ -352,9 +352,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         return false;
       }
 
-      // With no active local game session, a zero-life account cannot be shown a
-      // fabricated new board. Only a real session owns a Life and a playable
-      // board.
+      // With no active local game session, a player with no remaining free games cannot be shown a
+      // fabricated new board. Only a persisted gameId owns a free-game debit and a playable board.
       if (!LifeManager.hasUnlimitedLives &&
           LifeManager.lifeCount <= 0) {
         return false;
@@ -364,8 +363,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       // session-use overlay must not leak into this new board.
       ToolManager.clearSessionUsage();
 
-      // New game: prepare and persist the exact board locally before the
-      // background network request. This is a local write, not a network wait.
+      // New game: create the gameId and persist the exact board locally before
+      // enabling gameplay.
       final newEngine = GameEngine(
         chapter: _engine.chapter,
         forceNewBoard: true,
@@ -413,7 +412,7 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         startedFuture.then((started) async {
           if (!mounted || generation != _gameSessionGeneration) return;
           if (!started) {
-            // The locally rejected the start. The refresh has
+            // The local start was rejected. The rollback has
             // restored the previous session binding, so the candidate board
             // can be discarded without overwriting the old snapshot.
             newEngine.stopGameTimer(persist: false);
@@ -430,9 +429,9 @@ class _Evolution2048PageState extends State<Evolution2048Page>
             return;
           }
 
-          // The server has confirmed this session. The candidate snapshot was
+          // The local game session has been created. The candidate snapshot was
           // already persisted before the request; write the current timer and
-          // latest board state with the now-authoritative binding.
+          // latest board state with the local gameId binding.
           await newEngine.flushLocalSave();
           await SaveManager.save(newEngine.createSaveData());
           unawaited(_refreshMountedToolInventory(generation));
@@ -532,8 +531,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       _showChapterComplete();
       return;
     }
-    // Start the server verification immediately. The 280ms visual animation
-    // now runs in parallel with legacy server validation instead of after it.
+    // Start local chapter settlement immediately. The 280ms visual animation
+    // runs while the local Gold and progress records are saved.
     _completionVerificationFuture = progress.completeChapter(
       chapterIndex: _chapterNumber - 1,
       replayLog: Map<String, dynamic>.from(replayLog),
@@ -649,10 +648,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
         }
 
         if (result == RestartGameSessionResult.pending) {
-          // The response and the account snapshot could not establish whether
-          // the transaction committed. Keep the replacement board frozen;
-          // the next Home/bootstrap refresh will select the matching A/B slot
-          // from the server's active-session ID.
+          // The local restart result could not be confirmed. Keep the replacement board
+          // frozen; the next Home startup will recover the matching local A/B slot.
           newEngine.stopGameTimer();
           _stopUiRefreshTimer();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -702,8 +699,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
       );
       if (!mounted) return;
       if (restartResult == RestartGameSessionResult.pending) {
-        // Do not abandon or rewrite either board while the server result is
-        // unknown. Home bootstrap will select the slot matching server state.
+        // Do not abandon or rewrite either board while the local save result is
+        // unknown. Home startup will select the most recent committed local slot.
         _engine.pauseGameTimer();
         _stopUiRefreshTimer();
         _allowSystemPop = true;
@@ -912,8 +909,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
     final progress = PlayerProgressService.instance;
     final completedChapter = _engine.chapter;
 
-    // The completion page is a local UI result. Server verification continues
-    // in the background and only gates the Next Chapter action.
+    // The completion page is a local UI result. Local chapter settlement runs
+    // in the background and gates the Next Chapter action.
     final saveData = _engine.createSaveData();
     final replayLog = saveData['replayLog'];
     final completionReplay = replayLog is Map
@@ -977,8 +974,8 @@ class _Evolution2048PageState extends State<Evolution2048Page>
                 return;
               }
 
-              // The server has now settled the completed session and any
-              // tool deductions/rewards. Drop the old session overlay before
+              // The local wallet and chapter progress have now settled the completed game
+              // and its rewards. Drop the old session overlay before
               // leaving the completion page.
               ToolManager.clearSessionUsage();
 
