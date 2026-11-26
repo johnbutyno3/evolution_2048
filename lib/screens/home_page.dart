@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     // Do not open a chargeable game session using an unverified placeholder
-    // Life balance after a failed backend read.
+    // Free-game allowance after a failed local-storage read.
     if (!LifeManager.hasAuthoritativeState) return;
     if (!_progress.isChapterUnlocked(index)) return;
     _enterInProgress = true;
@@ -167,10 +167,9 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-    // The server can still own an active session even when its local board
-    // snapshot is missing/stale. Never let Home open a different chapter in
-    // that state; Evolution2048Page would otherwise reject the entry only
-    // after navigation and leave the user on a dead game screen.
+    // A local gameId can remain active even when its board snapshot is missing.
+    // Never open a different chapter in that state; the game screen would
+    // otherwise reject entry after navigation.
     final activeChapter = _progress.activeGameChapterIndex;
       if (_progress.activeGameSessionId != null &&
           activeChapter != null &&
@@ -193,8 +192,8 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    // Home must appear immediately after the game closes. Authoritative
-    // progress, Life, and tools are reconciled in the background.
+    // Home appears immediately after the game closes. Local progress,
+    // free-game allowance, and tool inventory are refreshed in the background.
     unawaited(_progress.refresh().catchError((_) => null));
     unawaited(LifeManager.initializeLocal().catchError((_) => null));
     unawaited(ToolManager.refreshInventory().catchError((_) => null));
@@ -357,9 +356,9 @@ class _HomePageState extends State<HomePage> {
                                   ),
                               itemCount: HomePage.chapters.length,
                               itemBuilder: (context, index) {
-                                final serverOpen = _progress.isChapterUnlocked(index);
+                                final chapterOpen = _progress.isChapterUnlocked(index);
                                 final unfinishedChapter = SaveManager.unfinishedChapter;
-                                final open = serverOpen &&
+                                final open = chapterOpen &&
                                     (unfinishedChapter == null ||
                                         unfinishedChapter == _chapterKey(index));
 
@@ -375,7 +374,7 @@ class _HomePageState extends State<HomePage> {
                                   onTap: open
                                       ? () => _enter(context, index)
                                       : null,
-                                  hasUnfinishedOtherChapter: serverOpen &&
+                                  hasUnfinishedOtherChapter: chapterOpen &&
                                       unfinishedChapter != null &&
                                       unfinishedChapter != _chapterKey(index),
                                 );
