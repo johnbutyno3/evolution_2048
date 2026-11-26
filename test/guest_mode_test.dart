@@ -132,4 +132,69 @@ void main() {
   });
 
 
+
+  test('restarting creates a new gameId and consumes one additional free game', () async {
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+    final tiles = <dynamic>[2, 4, ...List<dynamic>.filled(14, null)];
+    expect(
+      await progress.startGameSession(
+        0,
+        initialTiles: tiles,
+        initialSave: <String, dynamic>{
+          'chapter': 'ocean',
+          'tiles': tiles,
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      ),
+      isTrue,
+    );
+    final firstGameId = progress.activeGameSessionId;
+    expect(LifeManager.lifeCount, 4);
+
+    final result = await progress.restartGameSession(
+      0,
+      initialTiles: tiles,
+      replacementSave: <String, dynamic>{
+        'chapter': 'ocean',
+        'tiles': tiles,
+        'gameOver': false,
+        'chapterComplete': false,
+      },
+    );
+    expect(result, RestartGameSessionResult.committed);
+    expect(progress.activeGameSessionId, isNot(firstGameId));
+    expect(LifeManager.lifeCount, 3);
+
+    expect(await progress.resumeGameSession(0), isTrue);
+    expect(LifeManager.lifeCount, 3,
+        reason: 'resuming the replacement gameId must not consume another start');
+  });
+
+  test('verified permanent purchase unlocks all chapters and unlimited new games', () async {
+    await LifeManager.applyVerifiedPermanentUnlock();
+    final progress = PlayerProgressService.instance;
+    await progress.refresh();
+
+    expect(progress.isChapterUnlocked(5), isTrue);
+    expect(LifeManager.lifeCount, -1);
+    final tiles = <dynamic>[2, 4, ...List<dynamic>.filled(14, null)];
+    expect(
+      await progress.startGameSession(
+        5,
+        initialTiles: tiles,
+        initialSave: <String, dynamic>{
+          'chapter': 'universe',
+          'tiles': tiles,
+          'gameOver': false,
+          'chapterComplete': false,
+        },
+      ),
+      isTrue,
+    );
+    expect(LifeManager.lifeCount, -1);
+  });
+
+
 }
