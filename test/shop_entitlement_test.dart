@@ -139,4 +139,45 @@ void main() {
     expect(sky.getTool(GameToolType.duplicate), isNull);
     expect(history.getTool(GameToolType.duplicate), isNotNull);
   });
+
+  test('concurrent Gold rewards and game settlement cannot double-credit', () async {
+    final duplicateRewards = await Future.wait<bool>([
+      GoldManager.awardOnce(rewardId: 'concurrent:once', amount: 75),
+      GoldManager.awardOnce(rewardId: 'concurrent:once', amount: 75),
+    ]);
+    expect(duplicateRewards.where((value) => value).length, 1);
+    expect(GoldManager.balance, 75);
+
+    final distinctRewards = await Future.wait<bool>([
+      GoldManager.awardOnce(rewardId: 'concurrent:a', amount: 25),
+      GoldManager.awardOnce(rewardId: 'concurrent:b', amount: 30),
+    ]);
+    expect(distinctRewards, everyElement(isTrue));
+    expect(GoldManager.balance, 130);
+
+    final duplicateSettlements = await Future.wait<int>([
+      GoldManager.settleGame(
+        gameId: 'concurrent-game',
+        effectiveScore: 2000,
+        newSpeciesCount: 2,
+        highestValue: 4096,
+      ),
+      GoldManager.settleGame(
+        gameId: 'concurrent-game',
+        effectiveScore: 2000,
+        newSpeciesCount: 2,
+        highestValue: 4096,
+      ),
+    ]);
+    expect(duplicateSettlements.reduce((a, b) => a + b), 14);
+    expect(GoldManager.balance, 144);
+    expect(GoldManager.cumulativeScore, 2000);
+
+    await GoldManager.flushLocalChanges();
+    await GoldManager.initializeLocal();
+    expect(GoldManager.balance, 144);
+    expect(GoldManager.settledGameIds, contains('concurrent-game'));
+  });
+
+
 }
