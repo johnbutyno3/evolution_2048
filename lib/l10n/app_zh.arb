@@ -211,7 +211,7 @@
   "noEmptyPosition": "目前沒有空格可放置。",
   "nextChapterStartFailed": "無法開始下一章，請確認剩餘免費局數及買斷資格。",
   "nextChapterStartRetry": "無法開始下一章，請再試一次。",
-  "chapterVerifyPending": "章節驗證目前尚未完成，請稍後再試。",
+  "chapterVerifyPending": "章節進度尚未成功儲存，請再試一次。",
   "nextChapter": "下一章",
   "home": "首頁",
   "cancelTool": "取消",
