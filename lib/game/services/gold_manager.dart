@@ -111,6 +111,7 @@ class GoldManager {
     // simultaneous rewards/purchases cannot both calculate from a stale
     // balance or overwrite each other's idempotency keys.
     final encoded = jsonEncode(next);
+    final previous = _state;
     _state = next;
     final operation = _pendingWrite.then<void>(
       (_) async {
@@ -123,7 +124,13 @@ class GoldManager {
       },
     );
     _pendingWrite = operation;
-    return operation;
+    return operation.catchError((Object error, StackTrace stackTrace) {
+      // If no later mutation has superseded this state, roll back the in-memory
+      // reservation too. A subsequent queued mutation will instead persist its
+      // newer complete snapshot through the onError branch above.
+      if (identical(_state, next)) _state = previous;
+      Error.throwWithStackTrace(error, stackTrace);
+    });
   }
 
   static Future<void> flushLocalChanges() => _pendingWrite;
@@ -297,10 +304,11 @@ class GoldManager {
     final current = inventory[toolCode] ?? 0;
     if (current <= 0) return false;
     inventory[toolCode] = current - 1;
+    final previous = _state;
     final next = _copyState()..['toolInventory'] = inventory;
     _state = next;
     final encoded = jsonEncode(next);
-    _pendingWrite = _pendingWrite.then<void>(
+    final operation = _pendingWrite.then<void>(
       (_) async {
         final saved = await _preferences!.setString(_walletKey, encoded);
         if (!saved) throw StateError('Could not persist tool consumption.');
@@ -310,7 +318,10 @@ class GoldManager {
         if (!saved) throw StateError('Could not persist tool consumption.');
       },
     );
-    unawaited(_pendingWrite.catchError((_) {}));
+    _pendingWrite = operation;
+    unawaited(operation.catchError((_) {
+      if (identical(_state, next)) _state = previous;
+    }));
     return true;
   }
 
