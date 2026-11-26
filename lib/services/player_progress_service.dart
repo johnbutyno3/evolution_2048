@@ -348,7 +348,9 @@ class PlayerProgressService {
       score: score,
     );
     await GoldManager.awardChapterCompletion(chapterIndex);
-    if (SaveManager.localChapterProgress.length >= 6) {
+    final completedChapters = SaveManager.localChapterProgress.keys.toSet();
+    if (List<String>.generate(6, (index) => 'C${index + 1}')
+        .every(completedChapters.contains)) {
       await GoldManager.awardAllChaptersCompletion();
     }
 
