@@ -199,7 +199,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authChooseMethod => '選擇登入方式';
 
   @override
-  String get authGoogle => '使用 Google 登入';
+  String get authGoogle => 'Google Play 帳戶（僅用於購買）';
 
   @override
   String get authApple => '使用 Apple 登入';
@@ -274,7 +274,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get testControls => '測試控制';
 
   @override
-  String get testControlsSubtitle => '會員模式與金幣測試控制';
+  String get testControlsSubtitle => '單機金幣與道具測試控制';
 
   @override
   String get aboutGame => '關於遊戲';
@@ -319,10 +319,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get notAvailable => '無法取得';
 
   @override
-  String get goldenMember => 'Golden 會員';
+  String get goldenMember => '舊方案';
 
   @override
-  String get premiumMember => 'Premium 會員';
+  String get premiumMember => '舊方案';
 
   @override
   String get generalMember => '一般會員';
@@ -455,7 +455,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerId => '玩家 ID';
 
   @override
-  String get membership => '會員資格';
+  String get membership => '購買資格';
 
   @override
   String get evolutionProgress => '進化進度';
@@ -469,10 +469,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileSetupFailed => '建立玩家資料失敗，請再試一次。';
 
   @override
-  String get shopMembership => '會員方案';
+  String get shopMembership => '永久買斷';
 
   @override
-  String get shopMembershipSubtitle => 'Premium 與 Golden 會員方案';
+  String get shopMembershipSubtitle => '永久買斷遊戲';
 
   @override
   String get shopGold => '金幣';
@@ -532,16 +532,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get invalidToolQuantity => '道具購買數量無效。';
 
   @override
-  String get signInBeforePurchase => '請先登入再購買道具。';
+  String get signInBeforePurchase => '購買道具不需要遊戲帳號登入。';
 
   @override
   String get insufficientGold => '金幣不足，無法完成購買。';
 
   @override
-  String get freeSingleToolOnly => '一般會員每次只能購買 1 個道具。';
+  String get freeSingleToolOnly => '道具可選擇購買 1、5、20 或 50 個。';
 
   @override
-  String get goldenUndoUnlimited => 'Golden 會員擁有無限次 UNDO。';
+  String get goldenUndoUnlimited => 'UNDO 使用已購買的道具庫存。';
 
   @override
   String get accountRestricted => '帳號目前受到限制，仍可聯絡客服。';
@@ -676,7 +676,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminShopParameters => '商城參數';
 
   @override
-  String get adminShopSubtitle => '金幣、道具與會員設定';
+  String get adminShopSubtitle => '金幣與道具設定';
 
   @override
   String get adminQAManagement => '常見問題管理';
@@ -715,7 +715,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get goldPackagesUsd => '金幣方案（美元）';
 
   @override
-  String get permanentMembershipUsd => '永久會員方案（美元）';
+  String get permanentMembershipUsd => '永久買斷價格（美元）';
 
   @override
   String get evolutionToolsGold => '進化道具（金幣）';
@@ -727,7 +727,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get saveParameters => '儲存參數';
 
   @override
-  String get qaMigrationPending => '常見問題管理功能將於後續版本遷移至 Supabase。';
+  String get qaMigrationPending => '此單機版本的常見問題內容儲存在本機。';
 
   @override
   String get unableLoadMessages => '無法載入玩家訊息，請確認網路後重試。';
@@ -847,10 +847,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminGold10000Usd => '10,000 金幣（美元）';
 
   @override
-  String get adminPremiumUsd => 'Premium 會員價格（美元）';
+  String get adminPremiumUsd => '舊 Premium 方案價格（美元）';
 
   @override
-  String get adminGoldenUsd => 'Golden 會員價格（美元）';
+  String get adminGoldenUsd => '舊 Golden 方案價格（美元）';
 
   @override
   String get adminGoldenUpgradeUsd => 'Premium 升級 Golden 價格（美元）';
