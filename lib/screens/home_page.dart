@@ -196,7 +196,7 @@ class _HomePageState extends State<HomePage> {
     // Home must appear immediately after the game closes. Authoritative
     // progress, Life, and tools are reconciled in the background.
     unawaited(_progress.refresh().catchError((_) => null));
-    unawaited(LifeManager.refreshFromServer().catchError((_) => null));
+    unawaited(LifeManager.initializeLocal().catchError((_) => null));
     unawaited(ToolManager.refreshInventory().catchError((_) => null));
     if (mounted) setState(() {});
     } finally {
